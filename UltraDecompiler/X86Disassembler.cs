@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace UltraDecompiler;
 
@@ -25,6 +26,7 @@ public class X86Disassembler
             int instrStart = _pos;
             var instr = DecodeOneInstruction();
             instr.Offset = instrStart;
+            instr.Bytes = _image[instrStart.._pos].ToArray();
             result.Add(instr);
 
             if (instr.Mnemonic is "RET" or "RETF" or "IRET")
@@ -360,9 +362,14 @@ public class X86Disassembler
     public class Instruction
     {
         public int Offset { get; set; }
+        public byte[] Bytes { get; set; } = Array.Empty<byte>();
         public string Mnemonic { get; set; } = "";
         public string Operands { get; set; } = "";
 
-        public override string ToString() => $"0x{Offset:X6}: {Mnemonic,-7} {Operands}";
+        public override string ToString()
+        {
+            string bytesStr = string.Join(" ", Bytes.Select(b => $"{b:X2}"));
+            return $"0x{Offset:X6}: {bytesStr,-20} {Mnemonic,-7} {Operands}";
+        }
     }
 }
