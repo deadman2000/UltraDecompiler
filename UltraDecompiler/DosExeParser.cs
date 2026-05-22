@@ -46,7 +46,7 @@ public class DosExeParser
         EntryPointOffset = (uint)(DosHeader.InitCS * 16 + DosHeader.InitIP);
 
         // 6. Вычисляем базу сегмента данных (InitDS * 16)
-        DataSegmentBase = (int)(DosHeader.InitDS * 16);
+        //DataSegmentBase = (int)(DosHeader.InitDS * 16);
 
         // 7. Применяем релокации (очень важно для декомпилятора!)
         ApplyRelocations();
