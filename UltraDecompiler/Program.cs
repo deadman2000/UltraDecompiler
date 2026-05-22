@@ -24,10 +24,9 @@ try
         Console.WriteLine(instr.ToColoredString());
     }
 
-    // === Шаг 1: Control Flow Graph ===
-    Console.WriteLine("\n=== Control Flow Graph ===");
+    /*Console.WriteLine("\n=== Control Flow Graph ===");
     var cfg = ControlFlowGraph.Build(instructions);
-    cfg.Print();
+    cfg.Print();*/
 }
 catch (Exception ex)
 {

@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
 namespace UltraDecompiler;
 
 /// <summary>
@@ -10,6 +6,7 @@ namespace UltraDecompiler;
 public class ControlFlowGraph
 {
     public List<BasicBlock> Blocks { get; private set; } = new();
+
     public BasicBlock EntryBlock { get; private set; }
 
     /// <summary>

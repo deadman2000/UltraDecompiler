@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
 namespace UltraDecompiler;
 
 public class X86Disassembler
@@ -206,12 +202,12 @@ public class X86Disassembler
                 {
                     byte next = ReadByte();
                     if (next == 0xAF) return DecodeImulTwoOperand();
-                    return new Instruction { Mnemonic = $"DB 0F {next:X2}", Operands = "; unknown" };
+                    return new Instruction { Mnemonic = $"DB 0F {next:X2}", Operands = Instruction.UnknownOperand };
                 }
                 return DecodeImulTwoOperand();
 
             default:
-                return new Instruction { Mnemonic = $"DB 0x{opcode:X2}", Operands = "; unknown" };
+                return new Instruction { Mnemonic = $"DB 0x{opcode:X2}", Operands = Instruction.UnknownOperand };
         }
     }
 
@@ -567,36 +563,4 @@ public class X86Disassembler
 
     private byte ReadByte() => _image[_pos++];
     private ushort ReadUInt16() => (ushort)(_image[_pos++] | (_image[_pos++] << 8));
-
-    public class Instruction
-    {
-        public int Offset { get; set; }
-        public byte[] Bytes { get; set; } = Array.Empty<byte>();
-        public string Mnemonic { get; set; } = "";
-        public string Operands { get; set; } = "";
-
-        public override string ToString()
-        {
-            string bytesStr = string.Join(" ", Bytes.Select(b => $"{b:X2}"));
-            return $"0x{Offset:X6}: {bytesStr,-20} {Mnemonic,-7} {Operands}";
-        }
-
-        public string ToColoredString()
-        {
-            string bytesStr = string.Join(" ", Bytes.Select(b => $"{b:X2}"));
-
-            const string RESET = "\u001b[0m";
-            const string GRAY = "\u001b[90m";
-            const string YELLOW = "\u001b[93m";
-            const string GREEN = "\u001b[92m";
-
-            string coloredMnemonic = YELLOW + Mnemonic + RESET;
-            string coloredOperands = Operands;
-
-            if (Operands.Contains("ES") || Operands.Contains("CS") || Operands.Contains("SS") || Operands.Contains("DS"))
-                coloredOperands = GREEN + Operands + RESET;
-
-            return $"{GRAY}0x{Offset:X6}:{RESET} {GRAY}{bytesStr,-20}{RESET} {coloredMnemonic} {coloredOperands}";
-        }
-    }
 }
