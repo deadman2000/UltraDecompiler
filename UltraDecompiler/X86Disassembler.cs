@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
 namespace UltraDecompiler;
 
 public class X86Disassembler
@@ -45,10 +41,7 @@ public class X86Disassembler
             case 0x2E: _segmentOverride = 0x2E; return DecodeOneInstruction();
             case 0x36: _segmentOverride = 0x36; return DecodeOneInstruction();
             case 0x3E: _segmentOverride = 0x3E; return DecodeOneInstruction();
-        }
 
-        switch (opcode)
-        {
             case 0x00: case 0x01: case 0x02: case 0x03:
             case 0x08: case 0x09: case 0x0A: case 0x0B:
             case 0x20: case 0x21: case 0x22: case 0x23:
@@ -369,7 +362,7 @@ public class X86Disassembler
         public override string ToString()
         {
             string bytesStr = string.Join(" ", Bytes.Select(b => $"{b:X2}"));
-            return $"0x{Offset:X6}: {bytesStr,-20} {Mnemonic,-7} {Operands}";
+            return $"0x{Offset:X6}: {bytesStr,-12} {Mnemonic,-7} {Operands}";
         }
     }
 }

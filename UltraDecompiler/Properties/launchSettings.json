@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "UltraDecompiler": {
+      "commandName": "Project",
+      "commandLineArgs": "D:\\Projects\\TranslateWeb\\Neuromancer\\Neuromancer_re\\NEURO.EXE"
+    }
+  }
+}
