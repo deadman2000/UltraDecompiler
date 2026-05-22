@@ -17,12 +17,17 @@ try
     Console.WriteLine("\n=== Disassembly from entry point ===");
 
     var disassembler = new X86Disassembler(parser.Image);
-    var instructions = disassembler.Disassemble((int)parser.EntryPointOffset, maxInstructions: 80);
+    var instructions = disassembler.Disassemble((int)parser.EntryPointOffset, maxInstructions: 120);
 
     foreach (var instr in instructions)
     {
         Console.WriteLine(instr.ToColoredString());
     }
+
+    // === Шаг 1: Control Flow Graph ===
+    Console.WriteLine("\n=== Control Flow Graph ===");
+    var cfg = ControlFlowGraph.Build(instructions);
+    cfg.Print();
 }
 catch (Exception ex)
 {
