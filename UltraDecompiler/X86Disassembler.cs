@@ -66,6 +66,9 @@ public class X86Disassembler
             case 0x80: case 0x81: case 0x82: case 0x83:
                 return DecodeGroup80(opcode);
 
+            case 0xF6: case 0xF7:
+                return DecodeGroupF6(opcode);
+
             case 0x88: case 0x89: case 0x8A: case 0x8B:
                 return DecodeMovRegMem(opcode);
 
@@ -94,9 +97,9 @@ public class X86Disassembler
             case 0x74: case 0x75: case 0x76: case 0x77:
             case 0x78: case 0x79: case 0x7A: case 0x7B:
             case 0x7C: case 0x7D: case 0x7E: case 0x7F:
+            case 0xEB:
                 return DecodeShortJump(opcode);
 
-            case 0xEB: return DecodeShortJump(0xEB);
             case 0xE9: return DecodeNearJump();
 
             case 0xE8:
@@ -152,6 +155,25 @@ public class X86Disassembler
             case 0xE0: case 0xE1: case 0xE2:
                 return DecodeLoop(opcode);
 
+            case 0x27: return new Instruction { Mnemonic = "DAA" };
+            case 0x2F: return new Instruction { Mnemonic = "DAS" };
+            case 0x37: return new Instruction { Mnemonic = "AAA" };
+            case 0x3F: return new Instruction { Mnemonic = "AAS" };
+
+            case 0x9C: return new Instruction { Mnemonic = "PUSHF" };
+            case 0x9D: return new Instruction { Mnemonic = "POPF" };
+            case 0x9E: return new Instruction { Mnemonic = "SAHF" };
+            case 0x9F: return new Instruction { Mnemonic = "LAHF" };
+
+            case 0xFA: return new Instruction { Mnemonic = "CLI" };
+            case 0xFB: return new Instruction { Mnemonic = "STI" };
+            case 0xFC: return new Instruction { Mnemonic = "CLD" };
+            case 0xFD: return new Instruction { Mnemonic = "STD" };
+
+            case 0xD7: return new Instruction { Mnemonic = "XLAT" };
+
+            case 0xF4: return new Instruction { Mnemonic = "HLT" };
+
             default:
                 return new Instruction { Mnemonic = $"DB 0x{opcode:X2}", Operands = "; unknown" };
         }
@@ -199,6 +221,31 @@ public class X86Disassembler
         ushort imm = signExtend ? (ushort)(sbyte)ReadByte() : (word ? ReadUInt16() : ReadByte());
 
         return new Instruction { Mnemonic = op, Operands = $"{dst}, 0x{imm:X4}" };
+    }
+
+    private Instruction DecodeGroupF6(byte opcode)
+    {
+        byte modrm = ReadByte();
+        int mod = (modrm >> 6) & 3;
+        int regField = (modrm >> 3) & 7;
+        bool word = (opcode & 1) == 1;
+
+        string dst = (mod == 3) ? GetReg8or16Name(modrm & 7, word) : GetMemoryOperand(modrm & 7, mod);
+
+        string op = regField switch
+        {
+            0 => "TEST", 2 => "NOT", 3 => "NEG",
+            4 => "MUL", 5 => "IMUL", 6 => "DIV", 7 => "IDIV",
+            _ => "F6/F7"
+        };
+
+        if (regField == 0)
+        {
+            ushort imm = word ? ReadUInt16() : ReadByte();
+            return new Instruction { Mnemonic = "TEST", Operands = $"{dst}, 0x{imm:X4}" };
+        }
+
+        return new Instruction { Mnemonic = op, Operands = dst };
     }
 
     private Instruction DecodeMovRegMem(byte opcode)
