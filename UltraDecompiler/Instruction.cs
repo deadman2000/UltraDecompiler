@@ -8,14 +8,11 @@ public class Instruction
     public byte[] Bytes { get; set; } = Array.Empty<byte>();
     public string Mnemonic { get; set; } = "";
 
-    // Старое строковое представление (для вывода)
     public string Operands { get; set; } = "";
-
-    // Новое числовое представление (без парсинга строк)
     public Operand[] OperandsInfo { get; set; } = Array.Empty<Operand>();
 
     /// <summary>
-    /// Возвращает целевой адрес перехода (если есть)
+    /// Возвращает целевой адрес прямого перехода
     /// </summary>
     public int GetJumpTarget()
     {
@@ -24,6 +21,30 @@ public class Instruction
             if (op.Type is OperandType.Relative8 or OperandType.Relative16)
                 return op.Value;
         }
+        return -1;
+    }
+
+    /// <summary>
+    /// Вычисляет эффективный адрес перехода (для косвенных вызовов FF /2 и FF /4)
+    /// </summary>
+    public int GetEffectiveJumpTarget(byte[] image)
+    {
+        // Прямой переход
+        int direct = GetJumpTarget();
+        if (direct != -1)
+            return direct;
+
+        // Косвенный переход (CALL/JMP через память)
+        if ((Mnemonic == "CALL" || Mnemonic == "JMP") && OperandsInfo.Length > 0)
+        {
+            var op = OperandsInfo[0];
+            if (op.Type == OperandType.Memory && op.Value >= 0 && op.Value + 2 <= image.Length)
+            {
+                ushort target = (ushort)(image[op.Value] | (image[op.Value + 1] << 8));
+                return target;
+            }
+        }
+
         return -1;
     }
 
