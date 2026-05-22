@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace UltraDecompiler;
+namespace UltraDecompiler.Disassembler;
 
 /// <summary>
 /// Автоматически находит функции в дизассемблированном коде

@@ -1,4 +1,4 @@
-namespace UltraDecompiler;
+namespace UltraDecompiler.Disassembler;
 
 public enum OperandType : byte
 {

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace UltraDecompiler;
+namespace UltraDecompiler.Disassembler;
 
 /// <summary>
 /// Представляет одну функцию/процедуру в программе

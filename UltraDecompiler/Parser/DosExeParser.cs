@@ -1,7 +1,6 @@
 ﻿using System.Runtime.InteropServices;
-using UltraDecompiler.Header;
 
-namespace UltraDecompiler;
+namespace UltraDecompiler.Parser;
 
 public class DosExeParser
 {

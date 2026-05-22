@@ -1,4 +1,4 @@
-namespace UltraDecompiler;
+namespace UltraDecompiler.Disassembler;
 
 public class Instruction
 {

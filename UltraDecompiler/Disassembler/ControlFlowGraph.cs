@@ -1,4 +1,4 @@
-namespace UltraDecompiler;
+namespace UltraDecompiler.Disassembler;
 
 /// <summary>
 /// Граф потока управления (Control Flow Graph)

@@ -1,4 +1,4 @@
-namespace UltraDecompiler;
+namespace UltraDecompiler.Disassembler;
 
 public class X86Disassembler
 {
@@ -97,12 +97,6 @@ public class X86Disassembler
         }
 
         return -1;
-    }
-
-    private bool TryGetJumpTarget(Instruction instr, out int target)
-    {
-        target = GetEffectiveJumpTarget(instr);
-        return target != -1;
     }
 
     private Instruction DecodeOneInstruction()

@@ -1,4 +1,4 @@
-namespace UltraDecompiler;
+namespace UltraDecompiler.Disassembler;
 
 /// <summary>
 /// Базовый блок — последовательность инструкций без переходов внутри

@@ -1,4 +1,5 @@
-using UltraDecompiler;
+using UltraDecompiler.Disassembler;
+using UltraDecompiler.Parser;
 
 if (args.Length == 0)
 {

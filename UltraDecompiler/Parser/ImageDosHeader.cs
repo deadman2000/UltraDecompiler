@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace UltraDecompiler.Header;
+namespace UltraDecompiler.Parser;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct ImageDosHeader
