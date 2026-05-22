@@ -79,12 +79,10 @@ public class X86Disassembler
 
     public int GetEffectiveJumpTarget(Instruction instr)
     {
-        // Прямой переход
         int direct = instr.GetJumpTarget();
         if (direct != -1)
             return direct;
 
-        // Косвенный переход (CALL/JMP через память)
         if ((instr.Mnemonic == "CALL" || instr.Mnemonic == "JMP") && instr.OperandsInfo.Length > 0)
         {
             var op = instr.OperandsInfo[0];
@@ -418,7 +416,59 @@ public class X86Disassembler
         int regField = (modrm >> 3) & 7;
         bool word = (opcode & 1) == 1;
 
-        string dst = (mod == 3) ? GetReg8or16Name(modrm & 7, word) : GetMemoryOperand(rm: modrm & 7, mod);
+        // Читаем смещение ПЕРЕД формированием строки
+        ushort disp = 0;
+        bool hasDisp = false;
+
+        if (mod != 3)
+        {
+            if (mod == 1)
+            {
+                disp = ReadByte();
+                hasDisp = true;
+            }
+            else if (mod == 2)
+            {
+                disp = ReadUInt16();
+                hasDisp = true;
+            }
+            else if (mod == 0 && (modrm & 7) == 6)
+            {
+                disp = ReadUInt16();
+                hasDisp = true;
+            }
+        }
+
+        string dst;
+        if (mod == 3)
+        {
+            dst = GetReg8or16Name(modrm & 7, word);
+        }
+        else if (hasDisp)
+        {
+            string seg = _segmentOverride switch
+            {
+                0x26 => "ES:", 0x2E => "CS:", 0x36 => "SS:", 0x3E => "DS:", _ => "DS:"
+            };
+
+            string baseReg = (modrm & 7) switch
+            {
+                0 => "BX+SI", 1 => "BX+DI", 2 => "BP+SI", 3 => "BP+DI",
+                4 => "SI",    5 => "DI",    6 => "BP",
+                7 => "BX", _ => "?"
+            };
+
+            if (mod == 0 && (modrm & 7) == 6)
+                dst = $"{seg}0x{disp:X4}";
+            else if (mod == 1)
+                dst = $"{seg}{baseReg}+{disp}";
+            else
+                dst = $"{seg}{baseReg}+0x{disp:X4}";
+        }
+        else
+        {
+            dst = GetMemoryOperand(modrm & 7, mod);
+        }
 
         if (opcode == 0xFE)
         {
@@ -426,23 +476,21 @@ public class X86Disassembler
             return new Instruction { Mnemonic = op8, Operands = dst };
         }
 
-        if (regField == 2)
+        if (regField == 2) // CALL r/m16
         {
             var instr = new Instruction { Mnemonic = "CALL", Operands = dst };
-            if (mod != 3)
+            if (hasDisp)
             {
-                ushort disp = (ushort)(ReadUInt16() - 2);
                 instr.OperandsInfo = new[] { new Operand(OperandType.Memory, disp) };
             }
             return instr;
         }
 
-        if (regField == 4)
+        if (regField == 4) // JMP r/m16
         {
             var instr = new Instruction { Mnemonic = "JMP", Operands = dst };
-            if (mod != 3)
+            if (hasDisp)
             {
-                ushort disp = (ushort)(ReadUInt16() - 2);
                 instr.OperandsInfo = new[] { new Operand(OperandType.Memory, disp) };
             }
             return instr;
