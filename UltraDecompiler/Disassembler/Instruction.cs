@@ -1,28 +1,39 @@
-using System.Net;
-
 namespace UltraDecompiler.Disassembler;
 
 public class Instruction
 {
     public const string UnknownOperand = "; unknown";
 
+    /// <summary>
+    /// Адрес инструкции
+    /// </summary>
     public int Offset { get; set; }
+
     public byte[] Bytes { get; set; } = Array.Empty<byte>();
 
     /// <summary>
-    /// Мнемоника инструкции (enum)
+    /// Мнемоника инструкции
     /// </summary>
     public Mnemonic Mnemonic { get; set; } = Mnemonic.DB;
 
     /// <summary>
-    /// Строковое представление мнемоники для вывода (вычисляемое)
+    /// Строковое представление мнемоники для вывода
     /// </summary>
     public string MnemonicString => GetMnemonicString();
 
+    /// <summary>
+    /// Строковое представление параметров
+    /// </summary>
     public string Operands { get; set; } = "";
 
+    /// <summary>
+    /// Параметры инструкции
+    /// </summary>
     public Operand[] OperandsInfo { get; set; } = Array.Empty<Operand>();
 
+    /// <summary>
+    /// Инструкция является переходом
+    /// </summary>
     public bool IsJump => Mnemonic is Mnemonic.JO
         or Mnemonic.JNO
         or Mnemonic.JNO
