@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 namespace UltraDecompiler;
 
 public class X86Disassembler
@@ -41,7 +45,10 @@ public class X86Disassembler
             case 0x2E: _segmentOverride = 0x2E; return DecodeOneInstruction();
             case 0x36: _segmentOverride = 0x36; return DecodeOneInstruction();
             case 0x3E: _segmentOverride = 0x3E; return DecodeOneInstruction();
+        }
 
+        switch (opcode)
+        {
             case 0x00: case 0x01: case 0x02: case 0x03:
             case 0x08: case 0x09: case 0x0A: case 0x0B:
             case 0x20: case 0x21: case 0x22: case 0x23:
@@ -318,18 +325,25 @@ public class X86Disassembler
     {
         string seg = _segmentOverride switch
         {
-            0x26 => "ES:", 0x2E => "CS:", 0x36 => "SS:", 0x3E => "DS:", _ => ""
+            0x26 => "ES:", 0x2E => "CS:", 0x36 => "SS:", 0x3E => "DS:", _ => "DS:"
         };
+
+        if (mod == 0 && rm == 6)
+        {
+            ushort disp = ReadUInt16();
+            return $"{seg}0x{disp:X4}";
+        }
 
         string baseReg = rm switch
         {
             0 => "BX+SI", 1 => "BX+DI", 2 => "BP+SI", 3 => "BP+DI",
-            4 => "SI", 5 => "DI", 6 => (mod == 0 ? "" : "BP"),
+            4 => "SI",    5 => "DI",    6 => "BP",
             7 => "BX", _ => "?"
         };
 
         if (mod == 1) return $"{seg}{baseReg}+{ReadByte()}";
         if (mod == 2) return $"{seg}{baseReg}+{ReadUInt16()}";
+
         return $"{seg}{baseReg}";
     }
 
@@ -362,7 +376,7 @@ public class X86Disassembler
         public override string ToString()
         {
             string bytesStr = string.Join(" ", Bytes.Select(b => $"{b:X2}"));
-            return $"0x{Offset:X6}: {bytesStr,-12} {Mnemonic,-7} {Operands}";
+            return $"0x{Offset:X6}: {bytesStr,-20} {Mnemonic,-7} {Operands}";
         }
     }
 }
