@@ -39,6 +39,14 @@ public class X86Disassembler
     {
         byte opcode = ReadByte();
 
+        // LOCK prefix
+        if (opcode == 0xF0)
+        {
+            var instr = DecodeOneInstruction();
+            instr.Mnemonic = "LOCK " + instr.Mnemonic;
+            return instr;
+        }
+
         switch (opcode)
         {
             case 0x26: _segmentOverride = 0x26; return DecodeOneInstruction();
@@ -172,6 +180,9 @@ public class X86Disassembler
             case 0x37: return new Instruction { Mnemonic = "AAA" };
             case 0x3F: return new Instruction { Mnemonic = "AAS" };
 
+            case 0xD4: return DecodeAam();
+            case 0xD5: return DecodeAad();
+
             case 0x9C: return new Instruction { Mnemonic = "PUSHF" };
             case 0x9D: return new Instruction { Mnemonic = "POPF" };
             case 0x9E: return new Instruction { Mnemonic = "SAHF" };
@@ -186,9 +197,69 @@ public class X86Disassembler
 
             case 0xF4: return new Instruction { Mnemonic = "HLT" };
 
+            // 80286 instructions
+            case 0xC8: return DecodeEnter();
+            case 0xC9: return new Instruction { Mnemonic = "LEAVE" };
+
+            // Two/three operand IMUL (80286+)
+            case 0x69: case 0x6B: case 0x0F:
+                if (opcode == 0x0F)
+                {
+                    byte next = ReadByte();
+                    if (next == 0xAF) return DecodeImulTwoOperand();
+                    // fallback
+                    return new Instruction { Mnemonic = $"DB 0F {next:X2}", Operands = "; unknown" };
+                }
+                return DecodeImulTwoOperand();
+
             default:
                 return new Instruction { Mnemonic = $"DB 0x{opcode:X2}", Operands = "; unknown" };
         }
+    }
+
+    private Instruction DecodeAam()
+    {
+        byte baseVal = ReadByte();
+        if (baseVal == 0x0A)
+            return new Instruction { Mnemonic = "AAM" };
+        return new Instruction { Mnemonic = $"AAM {baseVal}", Operands = "; non-standard" };
+    }
+
+    private Instruction DecodeAad()
+    {
+        byte baseVal = ReadByte();
+        if (baseVal == 0x0A)
+            return new Instruction { Mnemonic = "AAD" };
+        return new Instruction { Mnemonic = $"AAD {baseVal}", Operands = "; non-standard" };
+    }
+
+    private Instruction DecodeEnter()
+    {
+        ushort alloc = ReadUInt16();
+        byte level = ReadByte();
+        return new Instruction { Mnemonic = "ENTER", Operands = $"0x{alloc:X4}, {level}" };
+    }
+
+    private Instruction DecodeImulTwoOperand()
+    {
+        byte modrm = ReadByte();
+        int mod = (modrm >> 6) & 3;
+        int reg = (modrm >> 3) & 7;
+        int rm = modrm & 7;
+
+        string dst = GetReg16Name(reg);
+        string src = (mod == 3) ? GetReg16Name(rm) : GetMemoryOperand(rm, mod);
+
+        // For 0x6B (sign-extended imm8)
+        if (_pos > 0 && _image[_pos - 3] == 0x6B)
+        {
+            sbyte imm = (sbyte)ReadByte();
+            return new Instruction { Mnemonic = "IMUL", Operands = $"{dst}, {src}, {imm}" };
+        }
+
+        // For 0x69 (imm16)
+        ushort imm = ReadUInt16();
+        return new Instruction { Mnemonic = "IMUL", Operands = $"{dst}, {src}, 0x{imm:X4}" };
     }
 
     private Instruction DecodeModRmAlu(byte opcode)
