@@ -72,6 +72,9 @@ public class X86Disassembler
             case 0x88: case 0x89: case 0x8A: case 0x8B:
                 return DecodeMovRegMem(opcode);
 
+            case 0x8C: case 0x8E:
+                return DecodeMovSreg(opcode);
+
             case 0xB0: case 0xB1: case 0xB2: case 0xB3:
             case 0xB4: case 0xB5: case 0xB6: case 0xB7:
             case 0xB8: case 0xB9: case 0xBA: case 0xBB:
@@ -271,6 +274,27 @@ public class X86Disassembler
         string reg = GetReg8or16Name(opcode - (word ? 0xB8 : 0xB0), word);
         ushort imm = word ? ReadUInt16() : ReadByte();
         return new Instruction { Mnemonic = "MOV", Operands = $"{reg}, 0x{imm:X4}" };
+    }
+
+    private Instruction DecodeMovSreg(byte opcode)
+    {
+        byte modrm = ReadByte();
+        int mod = (modrm >> 6) & 3;
+        int sreg = (modrm >> 3) & 7;   // 0=ES, 1=CS, 2=SS, 3=DS
+        int rm = modrm & 7;
+
+        string sregName = sreg switch
+        {
+            0 => "ES", 1 => "CS", 2 => "SS", 3 => "DS",
+            _ => "?SREG"
+        };
+
+        string src = (mod == 3) ? GetReg16Name(rm) : GetMemoryOperand(rm, mod);
+
+        if (opcode == 0x8C)
+            return new Instruction { Mnemonic = "MOV", Operands = $"{src}, {sregName}" };
+        else
+            return new Instruction { Mnemonic = "MOV", Operands = $"{sregName}, {src}" };
     }
 
     private Instruction DecodeShortJump(byte opcode)
