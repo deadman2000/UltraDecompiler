@@ -53,24 +53,21 @@ public class X86Disassembler
             var instr = DecodeOneInstruction();
             instr.Offset = instrStart;
             instr.Bytes = _image[instrStart.._pos].ToArray();
-            instr.SegmentOverride = _segmentOverride;
+            instr.Segment = _segmentOverride;
             Instructions.Add(instr);
             _segmentOverride = Segment.None;
 
-            string mnem = instr.MnemonicString.ToUpper();
-
-            if (mnem is "RET" or "RETF" or "IRET")
+            if (instr.Mnemonic is Mnemonic.RET or Mnemonic.RETF or Mnemonic.IRET)
                 break;
 
-            if (mnem == "JMP")
+            if (instr.Mnemonic == Mnemonic.JMP)
             {
                 int target = GetEffectiveJumpTarget(instr);
                 if (target != -1)
                     queue.Enqueue(target);
                 break;
             }
-
-            if (mnem.StartsWith("J") || mnem == "CALL")
+            else if (instr.IsJump || instr.Mnemonic == Mnemonic.CALL)
             {
                 int target = GetEffectiveJumpTarget(instr);
                 if (target != -1)
@@ -105,69 +102,147 @@ public class X86Disassembler
     {
         byte opcode = ReadByte();
 
-        if (opcode == 0xF0)
-        {
-            var instr = DecodeOneInstruction();
-            instr.Mnemonic = Mnemonic.LOCK;
-            return instr;
-        }
-
         switch (opcode)
         {
+            // Префиксы
+            case 0xF0:
+                {
+                    var instr = DecodeOneInstruction();
+                    instr.Prefix |= InstructionPrefix.LOCK;
+                    return instr;
+                }
+
+            case 0xF2:
+                {
+                    var instr = DecodeOneInstruction();
+                    instr.Prefix |= InstructionPrefix.REPNZ;
+                    return instr;
+                }
+            case 0xF3:
+                {
+                    var instr = DecodeOneInstruction();
+                    instr.Prefix |= InstructionPrefix.REPZ;
+                    return instr;
+                }
+
             case 0x26: _segmentOverride = Segment.ES; return DecodeOneInstruction();
             case 0x2E: _segmentOverride = Segment.CS; return DecodeOneInstruction();
             case 0x36: _segmentOverride = Segment.SS; return DecodeOneInstruction();
             case 0x3E: _segmentOverride = Segment.DS; return DecodeOneInstruction();
-        }
 
-        switch (opcode)
-        {
-            case 0x00: case 0x01: case 0x02: case 0x03:
-            case 0x08: case 0x09: case 0x0A: case 0x0B:
-            case 0x20: case 0x21: case 0x22: case 0x23:
-            case 0x28: case 0x29: case 0x2A: case 0x2B:
-            case 0x30: case 0x31: case 0x32: case 0x33:
-            case 0x38: case 0x39: case 0x3A: case 0x3B:
+            case 0x00:
+            case 0x01:
+            case 0x02:
+            case 0x03:
+            case 0x08:
+            case 0x09:
+            case 0x0A:
+            case 0x0B:
+            case 0x20:
+            case 0x21:
+            case 0x22:
+            case 0x23:
+            case 0x28:
+            case 0x29:
+            case 0x2A:
+            case 0x2B:
+            case 0x30:
+            case 0x31:
+            case 0x32:
+            case 0x33:
+            case 0x38:
+            case 0x39:
+            case 0x3A:
+            case 0x3B:
                 return DecodeModRmAlu(opcode);
 
-            case 0x04: case 0x05: case 0x0C: case 0x0D:
-            case 0x14: case 0x15: case 0x1C: case 0x1D:
-            case 0x24: case 0x25: case 0x2C: case 0x2D:
-            case 0x34: case 0x35: case 0x3C: case 0x3D:
+            case 0x04:
+            case 0x05:
+            case 0x0C:
+            case 0x0D:
+            case 0x14:
+            case 0x15:
+            case 0x1C:
+            case 0x1D:
+            case 0x24:
+            case 0x25:
+            case 0x2C:
+            case 0x2D:
+            case 0x34:
+            case 0x35:
+            case 0x3C:
+            case 0x3D:
                 return DecodeAluImmAx(opcode);
 
-            case 0x80: case 0x81: case 0x82: case 0x83:
+            case 0x80:
+            case 0x81:
+            case 0x82:
+            case 0x83:
                 return DecodeGroup80(opcode);
 
-            case 0xF6: case 0xF7:
+            case 0xF6:
+            case 0xF7:
                 return DecodeGroupF6(opcode);
 
-            case 0xFE: case 0xFF:
+            case 0xFE:
+            case 0xFF:
                 return DecodeGroupFEFF(opcode);
 
-            case 0x88: case 0x89: case 0x8A: case 0x8B:
+            case 0x88:
+            case 0x89:
+            case 0x8A:
+            case 0x8B:
                 return DecodeMovRegMem(opcode);
 
-            case 0x8C: case 0x8E:
+            case 0x8C:
+            case 0x8E:
                 return DecodeMovSreg(opcode);
 
-            case 0xA0: case 0xA1: case 0xA2: case 0xA3:
+            case 0xA0:
+            case 0xA1:
+            case 0xA2:
+            case 0xA3:
                 return DecodeMovAxMem(opcode);
 
-            case 0xB0: case 0xB1: case 0xB2: case 0xB3:
-            case 0xB4: case 0xB5: case 0xB6: case 0xB7:
-            case 0xB8: case 0xB9: case 0xBA: case 0xBB:
-            case 0xBC: case 0xBD: case 0xBE: case 0xBF:
+            case 0xB0:
+            case 0xB1:
+            case 0xB2:
+            case 0xB3:
+            case 0xB4:
+            case 0xB5:
+            case 0xB6:
+            case 0xB7:
+            case 0xB8:
+            case 0xB9:
+            case 0xBA:
+            case 0xBB:
+            case 0xBC:
+            case 0xBD:
+            case 0xBE:
+            case 0xBF:
                 return DecodeMovRegImm(opcode);
 
-            case 0xC6: case 0xC7:
+            case 0xC6:
+            case 0xC7:
                 return DecodeMovMemImm(opcode);
 
-            case 0x50: case 0x51: case 0x52: case 0x53:
-            case 0x54: case 0x55: case 0x56: case 0x57:
+            case 0x50:
+            case 0x51:
+            case 0x52:
+            case 0x53:
+            case 0x54:
+            case 0x55:
+            case 0x56:
+            case 0x57:
                 return new Instruction { Mnemonic = Mnemonic.PUSH, Operands = GetReg16Name(opcode - 0x50) };
-            case 0x58: case 0x59: case 0x5A: case 0x5B:
-            case 0x5C: case 0x5D: case 0x5E: case 0x5F:
+            case 0x58:
+            case 0x59:
+            case 0x5A:
+            case 0x5B:
+            case 0x5C:
+            case 0x5D:
+            case 0x5E:
+            case 0x5F:
                 return new Instruction { Mnemonic = Mnemonic.POP, Operands = GetReg16Name(opcode - 0x58) };
 
             case 0x06: return new Instruction { Mnemonic = Mnemonic.PUSH, Operands = "ES" };
@@ -178,10 +253,22 @@ public class X86Disassembler
             case 0x17: return new Instruction { Mnemonic = Mnemonic.POP, Operands = "SS" };
             case 0x1F: return new Instruction { Mnemonic = Mnemonic.POP, Operands = "DS" };
 
-            case 0x70: case 0x71: case 0x72: case 0x73:
-            case 0x74: case 0x75: case 0x76: case 0x77:
-            case 0x78: case 0x79: case 0x7A: case 0x7B:
-            case 0x7C: case 0x7D: case 0x7E: case 0x7F:
+            case 0x70:
+            case 0x71:
+            case 0x72:
+            case 0x73:
+            case 0x74:
+            case 0x75:
+            case 0x76:
+            case 0x77:
+            case 0x78:
+            case 0x79:
+            case 0x7A:
+            case 0x7B:
+            case 0x7C:
+            case 0x7D:
+            case 0x7E:
+            case 0x7F:
             case 0xEB:
             case 0xE3:
                 return DecodeShortJump(opcode);
@@ -190,8 +277,12 @@ public class X86Disassembler
 
             case 0xE8:
                 short rel = (short)ReadUInt16();
-                var callInstr = new Instruction { Mnemonic = Mnemonic.CALL, Operands = $"0x{(_pos + rel):X4}" };
-                callInstr.OperandsInfo = new[] { new Operand(OperandType.Relative16, _pos + rel) };
+                var callInstr = new Instruction
+                {
+                    Mnemonic = Mnemonic.CALL,
+                    Operands = $"0x{_pos + rel:X4}",
+                    OperandsInfo = [new Operand(OperandType.Relative16, _pos + rel)]
+                };
                 return callInstr;
 
             case 0xC3: return new Instruction { Mnemonic = Mnemonic.RET };
@@ -203,16 +294,35 @@ public class X86Disassembler
 
             case 0x90: return new Instruction { Mnemonic = Mnemonic.NOP };
 
-            case 0x86: case 0x87:
+            case 0x86:
+            case 0x87:
                 return DecodeXchg(opcode);
-            case 0x91: case 0x92: case 0x93: case 0x94: case 0x95: case 0x96: case 0x97:
+            case 0x91:
+            case 0x92:
+            case 0x93:
+            case 0x94:
+            case 0x95:
+            case 0x96:
+            case 0x97:
                 return new Instruction { Mnemonic = Mnemonic.XCHG, Operands = $"AX, {GetReg16Name(opcode - 0x90)}" };
 
-            case 0x40: case 0x41: case 0x42: case 0x43:
-            case 0x44: case 0x45: case 0x46: case 0x47:
+            case 0x40:
+            case 0x41:
+            case 0x42:
+            case 0x43:
+            case 0x44:
+            case 0x45:
+            case 0x46:
+            case 0x47:
                 return new Instruction { Mnemonic = Mnemonic.INC, Operands = GetReg16Name(opcode - 0x40) };
-            case 0x48: case 0x49: case 0x4A: case 0x4B:
-            case 0x4C: case 0x4D: case 0x4E: case 0x4F:
+            case 0x48:
+            case 0x49:
+            case 0x4A:
+            case 0x4B:
+            case 0x4C:
+            case 0x4D:
+            case 0x4E:
+            case 0x4F:
                 return new Instruction { Mnemonic = Mnemonic.DEC, Operands = GetReg16Name(opcode - 0x48) };
 
             case 0x8D: return DecodeLea();
@@ -231,16 +341,18 @@ public class X86Disassembler
             case 0xAE: return new Instruction { Mnemonic = Mnemonic.SCASB };
             case 0xAF: return new Instruction { Mnemonic = Mnemonic.SCASW };
 
-            case 0xF2: return new Instruction { Mnemonic = Mnemonic.REPNZ };
-            case 0xF3: return new Instruction { Mnemonic = Mnemonic.REPZ };
-
-            case 0xD0: case 0xD1: case 0xD2: case 0xD3:
+            case 0xD0:
+            case 0xD1:
+            case 0xD2:
+            case 0xD3:
                 return DecodeShift(opcode);
 
             case 0x98: return new Instruction { Mnemonic = Mnemonic.CBW };
             case 0x99: return new Instruction { Mnemonic = Mnemonic.CWD };
 
-            case 0xE0: case 0xE1: case 0xE2:
+            case 0xE0:
+            case 0xE1:
+            case 0xE2:
                 return DecodeLoop(opcode);
 
             case 0x27: return new Instruction { Mnemonic = Mnemonic.DAA };
@@ -270,13 +382,8 @@ public class X86Disassembler
             case 0xC8: return DecodeEnter();
             case 0xC9: return new Instruction { Mnemonic = Mnemonic.LEAVE };
 
-            case 0x69: case 0x6B: case 0x0F:
-                if (opcode == 0x0F)
-                {
-                    byte next = ReadByte();
-                    if (next == 0xAF) return DecodeImulTwoOperand();
-                    return new Instruction { Mnemonic = Mnemonic.DB, Operands = Instruction.UnknownOperand };
-                }
+            case 0x69:
+            case 0x6B:
                 return DecodeImulTwoOperand();
 
             default:
@@ -366,12 +473,19 @@ public class X86Disassembler
         int mod = (modrm >> 6) & 3;
         int regField = (modrm >> 3) & 7;
         bool word = (opcode & 1) == 1;
-        bool signExtend = (opcode == 0x83);
+        bool signExtend = opcode == 0x83;
 
         Mnemonic op = regField switch
         {
-            0 => Mnemonic.ADD, 1 => Mnemonic.OR, 2 => Mnemonic.ADC, 3 => Mnemonic.SBB,
-            4 => Mnemonic.AND, 5 => Mnemonic.SUB, 6 => Mnemonic.XOR, 7 => Mnemonic.CMP, _ => Mnemonic.DB
+            0 => Mnemonic.ADD,
+            1 => Mnemonic.OR,
+            2 => Mnemonic.ADC,
+            3 => Mnemonic.SBB,
+            4 => Mnemonic.AND,
+            5 => Mnemonic.SUB,
+            6 => Mnemonic.XOR,
+            7 => Mnemonic.CMP,
+            _ => Mnemonic.DB
         };
 
         string dst = (mod == 3) ? GetReg8or16Name(modrm & 7, word) : GetMemoryOperand(modrm & 7, mod);
@@ -391,8 +505,13 @@ public class X86Disassembler
 
         Mnemonic op = regField switch
         {
-            0 => Mnemonic.TEST, 2 => Mnemonic.NOT, 3 => Mnemonic.NEG,
-            4 => Mnemonic.MUL, 5 => Mnemonic.IMUL, 6 => Mnemonic.DIV, 7 => Mnemonic.IDIV,
+            0 => Mnemonic.TEST,
+            2 => Mnemonic.NOT,
+            3 => Mnemonic.NEG,
+            4 => Mnemonic.MUL,
+            5 => Mnemonic.IMUL,
+            6 => Mnemonic.DIV,
+            7 => Mnemonic.IDIV,
             _ => Mnemonic.DB
         };
 
@@ -433,9 +552,15 @@ public class X86Disassembler
 
             string baseReg = (modrm & 7) switch
             {
-                0 => "BX+SI", 1 => "BX+DI", 2 => "BP+SI", 3 => "BP+DI",
-                4 => "SI",    5 => "DI",    6 => "BP",
-                7 => "BX", _ => "?"
+                0 => "BX+SI",
+                1 => "BX+DI",
+                2 => "BP+SI",
+                3 => "BP+DI",
+                4 => "SI",
+                5 => "DI",
+                6 => "BP",
+                7 => "BX",
+                _ => "?"
             };
 
             if (mod == 0 && (modrm & 7) == 6)
@@ -459,21 +584,27 @@ public class X86Disassembler
         if (regField == 2)
         {
             var instr = new Instruction { Mnemonic = Mnemonic.CALL, Operands = dst };
-            if (hasDisp) instr.OperandsInfo = new[] { new Operand(OperandType.Memory, disp) };
+            if (hasDisp) instr.OperandsInfo = [new Operand(OperandType.Memory, disp)];
             return instr;
         }
 
         if (regField == 4)
         {
             var instr = new Instruction { Mnemonic = Mnemonic.JMP, Operands = dst };
-            if (hasDisp) instr.OperandsInfo = new[] { new Operand(OperandType.Memory, disp) };
+            if (hasDisp) instr.OperandsInfo = [new Operand(OperandType.Memory, disp)];
             return instr;
         }
 
         Mnemonic op = regField switch
         {
-            0 => Mnemonic.INC, 1 => Mnemonic.DEC, 2 => Mnemonic.CALL, 3 => Mnemonic.CALL,
-            4 => Mnemonic.JMP, 5 => Mnemonic.JMP, 6 => Mnemonic.PUSH, _ => Mnemonic.DB
+            0 => Mnemonic.INC,
+            1 => Mnemonic.DEC,
+            2 => Mnemonic.CALL,
+            3 => Mnemonic.CALL,
+            4 => Mnemonic.JMP,
+            5 => Mnemonic.JMP,
+            6 => Mnemonic.PUSH,
+            _ => Mnemonic.DB
         };
 
         return new Instruction { Mnemonic = op, Operands = dst };
@@ -541,7 +672,10 @@ public class X86Disassembler
 
         string sregName = sreg switch
         {
-            0 => "ES", 1 => "CS", 2 => "SS", 3 => "DS",
+            0 => "ES",
+            1 => "CS",
+            2 => "SS",
+            3 => "DS",
             _ => "?SREG"
         };
 
@@ -560,10 +694,22 @@ public class X86Disassembler
 
         Mnemonic mnem = opcode switch
         {
-            0x70 => Mnemonic.JO, 0x71 => Mnemonic.JNO, 0x72 => Mnemonic.JB, 0x73 => Mnemonic.JAE,
-            0x74 => Mnemonic.JE, 0x75 => Mnemonic.JNE, 0x76 => Mnemonic.JBE, 0x77 => Mnemonic.JA,
-            0x78 => Mnemonic.JS, 0x79 => Mnemonic.JNS, 0x7A => Mnemonic.JP, 0x7B => Mnemonic.JNP,
-            0x7C => Mnemonic.JL, 0x7D => Mnemonic.JGE, 0x7E => Mnemonic.JLE, 0x7F => Mnemonic.JG,
+            0x70 => Mnemonic.JO,
+            0x71 => Mnemonic.JNO,
+            0x72 => Mnemonic.JB,
+            0x73 => Mnemonic.JAE,
+            0x74 => Mnemonic.JE,
+            0x75 => Mnemonic.JNE,
+            0x76 => Mnemonic.JBE,
+            0x77 => Mnemonic.JA,
+            0x78 => Mnemonic.JS,
+            0x79 => Mnemonic.JNS,
+            0x7A => Mnemonic.JP,
+            0x7B => Mnemonic.JNP,
+            0x7C => Mnemonic.JL,
+            0x7D => Mnemonic.JGE,
+            0x7E => Mnemonic.JLE,
+            0x7F => Mnemonic.JG,
             0xE3 => Mnemonic.JCXZ,
             0xEB => Mnemonic.JMP,
             _ => Mnemonic.DB
@@ -573,7 +719,7 @@ public class X86Disassembler
         {
             Mnemonic = mnem,
             Operands = $"0x{target:X4}",
-            OperandsInfo = new[] { new Operand(OperandType.Relative8, target) }
+            OperandsInfo = [new Operand(OperandType.Relative8, target)]
         };
         return instr;
     }
@@ -587,7 +733,7 @@ public class X86Disassembler
         {
             Mnemonic = Mnemonic.JMP,
             Operands = $"0x{target:X4}",
-            OperandsInfo = new[] { new Operand(OperandType.Relative16, target) }
+            OperandsInfo = [new Operand(OperandType.Relative16, target)]
         };
         return instr;
     }
@@ -644,7 +790,17 @@ public class X86Disassembler
         bool word = (opcode & 1) == 1;
         bool useCl = (opcode & 2) != 0;
 
-        Mnemonic op = regField switch { 0 => Mnemonic.ROL, 1 => Mnemonic.ROR, 2 => Mnemonic.RCL, 3 => Mnemonic.RCR, 4 => Mnemonic.SHL, 5 => Mnemonic.SHR, 7 => Mnemonic.SAR, _ => Mnemonic.DB };
+        Mnemonic op = regField switch
+        {
+            0 => Mnemonic.ROL,
+            1 => Mnemonic.ROR,
+            2 => Mnemonic.RCL,
+            3 => Mnemonic.RCR,
+            4 => Mnemonic.SHL,
+            5 => Mnemonic.SHR,
+            7 => Mnemonic.SAR,
+            _ => Mnemonic.DB
+        };
         string dst = (mod == 3) ? GetReg8or16Name(rm, word) : GetMemoryOperand(rm, mod);
         string count = useCl ? "CL" : "1";
         return new Instruction { Mnemonic = op, Operands = $"{dst}, {count}" };
@@ -654,13 +810,19 @@ public class X86Disassembler
     {
         sbyte rel = (sbyte)ReadByte();
         int target = _pos + rel;
-        Mnemonic mnem = opcode switch { 0xE0 => Mnemonic.LOOPNE, 0xE1 => Mnemonic.LOOPE, 0xE2 => Mnemonic.LOOP, _ => Mnemonic.LOOP };
+        Mnemonic mnem = opcode switch
+        {
+            0xE0 => Mnemonic.LOOPNE,
+            0xE1 => Mnemonic.LOOPE,
+            0xE2 => Mnemonic.LOOP,
+            _ => Mnemonic.LOOP
+        };
 
         var instr = new Instruction
         {
             Mnemonic = mnem,
             Operands = $"0x{target:X4}",
-            OperandsInfo = new[] { new Operand(OperandType.Relative8, target) }
+            OperandsInfo = [new Operand(OperandType.Relative8, target)]
         };
         return instr;
     }
@@ -669,8 +831,15 @@ public class X86Disassembler
     {
         return (opcode >> 3) switch
         {
-            0 => Mnemonic.ADD, 1 => Mnemonic.OR, 2 => Mnemonic.ADC, 3 => Mnemonic.SBB,
-            4 => Mnemonic.AND, 5 => Mnemonic.SUB, 6 => Mnemonic.XOR, 7 => Mnemonic.CMP, _ => Mnemonic.DB
+            0 => Mnemonic.ADD,
+            1 => Mnemonic.OR,
+            2 => Mnemonic.ADC,
+            3 => Mnemonic.SBB,
+            4 => Mnemonic.AND,
+            5 => Mnemonic.SUB,
+            6 => Mnemonic.XOR,
+            7 => Mnemonic.CMP,
+            _ => Mnemonic.DB
         };
     }
 
@@ -686,9 +855,15 @@ public class X86Disassembler
 
         string baseReg = rm switch
         {
-            0 => "BX+SI", 1 => "BX+DI", 2 => "BP+SI", 3 => "BP+DI",
-            4 => "SI",    5 => "DI",    6 => "BP",
-            7 => "BX", _ => "?"
+            0 => "BX+SI",
+            1 => "BX+DI",
+            2 => "BP+SI",
+            3 => "BP+DI",
+            4 => "SI",
+            5 => "DI",
+            6 => "BP",
+            7 => "BX",
+            _ => "?"
         };
 
         if (mod == 1) return $"{seg}{baseReg}+{ReadByte()}";
@@ -702,15 +877,29 @@ public class X86Disassembler
         if (word) return GetReg16Name(reg);
         return reg switch
         {
-            0 => "AL", 1 => "CL", 2 => "DL", 3 => "BL",
-            4 => "AH", 5 => "CH", 6 => "DH", 7 => "BH", _ => "?"
+            0 => "AL",
+            1 => "CL",
+            2 => "DL",
+            3 => "BL",
+            4 => "AH",
+            5 => "CH",
+            6 => "DH",
+            7 => "BH",
+            _ => "?"
         };
     }
 
     private string GetReg16Name(int reg) => reg switch
     {
-        0 => "AX", 1 => "CX", 2 => "DX", 3 => "BX",
-        4 => "SP", 5 => "BP", 6 => "SI", 7 => "DI", _ => "?"
+        0 => "AX",
+        1 => "CX",
+        2 => "DX",
+        3 => "BX",
+        4 => "SP",
+        5 => "BP",
+        6 => "SI",
+        7 => "DI",
+        _ => "?"
     };
 
     private byte ReadByte() => _image[_pos++];

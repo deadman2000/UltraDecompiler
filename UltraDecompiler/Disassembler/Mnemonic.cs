@@ -66,11 +66,6 @@ public enum Mnemonic
     LODSB, LODSW,
     SCASB, SCASW,
 
-    // Префиксы
-    LOCK,
-    REPZ,
-    REPNZ,
-
     // Флаги
     PUSHF, POPF, SAHF, LAHF,
     STI, CLI, STD, CLD,

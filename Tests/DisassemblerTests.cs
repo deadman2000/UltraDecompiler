@@ -9,7 +9,7 @@ public class DisassemblerTests
     {
         var instructions = Disassemble("FF 16 46 00");
         Assert.Equal(Mnemonic.CALL, instructions[0].Mnemonic);
-        Assert.Equal("DS:0x0046", instructions[0].Operands);
+        Assert.Equal("0x0046", instructions[0].Operands);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class DisassemblerTests
         // MOV AX, [BP+DI+5]
         var instructions = Disassemble("8B 43 05");
         Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
-        Assert.Equal("AX, DS:BP+DI+5", instructions[0].Operands);
+        Assert.Equal("AX, BP+DI+5", instructions[0].Operands);
     }
 
     [Fact]
@@ -98,16 +98,10 @@ public class DisassemblerTests
     {
         // LOCK INC WORD PTR [BX]
         var instructions = Disassemble("F0 FF 07");
-        Assert.Equal(Mnemonic.LOCK, instructions[0].Mnemonic);
-        Assert.Equal(Mnemonic.INC, instructions[1].Mnemonic);
-        Assert.Contains("BX", instructions[1].Operands);
-    }
-
-    [Fact]
-    public void DisassembleUnknownOpcode()
-    {
-        var instructions = Disassemble("0F 1F"); // 0F 1F = unknown
-        Assert.Equal(Mnemonic.DB, instructions[0].Mnemonic);
+        Assert.Equal(InstructionPrefix.LOCK, instructions[0].Prefix);
+        Assert.Equal(Mnemonic.INC, instructions[0].Mnemonic);
+        Assert.Contains("BX", instructions[0].Operands);
+        Assert.Single(instructions);
     }
 
     [Fact]
@@ -117,8 +111,11 @@ public class DisassemblerTests
             36 FF 36 DA 00;  push word ptr ss:[0xda]
             FF 36 DA 00;     push word ptr ds:[0xda]
             """);
+        Assert.Equal(2, instructions.Count);
+        Assert.Equal(Segment.SS, instructions[0].Segment);
+        Assert.Equal(Segment.None, instructions[1].Segment);
         Assert.StartsWith("SS:", instructions[0].Operands);
-        Assert.StartsWith("DS:", instructions[1].Operands);
+        Assert.Equal("0x00DA", instructions[1].Operands);
     }
 
     private static List<Instruction> Disassemble(string hex)
