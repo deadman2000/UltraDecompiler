@@ -17,7 +17,6 @@ try
     Console.WriteLine("\n=== Disassembly from entry point ===");
 
     var disassembler = new X86Disassembler(parser.Image);
-    disassembler.DataSegmentBase = parser.DataSegmentBase;
     disassembler.Disassemble((int)parser.EntryPointOffset);
 
     int next = 0;
