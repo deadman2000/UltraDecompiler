@@ -10,6 +10,7 @@ public class DosExeParser
     public byte[] Image { get; private set; }          // Полный загруженный образ программы
     public long ImageBase { get; private set; }        // Линейный адрес начала программы
     public uint EntryPointOffset { get; private set; } // Смещение точки входа относительно ImageBase
+    public int DataSegmentBase { get; private set; }   // База сегмента данных (InitDS * 16)
 
     private readonly string filePath;
 
@@ -44,7 +45,10 @@ public class DosExeParser
         // 5. Вычисляем точку входа
         EntryPointOffset = (uint)(DosHeader.InitCS * 16 + DosHeader.InitIP);
 
-        // 6. Применяем релокации (очень важно для декомпилятора!)
+        // 6. Вычисляем базу сегмента данных (InitDS * 16)
+        DataSegmentBase = (int)(DosHeader.InitDS * 16);
+
+        // 7. Применяем релокации (очень важно для декомпилятора!)
         ApplyRelocations();
     }
 
@@ -122,6 +126,7 @@ public class DosExeParser
         Console.WriteLine($"Точка входа     : {DosHeader.InitCS:X4}:{DosHeader.InitIP:X4} (линейно: 0x{EntryPointOffset:X6})");
         Console.WriteLine($"Релокаций       : {Relocations.Length}");
         Console.WriteLine($"Размер образа   : {Image.Length} байт");
+        Console.WriteLine($"База DS          : 0x{DataSegmentBase:X4}");
         Console.WriteLine($"Мин. память     : {DosHeader.MinAlloc * 16} байт");
         Console.WriteLine($"Макс. память    : {DosHeader.MaxAlloc * 16} байт");
     }
