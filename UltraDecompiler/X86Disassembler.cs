@@ -113,6 +113,7 @@ public class X86Disassembler
             case 0x78: case 0x79: case 0x7A: case 0x7B:
             case 0x7C: case 0x7D: case 0x7E: case 0x7F:
             case 0xEB:
+            case 0xE3:
                 return DecodeShortJump(opcode);
 
             case 0xE9: return DecodeNearJump();
@@ -192,11 +193,12 @@ public class X86Disassembler
 
             case 0xF4: return new Instruction { Mnemonic = "HLT" };
 
+            case 0xC5: return DecodeLds();
+
             // 80286 instructions
             case 0xC8: return DecodeEnter();
             case 0xC9: return new Instruction { Mnemonic = "LEAVE" };
 
-            // Two/three operand IMUL (80286+)
             case 0x69: case 0x6B: case 0x0F:
                 if (opcode == 0x0F)
                 {
@@ -209,6 +211,19 @@ public class X86Disassembler
             default:
                 return new Instruction { Mnemonic = $"DB 0x{opcode:X2}", Operands = Instruction.UnknownOperand };
         }
+    }
+
+    private Instruction DecodeLds()
+    {
+        byte modrm = ReadByte();
+        int mod = (modrm >> 6) & 3;
+        int reg = (modrm >> 3) & 7;
+        int rm = modrm & 7;
+
+        string regName = GetReg16Name(reg);
+        string mem = (mod == 3) ? GetReg16Name(rm) : GetMemoryOperand(rm, mod);
+
+        return new Instruction { Mnemonic = "LDS", Operands = $"{regName}, {mem}" };
     }
 
     private Instruction DecodeAam()
@@ -240,18 +255,14 @@ public class X86Disassembler
         string dst = GetReg16Name(reg);
         string src = (mod == 3) ? GetReg16Name(rm) : GetMemoryOperand(rm, mod);
 
-        // For 0x6B (sign-extended imm8)
         if (_pos > 0 && _image[_pos - 3] == 0x6B)
         {
             sbyte imm = (sbyte)ReadByte();
             return new Instruction { Mnemonic = "IMUL", Operands = $"{dst}, {src}, {imm}" };
         }
-        else
-        {
-            // For 0x69 (imm16)
-            ushort imm = ReadUInt16();
-            return new Instruction { Mnemonic = "IMUL", Operands = $"{dst}, {src}, 0x{imm:X4}" };
-        }
+
+        ushort imm = ReadUInt16();
+        return new Instruction { Mnemonic = "IMUL", Operands = $"{dst}, {src}, 0x{imm:X4}" };
     }
 
     private Instruction DecodeModRmAlu(byte opcode)
@@ -433,6 +444,7 @@ public class X86Disassembler
             0x74 => "JE", 0x75 => "JNE", 0x76 => "JBE", 0x77 => "JA",
             0x78 => "JS", 0x79 => "JNS", 0x7A => "JP", 0x7B => "JNP",
             0x7C => "JL", 0x7D => "JGE", 0x7E => "JLE", 0x7F => "JG",
+            0xE3 => "JCXZ",
             0xEB => "JMP",
             _ => "Jcc"
         };
