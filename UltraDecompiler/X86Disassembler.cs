@@ -69,6 +69,9 @@ public class X86Disassembler
             case 0xF6: case 0xF7:
                 return DecodeGroupF6(opcode);
 
+            case 0xFE: case 0xFF:
+                return DecodeGroupFEFF(opcode);
+
             case 0x88: case 0x89: case 0x8A: case 0x8B:
                 return DecodeMovRegMem(opcode);
 
@@ -250,6 +253,31 @@ public class X86Disassembler
             ushort imm = word ? ReadUInt16() : ReadByte();
             return new Instruction { Mnemonic = "TEST", Operands = $"{dst}, 0x{imm:X4}" };
         }
+
+        return new Instruction { Mnemonic = op, Operands = dst };
+    }
+
+    private Instruction DecodeGroupFEFF(byte opcode)
+    {
+        byte modrm = ReadByte();
+        int mod = (modrm >> 6) & 3;
+        int regField = (modrm >> 3) & 7;
+        bool word = (opcode & 1) == 1;
+
+        string dst = (mod == 3) ? GetReg8or16Name(modrm & 7, word) : GetMemoryOperand(rm: modrm & 7, mod);
+
+        if (opcode == 0xFE) // 8-bit group
+        {
+            string op8 = regField switch { 0 => "INC", 1 => "DEC", _ => "FE" };
+            return new Instruction { Mnemonic = op8, Operands = dst };
+        }
+
+        // 0xFF - 16-bit group
+        string op = regField switch
+        {
+            0 => "INC", 1 => "DEC", 2 => "CALL", 3 => "CALL FAR",
+            4 => "JMP", 5 => "JMP FAR", 6 => "PUSH", _ => "FF"
+        };
 
         return new Instruction { Mnemonic = op, Operands = dst };
     }
