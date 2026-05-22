@@ -17,7 +17,7 @@ public class DisassemblerTests
     {
         var instructions = Disassemble("E9 05 00"); // JMP +5
         Assert.Equal("JMP", instructions[0].Mnemonic);
-        Assert.Contains("0x0005", instructions[0].Operands);
+        Assert.Equal("0x0008", instructions[0].Operands);
     }
 
     [Fact]
@@ -25,7 +25,7 @@ public class DisassemblerTests
     {
         var instructions = Disassemble("EB 05"); // JMP SHORT +5
         Assert.Equal("JMP", instructions[0].Mnemonic);
-        Assert.Contains("0x0005", instructions[0].Operands);
+        Assert.Equal("0x0007", instructions[0].Operands);
     }
 
     [Fact]
@@ -107,6 +107,17 @@ public class DisassemblerTests
     {
         var instructions = Disassemble("0F 1F"); // 0F 1F = unknown
         Assert.StartsWith("DB", instructions[0].Mnemonic);
+    }
+
+    [Fact]
+    public void SegmentChange()
+    {
+        var instructions = Disassemble("""
+            36 FF 36 DA 00;  push word ptr ss:[0xda]
+            FF 36 DA 00;     push word ptr ds:[0xda]
+            """);
+        Assert.StartsWith("SS:", instructions[0].Operands);
+        Assert.StartsWith("DS:", instructions[1].Operands);
     }
 
     private static List<Instruction> Disassemble(string hex)

@@ -54,6 +54,7 @@ public class X86Disassembler
             instr.Offset = instrStart;
             instr.Bytes = _image[instrStart.._pos].ToArray();
             Instructions.Add(instr);
+            _segmentOverride = 0;
 
             string mnem = instr.Mnemonic.ToUpper();
 
