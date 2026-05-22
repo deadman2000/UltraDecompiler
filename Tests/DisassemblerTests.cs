@@ -148,7 +148,7 @@ public class DisassemblerTests
         // LOCK REPNZ SCASW (редкий, но валидный случай)
         var instructions = Disassemble("F0 F2 AE");
         Assert.Equal(InstructionPrefix.LOCK | InstructionPrefix.REPNZ, instructions[0].Prefix);
-        Assert.Equal(Mnemonic.SCASW, instructions[0].Mnemonic);
+        Assert.Equal(Mnemonic.SCASB, instructions[0].Mnemonic);
     }
 
     [Fact]
