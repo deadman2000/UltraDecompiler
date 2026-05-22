@@ -199,6 +199,52 @@ public class X86Disassembler
         return new Instruction { Mnemonic = op, Operands = $"{dst}, 0x{imm:X4}" };
     }
 
+    private Instruction DecodeMovRegMem(byte opcode)
+    {
+        byte modrm = ReadByte();
+        int mod = (modrm >> 6) & 3;
+        int reg = (modrm >> 3) & 7;
+        int rm = modrm & 7;
+        bool word = (opcode & 1) == 1;
+
+        string regName = GetReg8or16Name(reg, word);
+        string mem = (mod == 3) ? GetReg8or16Name(rm, word) : GetMemoryOperand(rm, mod);
+
+        if ((opcode & 2) != 0)
+            return new Instruction { Mnemonic = "MOV", Operands = $"{regName}, {mem}" };
+        else
+            return new Instruction { Mnemonic = "MOV", Operands = $"{mem}, {regName}" };
+    }
+
+    private Instruction DecodeMovRegImm(byte opcode)
+    {
+        bool word = opcode >= 0xB8;
+        string reg = GetReg8or16Name(opcode - (word ? 0xB8 : 0xB0), word);
+        ushort imm = word ? ReadUInt16() : ReadByte();
+        return new Instruction { Mnemonic = "MOV", Operands = $"{reg}, 0x{imm:X4}" };
+    }
+
+    private Instruction DecodeShortJump(byte opcode)
+    {
+        sbyte rel = (sbyte)ReadByte();
+        string mnem = opcode switch
+        {
+            0x70 => "JO", 0x71 => "JNO", 0x72 => "JB", 0x73 => "JAE",
+            0x74 => "JE", 0x75 => "JNE", 0x76 => "JBE", 0x77 => "JA",
+            0x78 => "JS", 0x79 => "JNS", 0x7A => "JP", 0x7B => "JNP",
+            0x7C => "JL", 0x7D => "JGE", 0x7E => "JLE", 0x7F => "JG",
+            0xEB => "JMP",
+            _ => "Jcc"
+        };
+        return new Instruction { Mnemonic = mnem, Operands = $"0x{(_pos + rel):X4}" };
+    }
+
+    private Instruction DecodeNearJump()
+    {
+        short rel = (short)ReadUInt16();
+        return new Instruction { Mnemonic = "JMP", Operands = $"0x{(_pos + rel):X4}" };
+    }
+
     private Instruction DecodeXchg(byte opcode)
     {
         byte modrm = ReadByte();
