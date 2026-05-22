@@ -75,6 +75,9 @@ public class X86Disassembler
             case 0x8C: case 0x8E:
                 return DecodeMovSreg(opcode);
 
+            case 0xA0: case 0xA1: case 0xA2: case 0xA3:
+                return DecodeMovAxMem(opcode);
+
             case 0xB0: case 0xB1: case 0xB2: case 0xB3:
             case 0xB4: case 0xB5: case 0xB6: case 0xB7:
             case 0xB8: case 0xB9: case 0xBA: case 0xBB:
@@ -276,11 +279,29 @@ public class X86Disassembler
         return new Instruction { Mnemonic = "MOV", Operands = $"{reg}, 0x{imm:X4}" };
     }
 
+    private Instruction DecodeMovAxMem(byte opcode)
+    {
+        ushort disp = ReadUInt16();
+        string seg = _segmentOverride switch
+        {
+            0x26 => "ES:", 0x2E => "CS:", 0x36 => "SS:", 0x3E => "DS:", _ => "DS:"
+        };
+
+        string addr = $"{seg}0x{disp:X4}";
+
+        if (opcode == 0xA0) return new Instruction { Mnemonic = "MOV", Operands = $"AL, {addr}" };
+        if (opcode == 0xA1) return new Instruction { Mnemonic = "MOV", Operands = $"AX, {addr}" };
+        if (opcode == 0xA2) return new Instruction { Mnemonic = "MOV", Operands = $"{addr}, AL" };
+        if (opcode == 0xA3) return new Instruction { Mnemonic = "MOV", Operands = $"{addr}, AX" };
+
+        return new Instruction { Mnemonic = "MOV", Operands = addr };
+    }
+
     private Instruction DecodeMovSreg(byte opcode)
     {
         byte modrm = ReadByte();
         int mod = (modrm >> 6) & 3;
-        int sreg = (modrm >> 3) & 7;   // 0=ES, 1=CS, 2=SS, 3=DS
+        int sreg = (modrm >> 3) & 7;
         int rm = modrm & 7;
 
         string sregName = sreg switch
