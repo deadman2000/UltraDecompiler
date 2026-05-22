@@ -87,6 +87,9 @@ public class X86Disassembler
             case 0xBC: case 0xBD: case 0xBE: case 0xBF:
                 return DecodeMovRegImm(opcode);
 
+            case 0xC6: case 0xC7:
+                return DecodeMovMemImm(opcode);
+
             case 0x50: case 0x51: case 0x52: case 0x53:
             case 0x54: case 0x55: case 0x56: case 0x57:
                 return new Instruction { Mnemonic = "PUSH", Operands = GetReg16Name(opcode - 0x50) };
@@ -266,13 +269,12 @@ public class X86Disassembler
 
         string dst = (mod == 3) ? GetReg8or16Name(modrm & 7, word) : GetMemoryOperand(rm: modrm & 7, mod);
 
-        if (opcode == 0xFE) // 8-bit group
+        if (opcode == 0xFE)
         {
             string op8 = regField switch { 0 => "INC", 1 => "DEC", _ => "FE" };
             return new Instruction { Mnemonic = op8, Operands = dst };
         }
 
-        // 0xFF - 16-bit group
         string op = regField switch
         {
             0 => "INC", 1 => "DEC", 2 => "CALL", 3 => "CALL FAR",
@@ -305,6 +307,19 @@ public class X86Disassembler
         string reg = GetReg8or16Name(opcode - (word ? 0xB8 : 0xB0), word);
         ushort imm = word ? ReadUInt16() : ReadByte();
         return new Instruction { Mnemonic = "MOV", Operands = $"{reg}, 0x{imm:X4}" };
+    }
+
+    private Instruction DecodeMovMemImm(byte opcode)
+    {
+        byte modrm = ReadByte();
+        int mod = (modrm >> 6) & 3;
+        int rm = modrm & 7;
+        bool word = (opcode & 1) == 1;
+
+        string dst = (mod == 3) ? GetReg8or16Name(rm, word) : GetMemoryOperand(rm, mod);
+        ushort imm = word ? ReadUInt16() : ReadByte();
+
+        return new Instruction { Mnemonic = "MOV", Operands = $"{dst}, 0x{imm:X4}" };
     }
 
     private Instruction DecodeMovAxMem(byte opcode)
