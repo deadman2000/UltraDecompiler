@@ -32,10 +32,14 @@ public class Instruction
     public Operand[] OperandsInfo { get; set; } = Array.Empty<Operand>();
 
     /// <summary>
+    /// Сегментный префикс инструкции (если есть)
+    /// </summary>
+    public Segment SegmentOverride { get; set; } = Segment.None;
+
+    /// <summary>
     /// Инструкция является переходом
     /// </summary>
     public bool IsJump => Mnemonic is Mnemonic.JO
-        or Mnemonic.JNO
         or Mnemonic.JNO
         or Mnemonic.JB
         or Mnemonic.JAE
