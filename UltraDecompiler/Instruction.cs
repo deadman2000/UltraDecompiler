@@ -7,7 +7,25 @@ public class Instruction
     public int Offset { get; set; }
     public byte[] Bytes { get; set; } = Array.Empty<byte>();
     public string Mnemonic { get; set; } = "";
+
+    // Старое строковое представление (для вывода)
     public string Operands { get; set; } = "";
+
+    // Новое числовое представление (без парсинга строк)
+    public Operand[] OperandsInfo { get; set; } = Array.Empty<Operand>();
+
+    /// <summary>
+    /// Возвращает целевой адрес перехода (если есть)
+    /// </summary>
+    public int GetJumpTarget()
+    {
+        foreach (var op in OperandsInfo)
+        {
+            if (op.Type is OperandType.Relative8 or OperandType.Relative16)
+                return op.Value;
+        }
+        return -1;
+    }
 
     public override string ToString()
     {
