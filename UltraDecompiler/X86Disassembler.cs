@@ -39,7 +39,6 @@ public class X86Disassembler
     {
         byte opcode = ReadByte();
 
-        // LOCK prefix
         if (opcode == 0xF0)
         {
             var instr = DecodeOneInstruction();
@@ -207,7 +206,6 @@ public class X86Disassembler
                 {
                     byte next = ReadByte();
                     if (next == 0xAF) return DecodeImulTwoOperand();
-                    // fallback
                     return new Instruction { Mnemonic = $"DB 0F {next:X2}", Operands = "; unknown" };
                 }
                 return DecodeImulTwoOperand();
@@ -220,17 +218,13 @@ public class X86Disassembler
     private Instruction DecodeAam()
     {
         byte baseVal = ReadByte();
-        if (baseVal == 0x0A)
-            return new Instruction { Mnemonic = "AAM" };
-        return new Instruction { Mnemonic = $"AAM {baseVal}", Operands = "; non-standard" };
+        return baseVal == 0x0A ? new Instruction { Mnemonic = "AAM" } : new Instruction { Mnemonic = $"AAM {baseVal}", Operands = "; non-standard" };
     }
 
     private Instruction DecodeAad()
     {
         byte baseVal = ReadByte();
-        if (baseVal == 0x0A)
-            return new Instruction { Mnemonic = "AAD" };
-        return new Instruction { Mnemonic = $"AAD {baseVal}", Operands = "; non-standard" };
+        return baseVal == 0x0A ? new Instruction { Mnemonic = "AAD" } : new Instruction { Mnemonic = $"AAD {baseVal}", Operands = "; non-standard" };
     }
 
     private Instruction DecodeEnter()
@@ -594,7 +588,6 @@ public class X86Disassembler
             const string RESET = "\u001b[0m";
             const string GRAY = "\u001b[90m";
             const string YELLOW = "\u001b[93m";
-            const string CYAN = "\u001b[96m";
             const string GREEN = "\u001b[92m";
 
             string coloredMnemonic = YELLOW + Mnemonic + RESET;
@@ -603,7 +596,7 @@ public class X86Disassembler
             if (Operands.Contains("ES") || Operands.Contains("CS") || Operands.Contains("SS") || Operands.Contains("DS"))
                 coloredOperands = GREEN + Operands + RESET;
 
-            return $"{GRAY}0x{Offset:X6}: {bytesStr,-20}{RESET} {coloredMnemonic} {coloredOperands}";
+            return $"{GRAY}0x{Offset:X6}:{RESET} {GRAY}{bytesStr,-20}{RESET} {coloredMnemonic} {coloredOperands}";
         }
     }
 }
