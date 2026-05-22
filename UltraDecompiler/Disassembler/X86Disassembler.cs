@@ -4,7 +4,7 @@ public class X86Disassembler
 {
     private readonly byte[] _image;
     private int _pos;
-    private byte _segmentOverride;
+    private Segment _segmentOverride;
     private HashSet<int> _visited = new();
 
     public int DataSegmentBase { get; set; }
@@ -40,7 +40,7 @@ public class X86Disassembler
     private void DisassembleBlock(int startOffset, Queue<int> queue)
     {
         _pos = startOffset;
-        _segmentOverride = 0;
+        _segmentOverride = Segment.None;
 
         while (_pos < _image.Length)
         {
@@ -53,8 +53,9 @@ public class X86Disassembler
             var instr = DecodeOneInstruction();
             instr.Offset = instrStart;
             instr.Bytes = _image[instrStart.._pos].ToArray();
+            instr.SegmentOverride = _segmentOverride;
             Instructions.Add(instr);
-            _segmentOverride = 0;
+            _segmentOverride = Segment.None;
 
             string mnem = instr.MnemonicString.ToUpper();
 
@@ -113,10 +114,10 @@ public class X86Disassembler
 
         switch (opcode)
         {
-            case 0x26: _segmentOverride = 0x26; return DecodeOneInstruction();
-            case 0x2E: _segmentOverride = 0x2E; return DecodeOneInstruction();
-            case 0x36: _segmentOverride = 0x36; return DecodeOneInstruction();
-            case 0x3E: _segmentOverride = 0x3E; return DecodeOneInstruction();
+            case 0x26: _segmentOverride = Segment.ES; return DecodeOneInstruction();
+            case 0x2E: _segmentOverride = Segment.CS; return DecodeOneInstruction();
+            case 0x36: _segmentOverride = Segment.SS; return DecodeOneInstruction();
+            case 0x3E: _segmentOverride = Segment.DS; return DecodeOneInstruction();
         }
 
         switch (opcode)
@@ -428,10 +429,7 @@ public class X86Disassembler
         }
         else if (hasDisp)
         {
-            string seg = _segmentOverride switch
-            {
-                0x26 => "ES:", 0x2E => "CS:", 0x36 => "SS:", 0x3E => "DS:", _ => "DS:"
-            };
+            string seg = _segmentOverride.ToPrefixString();
 
             string baseReg = (modrm & 7) switch
             {
@@ -522,10 +520,7 @@ public class X86Disassembler
     private Instruction DecodeMovAxMem(byte opcode)
     {
         ushort disp = ReadUInt16();
-        string seg = _segmentOverride switch
-        {
-            0x26 => "ES:", 0x2E => "CS:", 0x36 => "SS:", 0x3E => "DS:", _ => "DS:"
-        };
+        string seg = _segmentOverride.ToPrefixString();
 
         string addr = $"{seg}0x{disp:X4}";
 
@@ -681,10 +676,7 @@ public class X86Disassembler
 
     private string GetMemoryOperand(int rm, int mod)
     {
-        string seg = _segmentOverride switch
-        {
-            0x26 => "ES:", 0x2E => "CS:", 0x36 => "SS:", 0x3E => "DS:", _ => "DS:"
-        };
+        string seg = _segmentOverride.ToPrefixString();
 
         if (mod == 0 && rm == 6)
         {
