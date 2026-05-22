@@ -15,50 +15,67 @@ public class X86Disassembler
     public List<Instruction> Instructions { get; private set; } = [];
 
     /// <summary>
-    /// Рекурсивный дизассемблер с полным анализом потока управления
+    /// Безопасный итеративный дизассемблер с очередью переходов
     /// </summary>
     public void Disassemble(int startOffset)
     {
         _visited.Clear();
         Instructions.Clear();
-        DisassembleRecursive(startOffset);
 
-        _visited.Clear();
+        var queue = new Queue<int>();
+        queue.Enqueue(startOffset);
+
+        while (queue.Count > 0)
+        {
+            int offset = queue.Dequeue();
+
+            if (_visited.Contains(offset) || offset >= _image.Length)
+                continue;
+
+            DisassembleRecursive(offset, queue);
+        }
+
         Instructions = Instructions.OrderBy(i => i.Offset).ToList();
     }
 
-    private void DisassembleRecursive(int offset)
+    /// <summary>
+    /// Разбирает один линейный участок до RET или безусловного JMP
+    /// </summary>
+    private void DisassembleRecursive(int startOffset, Queue<int> queue)
     {
-        if (_visited.Contains(offset) || offset >= _image.Length)
-            return;
-
-        _visited.Add(offset);
-        _pos = offset;
+        _pos = startOffset;
         _segmentOverride = 0;
 
-        int instrStart = _pos;
-        var instr = DecodeOneInstruction();
-        instr.Offset = instrStart;
-        instr.Bytes = _image[instrStart.._pos].ToArray();
-        Instructions.Add(instr);
-
-        string mnem = instr.Mnemonic.ToUpper();
-
-        if (mnem is "RET" or "RETF" or "IRET")
-            return;
-
-        if (TryGetJumpTarget(instr, out int target))
+        while (_pos < _image.Length)
         {
-            DisassembleRecursive(target);
-        }
+            if (_visited.Contains(_pos))
+                break;
 
-        if (mnem.StartsWith("J") || mnem == "CALL")
-        {
-            DisassembleRecursive(_pos);
-        }
-        else if (mnem != "JMP")
-        {
-            DisassembleRecursive(_pos);
+            _visited.Add(_pos);
+
+            int instrStart = _pos;
+            var instr = DecodeOneInstruction();
+            instr.Offset = instrStart;
+            instr.Bytes = _image[instrStart.._pos].ToArray();
+            Instructions.Add(instr);
+
+            string mnem = instr.Mnemonic.ToUpper();
+
+            if (mnem is "RET" or "RETF" or "IRET")
+                break;
+
+            if (mnem == "JMP")
+            {
+                if (TryGetJumpTarget(instr, out int target))
+                    queue.Enqueue(target);
+                break;
+            }
+
+            if (mnem.StartsWith("J") || mnem == "CALL")
+            {
+                if (TryGetJumpTarget(instr, out int target))
+                    queue.Enqueue(target);
+            }
         }
     }
 
