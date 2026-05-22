@@ -81,20 +81,8 @@ public class X86Disassembler
 
     private bool TryGetJumpTarget(Instruction instr, out int target)
     {
-        target = 0;
-        if (string.IsNullOrEmpty(instr.Operands))
-            return false;
-
-        var parts = instr.Operands.Split(new[] { ' ', ',', ':' }, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var part in parts)
-        {
-            if (part.StartsWith("0x") && int.TryParse(part[2..], System.Globalization.NumberStyles.HexNumber, null, out int addr))
-            {
-                target = addr;
-                return true;
-            }
-        }
-        return false;
+        target = instr.GetJumpTarget();
+        return target != -1;
     }
 
     private Instruction DecodeOneInstruction()
@@ -186,7 +174,9 @@ public class X86Disassembler
 
             case 0xE8:
                 short rel = (short)ReadUInt16();
-                return new Instruction { Mnemonic = "CALL", Operands = $"0x{(_pos + rel):X4}" };
+                var callInstr = new Instruction { Mnemonic = "CALL", Operands = $"0x{(_pos + rel):X4}" };
+                callInstr.OperandsInfo = new[] { new Operand(OperandType.Relative16, _pos + rel) };
+                return callInstr;
 
             case 0xC3: return new Instruction { Mnemonic = "RET" };
             case 0xCB: return new Instruction { Mnemonic = "RETF" };
@@ -503,6 +493,8 @@ public class X86Disassembler
     private Instruction DecodeShortJump(byte opcode)
     {
         sbyte rel = (sbyte)ReadByte();
+        int target = _pos + rel;
+
         string mnem = opcode switch
         {
             0x70 => "JO", 0x71 => "JNO", 0x72 => "JB", 0x73 => "JAE",
@@ -513,13 +505,28 @@ public class X86Disassembler
             0xEB => "JMP",
             _ => "Jcc"
         };
-        return new Instruction { Mnemonic = mnem, Operands = $"0x{(_pos + rel):X4}" };
+
+        var instr = new Instruction
+        {
+            Mnemonic = mnem,
+            Operands = $"0x{target:X4}",
+            OperandsInfo = new[] { new Operand(OperandType.Relative8, target) }
+        };
+        return instr;
     }
 
     private Instruction DecodeNearJump()
     {
         short rel = (short)ReadUInt16();
-        return new Instruction { Mnemonic = "JMP", Operands = $"0x{(_pos + rel):X4}" };
+        int target = _pos + rel;
+
+        var instr = new Instruction
+        {
+            Mnemonic = "JMP",
+            Operands = $"0x{target:X4}",
+            OperandsInfo = new[] { new Operand(OperandType.Relative16, target) }
+        };
+        return instr;
     }
 
     private Instruction DecodeXchg(byte opcode)
@@ -583,8 +590,16 @@ public class X86Disassembler
     private Instruction DecodeLoop(byte opcode)
     {
         sbyte rel = (sbyte)ReadByte();
+        int target = _pos + rel;
         string mnem = opcode switch { 0xE0 => "LOOPNE", 0xE1 => "LOOPE", 0xE2 => "LOOP", _ => "LOOP" };
-        return new Instruction { Mnemonic = mnem, Operands = $"0x{(_pos + rel):X4}" };
+
+        var instr = new Instruction
+        {
+            Mnemonic = mnem,
+            Operands = $"0x{target:X4}",
+            OperandsInfo = new[] { new Operand(OperandType.Relative8, target) }
+        };
+        return instr;
     }
 
     private string GetAluMnemonic(byte opcode)
