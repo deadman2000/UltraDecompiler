@@ -1,8 +1,12 @@
 {
-  "profiles": {
-    "UltraDecompiler": {
-      "commandName": "Project",
-      "commandLineArgs": "D:\\Projects\\TranslateWeb\\Neuromancer\\Neuromancer_re\\NEURO.EXE"
+    "profiles": {
+        "Neuromancer": {
+            "commandName": "Project",
+            "commandLineArgs": "D:\\Projects\\TranslateWeb\\Neuromancer\\Neuromancer_re\\NEURO.EXE"
+        },
+        "HELLO.EXE": {
+            "commandName": "Project",
+            "commandLineArgs": "D:\\Dos\\PROGRAMS\\QuickC\\MY\\HELLO.EXE"
+        }
     }
-  }
 }

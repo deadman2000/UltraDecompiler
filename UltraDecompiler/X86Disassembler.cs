@@ -256,10 +256,12 @@ public class X86Disassembler
             sbyte imm = (sbyte)ReadByte();
             return new Instruction { Mnemonic = "IMUL", Operands = $"{dst}, {src}, {imm}" };
         }
-
-        // For 0x69 (imm16)
-        ushort imm = ReadUInt16();
-        return new Instruction { Mnemonic = "IMUL", Operands = $"{dst}, {src}, 0x{imm:X4}" };
+        else
+        {
+            // For 0x69 (imm16)
+            ushort imm = ReadUInt16();
+            return new Instruction { Mnemonic = "IMUL", Operands = $"{dst}, {src}, 0x{imm:X4}" };
+        }
     }
 
     private Instruction DecodeModRmAlu(byte opcode)
