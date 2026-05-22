@@ -7,6 +7,8 @@ public class X86Disassembler
     private byte _segmentOverride;
     private HashSet<int> _visited = new();
 
+    public int DataSegmentBase { get; set; }
+
     public X86Disassembler(byte[] image)
     {
         _image = image ?? throw new ArgumentNullException(nameof(image));
@@ -60,22 +62,48 @@ public class X86Disassembler
 
             if (mnem == "JMP")
             {
-                if (TryGetJumpTarget(instr, out int target))
+                int target = GetEffectiveJumpTarget(instr);
+                if (target != -1)
                     queue.Enqueue(target);
                 break;
             }
 
             if (mnem.StartsWith("J") || mnem == "CALL")
             {
-                if (TryGetJumpTarget(instr, out int target))
+                int target = GetEffectiveJumpTarget(instr);
+                if (target != -1)
                     queue.Enqueue(target);
             }
         }
     }
 
+    public int GetEffectiveJumpTarget(Instruction instr)
+    {
+        // Прямой переход
+        int direct = instr.GetJumpTarget();
+        if (direct != -1)
+            return direct;
+
+        // Косвенный переход (CALL/JMP через память)
+        if ((instr.Mnemonic == "CALL" || instr.Mnemonic == "JMP") && instr.OperandsInfo.Length > 0)
+        {
+            var op = instr.OperandsInfo[0];
+            if (op.Type == OperandType.Memory)
+            {
+                int realAddr = DataSegmentBase + op.Value;
+                if (realAddr >= 0 && realAddr + 2 <= _image.Length)
+                {
+                    return (ushort)(_image[realAddr] | (_image[realAddr + 1] << 8));
+                }
+            }
+        }
+
+        return -1;
+    }
+
     private bool TryGetJumpTarget(Instruction instr, out int target)
     {
-        target = instr.GetJumpTarget();
+        target = GetEffectiveJumpTarget(instr);
         return target != -1;
     }
 
@@ -398,25 +426,24 @@ public class X86Disassembler
             return new Instruction { Mnemonic = op8, Operands = dst };
         }
 
-        // CALL and JMP through memory (regField 2 and 4)
-        if (regField == 2) // CALL r/m16
+        if (regField == 2)
         {
             var instr = new Instruction { Mnemonic = "CALL", Operands = dst };
-            if (mod != 3 && modrm == 0x16) // [disp16]
+            if (mod != 3)
             {
-                // Специальный случай для FF 16 XX XX
-                ushort addr = (ushort)(ReadUInt16() - 2); // откатываем позицию
-                instr.OperandsInfo = new[] { new Operand(OperandType.Memory, addr) };
+                ushort disp = (ushort)(ReadUInt16() - 2);
+                instr.OperandsInfo = new[] { new Operand(OperandType.Memory, disp) };
             }
             return instr;
         }
 
-        if (regField == 4) // JMP r/m16
+        if (regField == 4)
         {
             var instr = new Instruction { Mnemonic = "JMP", Operands = dst };
             if (mod != 3)
             {
-                instr.OperandsInfo = new[] { new Operand(OperandType.Memory, 0) }; // упрощённо
+                ushort disp = (ushort)(ReadUInt16() - 2);
+                instr.OperandsInfo = new[] { new Operand(OperandType.Memory, disp) };
             }
             return instr;
         }
