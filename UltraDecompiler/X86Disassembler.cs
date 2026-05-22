@@ -255,14 +255,16 @@ public class X86Disassembler
         string dst = GetReg16Name(reg);
         string src = (mod == 3) ? GetReg16Name(rm) : GetMemoryOperand(rm, mod);
 
+        // 0x6B = IMUL reg, r/m, imm8 (sign-extended)
         if (_pos > 0 && _image[_pos - 3] == 0x6B)
         {
-            sbyte imm = (sbyte)ReadByte();
-            return new Instruction { Mnemonic = "IMUL", Operands = $"{dst}, {src}, {imm}" };
+            sbyte imm8 = (sbyte)ReadByte();
+            return new Instruction { Mnemonic = "IMUL", Operands = $"{dst}, {src}, {imm8}" };
         }
 
-        ushort imm = ReadUInt16();
-        return new Instruction { Mnemonic = "IMUL", Operands = $"{dst}, {src}, 0x{imm:X4}" };
+        // 0x69 = IMUL reg, r/m, imm16
+        ushort imm16 = ReadUInt16();
+        return new Instruction { Mnemonic = "IMUL", Operands = $"{dst}, {src}, 0x{imm16:X4}" };
     }
 
     private Instruction DecodeModRmAlu(byte opcode)
