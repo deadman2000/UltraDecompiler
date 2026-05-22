@@ -32,7 +32,7 @@ public class X86Disassembler
             if (_visited.Contains(offset) || offset >= _image.Length)
                 continue;
 
-            DisassembleRecursive(offset, queue);
+            DisassembleBlock(offset, queue);
         }
 
         Instructions = Instructions.OrderBy(i => i.Offset).ToList();
@@ -41,7 +41,7 @@ public class X86Disassembler
     /// <summary>
     /// Разбирает один линейный участок до RET или безусловного JMP
     /// </summary>
-    private void DisassembleRecursive(int startOffset, Queue<int> queue)
+    private void DisassembleBlock(int startOffset, Queue<int> queue)
     {
         _pos = startOffset;
         _segmentOverride = 0;
