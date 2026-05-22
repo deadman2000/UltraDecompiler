@@ -5,30 +5,75 @@ public class X86Disassembler
     private readonly byte[] _image;
     private int _pos;
     private byte _segmentOverride;
+    private HashSet<int> _visited = new();
 
     public X86Disassembler(byte[] image)
     {
         _image = image ?? throw new ArgumentNullException(nameof(image));
     }
 
-    public List<Instruction> Disassemble(int startOffset, int maxInstructions = 300)
+    /// <summary>
+    /// Рекурсивный дизассемблер с полным анализом потока управления
+    /// </summary>
+    public List<Instruction> Disassemble(int startOffset)
     {
+        _visited.Clear();
         var result = new List<Instruction>();
-        _pos = startOffset;
+        DisassembleRecursive(startOffset, result);
+        return result.OrderBy(i => i.Offset).ToList();
+    }
+
+    private void DisassembleRecursive(int offset, List<Instruction> result)
+    {
+        if (_visited.Contains(offset) || offset >= _image.Length)
+            return;
+
+        _visited.Add(offset);
+        _pos = offset;
         _segmentOverride = 0;
 
-        for (int i = 0; i < maxInstructions && _pos < _image.Length; i++)
-        {
-            int instrStart = _pos;
-            var instr = DecodeOneInstruction();
-            instr.Offset = instrStart;
-            instr.Bytes = _image[instrStart.._pos].ToArray();
-            result.Add(instr);
+        int instrStart = _pos;
+        var instr = DecodeOneInstruction();
+        instr.Offset = instrStart;
+        instr.Bytes = _image[instrStart.._pos].ToArray();
+        result.Add(instr);
 
-            if (instr.Mnemonic is "RET" or "RETF" or "IRET")
-                break;
+        string mnem = instr.Mnemonic.ToUpper();
+
+        if (mnem is "RET" or "RETF" or "IRET")
+            return;
+
+        if (TryGetJumpTarget(instr, out int target))
+        {
+            DisassembleRecursive(target, result);
         }
-        return result;
+
+        if (mnem.StartsWith("J") || mnem == "CALL")
+        {
+            DisassembleRecursive(_pos, result);
+        }
+        else if (mnem != "JMP")
+        {
+            DisassembleRecursive(_pos, result);
+        }
+    }
+
+    private bool TryGetJumpTarget(Instruction instr, out int target)
+    {
+        target = 0;
+        if (string.IsNullOrEmpty(instr.Operands))
+            return false;
+
+        var parts = instr.Operands.Split(new[] { ' ', ',', ':' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            if (part.StartsWith("0x") && int.TryParse(part[2..], System.Globalization.NumberStyles.HexNumber, null, out int addr))
+            {
+                target = addr;
+                return true;
+            }
+        }
+        return false;
     }
 
     private Instruction DecodeOneInstruction()
@@ -195,7 +240,6 @@ public class X86Disassembler
 
             case 0xC5: return DecodeLds();
 
-            // 80286 instructions
             case 0xC8: return DecodeEnter();
             case 0xC9: return new Instruction { Mnemonic = "LEAVE" };
 
@@ -255,14 +299,12 @@ public class X86Disassembler
         string dst = GetReg16Name(reg);
         string src = (mod == 3) ? GetReg16Name(rm) : GetMemoryOperand(rm, mod);
 
-        // 0x6B = IMUL reg, r/m, imm8 (sign-extended)
         if (_pos > 0 && _image[_pos - 3] == 0x6B)
         {
             sbyte imm8 = (sbyte)ReadByte();
             return new Instruction { Mnemonic = "IMUL", Operands = $"{dst}, {src}, {imm8}" };
         }
 
-        // 0x69 = IMUL reg, r/m, imm16
         ushort imm16 = ReadUInt16();
         return new Instruction { Mnemonic = "IMUL", Operands = $"{dst}, {src}, 0x{imm16:X4}" };
     }
