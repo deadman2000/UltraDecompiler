@@ -586,5 +586,24 @@ public class X86Disassembler
             string bytesStr = string.Join(" ", Bytes.Select(b => $"{b:X2}"));
             return $"0x{Offset:X6}: {bytesStr,-20} {Mnemonic,-7} {Operands}";
         }
+
+        public string ToColoredString()
+        {
+            string bytesStr = string.Join(" ", Bytes.Select(b => $"{b:X2}"));
+
+            const string RESET = "\u001b[0m";
+            const string GRAY = "\u001b[90m";
+            const string YELLOW = "\u001b[93m";
+            const string CYAN = "\u001b[96m";
+            const string GREEN = "\u001b[92m";
+
+            string coloredMnemonic = YELLOW + Mnemonic + RESET;
+            string coloredOperands = Operands;
+
+            if (Operands.Contains("ES") || Operands.Contains("CS") || Operands.Contains("SS") || Operands.Contains("DS"))
+                coloredOperands = GREEN + Operands + RESET;
+
+            return $"{GRAY}0x{Offset:X6}: {bytesStr,-20}{RESET} {coloredMnemonic} {coloredOperands}";
+        }
     }
 }

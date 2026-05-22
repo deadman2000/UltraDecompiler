@@ -21,7 +21,7 @@ try
 
     foreach (var instr in instructions)
     {
-        Console.WriteLine(instr);
+        Console.WriteLine(instr.ToColoredString());
     }
 }
 catch (Exception ex)
