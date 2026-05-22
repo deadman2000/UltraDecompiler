@@ -105,6 +105,53 @@ public class DisassemblerTests
     }
 
     [Fact]
+    public void DisassembleRepzPrefix()
+    {
+        // REPZ MOVSB
+        var instructions = Disassemble("F3 A4");
+        Assert.Equal(InstructionPrefix.REPZ, instructions[0].Prefix);
+        Assert.Equal(Mnemonic.MOVSB, instructions[0].Mnemonic);
+    }
+
+    [Fact]
+    public void DisassembleRepnzPrefix()
+    {
+        // REPNZ CMPSB
+        var instructions = Disassemble("F2 A6");
+        Assert.Equal(InstructionPrefix.REPNZ, instructions[0].Prefix);
+        Assert.Equal(Mnemonic.CMPSB, instructions[0].Mnemonic);
+    }
+
+    [Fact]
+    public void DisassembleLockWithSegmentOverride()
+    {
+        // LOCK ES: INC WORD PTR [BX]
+        var instructions = Disassemble("F0 26 FF 07");
+        Assert.Equal(InstructionPrefix.LOCK, instructions[0].Prefix);
+        Assert.Equal(Segment.ES, instructions[0].Segment);
+        Assert.Equal(Mnemonic.INC, instructions[0].Mnemonic);
+    }
+
+    [Fact]
+    public void DisassembleRepzWithSegmentOverride()
+    {
+        // REPZ SS: MOVSW
+        var instructions = Disassemble("F3 36 A5");
+        Assert.Equal(InstructionPrefix.REPZ, instructions[0].Prefix);
+        Assert.Equal(Segment.SS, instructions[0].Segment);
+        Assert.Equal(Mnemonic.MOVSW, instructions[0].Mnemonic);
+    }
+
+    [Fact]
+    public void DisassembleMultiplePrefixes()
+    {
+        // LOCK REPNZ SCASW (редкий, но валидный случай)
+        var instructions = Disassemble("F0 F2 AE");
+        Assert.Equal(InstructionPrefix.LOCK | InstructionPrefix.REPNZ, instructions[0].Prefix);
+        Assert.Equal(Mnemonic.SCASW, instructions[0].Mnemonic);
+    }
+
+    [Fact]
     public void SegmentChange()
     {
         var instructions = Disassemble("""
