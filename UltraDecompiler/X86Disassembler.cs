@@ -12,18 +12,22 @@ public class X86Disassembler
         _image = image ?? throw new ArgumentNullException(nameof(image));
     }
 
+    public List<Instruction> Instructions { get; private set; } = [];
+
     /// <summary>
     /// Рекурсивный дизассемблер с полным анализом потока управления
     /// </summary>
-    public List<Instruction> Disassemble(int startOffset)
+    public void Disassemble(int startOffset)
     {
         _visited.Clear();
-        var result = new List<Instruction>();
-        DisassembleRecursive(startOffset, result);
-        return result.OrderBy(i => i.Offset).ToList();
+        Instructions.Clear();
+        DisassembleRecursive(startOffset);
+
+        _visited.Clear();
+        Instructions = Instructions.OrderBy(i => i.Offset).ToList();
     }
 
-    private void DisassembleRecursive(int offset, List<Instruction> result)
+    private void DisassembleRecursive(int offset)
     {
         if (_visited.Contains(offset) || offset >= _image.Length)
             return;
@@ -36,7 +40,7 @@ public class X86Disassembler
         var instr = DecodeOneInstruction();
         instr.Offset = instrStart;
         instr.Bytes = _image[instrStart.._pos].ToArray();
-        result.Add(instr);
+        Instructions.Add(instr);
 
         string mnem = instr.Mnemonic.ToUpper();
 
@@ -45,16 +49,16 @@ public class X86Disassembler
 
         if (TryGetJumpTarget(instr, out int target))
         {
-            DisassembleRecursive(target, result);
+            DisassembleRecursive(target);
         }
 
         if (mnem.StartsWith("J") || mnem == "CALL")
         {
-            DisassembleRecursive(_pos, result);
+            DisassembleRecursive(_pos);
         }
         else if (mnem != "JMP")
         {
-            DisassembleRecursive(_pos, result);
+            DisassembleRecursive(_pos);
         }
     }
 
