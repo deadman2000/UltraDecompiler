@@ -80,7 +80,6 @@ public enum Mnemonic
     HLT,
     INT,
     INTO,
-    IRET,
     ENTER,
     LEAVE,
     BOUND,

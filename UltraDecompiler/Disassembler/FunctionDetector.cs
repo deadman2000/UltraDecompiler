@@ -23,7 +23,7 @@ public static class FunctionDetector
 
         foreach (var instr in instructions)
         {
-            if (instr.Mnemonic.Equals("CALL", StringComparison.OrdinalIgnoreCase))
+            if (instr.Mnemonic == Mnemonic.CALL)
             {
                 if (TryGetCallTarget(instr, out int target))
                 {

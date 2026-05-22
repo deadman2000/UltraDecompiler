@@ -1,3 +1,5 @@
+using System.Net;
+
 namespace UltraDecompiler.Disassembler;
 
 public class Instruction
@@ -18,7 +20,27 @@ public class Instruction
     public string MnemonicString => GetMnemonicString();
 
     public string Operands { get; set; } = "";
+
     public Operand[] OperandsInfo { get; set; } = Array.Empty<Operand>();
+
+    public bool IsJump => Mnemonic is Mnemonic.JO
+        or Mnemonic.JNO
+        or Mnemonic.JNO
+        or Mnemonic.JB
+        or Mnemonic.JAE
+        or Mnemonic.JE
+        or Mnemonic.JNE
+        or Mnemonic.JBE
+        or Mnemonic.JA
+        or Mnemonic.JS
+        or Mnemonic.JNS
+        or Mnemonic.JP
+        or Mnemonic.JNP
+        or Mnemonic.JL
+        or Mnemonic.JGE
+        or Mnemonic.JLE
+        or Mnemonic.JG
+        or Mnemonic.JCXZ;
 
     private string GetMnemonicString()
     {

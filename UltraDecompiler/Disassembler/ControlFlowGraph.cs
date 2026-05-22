@@ -24,10 +24,9 @@ public class ControlFlowGraph
         for (int i = 0; i < instructions.Count; i++)
         {
             var instr = instructions[i];
-            string mnem = instr.Mnemonic.ToUpper();
 
             // Условные и безусловные переходы создают новый лидер
-            if (mnem.StartsWith("J") || mnem == "CALL" || mnem == "RET" || mnem == "RETF")
+            if (instr.IsJump || instr.Mnemonic is Mnemonic.CALL or Mnemonic.RET or Mnemonic.RETF)
             {
                 if (i + 1 < instructions.Count)
                     leaders.Add(instructions[i + 1].Offset);
@@ -73,10 +72,9 @@ public class ControlFlowGraph
             if (block.Instructions.Count == 0) continue;
 
             var lastInstr = block.Instructions.Last();
-            string mnem = lastInstr.Mnemonic.ToUpper();
 
             // Безусловный переход
-            if (mnem == "JMP")
+            if (lastInstr.Mnemonic == Mnemonic.JMP)
             {
                 if (TryGetJumpTarget(lastInstr, out int target) && offsetToBlock.TryGetValue(target, out var targetBlock))
                 {
@@ -85,7 +83,7 @@ public class ControlFlowGraph
                 }
             }
             // Условный переход
-            else if (mnem.StartsWith("J") && mnem != "JMP")
+            else if (lastInstr.IsJump)
             {
                 // Переход по условию
                 if (TryGetJumpTarget(lastInstr, out int target) && offsetToBlock.TryGetValue(target, out var targetBlock))
@@ -103,7 +101,7 @@ public class ControlFlowGraph
                 }
             }
             // CALL — переходим на следующий блок после вызова
-            else if (mnem == "CALL")
+            else if (lastInstr.Mnemonic == Mnemonic.CALL)
             {
                 int nextOffset = lastInstr.Offset + lastInstr.Bytes.Length;
                 if (offsetToBlock.TryGetValue(nextOffset, out var nextBlock))
@@ -113,7 +111,7 @@ public class ControlFlowGraph
                 }
             }
             // RET / RETF — конец функции
-            else if (mnem == "RET" || mnem == "RETF")
+            else if (lastInstr.Mnemonic is Mnemonic.RET or Mnemonic.RETF)
             {
                 // Не добавляем successors
             }
