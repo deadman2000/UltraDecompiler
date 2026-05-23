@@ -425,6 +425,79 @@ public class X86Disassembler
             case 0x6B:
                 return DecodeImulTwoOperand();
 
+            // IN/OUT support added
+            case 0xE4: // IN AL, imm8
+            {
+                byte port = ReadByte();
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.IN,
+                    Operand1 = new Operand(OperandType.Register8, 0), // AL
+                    Operand2 = new Operand(OperandType.Immediate8, port)
+                };
+            }
+            case 0xE5: // IN AX, imm8
+            {
+                byte port = ReadByte();
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.IN,
+                    Operand1 = new Operand(OperandType.Register16, 0), // AX
+                    Operand2 = new Operand(OperandType.Immediate8, port)
+                };
+            }
+            case 0xE6: // OUT imm8, AL
+            {
+                byte port = ReadByte();
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.OUT,
+                    Operand1 = new Operand(OperandType.Immediate8, port),
+                    Operand2 = new Operand(OperandType.Register8, 0) // AL
+                };
+            }
+            case 0xE7: // OUT imm8, AX
+            {
+                byte port = ReadByte();
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.OUT,
+                    Operand1 = new Operand(OperandType.Immediate8, port),
+                    Operand2 = new Operand(OperandType.Register16, 0) // AX
+                };
+            }
+            case 0xEC: // IN AL, DX
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.IN,
+                    Operand1 = new Operand(OperandType.Register8, 0),
+                    Operand2 = new Operand(OperandType.Register16, 2) // DX
+                };
+            case 0xED: // IN AX, DX
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.IN,
+                    Operand1 = new Operand(OperandType.Register16, 0),
+                    Operand2 = new Operand(OperandType.Register16, 2) // DX
+                };
+            case 0xEE: // OUT DX, AL
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.OUT,
+                    Operand1 = new Operand(OperandType.Register16, 2), // DX
+                    Operand2 = new Operand(OperandType.Register8, 0) // AL
+                };
+            case 0xEF: // OUT DX, AX
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.OUT,
+                    Operand1 = new Operand(OperandType.Register16, 2), // DX
+                    Operand2 = new Operand(OperandType.Register16, 0) // AX
+                };
+
+            // SBB already supported via DecodeGroup80 / GetAluMnemonicEnum, but ensuring in DecodeOneInstruction path
+            // (SBB uses 0x18-0x1B, 0x80/83 with reg=3 etc. - handled)
+
             default:
                 return new Instruction { Mnemonic = Mnemonic.DB, Operands = Instruction.UnknownOperand };
         }
