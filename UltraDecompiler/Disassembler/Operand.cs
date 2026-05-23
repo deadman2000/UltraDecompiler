@@ -3,15 +3,24 @@ using UltraDecompiler.Extensions;
 
 namespace UltraDecompiler.Disassembler;
 
+public enum AddressRegister : byte
+{
+    None = 0,
+    BX = 3,
+    BP = 5,
+    SI = 6,
+    DI = 7
+}
+
 public readonly struct Operand
 {
     public readonly OperandType Type;
     public readonly int Value;        // immediate, displacement, or register index
-    public readonly byte BaseReg;     // for memory: BX, BP, SI, DI
-    public readonly byte IndexReg;    // for memory: SI, DI
+    public readonly AddressRegister BaseReg;     // for memory: BX, BP, SI, DI
+    public readonly AddressRegister IndexReg;    // for memory: SI, DI
     public readonly byte Scale;       // usually 1
 
-    public Operand(OperandType type, int value = 0, byte baseReg = 0, byte indexReg = 0, byte scale = 1)
+    public Operand(OperandType type, int value = 0, AddressRegister baseReg = AddressRegister.None, AddressRegister indexReg = AddressRegister.None, byte scale = 1)
     {
         Debug.Assert(value >= short.MinValue && value <= ushort.MaxValue);
         Type = type;
@@ -63,28 +72,28 @@ public readonly struct Operand
         var parts = new List<string>();
 
         // Base register
-        if (BaseReg != 0)
+        if (BaseReg != AddressRegister.None)
         {
             string baseName = BaseReg switch
             {
-                3 => "BX",
-                5 => "BP",
-                6 => "SI",
-                7 => "DI",
+                AddressRegister.BX => "BX",
+                AddressRegister.BP => "BP",
+                AddressRegister.SI => "SI",
+                AddressRegister.DI => "DI",
                 _ => "?"
             };
             parts.Add(baseName);
         }
 
         // Index register
-        if (IndexReg != 0 && IndexReg != BaseReg)
+        if (IndexReg != AddressRegister.None && IndexReg != BaseReg)
         {
             string idxName = IndexReg switch
             {
-                3 => "BX",
-                5 => "BP",
-                6 => "SI",
-                7 => "DI",
+                AddressRegister.BX => "BX",
+                AddressRegister.BP => "BP",
+                AddressRegister.SI => "SI",
+                AddressRegister.DI => "DI",
                 _ => "?"
             };
             parts.Add(idxName);
