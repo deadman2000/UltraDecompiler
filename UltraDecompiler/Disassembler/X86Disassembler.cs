@@ -867,27 +867,27 @@ public class X86Disassembler
         else if (mod == 2)
             disp = (short)ReadUInt16();
 
-        byte baseReg = 0;
-        byte indexReg = 0;
+        AddressRegister baseReg = AddressRegister.None;
+        AddressRegister indexReg = AddressRegister.None;
 
         switch (rm)
         {
-            case 0: baseReg = 3; indexReg = 6; break; // [BX+SI]
-            case 1: baseReg = 3; indexReg = 7; break; // [BX+DI]
-            case 2: baseReg = 5; indexReg = 6; break; // [BP+SI]
-            case 3: baseReg = 5; indexReg = 7; break; // [BP+DI]
-            case 4: baseReg = 6; break; // [SI]
-            case 5: baseReg = 7; break; // [DI]
+            case 0: baseReg = AddressRegister.BX; indexReg = AddressRegister.SI; break; // [BX+SI]
+            case 1: baseReg = AddressRegister.BX; indexReg = AddressRegister.DI; break; // [BX+DI]
+            case 2: baseReg = AddressRegister.BP; indexReg = AddressRegister.SI; break; // [BP+SI]
+            case 3: baseReg = AddressRegister.BP; indexReg = AddressRegister.DI; break; // [BP+DI]
+            case 4: baseReg = AddressRegister.SI; break; // [SI]
+            case 5: baseReg = AddressRegister.DI; break; // [DI]
             case 6:
                 if (mod == 0)
                 {
                     disp = ReadUInt16();
-                    baseReg = 0; // direct
+                    baseReg = AddressRegister.None; // direct
                 }
                 else
-                    baseReg = 5; // [BP+disp]
+                    baseReg = AddressRegister.BP; // [BP+disp]
                 break;
-            case 7: baseReg = 3; break; // [BX]
+            case 7: baseReg = AddressRegister.BX; break; // [BX]
         }
 
         return new Operand(OperandType.Memory, disp, baseReg, indexReg);
