@@ -9,7 +9,7 @@ public class DisassemblerTests
     {
         var instructions = Disassemble("FF 16 46 00");
         Assert.Equal(Mnemonic.CALL, instructions[0].Mnemonic);
-        Assert.Equal("0x0046", instructions[0].Operands);
+        Assert.Equal("[0x0046]", instructions[0].Operands);
     }
 
     [Fact]
