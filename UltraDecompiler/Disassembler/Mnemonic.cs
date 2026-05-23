@@ -37,6 +37,7 @@ public enum Mnemonic
     // Логика и сдвиги
     TEST,
     SHL,
+    SAL,
     SHR,
     SAR,
     ROL,
@@ -68,7 +69,7 @@ public enum Mnemonic
 
     // Флаги
     PUSHF, POPF, SAHF, LAHF,
-    STI, CLI, STD, CLD,
+    STI, CLI, STD, CLD, CLC, CMC, STC,
 
     // Прочие
     NOP,
