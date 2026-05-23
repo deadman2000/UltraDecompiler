@@ -148,7 +148,7 @@ public static class Extensions
             else if (operands.Contains("ES") || operands.Contains("CS") || operands.Contains("SS") || operands.Contains("DS"))
                 operands = GREEN + operands + RESET;
 
-            return $"{GRAY}0x{instruction.Offset:X6}:{RESET} {GRAY}{bytesStr,-20}{RESET} {instructionColor}{instruction.MnemonicString,-5}{RESET} {operands}";
+            return $"{GRAY}{instruction.Offset:X6}:{RESET} {GRAY}{bytesStr,-20}{RESET} {instructionColor}{instruction.MnemonicString,-5}{RESET} {operands}";
         }
     }
 }

@@ -35,12 +35,20 @@ public readonly struct Operand
         return Type switch
         {
             OperandType.Register8 or OperandType.Register16 => GetRegName(),
-            OperandType.Immediate8 or OperandType.Immediate16 => $"0x{Value:X4}",
+            OperandType.Immediate8 or OperandType.Immediate16 => GetValueHex(),
             OperandType.Memory => GetMemoryString(),
-            OperandType.Relative8 or OperandType.Relative16 => $"0x{Value:X4}",
+            OperandType.Relative8 or OperandType.Relative16 => GetValueHex(),
             OperandType.SegmentRegister => GetSegRegName(),
             _ => "?"
         };
+    }
+
+    private string GetValueHex()
+    {
+        if (Value > -10 && Value < 10)
+            return Value.ToString();
+
+        return $"{Value:X4}h";
     }
 
     private string GetRegName() => Value switch
@@ -58,7 +66,11 @@ public readonly struct Operand
 
     private string GetSegRegName() => Value switch
     {
-        0 => "ES", 1 => "CS", 2 => "SS", 3 => "DS", _ => "?SREG"
+        0 => "ES",
+        1 => "CS",
+        2 => "SS",
+        3 => "DS",
+        _ => "?SREG"
     };
 
     private string GetMemoryString()
@@ -96,11 +108,14 @@ public readonly struct Operand
         // Displacement
         if (Value != 0)
         {
-            parts.Add($"0x{Value:X4}");
+            if (Value < 10)
+                parts.Add(Value.ToString());
+            else
+                parts.Add($"{Value:X4}h");
         }
 
         if (parts.Count == 0)
-            return "[0x0000]";
+            return "[0]";
 
         return $"[{string.Join("+", parts)}]";
     }

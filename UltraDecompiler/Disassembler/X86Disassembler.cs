@@ -5,7 +5,7 @@ public class X86Disassembler
     private readonly byte[] _image;
     private int _pos;
     private Segment _segmentOverride;
-    private HashSet<int> _visited = new();
+    private readonly HashSet<int> _visited = [];
 
     public int DataSegmentBase { get; set; }
 
@@ -278,7 +278,7 @@ public class X86Disassembler
                 var callInstr = new Instruction
                 {
                     Mnemonic = Mnemonic.CALL,
-                    Operands = $"0x{_pos + rel:X4}",
+                    Operands = $"{_pos + rel:X4}h",
                     Operand1 = new Operand(OperandType.Relative16, _pos + rel)
                 };
                 return callInstr;
@@ -288,7 +288,7 @@ public class X86Disassembler
 
             case 0xCD:
                 byte intNum = ReadByte();
-                return new Instruction { Mnemonic = Mnemonic.INT, Operands = $"0x{intNum:X2}" };
+                return new Instruction { Mnemonic = Mnemonic.INT, Operands = $"{intNum:X2}h" };
 
             case 0x90: return new Instruction { Mnemonic = Mnemonic.NOP };
 
@@ -421,7 +421,7 @@ public class X86Disassembler
     {
         ushort alloc = ReadUInt16();
         byte level = ReadByte();
-        return new Instruction { Mnemonic = Mnemonic.ENTER, Operands = $"0x{alloc:X4}, {level}" };
+        return new Instruction { Mnemonic = Mnemonic.ENTER, Operands = $"{alloc:X4}h, {level}" };
     }
 
     private Instruction DecodeImulTwoOperand()
@@ -486,7 +486,7 @@ public class X86Disassembler
         Mnemonic op = GetAluMnemonicEnum(opcode);
         bool word = (opcode & 1) == 1;
         ushort imm = word ? ReadUInt16() : ReadByte();
-        return new Instruction { Mnemonic = op, Operands = $"{(word ? "AX" : "AL")}, 0x{imm:X4}" };
+        return new Instruction { Mnemonic = op, Operands = $"{(word ? "AX" : "AL")}, {imm:X4}h" };
     }
 
     private Instruction DecodeGroup80(byte opcode)
@@ -639,7 +639,7 @@ public class X86Disassembler
         bool word = opcode >= 0xB8;
         string reg = GetReg8or16Name(opcode - (word ? 0xB8 : 0xB0), word);
         ushort imm = word ? ReadUInt16() : ReadByte();
-        return new Instruction { Mnemonic = Mnemonic.MOV, Operands = $"{reg}, 0x{imm:X4}" };
+        return new Instruction { Mnemonic = Mnemonic.MOV, Operands = $"{reg}, {imm:X4}h" };
     }
 
     private Instruction DecodeMovMemImm(byte opcode)
@@ -663,7 +663,7 @@ public class X86Disassembler
         ushort disp = ReadUInt16();
         string seg = _segmentOverride.ToPrefixString();
 
-        string addr = $"{seg}0x{disp:X4}";
+        string addr = $"{seg}{disp:X4}";
 
         var instr = new Instruction { Mnemonic = Mnemonic.MOV };
         if (opcode == 0xA0) { instr.Operands = $"AL, {addr}"; instr.Operand1 = new Operand(OperandType.Register8, 0); }
@@ -722,7 +722,6 @@ public class X86Disassembler
         var instr = new Instruction
         {
             Mnemonic = mnem,
-            Operands = $"0x{target:X4}",
             Operand1 = new Operand(OperandType.Relative8, target)
         };
         return instr;
@@ -736,7 +735,6 @@ public class X86Disassembler
         var instr = new Instruction
         {
             Mnemonic = Mnemonic.JMP,
-            Operands = $"0x{target:X4}",
             Operand1 = new Operand(OperandType.Relative16, target)
         };
         return instr;
@@ -840,7 +838,7 @@ public class X86Disassembler
         var instr = new Instruction
         {
             Mnemonic = mnem,
-            Operands = $"0x{target:X4}",
+            Operands = $"{target:X4}h",
             Operand1 = new Operand(OperandType.Relative8, target)
         };
         return instr;
@@ -889,35 +887,6 @@ public class X86Disassembler
             baseReg = 0; // только disp
 
         return new Operand(OperandType.Memory, disp, baseReg, indexReg);
-    }
-
-    private string GetMemoryOperand(int rm, int mod)
-    {
-        string seg = _segmentOverride.ToPrefixString();
-
-        if (mod == 0 && rm == 6)
-        {
-            ushort disp = ReadUInt16();
-            return $"{seg}0x{disp:X4}";
-        }
-
-        string baseReg = rm switch
-        {
-            0 => "BX+SI",
-            1 => "BX+DI",
-            2 => "BP+SI",
-            3 => "BP+DI",
-            4 => "SI",
-            5 => "DI",
-            6 => "BP",
-            7 => "BX",
-            _ => "?"
-        };
-
-        if (mod == 1) return $"{seg}{baseReg}+{ReadByte()}";
-        if (mod == 2) return $"{seg}{baseReg}+{ReadUInt16()}";
-
-        return $"{seg}{baseReg}";
     }
 
     private string GetReg8or16Name(int reg, bool word)

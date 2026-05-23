@@ -103,9 +103,9 @@ public class Instruction
     public int GetJumpTarget()
     {
         if (Operand1?.Type is OperandType.Relative8 or OperandType.Relative16)
-            return Operand1.Value;
+            return Operand1.Value.Value;
         if (Operand2?.Type is OperandType.Relative8 or OperandType.Relative16)
-            return Operand2.Value;
+            return Operand2.Value.Value;
         return -1;
     }
 
@@ -134,6 +134,6 @@ public class Instruction
     public override string ToString()
     {
         string bytesStr = string.Join(" ", Bytes.Select(b => $"{b:X2}"));
-        return $"0x{Offset:X6}: {bytesStr,-20} {MnemonicString,-7} {Operands}";
+        return $"{Offset:X6}: {bytesStr,-20} {MnemonicString,-7} {Operands}";
     }
 }

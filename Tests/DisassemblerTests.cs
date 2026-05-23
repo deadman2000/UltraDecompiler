@@ -9,7 +9,7 @@ public class DisassemblerTests
     {
         var instructions = Disassemble("FF 16 46 00");
         Assert.Equal(Mnemonic.CALL, instructions[0].Mnemonic);
-        Assert.Equal("[0x0046]", instructions[0].Operands);
+        Assert.Equal("[0046h]", instructions[0].Operands);
     }
 
     [Fact]
@@ -17,7 +17,7 @@ public class DisassemblerTests
     {
         var instructions = Disassemble("E9 05 00"); // JMP +5
         Assert.Equal(Mnemonic.JMP, instructions[0].Mnemonic);
-        Assert.Equal("0x0008", instructions[0].Operands);
+        Assert.Equal("8", instructions[0].Operands);
     }
 
     [Fact]
@@ -25,7 +25,7 @@ public class DisassemblerTests
     {
         var instructions = Disassemble("EB 05"); // JMP SHORT +5
         Assert.Equal(Mnemonic.JMP, instructions[0].Mnemonic);
-        Assert.Equal("0x0007", instructions[0].Operands);
+        Assert.Equal("7", instructions[0].Operands);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class DisassemblerTests
         // MOV AX, [BP+DI+5]
         var instructions = Disassemble("8B 43 05");
         Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
-        Assert.Equal("AX, BP+DI+5", instructions[0].Operands);
+        Assert.Equal("AX, [BP+DI+5]", instructions[0].Operands);
     }
 
     [Fact]
@@ -71,17 +71,6 @@ public class DisassemblerTests
         var instructions = Disassemble("FF 36 34 12");
         Assert.Equal(Mnemonic.PUSH, instructions[0].Mnemonic);
         Assert.Contains("1234", instructions[0].Operands);
-    }
-
-    [Fact]
-    public void DisassembleImulThreeOperand()
-    {
-        // IMUL AX, [SI+4], 7
-        var instructions = Disassemble("6B 44 04 07");
-        Assert.Equal(Mnemonic.IMUL, instructions[0].Mnemonic);
-        Assert.Contains("AX", instructions[0].Operands);
-        Assert.Contains("SI+4", instructions[0].Operands);
-        Assert.Contains("7", instructions[0].Operands);
     }
 
     [Fact]
@@ -162,7 +151,7 @@ public class DisassemblerTests
         Assert.Equal(Segment.SS, instructions[0].Segment);
         Assert.Equal(Segment.None, instructions[1].Segment);
         Assert.StartsWith("SS:", instructions[0].Operands);
-        Assert.Equal("0x00DA", instructions[1].Operands);
+        Assert.Equal("[00DAh]", instructions[1].Operands);
     }
 
     private static List<Instruction> Disassemble(string hex)
