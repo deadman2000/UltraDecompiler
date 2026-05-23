@@ -396,8 +396,11 @@ public class X86Disassembler
         int reg = (modrm >> 3) & 7;
         int rm = modrm & 7;
 
-        var instr = new Instruction { Mnemonic = Mnemonic.LDS };
-        instr.Operand1 = new Operand(OperandType.Register16, reg);
+        var instr = new Instruction
+        {
+            Mnemonic = Mnemonic.LDS,
+            Operand1 = new Operand(OperandType.Register16, reg)
+        };
         if (mod != 3)
             instr.Operand2 = ParseMemoryOperand(rm, mod);
         else
@@ -720,13 +723,16 @@ public class X86Disassembler
             0x7D => Mnemonic.JGE,
             0x7E => Mnemonic.JLE,
             0x7F => Mnemonic.JG,
-            0xEB => Mnemonic.JMP,
             0xE3 => Mnemonic.JCXZ,
+            0xEB => Mnemonic.JMP,
             _ => Mnemonic.DB
         };
 
-        var instr = new Instruction { Mnemonic = mnem };
-        instr.Operand1 = new Operand(OperandType.Relative8, target);
+        var instr = new Instruction
+        {
+            Mnemonic = mnem,
+            Operand1 = new Operand(OperandType.Relative8, target)
+        };
         return instr;
     }
 
@@ -735,8 +741,11 @@ public class X86Disassembler
         short rel = (short)ReadUInt16();
         int target = _pos + rel;
 
-        var instr = new Instruction { Mnemonic = Mnemonic.JMP };
-        instr.Operand1 = new Operand(OperandType.Relative16, target);
+        var instr = new Instruction
+        {
+            Mnemonic = Mnemonic.JMP,
+            Operand1 = new Operand(OperandType.Relative16, target)
+        };
         return instr;
     }
 
@@ -747,8 +756,11 @@ public class X86Disassembler
         int reg = (modrm >> 3) & 7;
         int rm = modrm & 7;
 
-        var instr = new Instruction { Mnemonic = Mnemonic.LEA };
-        instr.Operand1 = new Operand(OperandType.Register16, reg);
+        var instr = new Instruction
+        {
+            Mnemonic = Mnemonic.LEA,
+            Operand1 = new Operand(OperandType.Register16, reg)
+        };
         if (mod == 3)
             instr.Operand2 = new Operand(OperandType.Register16, rm);
         else
@@ -828,6 +840,24 @@ public class X86Disassembler
         // CL or 1
         return instr;
     }
+    private Instruction DecodeLoop(byte opcode)
+    {
+        sbyte rel = (sbyte)ReadByte();
+        int target = _pos + rel;
+        Mnemonic mnem = opcode switch
+        {
+            0xE0 => Mnemonic.LOOPNE,
+            0xE1 => Mnemonic.LOOPE,
+            0xE2 => Mnemonic.LOOP,
+            _ => Mnemonic.LOOP
+        };
+
+        return new Instruction
+        {
+            Mnemonic = mnem,
+            Operand1 = new Operand(OperandType.Relative8, target)
+        };
+    }
 
     private Operand ParseMemoryOperand(int rm, int mod)
     {
@@ -842,11 +872,10 @@ public class X86Disassembler
 
         switch (rm)
         {
-            case 0: baseReg = 6; indexReg = 7; break; // BX+DI ? Wait, standard 8086:
-            case 0: baseReg = 3; indexReg = 7; break; // [BX+DI]
-            case 1: baseReg = 3; indexReg = 6; break; // [BX+SI]
-            case 2: baseReg = 5; indexReg = 7; break; // [BP+DI]
-            case 3: baseReg = 5; indexReg = 6; break; // [BP+SI]
+            case 0: baseReg = 3; indexReg = 6; break; // [BX+SI]
+            case 1: baseReg = 3; indexReg = 7; break; // [BX+DI]
+            case 2: baseReg = 5; indexReg = 6; break; // [BP+SI]
+            case 3: baseReg = 5; indexReg = 7; break; // [BP+DI]
             case 4: baseReg = 6; break; // [SI]
             case 5: baseReg = 7; break; // [DI]
             case 6:
@@ -864,7 +893,7 @@ public class X86Disassembler
         return new Operand(OperandType.Memory, disp, baseReg, indexReg);
     }
 
-    private string GetReg16Name(int index) => index switch
+    private static string GetReg16Name(int index) => index switch
     {
         0 => "AX",
         1 => "CX",
@@ -877,7 +906,7 @@ public class X86Disassembler
         _ => "?"
     };
 
-    private string GetReg8Name(int index) => index switch
+    private static string GetReg8Name(int index) => index switch
     {
         0 => "AL",
         1 => "CL",
@@ -890,11 +919,11 @@ public class X86Disassembler
         _ => "?"
     };
 
-    private string GetReg8or16Name(int index, bool word) => word ? GetReg16Name(index) : GetReg8Name(index);
+    private static string GetReg8or16Name(int index, bool word) => word ? GetReg16Name(index) : GetReg8Name(index);
 
-    private Mnemonic GetAluMnemonicEnum(byte opcode)
+    private static Mnemonic GetAluMnemonicEnum(byte opcode)
     {
-        return (opcode >> 3) & 7 switch
+        return ((opcode >> 3) & 7) switch
         {
             0 => Mnemonic.ADD,
             1 => Mnemonic.OR,
@@ -916,6 +945,4 @@ public class X86Disassembler
         _pos += 2;
         return val;
     }
-
-    private string ToHex(this ushort v) => v > 9 ? $"{v:X4}h" : v.ToString();
 }
