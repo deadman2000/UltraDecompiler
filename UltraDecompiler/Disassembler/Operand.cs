@@ -63,7 +63,49 @@ public readonly struct Operand
 
     private string GetMemoryString()
     {
-        // Упрощённая версия для вывода
-        return $"[0x{Value:X4}]";
+        var parts = new List<string>();
+
+        // Base register
+        if (BaseReg != 0)
+        {
+            string baseName = BaseReg switch
+            {
+                0 => "BX+SI",
+                1 => "BX+DI",
+                2 => "BP+SI",
+                3 => "BP+DI",
+                4 => "SI",
+                5 => "DI",
+                6 => "BP",
+                7 => "BX",
+                _ => "?"
+            };
+            parts.Add(baseName);
+        }
+
+        // Index register (если отличается от базы)
+        if (IndexReg != 0 && IndexReg != BaseReg)
+        {
+            string idxName = IndexReg switch
+            {
+                4 => "SI",
+                5 => "DI",
+                6 => "BP",
+                7 => "BX",
+                _ => "?"
+            };
+            parts.Add(idxName);
+        }
+
+        // Displacement
+        if (Value != 0)
+        {
+            parts.Add($"0x{Value:X4}");
+        }
+
+        if (parts.Count == 0)
+            return "[0x0000]";
+
+        return $"[{string.Join("+", parts)}]";
     }
 }
