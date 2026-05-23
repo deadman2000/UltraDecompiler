@@ -303,8 +303,15 @@ public class X86Disassembler
             case 0xCB: return new Instruction { Mnemonic = Mnemonic.RETF };
 
             case 0xCD:
+            {
                 byte intNum = ReadByte();
-                return new Instruction { Mnemonic = Mnemonic.INT, Operands = $"{intNum:X2}h" };
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.INT,
+                    Operands = $"{intNum:X2}h",
+                    Operand1 = new Operand(OperandType.Immediate8, intNum)
+                };
+            }
 
             case 0x90: return new Instruction { Mnemonic = Mnemonic.NOP };
 
@@ -318,7 +325,16 @@ public class X86Disassembler
             case 0x95:
             case 0x96:
             case 0x97:
-                return new Instruction { Mnemonic = Mnemonic.XCHG, Operands = $"AX, {GetReg16Name(opcode - 0x90)}" };
+            {
+                int reg = opcode - 0x90;
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.XCHG,
+                    Operands = $"AX, {GetReg16Name(reg)}",
+                    Operand1 = new Operand(OperandType.Register16, 0),
+                    Operand2 = new Operand(OperandType.Register16, reg)
+                };
+            }
 
             case 0x40:
             case 0x41:
@@ -328,7 +344,15 @@ public class X86Disassembler
             case 0x45:
             case 0x46:
             case 0x47:
-                return new Instruction { Mnemonic = Mnemonic.INC, Operands = GetReg16Name(opcode - 0x40) };
+            {
+                int reg = opcode - 0x40;
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.INC,
+                    Operands = GetReg16Name(reg),
+                    Operand1 = new Operand(OperandType.Register16, reg)
+                };
+            }
             case 0x48:
             case 0x49:
             case 0x4A:
@@ -337,7 +361,15 @@ public class X86Disassembler
             case 0x4D:
             case 0x4E:
             case 0x4F:
-                return new Instruction { Mnemonic = Mnemonic.DEC, Operands = GetReg16Name(opcode - 0x48) };
+            {
+                int reg = opcode - 0x48;
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.DEC,
+                    Operands = GetReg16Name(reg),
+                    Operand1 = new Operand(OperandType.Register16, reg)
+                };
+            }
 
             case 0x8D: return DecodeLea();
 
