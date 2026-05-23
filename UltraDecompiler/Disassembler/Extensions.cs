@@ -61,9 +61,12 @@ public static class Extensions
             Mnemonic.RCR => "rcr",
 
             Mnemonic.JMP => "jmp",
+            Mnemonic.JMP_FAR => "jmp far",
             Mnemonic.CALL => "call",
+            Mnemonic.CALL_FAR => "call far",
             Mnemonic.RET => "ret",
             Mnemonic.RETF => "retf",
+            Mnemonic.RETF_FAR => "retf",
             Mnemonic.IRET => "iret",
 
             Mnemonic.JO => "jo",

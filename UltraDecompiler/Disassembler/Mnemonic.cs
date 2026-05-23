@@ -46,9 +46,12 @@ public enum Mnemonic
 
     // Переходы
     JMP,
+    JMP_FAR,
     CALL,
+    CALL_FAR,
     RET,
     RETF,
+    RETF_FAR,
     IRET,
 
     // Условные переходы

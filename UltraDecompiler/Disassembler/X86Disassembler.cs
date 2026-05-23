@@ -301,6 +301,7 @@ public class X86Disassembler
                 };
 
             case 0xC3: return new Instruction { Mnemonic = Mnemonic.RET };
+            case 0xCA: return new Instruction { Mnemonic = Mnemonic.RETF_FAR };
             case 0xCB: return new Instruction { Mnemonic = Mnemonic.RETF };
             case 0xCE: return new Instruction { Mnemonic = Mnemonic.INTO };
             case 0xCF: return new Instruction { Mnemonic = Mnemonic.IRET };
@@ -700,20 +701,7 @@ public class X86Disassembler
 
         if (opcode == 0xFE)
         {
-            Mnemonic op8 = regField switch { 0 => Mnemonic.INC, 1 => Mnemonic.DEC, _ => Mnemonic.DB };
-            instr.Mnemonic = op8;
-            return instr;
-        }
-
-        if (regField == 2)
-        {
-            instr.Mnemonic = Mnemonic.CALL;
-            return instr;
-        }
-
-        if (regField == 4)
-        {
-            instr.Mnemonic = Mnemonic.JMP;
+            instr.Mnemonic = regField switch { 0 => Mnemonic.INC, 1 => Mnemonic.DEC, _ => Mnemonic.DB };
             return instr;
         }
 
@@ -722,9 +710,9 @@ public class X86Disassembler
             0 => Mnemonic.INC,
             1 => Mnemonic.DEC,
             2 => Mnemonic.CALL,
-            3 => Mnemonic.CALL,
+            3 => Mnemonic.CALL_FAR,
             4 => Mnemonic.JMP,
-            5 => Mnemonic.JMP,
+            5 => Mnemonic.JMP_FAR,
             6 => Mnemonic.PUSH,
             _ => Mnemonic.DB
         };

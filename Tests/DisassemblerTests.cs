@@ -65,7 +65,7 @@ public class DisassemblerTests
     {
         // JMP DWORD PTR [1234] (far jump through memory)
         var instructions = Disassemble("FF 2E 34 12");
-        Assert.Equal(Mnemonic.JMP, instructions[0].Mnemonic);
+        Assert.Equal(Mnemonic.JMP_FAR, instructions[0].Mnemonic);
         Assert.Contains("1234", instructions[0].Operands);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
         Assert.Equal(0x1234, instructions[0].Operand1.Value);
