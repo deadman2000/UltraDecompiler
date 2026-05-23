@@ -433,7 +433,6 @@ public class DisassemblerTests
         Assert.Equal(2, instructions[0].Operand2.Value);
     }
 
-    // Новые тесты на недостающие инструкции 8086 (ADC, SBB, OR, XOR, TEST, SHL, условные переходы, LOOP, строковые, PUSHF, DAA, CBW, IN/OUT, LDS, XLAT)
     [Fact]
     public void DisassembleAdcAlImm()
     {

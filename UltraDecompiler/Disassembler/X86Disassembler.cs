@@ -290,12 +290,11 @@ public class X86Disassembler
 
             case 0xE8:
                 short rel = (short)ReadUInt16();
-                var callInstr = new Instruction
+                return new Instruction
                 {
                     Mnemonic = Mnemonic.CALL,
                     Operand1 = new Operand(OperandType.Relative16, _pos + rel)
                 };
-                return callInstr;
 
             case 0xC3: return new Instruction { Mnemonic = Mnemonic.RET };
             case 0xCB: return new Instruction { Mnemonic = Mnemonic.RETF };
@@ -503,13 +502,13 @@ public class X86Disassembler
     private Instruction DecodeModRmAlu(byte opcode)
     {
         byte modrm = ReadByte();
-        Mnemonic op = GetAluMnemonicEnum(opcode);
+        Mnemonic mnem = GetAluMnemonicEnum(opcode);
         int mod = (modrm >> 6) & 3;
         int reg = (modrm >> 3) & 7;
         int rm = modrm & 7;
         bool word = (opcode & 1) == 1;
 
-        var instr = new Instruction { Mnemonic = op };
+        var instr = new Instruction { Mnemonic = mnem };
 
         if ((opcode & 2) != 0)
         {
@@ -533,12 +532,12 @@ public class X86Disassembler
 
     private Instruction DecodeAluImmAx(byte opcode)
     {
-        Mnemonic op = GetAluMnemonicEnum(opcode);
+        Mnemonic mnem = GetAluMnemonicEnum(opcode);
         bool word = (opcode & 1) == 1;
         ushort imm = word ? ReadUInt16() : ReadByte();
         var instr = new Instruction
         {
-            Mnemonic = op,
+            Mnemonic = mnem,
             Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, 0),
             Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm)
         };
@@ -553,7 +552,7 @@ public class X86Disassembler
         bool word = (opcode & 1) == 1;
         bool signExtend = opcode == 0x83;
 
-        Mnemonic op = regField switch
+        Mnemonic mnem = regField switch
         {
             0 => Mnemonic.ADD,
             1 => Mnemonic.OR,
@@ -566,7 +565,7 @@ public class X86Disassembler
             _ => Mnemonic.DB
         };
 
-        var instr = new Instruction { Mnemonic = op };
+        var instr = new Instruction { Mnemonic = mnem };
 
         if (mod == 3)
             instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, modrm & 7);
@@ -584,19 +583,20 @@ public class X86Disassembler
         int regField = (modrm >> 3) & 7;
         bool word = (opcode & 1) == 1;
 
-        Mnemonic op = regField switch
+        var instr = new Instruction
         {
-            0 => Mnemonic.TEST,
-            2 => Mnemonic.NOT,
-            3 => Mnemonic.NOT,
-            4 => Mnemonic.MUL,
-            5 => Mnemonic.IMUL,
-            6 => Mnemonic.DIV,
-            7 => Mnemonic.IDIV,
-            _ => Mnemonic.DB
+            Mnemonic = regField switch
+            {
+                0 => Mnemonic.TEST,
+                2 => Mnemonic.NOT,
+                3 => Mnemonic.NOT,
+                4 => Mnemonic.MUL,
+                5 => Mnemonic.IMUL,
+                6 => Mnemonic.DIV,
+                7 => Mnemonic.IDIV,
+                _ => Mnemonic.DB
+            }
         };
-
-        var instr = new Instruction { Mnemonic = op };
 
         if (mod == 3)
             instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, modrm & 7);
@@ -645,7 +645,7 @@ public class X86Disassembler
             return instr;
         }
 
-        Mnemonic op = regField switch
+        instr.Mnemonic = regField switch
         {
             0 => Mnemonic.INC,
             1 => Mnemonic.DEC,
@@ -656,7 +656,6 @@ public class X86Disassembler
             6 => Mnemonic.PUSH,
             _ => Mnemonic.DB
         };
-        instr.Mnemonic = op;
         return instr;
     }
 
@@ -722,9 +721,6 @@ public class X86Disassembler
     private Instruction DecodeMovAxMem(byte opcode)
     {
         ushort disp = ReadUInt16();
-        string seg = _segmentOverride.ToPrefixString();
-
-        string addr = $"{seg}{disp:X4}";
 
         var instr = new Instruction { Mnemonic = Mnemonic.MOV };
         if (opcode == 0xA0)
@@ -891,7 +887,7 @@ public class X86Disassembler
         int regField = (modrm >> 3) & 7;
         bool word = (opcode & 1) == 1;
 
-        Mnemonic op = regField switch
+        Mnemonic mnem = regField switch
         {
             0 => Mnemonic.ROL,
             1 => Mnemonic.ROR,
@@ -904,7 +900,7 @@ public class X86Disassembler
             _ => Mnemonic.DB
         };
 
-        var instr = new Instruction { Mnemonic = op };
+        var instr = new Instruction { Mnemonic = mnem };
         if (mod == 3)
             instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, modrm & 7);
         else

@@ -4,68 +4,67 @@ namespace UltraDecompiler.Parser;
 
 public class DosExeParser
 {
+    private readonly string _filePath;
+
     public ImageDosHeader DosHeader { get; private set; }
     public RelocationEntry[] Relocations { get; private set; }
     public byte[] Image { get; private set; }          // Полный загруженный образ программы
     public long ImageBase { get; private set; }        // Линейный адрес начала программы
     public uint EntryPointOffset { get; private set; } // Смещение точки входа относительно ImageBase
 
-    private readonly string filePath;
-
     public DosExeParser(string filePath)
     {
-        this.filePath = filePath;
+        _filePath = filePath;
 
         using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
         using var br = new BinaryReader(fs);
 
-        // 1. Читаем MZ-заголовок
+        // Читаем MZ-заголовок
         DosHeader = ReadStructure<ImageDosHeader>(br);
 
         if (DosHeader.Magic != 0x5A4D)
             throw new InvalidDataException("Не MZ-файл");
 
-        // 2. Читаем таблицу релокаций
-        ReadRelocationTable(br);
+        // Читаем таблицу релокаций
+        Relocations = ReadRelocationTable(br);
 
-        // 3. Вычисляем размер заголовка и образа
+        // Вычисляем размер заголовка и образа
         long headerSize = (long)DosHeader.HeaderSizeInParagraphs * 16;
         long fileSize = fs.Length;
 
         // Реальный размер образа (учитывая неполную последнюю страницу)
         long imageSize = CalculateImageSize();
 
-        // 4. Загружаем программу в память (как это делает DOS)
+        // Загружаем программу в память (как это делает DOS)
         fs.Position = headerSize;
         Image = br.ReadBytes((int)imageSize);
         ImageBase = 0; // Обычно загружается по адресу 0x0000 в реальном режиме (но можно сдвигать)
 
-        // 5. Вычисляем точку входа
+        // Вычисляем точку входа
         EntryPointOffset = (uint)(DosHeader.InitCS * 16 + DosHeader.InitIP);
 
-        // 6. Вычисляем базу сегмента данных (InitDS * 16)
-        //DataSegmentBase = (int)(DosHeader.InitDS * 16);
-
-        // 7. Применяем релокации (очень важно для декомпилятора!)
+        // Применяем релокации
         ApplyRelocations();
     }
 
-    private void ReadRelocationTable(BinaryReader br)
+    private RelocationEntry[] ReadRelocationTable(BinaryReader br)
     {
-        if (DosHeader.RelocationsCount == 0) return;
+        if (DosHeader.RelocationsCount == 0) return [];
 
         br.BaseStream.Position = DosHeader.RelocationsTableOffset;
 
-        Relocations = new RelocationEntry[DosHeader.RelocationsCount];
+        var relocations = new RelocationEntry[DosHeader.RelocationsCount];
 
         for (int i = 0; i < DosHeader.RelocationsCount; i++)
         {
-            Relocations[i] = new RelocationEntry
+            relocations[i] = new RelocationEntry
             {
                 Offset = br.ReadUInt16(),
                 Segment = br.ReadUInt16()
             };
         }
+
+        return relocations;
     }
 
     private void ApplyRelocations()
@@ -99,7 +98,7 @@ public class DosExeParser
             size = (pages - 1) * 512 + lastPageBytes;
 
         long headerSize = (long)DosHeader.HeaderSizeInParagraphs * 16;
-        return Math.Min(size - headerSize, new FileInfo(filePath).Length - headerSize);
+        return Math.Min(size - headerSize, new FileInfo(_filePath).Length - headerSize);
     }
 
     private static T ReadStructure<T>(BinaryReader br) where T : struct
@@ -119,7 +118,7 @@ public class DosExeParser
     public void PrintInfo()
     {
         Console.WriteLine("=== 16-bit MS-DOS EXE для декомпилятора ===");
-        Console.WriteLine($"Файл: {filePath}");
+        Console.WriteLine($"Файл: {_filePath}");
         Console.WriteLine($"Размер заголовка: {DosHeader.HeaderSizeInParagraphs * 16} байт");
         Console.WriteLine($"Точка входа     : {DosHeader.InitCS:X4}:{DosHeader.InitIP:X4} (линейно: 0x{EntryPointOffset:X6})");
         Console.WriteLine($"Релокаций       : {Relocations.Length}");
