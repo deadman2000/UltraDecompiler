@@ -41,7 +41,7 @@ public class DisassemblerTests
         Assert.Equal(Mnemonic.JMP, instructions[0].Mnemonic);
         Assert.Contains("BX", instructions[0].Operands);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
-        Assert.Equal(3, instructions[0].Operand1.BaseReg); // BX
+        Assert.Equal(AddressRegister.BX, instructions[0].Operand1.BaseReg); // BX
     }
 
     [Fact]
@@ -54,8 +54,8 @@ public class DisassemblerTests
         Assert.Contains("1234", instructions[0].Operands);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
         Assert.Equal(0x1234, instructions[0].Operand1.Value);
-        Assert.Equal(3, instructions[0].Operand1.BaseReg); // BX
-        Assert.Equal(6, instructions[0].Operand1.IndexReg); // SI
+        Assert.Equal(AddressRegister.BX, instructions[0].Operand1.BaseReg); // BX
+        Assert.Equal(AddressRegister.SI, instructions[0].Operand1.IndexReg); // SI
     }
 
     [Fact]
@@ -80,8 +80,8 @@ public class DisassemblerTests
         Assert.Equal(0, instructions[0].Operand1.Value); // AX
         Assert.Equal(OperandType.Memory, instructions[0].Operand2.Type);
         Assert.Equal(5, instructions[0].Operand2.Value);
-        Assert.Equal(5, instructions[0].Operand2.BaseReg); // BP
-        Assert.Equal(7, instructions[0].Operand2.IndexReg); // DI
+        Assert.Equal(AddressRegister.BP, instructions[0].Operand2.BaseReg); // BP
+        Assert.Equal(AddressRegister.DI, instructions[0].Operand2.IndexReg); // DI
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public class DisassemblerTests
         Assert.Contains("BX", instructions[0].Operands);
         Assert.Single(instructions);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
-        Assert.Equal(3, instructions[0].Operand1.BaseReg); // BX
+        Assert.Equal(AddressRegister.BX, instructions[0].Operand1.BaseReg); // BX
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public class DisassemblerTests
         Assert.Equal(Segment.ES, instructions[0].Segment);
         Assert.Equal(Mnemonic.INC, instructions[0].Mnemonic);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
-        Assert.Equal(3, instructions[0].Operand1.BaseReg);
+        Assert.Equal(AddressRegister.BX, instructions[0].Operand1.BaseReg);
     }
 
     [Fact]
@@ -182,12 +182,12 @@ public class DisassemblerTests
         Assert.Equal(Segment.SS, instructions[0].Segment);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
         Assert.Equal(0x00DA, instructions[0].Operand1.Value);
-        Assert.Equal(0, instructions[0].Operand1.BaseReg);
+        Assert.Equal(AddressRegister.None, instructions[0].Operand1.BaseReg);
 
         Assert.Equal(Segment.None, instructions[1].Segment);
         Assert.Equal(OperandType.Memory, instructions[1].Operand1.Type);
         Assert.Equal(0x00DA, instructions[1].Operand1.Value);
-        Assert.Equal(0, instructions[1].Operand1.BaseReg);
+        Assert.Equal(AddressRegister.None, instructions[1].Operand1.BaseReg);
 
         Assert.StartsWith("SS:", instructions[0].Operands);
         Assert.Equal("[DAh]", instructions[1].Operands);
@@ -246,7 +246,7 @@ public class DisassemblerTests
         Assert.Equal(Mnemonic.INC, instructions[0].Mnemonic);
         Assert.Contains("BX", instructions[0].Operands);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
-        Assert.Equal(3, instructions[0].Operand1.BaseReg);
+        Assert.Equal(AddressRegister.BX, instructions[0].Operand1.BaseReg);
     }
 
     [Fact]
@@ -283,7 +283,7 @@ public class DisassemblerTests
         Assert.Equal(3, instructions[0].Operand1.Value);
         Assert.Equal(OperandType.Memory, instructions[0].Operand2.Type);
         Assert.Equal(0x0A, instructions[0].Operand2.Value);
-        Assert.Equal(6, instructions[0].Operand2.BaseReg);
+        Assert.Equal(AddressRegister.SI, instructions[0].Operand2.BaseReg);
     }
 
     [Fact]
