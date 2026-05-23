@@ -78,7 +78,7 @@ public class X86Disassembler
         }
     }
 
-    public int GetEffectiveJumpTarget(Instruction instr)
+    private int GetEffectiveJumpTarget(Instruction instr)
     {
         int direct = instr.GetJumpTarget();
         if (direct != -1)
@@ -238,7 +238,6 @@ public class X86Disassembler
                 return new Instruction
                 {
                     Mnemonic = Mnemonic.PUSH,
-                    Operands = GetReg16Name(reg),
                     Operand1 = new Operand(OperandType.Register16, reg)
                 };
             }
@@ -255,18 +254,17 @@ public class X86Disassembler
                 return new Instruction
                 {
                     Mnemonic = Mnemonic.POP,
-                    Operands = GetReg16Name(reg),
                     Operand1 = new Operand(OperandType.Register16, reg)
                 };
             }
 
-            case 0x06: return new Instruction { Mnemonic = Mnemonic.PUSH, Operands = "ES", Operand1 = new Operand(OperandType.SegmentRegister, 0) };
-            case 0x0E: return new Instruction { Mnemonic = Mnemonic.PUSH, Operands = "CS", Operand1 = new Operand(OperandType.SegmentRegister, 1) };
-            case 0x16: return new Instruction { Mnemonic = Mnemonic.PUSH, Operands = "SS", Operand1 = new Operand(OperandType.SegmentRegister, 2) };
-            case 0x1E: return new Instruction { Mnemonic = Mnemonic.PUSH, Operands = "DS", Operand1 = new Operand(OperandType.SegmentRegister, 3) };
-            case 0x07: return new Instruction { Mnemonic = Mnemonic.POP, Operands = "ES", Operand1 = new Operand(OperandType.SegmentRegister, 0) };
-            case 0x17: return new Instruction { Mnemonic = Mnemonic.POP, Operands = "SS", Operand1 = new Operand(OperandType.SegmentRegister, 2) };
-            case 0x1F: return new Instruction { Mnemonic = Mnemonic.POP, Operands = "DS", Operand1 = new Operand(OperandType.SegmentRegister, 3) };
+            case 0x06: return new Instruction { Mnemonic = Mnemonic.PUSH, Operand1 = new Operand(OperandType.SegmentRegister, 0) };
+            case 0x0E: return new Instruction { Mnemonic = Mnemonic.PUSH, Operand1 = new Operand(OperandType.SegmentRegister, 1) };
+            case 0x16: return new Instruction { Mnemonic = Mnemonic.PUSH, Operand1 = new Operand(OperandType.SegmentRegister, 2) };
+            case 0x1E: return new Instruction { Mnemonic = Mnemonic.PUSH, Operand1 = new Operand(OperandType.SegmentRegister, 3) };
+            case 0x07: return new Instruction { Mnemonic = Mnemonic.POP, Operand1 = new Operand(OperandType.SegmentRegister, 0) };
+            case 0x17: return new Instruction { Mnemonic = Mnemonic.POP, Operand1 = new Operand(OperandType.SegmentRegister, 2) };
+            case 0x1F: return new Instruction { Mnemonic = Mnemonic.POP, Operand1 = new Operand(OperandType.SegmentRegister, 3) };
 
             case 0x70:
             case 0x71:
@@ -308,7 +306,6 @@ public class X86Disassembler
                 return new Instruction
                 {
                     Mnemonic = Mnemonic.INT,
-                    Operands = $"{intNum:X2}h",
                     Operand1 = new Operand(OperandType.Immediate8, intNum)
                 };
             }
@@ -330,7 +327,6 @@ public class X86Disassembler
                 return new Instruction
                 {
                     Mnemonic = Mnemonic.XCHG,
-                    Operands = $"AX, {GetReg16Name(reg)}",
                     Operand1 = new Operand(OperandType.Register16, 0),
                     Operand2 = new Operand(OperandType.Register16, reg)
                 };
@@ -349,7 +345,6 @@ public class X86Disassembler
                 return new Instruction
                 {
                     Mnemonic = Mnemonic.INC,
-                    Operands = GetReg16Name(reg),
                     Operand1 = new Operand(OperandType.Register16, reg)
                 };
             }
@@ -366,7 +361,6 @@ public class X86Disassembler
                 return new Instruction
                 {
                     Mnemonic = Mnemonic.DEC,
-                    Operands = GetReg16Name(reg),
                     Operand1 = new Operand(OperandType.Register16, reg)
                 };
             }
@@ -537,9 +531,12 @@ public class X86Disassembler
         Mnemonic op = GetAluMnemonicEnum(opcode);
         bool word = (opcode & 1) == 1;
         ushort imm = word ? ReadUInt16() : ReadByte();
-        var instr = new Instruction { Mnemonic = op, Operands = $"{(word ? "AX" : "AL")}, {imm.ToHex()}" };
-        instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, 0);
-        instr.Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm);
+        var instr = new Instruction
+        {
+            Mnemonic = op,
+            Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, 0),
+            Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm)
+        };
         return instr;
     }
 
@@ -693,10 +690,12 @@ public class X86Disassembler
         bool word = opcode >= 0xB8;
         int regIndex = opcode - (word ? 0xB8 : 0xB0);
         ushort imm = word ? ReadUInt16() : ReadByte();
-        var instr = new Instruction { Mnemonic = Mnemonic.MOV, Operands = $"{GetReg8or16Name(regIndex, word)}, {imm.ToHex()}" };
-        instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, regIndex);
-        instr.Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm);
-        return instr;
+        return new Instruction
+        {
+            Mnemonic = Mnemonic.MOV,
+            Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, regIndex),
+            Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm)
+        };
     }
 
     private Instruction DecodeMovMemImm(byte opcode)
@@ -753,8 +752,11 @@ public class X86Disassembler
         int sreg = (modrm >> 3) & 7;
         int rm = modrm & 7;
 
-        var instr = new Instruction { Mnemonic = Mnemonic.MOV };
-        instr.Operand2 = new Operand(OperandType.SegmentRegister, sreg);
+        var instr = new Instruction
+        {
+            Mnemonic = Mnemonic.MOV,
+            Operand2 = new Operand(OperandType.SegmentRegister, sreg)
+        };
         if (mod == 3)
             instr.Operand1 = new Operand(OperandType.Register16, rm);
         else
@@ -868,9 +870,12 @@ public class X86Disassembler
     {
         bool word = (opcode & 1) == 1;
         ushort imm = word ? ReadUInt16() : ReadByte();
-        var instr = new Instruction { Mnemonic = Mnemonic.TEST, Operands = $"{(word ? "AX" : "AL")}, {imm.ToHex()}" };
-        instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, 0);
-        instr.Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm);
+        var instr = new Instruction
+        {
+            Mnemonic = Mnemonic.TEST,
+            Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, 0),
+            Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm)
+        };
         return instr;
     }
 
