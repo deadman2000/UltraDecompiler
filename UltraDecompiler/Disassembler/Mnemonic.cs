@@ -36,7 +36,6 @@ public enum Mnemonic
 
     // Логика и сдвиги
     TEST,
-    SHL,
     SAL,
     SHR,
     SAR,

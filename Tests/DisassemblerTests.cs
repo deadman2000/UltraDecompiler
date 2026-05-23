@@ -494,16 +494,6 @@ public class DisassemblerTests
     }
 
     [Fact]
-    public void DisassembleShlAxCl()
-    {
-        var instructions = Disassemble("D3 E0"); // SHL AX, CL
-        Assert.Equal(Mnemonic.SHL, instructions[0].Mnemonic);
-        Assert.Equal("AX, CL", instructions[0].Operands);
-        Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
-        Assert.Equal(0, instructions[0].Operand1.Value);
-    }
-
-    [Fact]
     public void DisassembleJeShort()
     {
         var instructions = Disassemble("74 05"); // JE +5

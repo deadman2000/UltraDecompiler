@@ -53,7 +53,6 @@ public static class Extensions
             Mnemonic.IDIV => "idiv",
 
             Mnemonic.TEST => "test",
-            Mnemonic.SHL => "shl",
             Mnemonic.SHR => "shr",
             Mnemonic.SAR => "sar",
             Mnemonic.ROL => "rol",
