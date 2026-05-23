@@ -26,13 +26,21 @@ public class Instruction
     /// </summary>
     public string MnemonicString => this.GetPrefix() + this.GetMnemonicString();
 
-    /// <summary>
-    /// Строковое представление параметров
-    /// </summary>
-    public string Operands { get; set; } = "";
+    private string _operands = "";
 
     /// <summary>
-    /// Параметры инструкции
+    /// Строковое представление параметров (вычисляемое)
+    /// </summary>
+    public string Operands
+    {
+        get => OperandsInfo.Length > 0
+            ? string.Join(", ", OperandsInfo.Select(op => op.ToString() ?? UnknownOperand))
+            : _operands;
+        set => _operands = value;
+    }
+
+    /// <summary>
+    /// Параметры инструкции (основной источник данных)
     /// </summary>
     public Operand[] OperandsInfo { get; set; } = Array.Empty<Operand>();
 
