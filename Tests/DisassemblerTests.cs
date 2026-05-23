@@ -597,8 +597,6 @@ public class DisassemblerTests
         Assert.Equal("", instructions[0].Operands);
     }
 
-    // === Missing 8086 instructions tests (added to cover full instruction set from 8086 docs) ===
-
     [Fact]
     public void DisassembleAaa()
     {
