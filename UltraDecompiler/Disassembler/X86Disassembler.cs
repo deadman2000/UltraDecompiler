@@ -661,7 +661,7 @@ public class X86Disassembler
             {
                 0 => Mnemonic.TEST,
                 2 => Mnemonic.NOT,
-                3 => Mnemonic.NOT,
+                3 => Mnemonic.NEG,
                 4 => Mnemonic.MUL,
                 5 => Mnemonic.IMUL,
                 6 => Mnemonic.DIV,
@@ -978,9 +978,9 @@ public class X86Disassembler
         else
             instr.Operand1 = ParseMemoryOperand(modrm & 7, mod);
         // CL or 1
-        if ((opcode & 2) != 0)
-            instr.Operand2 = new Operand(OperandType.Register8, 1); // CL
-        else
+        if ((opcode & 2) != 0)   // D2 и D3
+            instr.Operand2 = new Operand(OperandType.Register8, 1); // CL (регистр CL = 1)
+        else                     // D0 и D1
             instr.Operand2 = new Operand(OperandType.Immediate8, 1);
         return instr;
     }
