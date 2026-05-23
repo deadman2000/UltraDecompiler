@@ -396,15 +396,12 @@ public class X86Disassembler
         int reg = (modrm >> 3) & 7;
         int rm = modrm & 7;
 
-        string regName = GetReg16Name(reg);
-        string mem = (mod == 3) ? GetReg16Name(rm) : GetMemoryOperand(rm, mod);
-
-        var instr = new Instruction { Mnemonic = Mnemonic.LDS, Operands = $"{regName}, {mem}" };
+        var instr = new Instruction { Mnemonic = Mnemonic.LDS };
+        instr.Operand1 = new Operand(OperandType.Register16, reg);
         if (mod != 3)
             instr.Operand2 = ParseMemoryOperand(rm, mod);
         else
             instr.Operand2 = new Operand(OperandType.Register16, rm);
-        instr.Operand1 = new Operand(OperandType.Register16, reg);
         return instr;
     }
 
@@ -434,10 +431,7 @@ public class X86Disassembler
         int reg = (modrm >> 3) & 7;
         int rm = modrm & 7;
 
-        string dst = GetReg16Name(reg);
-        string src = (mod == 3) ? GetReg16Name(rm) : GetMemoryOperand(rm, mod);
-
-        var instr = new Instruction { Mnemonic = Mnemonic.IMUL, Operands = $"{dst}, {src}" };
+        var instr = new Instruction { Mnemonic = Mnemonic.IMUL };
         instr.Operand1 = new Operand(OperandType.Register16, reg);
         if (mod == 3)
             instr.Operand2 = new Operand(OperandType.Register16, rm);
@@ -447,13 +441,11 @@ public class X86Disassembler
         if (_pos > 0 && _image[_pos - 3] == 0x6B)
         {
             sbyte imm8 = (sbyte)ReadByte();
-            instr.Operands = $"{dst}, {src}, {imm8}";
-            // Для 3-операндной формы можно добавить Operand3 позже
+            // Для 3-операндной формы
         }
         else
         {
             ushort imm16 = ReadUInt16();
-            instr.Operands = $"{dst}, {src}, 0x{imm16:X4}";
         }
         return instr;
     }
@@ -467,14 +459,8 @@ public class X86Disassembler
         int rm = modrm & 7;
         bool word = (opcode & 1) == 1;
 
-        string dst = (mod == 3) ? GetReg8or16Name(rm, word) : GetMemoryOperand(rm, mod);
-        string src = GetReg8or16Name(reg, word);
+        var instr = new Instruction { Mnemonic = op };
 
-        if ((opcode & 2) != 0) (dst, src) = (src, dst);
-
-        var instr = new Instruction { Mnemonic = op, Operands = $"{dst}, {src}" };
-
-        // Заполняем Operand1 / Operand2 правильно
         if ((opcode & 2) != 0)
         {
             instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, reg);
@@ -524,16 +510,13 @@ public class X86Disassembler
             _ => Mnemonic.DB
         };
 
-        string dst = (mod == 3) ? GetReg8or16Name(modrm & 7, word) : GetMemoryOperand(modrm & 7, mod);
-        ushort imm = signExtend ? (ushort)(sbyte)ReadByte() : (word ? ReadUInt16() : ReadByte());
-
-        var instr = new Instruction { Mnemonic = op, Operands = $"{dst}, 0x{imm:X4}" };
+        var instr = new Instruction { Mnemonic = op };
 
         if (mod == 3)
             instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, modrm & 7);
         else
             instr.Operand1 = ParseMemoryOperand(modrm & 7, mod);
-        instr.Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm);
+        instr.Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, signExtend ? (ushort)(sbyte)ReadByte() : (word ? ReadUInt16() : ReadByte()));
 
         return instr;
     }
@@ -544,8 +527,6 @@ public class X86Disassembler
         int mod = (modrm >> 6) & 3;
         int regField = (modrm >> 3) & 7;
         bool word = (opcode & 1) == 1;
-
-        string dst = (mod == 3) ? GetReg8or16Name(modrm & 7, word) : GetMemoryOperand(modrm & 7, mod);
 
         Mnemonic op = regField switch
         {
@@ -559,7 +540,7 @@ public class X86Disassembler
             _ => Mnemonic.DB
         };
 
-        var instr = new Instruction { Mnemonic = op, Operands = dst };
+        var instr = new Instruction { Mnemonic = op };
 
         if (mod == 3)
             instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, modrm & 7);
@@ -569,7 +550,6 @@ public class X86Disassembler
         if (regField == 0)
         {
             ushort imm = word ? ReadUInt16() : ReadByte();
-            instr.Operands = $"{dst}, 0x{imm:X4}";
             instr.Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm);
         }
 
@@ -669,15 +649,12 @@ public class X86Disassembler
         int rm = modrm & 7;
         bool word = (opcode & 1) == 1;
 
-        string dst = (mod == 3) ? GetReg8or16Name(rm, word) : GetMemoryOperand(rm, mod);
-        ushort imm = word ? ReadUInt16() : ReadByte();
-
-        var instr = new Instruction { Mnemonic = Mnemonic.MOV, Operands = $"{dst}, 0x{imm:X4}" };
+        var instr = new Instruction { Mnemonic = Mnemonic.MOV };
         if (mod == 3)
             instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, rm);
         else
             instr.Operand1 = ParseMemoryOperand(rm, mod);
-        instr.Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm);
+        instr.Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, word ? ReadUInt16() : ReadByte());
         return instr;
     }
 
@@ -694,7 +671,7 @@ public class X86Disassembler
         if (opcode == 0xA2) { instr.Operands = $"{addr}, AL"; instr.Operand2 = new Operand(OperandType.Register8, 0); }
         if (opcode == 0xA3) { instr.Operands = $"{addr}, AX"; instr.Operand2 = new Operand(OperandType.Register16, 0); }
 
-        instr.Operand1 = new Operand(OperandType.Memory, disp); // упрощённо
+        instr.Operand1 = new Operand(OperandType.Memory, disp);
         return instr;
     }
 
@@ -705,18 +682,7 @@ public class X86Disassembler
         int sreg = (modrm >> 3) & 7;
         int rm = modrm & 7;
 
-        string sregName = sreg switch
-        {
-            0 => "ES",
-            1 => "CS",
-            2 => "SS",
-            3 => "DS",
-            _ => "?SREG"
-        };
-
-        string src = (mod == 3) ? GetReg16Name(rm) : GetMemoryOperand(rm, mod);
-
-        var instr = new Instruction { Mnemonic = Mnemonic.MOV, Operands = $"{src}, {sregName}" };
+        var instr = new Instruction { Mnemonic = Mnemonic.MOV };
         instr.Operand2 = new Operand(OperandType.SegmentRegister, sreg);
         if (mod == 3)
             instr.Operand1 = new Operand(OperandType.Register16, rm);
@@ -784,10 +750,7 @@ public class X86Disassembler
         int rm = modrm & 7;
         bool word = (opcode & 1) == 1;
 
-        string r1 = GetReg8or16Name(reg, word);
-        string r2 = (mod == 3) ? GetReg8or16Name(rm, word) : GetMemoryOperand(rm, mod);
-
-        var instr = new Instruction { Mnemonic = Mnemonic.XCHG, Operands = $"{r1}, {r2}" };
+        var instr = new Instruction { Mnemonic = Mnemonic.XCHG };
         instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, reg);
         if (mod == 3)
             instr.Operand2 = new Operand(word ? OperandType.Register16 : OperandType.Register8, rm);
@@ -802,9 +765,8 @@ public class X86Disassembler
         int reg = (modrm >> 3) & 7;
         int rm = modrm & 7;
         int mod = (modrm >> 6) & 3;
-        string mem = GetMemoryOperand(rm, mod);
 
-        var instr = new Instruction { Mnemonic = Mnemonic.LEA, Operands = $"{GetReg16Name(reg)}, {mem}" };
+        var instr = new Instruction { Mnemonic = Mnemonic.LEA };
         instr.Operand1 = new Operand(OperandType.Register16, reg);
         instr.Operand2 = ParseMemoryOperand(rm, mod);
         return instr;
@@ -818,10 +780,7 @@ public class X86Disassembler
         int rm = modrm & 7;
         bool word = (opcode & 1) == 1;
 
-        string r1 = GetReg8or16Name(reg, word);
-        string r2 = (mod == 3) ? GetReg8or16Name(rm, word) : GetMemoryOperand(rm, mod);
-
-        var instr = new Instruction { Mnemonic = Mnemonic.TEST, Operands = $"{r1}, {r2}" };
+        var instr = new Instruction { Mnemonic = Mnemonic.TEST };
         instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, reg);
         if (mod == 3)
             instr.Operand2 = new Operand(word ? OperandType.Register16 : OperandType.Register8, rm);
@@ -857,10 +816,8 @@ public class X86Disassembler
             7 => Mnemonic.SAR,
             _ => Mnemonic.DB
         };
-        string dst = (mod == 3) ? GetReg8or16Name(rm, word) : GetMemoryOperand(rm, mod);
-        string count = useCl ? "CL" : "1";
 
-        var instr = new Instruction { Mnemonic = op, Operands = $"{dst}, {count}" };
+        var instr = new Instruction { Mnemonic = op };
         if (mod == 3)
             instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, rm);
         else
