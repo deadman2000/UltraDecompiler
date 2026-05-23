@@ -82,16 +82,14 @@ public class X86Disassembler
         if (direct != -1)
             return direct;
 
-        if ((instr.Mnemonic == Mnemonic.CALL || instr.Mnemonic == Mnemonic.JMP) && instr.OperandsInfo.Length > 0)
+        var op = instr.Operand1 ?? instr.Operand2;
+        if ((instr.Mnemonic == Mnemonic.CALL || instr.Mnemonic == Mnemonic.JMP) && op is not null && op.Value.Type == OperandType.Memory)
         {
-            var op = instr.OperandsInfo[0];
-            if (op.Type == OperandType.Memory)
+            int val = op.Value.Value;
+            int realAddr = DataSegmentBase + val;
+            if (realAddr >= 0 && realAddr + 2 <= _image.Length)
             {
-                int realAddr = DataSegmentBase + op.Value;
-                if (realAddr >= 0 && realAddr + 2 <= _image.Length)
-                {
-                    return (ushort)(_image[realAddr] | (_image[realAddr + 1] << 8));
-                }
+                return (ushort)(_image[realAddr] | (_image[realAddr + 1] << 8));
             }
         }
 
@@ -104,7 +102,7 @@ public class X86Disassembler
 
         switch (opcode)
         {
-            // Ïðåôèêñû
+            // ÐŸÑ€ÐµÑ„Ð¸ÐºÑÑ‹
             case 0xF0:
                 {
                     var instr = DecodeOneInstruction();
@@ -281,7 +279,7 @@ public class X86Disassembler
                 {
                     Mnemonic = Mnemonic.CALL,
                     Operands = $"0x{_pos + rel:X4}",
-                    OperandsInfo = [new Operand(OperandType.Relative16, _pos + rel)]
+                    Operand1 = new Operand(OperandType.Relative16, _pos + rel)
                 };
                 return callInstr;
 
@@ -507,7 +505,7 @@ public class X86Disassembler
         {
             0 => Mnemonic.TEST,
             2 => Mnemonic.NOT,
-            3 => Mnemonic.NEG,
+            3 => Mnemonic.NOT,
             4 => Mnemonic.MUL,
             5 => Mnemonic.IMUL,
             6 => Mnemonic.DIV,
@@ -584,14 +582,14 @@ public class X86Disassembler
         if (regField == 2)
         {
             var instr = new Instruction { Mnemonic = Mnemonic.CALL, Operands = dst };
-            if (hasDisp) instr.OperandsInfo = [new Operand(OperandType.Memory, disp)];
+            if (hasDisp) instr.Operand1 = new Operand(OperandType.Memory, disp);
             return instr;
         }
 
         if (regField == 4)
         {
             var instr = new Instruction { Mnemonic = Mnemonic.JMP, Operands = dst };
-            if (hasDisp) instr.OperandsInfo = [new Operand(OperandType.Memory, disp)];
+            if (hasDisp) instr.Operand1 = new Operand(OperandType.Memory, disp);
             return instr;
         }
 
@@ -719,7 +717,7 @@ public class X86Disassembler
         {
             Mnemonic = mnem,
             Operands = $"0x{target:X4}",
-            OperandsInfo = [new Operand(OperandType.Relative8, target)]
+            Operand1 = new Operand(OperandType.Relative8, target)
         };
         return instr;
     }
@@ -733,7 +731,7 @@ public class X86Disassembler
         {
             Mnemonic = Mnemonic.JMP,
             Operands = $"0x{target:X4}",
-            OperandsInfo = [new Operand(OperandType.Relative16, target)]
+            Operand1 = new Operand(OperandType.Relative16, target)
         };
         return instr;
     }
@@ -822,7 +820,7 @@ public class X86Disassembler
         {
             Mnemonic = mnem,
             Operands = $"0x{target:X4}",
-            OperandsInfo = [new Operand(OperandType.Relative8, target)]
+            Operand1 = new Operand(OperandType.Relative8, target)
         };
         return instr;
     }
