@@ -1,5 +1,3 @@
-using UltraDecompiler.Extensions;
-
 namespace UltraDecompiler.Disassembler;
 
 public class X86Disassembler
