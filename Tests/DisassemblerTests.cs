@@ -305,7 +305,6 @@ public class DisassemblerTests
         Assert.Equal("", instructions[0].Operands);
     }
 
-    // Новые тесты на PUSH и POP с проверкой операндов
     [Fact]
     public void DisassemblePushReg16()
     {
@@ -366,7 +365,6 @@ public class DisassemblerTests
         Assert.Equal(0, instructions[0].Operand1.Value); // ES = 0
     }
 
-    // Новые тесты на INT, XCHG, INC, DEC
     [Fact]
     public void DisassembleInt()
     {
@@ -564,7 +562,6 @@ public class DisassemblerTests
         Assert.Equal(Mnemonic.OUT, instructions[0].Mnemonic);
         Assert.Contains("21h", instructions[0].Operands);
         Assert.Contains("AL", instructions[0].Operands);
-        // Дополненные проверки Operand1 и Operand2
         Assert.Equal(OperandType.Immediate8, instructions[0].Operand1.Type);
         Assert.Equal(0x21, instructions[0].Operand1.Value);
         Assert.Equal(OperandType.Register8, instructions[0].Operand2.Type);
@@ -582,7 +579,6 @@ public class DisassemblerTests
         Assert.Equal(3, instructions[0].Operand1.Value);
         Assert.Equal(OperandType.Memory, instructions[0].Operand2.Type);
         Assert.Equal(0x1234, instructions[0].Operand2.Value);
-        // Дополнение проверок для Operand2
         Assert.Equal(AddressRegister.None, instructions[0].Operand2.BaseReg);
         Assert.Equal(AddressRegister.None, instructions[0].Operand2.IndexReg);
     }
@@ -650,7 +646,6 @@ public class DisassemblerTests
         Assert.Equal(Mnemonic.DIV, instructions[0].Mnemonic);
         Assert.Equal("CX", instructions[0].Operands);
         Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
-        // Дополненная проверка значения Operand1
         Assert.Equal(1, instructions[0].Operand1.Value);
     }
 
@@ -661,7 +656,6 @@ public class DisassemblerTests
         Assert.Equal(Mnemonic.IDIV, instructions[0].Mnemonic);
         Assert.Equal("CX", instructions[0].Operands);
         Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
-        // Дополненная проверка значения Operand1
         Assert.Equal(1, instructions[0].Operand1.Value);
     }
 
@@ -672,7 +666,6 @@ public class DisassemblerTests
         Assert.Equal(Mnemonic.IMUL, instructions[0].Mnemonic);
         Assert.Equal("CX", instructions[0].Operands);
         Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
-        // Дополненная проверка значения Operand1
         Assert.Equal(1, instructions[0].Operand1.Value);
     }
 
@@ -683,7 +676,6 @@ public class DisassemblerTests
         Assert.Equal(Mnemonic.NEG, instructions[0].Mnemonic);
         Assert.Equal("AX", instructions[0].Operands);
         Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
-        // Дополненная проверка значения Operand1
         Assert.Equal(0, instructions[0].Operand1.Value);
     }
 
@@ -694,7 +686,6 @@ public class DisassemblerTests
         Assert.Equal(Mnemonic.NOT, instructions[0].Mnemonic);
         Assert.Equal("AX", instructions[0].Operands);
         Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
-        // Дополненная проверка значения Operand1
         Assert.Equal(0, instructions[0].Operand1.Value);
     }
 
@@ -848,7 +839,6 @@ public class DisassemblerTests
         var instructions = Disassemble("D3 C0"); // ROL AX, CL
         Assert.Equal(Mnemonic.ROL, instructions[0].Mnemonic);
         Assert.Equal("AX, CL", instructions[0].Operands);
-        // Дополненные проверки Operand1 и Operand2
         Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
         Assert.Equal(0, instructions[0].Operand1.Value); // AX
         Assert.Equal(OperandType.Register8, instructions[0].Operand2.Type);
@@ -861,7 +851,6 @@ public class DisassemblerTests
         var instructions = Disassemble("D3 C8"); // ROR AX, CL
         Assert.Equal(Mnemonic.ROR, instructions[0].Mnemonic);
         Assert.Equal("AX, CL", instructions[0].Operands);
-        // Дополненные проверки Operand1 и Operand2
         Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
         Assert.Equal(0, instructions[0].Operand1.Value); // AX
         Assert.Equal(OperandType.Register8, instructions[0].Operand2.Type);
@@ -874,7 +863,6 @@ public class DisassemblerTests
         var instructions = Disassemble("D3 D0"); // RCL AX, CL
         Assert.Equal(Mnemonic.RCL, instructions[0].Mnemonic);
         Assert.Equal("AX, CL", instructions[0].Operands);
-        // Дополненные проверки Operand1 и Operand2
         Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
         Assert.Equal(0, instructions[0].Operand1.Value); // AX
         Assert.Equal(OperandType.Register8, instructions[0].Operand2.Type);
@@ -887,7 +875,6 @@ public class DisassemblerTests
         var instructions = Disassemble("D3 D8"); // RCR AX, CL
         Assert.Equal(Mnemonic.RCR, instructions[0].Mnemonic);
         Assert.Equal("AX, CL", instructions[0].Operands);
-        // Дополненные проверки Operand1 и Operand2
         Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
         Assert.Equal(0, instructions[0].Operand1.Value); // AX
         Assert.Equal(OperandType.Register8, instructions[0].Operand2.Type);
@@ -900,7 +887,6 @@ public class DisassemblerTests
         var instructions = Disassemble("D3 E8"); // SHR AX, CL
         Assert.Equal(Mnemonic.SHR, instructions[0].Mnemonic);
         Assert.Equal("AX, CL", instructions[0].Operands);
-        // Дополненные проверки Operand1 и Operand2
         Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
         Assert.Equal(0, instructions[0].Operand1.Value); // AX
         Assert.Equal(OperandType.Register8, instructions[0].Operand2.Type);
@@ -913,7 +899,6 @@ public class DisassemblerTests
         var instructions = Disassemble("D3 E0"); // SAL AX, CL (same as SHL)
         Assert.Equal(Mnemonic.SAL, instructions[0].Mnemonic);
         Assert.Equal("AX, CL", instructions[0].Operands);
-        // Дополненные проверки Operand1 и Operand2
         Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
         Assert.Equal(0, instructions[0].Operand1.Value); // AX
         Assert.Equal(OperandType.Register8, instructions[0].Operand2.Type);
@@ -926,7 +911,6 @@ public class DisassemblerTests
         var instructions = Disassemble("D3 F8"); // SAR AX, CL
         Assert.Equal(Mnemonic.SAR, instructions[0].Mnemonic);
         Assert.Equal("AX, CL", instructions[0].Operands);
-        // Дополненные проверки Operand1 и Operand2
         Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
         Assert.Equal(0, instructions[0].Operand1.Value); // AX
         Assert.Equal(OperandType.Register8, instructions[0].Operand2.Type);
@@ -940,7 +924,6 @@ public class DisassemblerTests
         Assert.Equal(Mnemonic.JA, instructions[0].Mnemonic);
         Assert.Equal("7", instructions[0].Operands);
         Assert.Equal(OperandType.Relative8, instructions[0].Operand1.Type);
-        // Дополненная проверка значения
         Assert.Equal(7, instructions[0].Operand1.Value);
     }
 
@@ -951,7 +934,6 @@ public class DisassemblerTests
         Assert.Equal(Mnemonic.JB, instructions[0].Mnemonic);
         Assert.Equal("7", instructions[0].Operands);
         Assert.Equal(OperandType.Relative8, instructions[0].Operand1.Type);
-        // Дополненная проверка значения
         Assert.Equal(7, instructions[0].Operand1.Value);
     }
 
@@ -962,7 +944,6 @@ public class DisassemblerTests
         Assert.Equal(Mnemonic.JG, instructions[0].Mnemonic);
         Assert.Equal("7", instructions[0].Operands);
         Assert.Equal(OperandType.Relative8, instructions[0].Operand1.Type);
-        // Дополненная проверка значения
         Assert.Equal(7, instructions[0].Operand1.Value);
     }
 
@@ -973,7 +954,6 @@ public class DisassemblerTests
         Assert.Equal(Mnemonic.JLE, instructions[0].Mnemonic);
         Assert.Equal("7", instructions[0].Operands);
         Assert.Equal(OperandType.Relative8, instructions[0].Operand1.Type);
-        // Дополненная проверка значения
         Assert.Equal(7, instructions[0].Operand1.Value);
     }
 
@@ -984,7 +964,6 @@ public class DisassemblerTests
         Assert.Equal(Mnemonic.LES, instructions[0].Mnemonic);
         Assert.Contains("BX", instructions[0].Operands);
         Assert.Contains("1234", instructions[0].Operands);
-        // Дополненные проверки Operand1 и Operand2 как в DisassembleLds
         Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
         Assert.Equal(3, instructions[0].Operand1.Value);
         Assert.Equal(OperandType.Memory, instructions[0].Operand2.Type);
