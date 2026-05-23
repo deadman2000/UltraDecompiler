@@ -303,6 +303,8 @@ public class DisassemblerTests
         var instructions = Disassemble("C3"); // RET
         Assert.Equal(Mnemonic.RET, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -517,6 +519,8 @@ public class DisassemblerTests
         var instructions = Disassemble("A4"); // MOVSB
         Assert.Equal(Mnemonic.MOVSB, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -525,6 +529,8 @@ public class DisassemblerTests
         var instructions = Disassemble("9C"); // PUSHF
         Assert.Equal(Mnemonic.PUSHF, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -533,6 +539,8 @@ public class DisassemblerTests
         var instructions = Disassemble("27"); // DAA
         Assert.Equal(Mnemonic.DAA, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -541,6 +549,8 @@ public class DisassemblerTests
         var instructions = Disassemble("98"); // CBW
         Assert.Equal(Mnemonic.CBW, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -589,6 +599,8 @@ public class DisassemblerTests
         var instructions = Disassemble("D7"); // XLAT
         Assert.Equal(Mnemonic.XLAT, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -597,6 +609,8 @@ public class DisassemblerTests
         var instructions = Disassemble("37"); // AAA
         Assert.Equal(Mnemonic.AAA, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -605,6 +619,8 @@ public class DisassemblerTests
         var instructions = Disassemble("D5 0A"); // AAD
         Assert.Equal(Mnemonic.AAD, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -613,6 +629,8 @@ public class DisassemblerTests
         var instructions = Disassemble("D4 0A"); // AAM
         Assert.Equal(Mnemonic.AAM, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -621,6 +639,8 @@ public class DisassemblerTests
         var instructions = Disassemble("3F"); // AAS
         Assert.Equal(Mnemonic.AAS, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -629,6 +649,8 @@ public class DisassemblerTests
         var instructions = Disassemble("2F"); // DAS
         Assert.Equal(Mnemonic.DAS, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -637,6 +659,8 @@ public class DisassemblerTests
         var instructions = Disassemble("99"); // CWD
         Assert.Equal(Mnemonic.CWD, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -695,6 +719,8 @@ public class DisassemblerTests
         var instructions = Disassemble("F4"); // HLT
         Assert.Equal(Mnemonic.HLT, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -703,6 +729,8 @@ public class DisassemblerTests
         var instructions = Disassemble("CE"); // INTO
         Assert.Equal(Mnemonic.INTO, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -711,6 +739,8 @@ public class DisassemblerTests
         var instructions = Disassemble("CF"); // IRET
         Assert.Equal(Mnemonic.IRET, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -719,6 +749,8 @@ public class DisassemblerTests
         var instructions = Disassemble("CB"); // RETF
         Assert.Equal(Mnemonic.RETF, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -727,6 +759,8 @@ public class DisassemblerTests
         var instructions = Disassemble("90"); // NOP
         Assert.Equal(Mnemonic.NOP, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -735,6 +769,8 @@ public class DisassemblerTests
         var instructions = Disassemble("9F"); // LAHF
         Assert.Equal(Mnemonic.LAHF, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -743,6 +779,8 @@ public class DisassemblerTests
         var instructions = Disassemble("9E"); // SAHF
         Assert.Equal(Mnemonic.SAHF, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -751,6 +789,8 @@ public class DisassemblerTests
         var instructions = Disassemble("F8"); // CLC
         Assert.Equal(Mnemonic.CLC, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -759,6 +799,8 @@ public class DisassemblerTests
         var instructions = Disassemble("FC"); // CLD
         Assert.Equal(Mnemonic.CLD, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -767,6 +809,8 @@ public class DisassemblerTests
         var instructions = Disassemble("FA"); // CLI
         Assert.Equal(Mnemonic.CLI, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -775,6 +819,8 @@ public class DisassemblerTests
         var instructions = Disassemble("F5"); // CMC
         Assert.Equal(Mnemonic.CMC, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -783,6 +829,8 @@ public class DisassemblerTests
         var instructions = Disassemble("F9"); // STC
         Assert.Equal(Mnemonic.STC, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -791,6 +839,8 @@ public class DisassemblerTests
         var instructions = Disassemble("FD"); // STD
         Assert.Equal(Mnemonic.STD, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -799,6 +849,8 @@ public class DisassemblerTests
         var instructions = Disassemble("FB"); // STI
         Assert.Equal(Mnemonic.STI, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -807,6 +859,8 @@ public class DisassemblerTests
         var instructions = Disassemble("A7"); // CMPSW
         Assert.Equal(Mnemonic.CMPSW, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -815,6 +869,8 @@ public class DisassemblerTests
         var instructions = Disassemble("AC"); // LODSB
         Assert.Equal(Mnemonic.LODSB, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -823,6 +879,8 @@ public class DisassemblerTests
         var instructions = Disassemble("AA"); // STOSB
         Assert.Equal(Mnemonic.STOSB, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
@@ -831,6 +889,8 @@ public class DisassemblerTests
         var instructions = Disassemble("AF"); // SCASW
         Assert.Equal(Mnemonic.SCASW, instructions[0].Mnemonic);
         Assert.Equal("", instructions[0].Operands);
+        Assert.Equal(OperandType.None, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.None, instructions[0].Operand2.Type);
     }
 
     [Fact]
