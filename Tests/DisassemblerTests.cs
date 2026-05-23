@@ -1032,6 +1032,254 @@ public class DisassemblerTests
         Assert.Equal(AddressRegister.None, instructions[0].Operand2.IndexReg);
     }
 
+    [Fact]
+    public void DisassembleGroup80AddBytePtrImm()
+    {
+        var instructions = Disassemble("80 07 05"); // ADD BYTE PTR [BX], 5
+        Assert.Equal(Mnemonic.ADD, instructions[0].Mnemonic);
+        Assert.Equal("[BX], 5", instructions[0].Operands);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
+        Assert.Equal(AddressRegister.BX, instructions[0].Operand1.BaseReg);
+        Assert.Equal(OperandType.Immediate8, instructions[0].Operand2.Type);
+        Assert.Equal(5, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleGroup81AddWordPtrImm()
+    {
+        var instructions = Disassemble("81 07 34 12"); // ADD WORD PTR [BX], 1234h
+        Assert.Equal(Mnemonic.ADD, instructions[0].Mnemonic);
+        Assert.Equal("[BX], 1234h", instructions[0].Operands);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
+        Assert.Equal(AddressRegister.BX, instructions[0].Operand1.BaseReg);
+        Assert.Equal(OperandType.Immediate16, instructions[0].Operand2.Type);
+        Assert.Equal(0x1234, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleGroup83AddBytePtrImmSignExtend()
+    {
+        var instructions = Disassemble("83 07 FF"); // ADD WORD PTR [BX], -1 (sign extend)
+        Assert.Equal(Mnemonic.ADD, instructions[0].Mnemonic);
+        Assert.Equal("[BX], FFFFh", instructions[0].Operands);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
+        Assert.Equal(AddressRegister.BX, instructions[0].Operand1.BaseReg);
+        Assert.Equal(OperandType.Immediate16, instructions[0].Operand2.Type);
+        Assert.Equal(0xFFFF, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleMovMemImmByte()
+    {
+        var instructions = Disassemble("C6 06 34 12 55"); // MOV BYTE PTR [1234h], 55h
+        Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
+        Assert.Equal("[1234h], 55h", instructions[0].Operands);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
+        Assert.Equal(0x1234, instructions[0].Operand1.Value);
+        Assert.Equal(OperandType.Immediate8, instructions[0].Operand2.Type);
+        Assert.Equal(0x55, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleMovMemImmWord()
+    {
+        var instructions = Disassemble("C7 06 34 12 78 56"); // MOV WORD PTR [1234h], 5678h
+        Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
+        Assert.Equal("[1234h], 5678h", instructions[0].Operands);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
+        Assert.Equal(0x1234, instructions[0].Operand1.Value);
+        Assert.Equal(OperandType.Immediate16, instructions[0].Operand2.Type);
+        Assert.Equal(0x5678, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleMovAxMemByte()
+    {
+        var instructions = Disassemble("A0 34 12"); // MOV AL, [1234h]
+        Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
+        Assert.Equal("AL, [1234h]", instructions[0].Operands);
+        Assert.Equal(OperandType.Register8, instructions[0].Operand1.Type);
+        Assert.Equal(0, instructions[0].Operand1.Value);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand2.Type);
+        Assert.Equal(0x1234, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleMovAxMemWord()
+    {
+        var instructions = Disassemble("A1 34 12"); // MOV AX, [1234h]
+        Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
+        Assert.Equal("AX, [1234h]", instructions[0].Operands);
+        Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
+        Assert.Equal(0, instructions[0].Operand1.Value);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand2.Type);
+        Assert.Equal(0x1234, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleMovMemAxByte()
+    {
+        var instructions = Disassemble("A2 34 12"); // MOV [1234h], AL
+        Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
+        Assert.Equal("[1234h], AL", instructions[0].Operands);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
+        Assert.Equal(0x1234, instructions[0].Operand1.Value);
+        Assert.Equal(OperandType.Register8, instructions[0].Operand2.Type);
+        Assert.Equal(0, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleMovMemAxWord()
+    {
+        var instructions = Disassemble("A3 34 12"); // MOV [1234h], AX
+        Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
+        Assert.Equal("[1234h], AX", instructions[0].Operands);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
+        Assert.Equal(0x1234, instructions[0].Operand1.Value);
+        Assert.Equal(OperandType.Register16, instructions[0].Operand2.Type);
+        Assert.Equal(0, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleMovSregToReg()
+    {
+        var instructions = Disassemble("8C D8"); // MOV AX, DS
+        Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
+        Assert.Equal("AX, DS", instructions[0].Operands);
+        Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
+        Assert.Equal(0, instructions[0].Operand1.Value);
+        Assert.Equal(OperandType.SegmentRegister, instructions[0].Operand2.Type);
+        Assert.Equal(3, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleMovRegToSreg()
+    {
+        var instructions = Disassemble("8E D8"); // MOV DS, AX
+        Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
+        Assert.Equal("DS, AX", instructions[0].Operands);
+        Assert.Equal(OperandType.SegmentRegister, instructions[0].Operand1.Type);
+        Assert.Equal(3, instructions[0].Operand1.Value);
+        Assert.Equal(OperandType.Register16, instructions[0].Operand2.Type);
+        Assert.Equal(0, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleTestModRmByte()
+    {
+        var instructions = Disassemble("84 07"); // TEST [BX], AL
+        Assert.Equal(Mnemonic.TEST, instructions[0].Mnemonic);
+        Assert.Equal("[BX], AL", instructions[0].Operands);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
+        Assert.Equal(AddressRegister.BX, instructions[0].Operand1.BaseReg);
+        Assert.Equal(OperandType.Register8, instructions[0].Operand2.Type);
+        Assert.Equal(0, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleTestModRmWord()
+    {
+        var instructions = Disassemble("85 07"); // TEST [BX], AX
+        Assert.Equal(Mnemonic.TEST, instructions[0].Mnemonic);
+        Assert.Equal("[BX], AX", instructions[0].Operands);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
+        Assert.Equal(AddressRegister.BX, instructions[0].Operand1.BaseReg);
+        Assert.Equal(OperandType.Register16, instructions[0].Operand2.Type);
+        Assert.Equal(0, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleCallNear()
+    {
+        var instructions = Disassemble("E8 05 00"); // CALL near +7
+        Assert.Equal(Mnemonic.CALL, instructions[0].Mnemonic);
+        Assert.Equal("7", instructions[0].Operands);
+        Assert.Equal(OperandType.Relative16, instructions[0].Operand1.Type);
+        Assert.Equal(7, instructions[0].Operand1.Value);
+    }
+
+    [Fact]
+    public void DisassembleRetfFar()
+    {
+        var instructions = Disassemble("CA"); // RETF_FAR (CA)
+        Assert.Equal(Mnemonic.RETF_FAR, instructions[0].Mnemonic);
+        Assert.Equal("", instructions[0].Operands);
+    }
+
+    [Fact]
+    public void DisassembleStosw()
+    {
+        var instructions = Disassemble("AB"); // STOSW
+        Assert.Equal(Mnemonic.STOSW, instructions[0].Mnemonic);
+        Assert.Equal("", instructions[0].Operands);
+    }
+
+    [Fact]
+    public void DisassembleLodsw()
+    {
+        var instructions = Disassemble("AD"); // LODSW
+        Assert.Equal(Mnemonic.LODSW, instructions[0].Mnemonic);
+        Assert.Equal("", instructions[0].Operands);
+    }
+
+    [Fact]
+    public void DisassembleScasb()
+    {
+        var instructions = Disassemble("AE"); // SCASB
+        Assert.Equal(Mnemonic.SCASB, instructions[0].Mnemonic);
+        Assert.Equal("", instructions[0].Operands);
+    }
+
+    [Fact]
+    public void DisassemblePushCs()
+    {
+        var instructions = Disassemble("0E"); // PUSH CS
+        Assert.Equal(Mnemonic.PUSH, instructions[0].Mnemonic);
+        Assert.Equal("CS", instructions[0].Operands);
+        Assert.Equal(OperandType.SegmentRegister, instructions[0].Operand1.Type);
+        Assert.Equal(1, instructions[0].Operand1.Value);
+    }
+
+    [Fact]
+    public void DisassemblePushSs()
+    {
+        var instructions = Disassemble("16"); // PUSH SS
+        Assert.Equal(Mnemonic.PUSH, instructions[0].Mnemonic);
+        Assert.Equal("SS", instructions[0].Operands);
+        Assert.Equal(OperandType.SegmentRegister, instructions[0].Operand1.Type);
+        Assert.Equal(2, instructions[0].Operand1.Value);
+    }
+
+    [Fact]
+    public void DisassemblePushDs()
+    {
+        var instructions = Disassemble("1E"); // PUSH DS
+        Assert.Equal(Mnemonic.PUSH, instructions[0].Mnemonic);
+        Assert.Equal("DS", instructions[0].Operands);
+        Assert.Equal(OperandType.SegmentRegister, instructions[0].Operand1.Type);
+        Assert.Equal(3, instructions[0].Operand1.Value);
+    }
+
+    [Fact]
+    public void DisassemblePopSs()
+    {
+        var instructions = Disassemble("17"); // POP SS
+        Assert.Equal(Mnemonic.POP, instructions[0].Mnemonic);
+        Assert.Equal("SS", instructions[0].Operands);
+        Assert.Equal(OperandType.SegmentRegister, instructions[0].Operand1.Type);
+        Assert.Equal(2, instructions[0].Operand1.Value);
+    }
+
+    [Fact]
+    public void DisassemblePopDs()
+    {
+        var instructions = Disassemble("1F"); // POP DS
+        Assert.Equal(Mnemonic.POP, instructions[0].Mnemonic);
+        Assert.Equal("DS", instructions[0].Operands);
+        Assert.Equal(OperandType.SegmentRegister, instructions[0].Operand1.Type);
+        Assert.Equal(3, instructions[0].Operand1.Value);
+    }
+
     private static List<Instruction> Disassemble(string hex)
     {
         var disassembler = new X86Disassembler(hex.FromHex());
