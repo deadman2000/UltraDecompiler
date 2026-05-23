@@ -70,28 +70,24 @@ public readonly struct Operand
         {
             string baseName = BaseReg switch
             {
-                0 => "BX+SI",
-                1 => "BX+DI",
-                2 => "BP+SI",
-                3 => "BP+DI",
-                4 => "SI",
-                5 => "DI",
-                6 => "BP",
-                7 => "BX",
+                3 => "BX",
+                5 => "BP",
+                6 => "SI",
+                7 => "DI",
                 _ => "?"
             };
             parts.Add(baseName);
         }
 
-        // Index register (если отличается от базы)
+        // Index register
         if (IndexReg != 0 && IndexReg != BaseReg)
         {
             string idxName = IndexReg switch
             {
-                4 => "SI",
-                5 => "DI",
-                6 => "BP",
-                7 => "BX",
+                3 => "BX",
+                5 => "BP",
+                6 => "SI",
+                7 => "DI",
                 _ => "?"
             };
             parts.Add(idxName);
