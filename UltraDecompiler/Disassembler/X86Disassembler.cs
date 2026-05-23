@@ -415,6 +415,9 @@ public class X86Disassembler
             case 0xFB: return new Instruction { Mnemonic = Mnemonic.STI };
             case 0xFC: return new Instruction { Mnemonic = Mnemonic.CLD };
             case 0xFD: return new Instruction { Mnemonic = Mnemonic.STD };
+            case 0xF5: return new Instruction { Mnemonic = Mnemonic.CMC };
+            case 0xF8: return new Instruction { Mnemonic = Mnemonic.CLC };
+            case 0xF9: return new Instruction { Mnemonic = Mnemonic.STC };
 
             case 0xD7: return new Instruction { Mnemonic = Mnemonic.XLAT };
 
@@ -940,9 +943,9 @@ public class X86Disassembler
             1 => Mnemonic.ROR,
             2 => Mnemonic.RCL,
             3 => Mnemonic.RCR,
-            4 => Mnemonic.SHL,
+            4 => Mnemonic.SAL,
             5 => Mnemonic.SHR,
-            6 => Mnemonic.SHL,
+            6 => Mnemonic.SAL,
             7 => Mnemonic.SAR,
             _ => Mnemonic.DB
         };
