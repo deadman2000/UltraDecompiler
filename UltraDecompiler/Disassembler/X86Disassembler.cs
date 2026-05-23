@@ -1,3 +1,5 @@
+using UltraDecompiler.Extensions;
+
 namespace UltraDecompiler.Disassembler;
 
 public class X86Disassembler
@@ -277,7 +279,6 @@ public class X86Disassembler
                 var callInstr = new Instruction
                 {
                     Mnemonic = Mnemonic.CALL,
-                    Operands = $"{_pos + rel:X4}h",
                     Operand1 = new Operand(OperandType.Relative16, _pos + rel)
                 };
                 return callInstr;
@@ -420,7 +421,7 @@ public class X86Disassembler
     {
         ushort alloc = ReadUInt16();
         byte level = ReadByte();
-        return new Instruction { Mnemonic = Mnemonic.ENTER, Operands = $"{alloc:X4}h, {level}" };
+        return new Instruction { Mnemonic = Mnemonic.ENTER, Operands = $"{alloc.ToHex()}, {level}" };
     }
 
     private Instruction DecodeImulTwoOperand()
@@ -485,7 +486,7 @@ public class X86Disassembler
         Mnemonic op = GetAluMnemonicEnum(opcode);
         bool word = (opcode & 1) == 1;
         ushort imm = word ? ReadUInt16() : ReadByte();
-        return new Instruction { Mnemonic = op, Operands = $"{(word ? "AX" : "AL")}, {imm:X4}h" };
+        return new Instruction { Mnemonic = op, Operands = $"{(word ? "AX" : "AL")}, {imm.ToHex()}" };
     }
 
     private Instruction DecodeGroup80(byte opcode)
@@ -638,7 +639,7 @@ public class X86Disassembler
         bool word = opcode >= 0xB8;
         string reg = GetReg8or16Name(opcode - (word ? 0xB8 : 0xB0), word);
         ushort imm = word ? ReadUInt16() : ReadByte();
-        return new Instruction { Mnemonic = Mnemonic.MOV, Operands = $"{reg}, {imm:X4}h" };
+        return new Instruction { Mnemonic = Mnemonic.MOV, Operands = $"{reg}, {imm.ToHex()}" };
     }
 
     private Instruction DecodeMovMemImm(byte opcode)
@@ -837,7 +838,6 @@ public class X86Disassembler
         var instr = new Instruction
         {
             Mnemonic = mnem,
-            Operands = $"{target:X4}h",
             Operand1 = new Operand(OperandType.Relative8, target)
         };
         return instr;

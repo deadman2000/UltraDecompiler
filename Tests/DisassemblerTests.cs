@@ -9,7 +9,7 @@ public class DisassemblerTests
     {
         var instructions = Disassemble("FF 16 46 00");
         Assert.Equal(Mnemonic.CALL, instructions[0].Mnemonic);
-        Assert.Equal("[0046h]", instructions[0].Operands);
+        Assert.Equal("[46h]", instructions[0].Operands);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
         Assert.Equal(0x0046, instructions[0].Operand1.Value);
     }
@@ -190,7 +190,7 @@ public class DisassemblerTests
         Assert.Equal(0, instructions[1].Operand1.BaseReg);
 
         Assert.StartsWith("SS:", instructions[0].Operands);
-        Assert.Equal("[00DAh]", instructions[1].Operands);
+        Assert.Equal("[DAh]", instructions[1].Operands);
     }
 
     [Fact]
@@ -266,7 +266,7 @@ public class DisassemblerTests
     {
         var instructions = Disassemble("25 FF 00"); // AND AX, 00FFh
         Assert.Equal(Mnemonic.AND, instructions[0].Mnemonic);
-        Assert.Equal("AX, 00FFh", instructions[0].Operands);
+        Assert.Equal("AX, FFh", instructions[0].Operands);
         Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
         Assert.Equal(0, instructions[0].Operand1.Value);
         Assert.Equal(OperandType.Immediate16, instructions[0].Operand2.Type);

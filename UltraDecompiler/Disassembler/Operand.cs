@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using UltraDecompiler.Extensions;
+
 namespace UltraDecompiler.Disassembler;
 
 public enum OperandType : byte
@@ -23,6 +26,7 @@ public readonly struct Operand
 
     public Operand(OperandType type, int value = 0, byte baseReg = 0, byte indexReg = 0, byte scale = 1)
     {
+        Debug.Assert(value >= short.MinValue && value <= ushort.MaxValue);
         Type = type;
         Value = value;
         BaseReg = baseReg;
@@ -37,20 +41,12 @@ public readonly struct Operand
         return Type switch
         {
             OperandType.Register8 or OperandType.Register16 => GetRegName(),
-            OperandType.Immediate8 or OperandType.Immediate16 => GetValueHex(),
+            OperandType.Immediate8 or OperandType.Immediate16 => Value.ToHex(),
             OperandType.Memory => GetMemoryString(),
-            OperandType.Relative8 or OperandType.Relative16 => GetValueHex(),
+            OperandType.Relative8 or OperandType.Relative16 => Value.ToHex(),
             OperandType.SegmentRegister => GetSegRegName(),
             _ => "?"
         };
-    }
-
-    private string GetValueHex()
-    {
-        if (Value > -10 && Value < 10)
-            return Value.ToString();
-
-        return $"{Value:X4}h";
     }
 
     private string GetRegName() => Value switch
@@ -110,10 +106,7 @@ public readonly struct Operand
         // Displacement
         if (Value != 0)
         {
-            if (Value < 10)
-                parts.Add(Value.ToString());
-            else
-                parts.Add($"{Value:X4}h");
+            parts.Add(Value.ToHex());
         }
 
         if (parts.Count == 0)
