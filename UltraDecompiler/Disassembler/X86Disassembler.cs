@@ -302,6 +302,8 @@ public class X86Disassembler
 
             case 0xC3: return new Instruction { Mnemonic = Mnemonic.RET };
             case 0xCB: return new Instruction { Mnemonic = Mnemonic.RETF };
+            case 0xCE: return new Instruction { Mnemonic = Mnemonic.INTO };
+            case 0xCF: return new Instruction { Mnemonic = Mnemonic.IRET };
 
             case 0xCD:
             {
@@ -423,6 +425,7 @@ public class X86Disassembler
 
             case 0xF4: return new Instruction { Mnemonic = Mnemonic.HLT };
 
+            case 0xC4: return DecodeLes();
             case 0xC5: return DecodeLds();
 
             case 0xC8: return DecodeEnter();
@@ -516,6 +519,25 @@ public class X86Disassembler
         var instr = new Instruction
         {
             Mnemonic = Mnemonic.LDS,
+            Operand1 = new Operand(OperandType.Register16, reg)
+        };
+        if (mod != 3)
+            instr.Operand2 = ParseMemoryOperand(rm, mod);
+        else
+            instr.Operand2 = new Operand(OperandType.Register16, rm);
+        return instr;
+    }
+
+    private Instruction DecodeLes()
+    {
+        byte modrm = ReadByte();
+        int mod = (modrm >> 6) & 3;
+        int reg = (modrm >> 3) & 7;
+        int rm = modrm & 7;
+
+        var instr = new Instruction
+        {
+            Mnemonic = Mnemonic.LES,
             Operand1 = new Operand(OperandType.Register16, reg)
         };
         if (mod != 3)
