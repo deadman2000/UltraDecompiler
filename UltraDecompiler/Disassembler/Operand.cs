@@ -3,15 +3,6 @@ using UltraDecompiler.Extensions;
 
 namespace UltraDecompiler.Disassembler;
 
-public enum AddressRegister : byte
-{
-    None = 0,
-    BX = 3,
-    BP = 5,
-    SI = 6,
-    DI = 7
-}
-
 public readonly struct Operand
 {
     public readonly OperandType Type;

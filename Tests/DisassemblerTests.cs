@@ -7,7 +7,7 @@ public class DisassemblerTests
     [Fact]
     public void DisassembleNearInderectCall()
     {
-        var instructions = Disassemble("FF 16 46 00");
+        var instructions = Disassemble("FF 16 46 00"); // CALL WORD PTR [0x46]
         Assert.Equal(Mnemonic.CALL, instructions[0].Mnemonic);
         Assert.Equal("[46h]", instructions[0].Operands);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
