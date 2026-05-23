@@ -255,4 +255,9 @@ dotnet_style_prefer_inferred_anonymous_type_member_names = true:suggestion
 dotnet_style_prefer_compound_assignment = true:suggestion
 dotnet_style_prefer_simplified_interpolation = true:suggestion
 
+dotnet_diagnostic.CS0168.severity = error
+dotnet_diagnostic.CS0169.severity = error
+dotnet_diagnostic.CS0219.severity = error
+dotnet_diagnostic.IDE0051.severity = error
+dotnet_diagnostic.IDE0052.severity = error
 dotnet_diagnostic.IDE0059.severity = error

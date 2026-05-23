@@ -421,10 +421,6 @@ public class X86Disassembler
             case 0xC8: return DecodeEnter();
             case 0xC9: return new Instruction { Mnemonic = Mnemonic.LEAVE };
 
-            case 0x69:
-            case 0x6B:
-                return DecodeImulTwoOperand();
-
             // IN/OUT support added
             case 0xE4: // IN AL, imm8
             {
@@ -544,32 +540,6 @@ public class X86Disassembler
             Operand1 = new Operand(OperandType.Immediate16, alloc),
             Operand2 = new Operand(OperandType.Immediate8, level)
         };
-    }
-
-    private Instruction DecodeImulTwoOperand()
-    {
-        byte modrm = ReadByte();
-        int mod = (modrm >> 6) & 3;
-        int reg = (modrm >> 3) & 7;
-        int rm = modrm & 7;
-
-        var instr = new Instruction { Mnemonic = Mnemonic.IMUL };
-        instr.Operand1 = new Operand(OperandType.Register16, reg);
-        if (mod == 3)
-            instr.Operand2 = new Operand(OperandType.Register16, rm);
-        else
-            instr.Operand2 = ParseMemoryOperand(rm, mod);
-
-        if (_pos > 0 && _image[_pos - 3] == 0x6B)
-        {
-            sbyte imm8 = (sbyte)ReadByte();
-            // Для 3-операндной формы
-        }
-        else
-        {
-            ushort imm16 = ReadUInt16();
-        }
-        return instr;
     }
 
     private Instruction DecodeModRmAlu(byte opcode)
@@ -1033,34 +1003,6 @@ public class X86Disassembler
 
         return new Operand(OperandType.Memory, disp, baseReg, indexReg);
     }
-
-    private static string GetReg16Name(int index) => index switch
-    {
-        0 => "AX",
-        1 => "CX",
-        2 => "DX",
-        3 => "BX",
-        4 => "SP",
-        5 => "BP",
-        6 => "SI",
-        7 => "DI",
-        _ => "?"
-    };
-
-    private static string GetReg8Name(int index) => index switch
-    {
-        0 => "AL",
-        1 => "CL",
-        2 => "DL",
-        3 => "BL",
-        4 => "AH",
-        5 => "CH",
-        6 => "DH",
-        7 => "BH",
-        _ => "?"
-    };
-
-    private static string GetReg8or16Name(int index, bool word) => word ? GetReg16Name(index) : GetReg8Name(index);
 
     private static Mnemonic GetAluMnemonicEnum(byte opcode)
     {
