@@ -612,7 +612,7 @@ public class X86Disassembler
         int rm = modrm & 7;
         bool word = (opcode & 1) == 1;
 
-        var instr = new Instruction();
+        var instr = new Instruction() { Mnemonic = Mnemonic.MOV };
 
         if ((opcode & 2) != 0)
         {
