@@ -30,6 +30,8 @@ public readonly struct Operand
         Scale = scale;
     }
 
+    public bool IsSet => Type != OperandType.None;
+
     public override string ToString()
     {
         return Type switch

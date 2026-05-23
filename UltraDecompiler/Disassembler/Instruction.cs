@@ -36,8 +36,8 @@ public class Instruction
         get
         {
             var ops = new List<string>();
-            if (Operand1 is not null) ops.Add(Operand1.ToString() ?? UnknownOperand);
-            if (Operand2 is not null) ops.Add(Operand2.ToString() ?? UnknownOperand);
+            if (Operand1.Type != OperandType.None) ops.Add(Operand1.ToString() ?? UnknownOperand);
+            if (Operand2.Type != OperandType.None) ops.Add(Operand2.ToString() ?? UnknownOperand);
 
             string result = ops.Count > 0 ? string.Join(", ", ops) : _operands;
 
@@ -64,12 +64,12 @@ public class Instruction
     /// <summary>
     /// Первый операнд (dst)
     /// </summary>
-    public Operand? Operand1 { get; set; }
+    public Operand Operand1 { get; set; }
 
     /// <summary>
     /// Второй операнд (src)
     /// </summary>
-    public Operand? Operand2 { get; set; }
+    public Operand Operand2 { get; set; }
 
     /// <summary>
     /// Сегментный префикс инструкции (если есть)
@@ -102,10 +102,10 @@ public class Instruction
     /// </summary>
     public int GetJumpTarget()
     {
-        if (Operand1?.Type is OperandType.Relative8 or OperandType.Relative16)
-            return Operand1.Value.Value;
-        if (Operand2?.Type is OperandType.Relative8 or OperandType.Relative16)
-            return Operand2.Value.Value;
+        if (Operand1.Type is OperandType.Relative8 or OperandType.Relative16)
+            return Operand1.Value;
+        if (Operand2.Type is OperandType.Relative8 or OperandType.Relative16)
+            return Operand2.Value;
         return -1;
     }
 
@@ -118,10 +118,10 @@ public class Instruction
         if (direct != -1)
             return direct;
 
-        var op = Operand1 ?? Operand2;
-        if ((Mnemonic == Mnemonic.CALL || Mnemonic == Mnemonic.JMP) && op is not null && op.Value.Type == OperandType.Memory)
+        var op = Operand1.IsSet ? Operand1 : Operand2;
+        if ((Mnemonic == Mnemonic.CALL || Mnemonic == Mnemonic.JMP) && op.Type == OperandType.Memory)
         {
-            int val = op.Value.Value;
+            int val = op.Value;
             if (val >= 0 && val + 2 <= image.Length)
             {
                 return (ushort)(image[val] | (image[val + 1] << 8));

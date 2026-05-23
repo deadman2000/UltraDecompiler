@@ -82,11 +82,10 @@ public class X86Disassembler
         if (direct != -1)
             return direct;
 
-        var op = instr.Operand1 ?? instr.Operand2;
-        if ((instr.Mnemonic == Mnemonic.CALL || instr.Mnemonic == Mnemonic.JMP) && op is not null && op.Value.Type == OperandType.Memory)
+        var op = instr.Operand1.IsSet ? instr.Operand1 : instr.Operand2;
+        if ((instr.Mnemonic == Mnemonic.CALL || instr.Mnemonic == Mnemonic.JMP) && op.Type == OperandType.Memory)
         {
-            int val = op.Value.Value;
-            int realAddr = DataSegmentBase + val;
+            int realAddr = DataSegmentBase + op.Value;
             if (realAddr >= 0 && realAddr + 2 <= _image.Length)
             {
                 return (ushort)(_image[realAddr] | (_image[realAddr + 1] << 8));
