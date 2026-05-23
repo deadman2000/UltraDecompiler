@@ -953,6 +953,10 @@ public class X86Disassembler
         else
             instr.Operand1 = ParseMemoryOperand(modrm & 7, mod);
         // CL or 1
+        if ((opcode & 2) != 0)
+            instr.Operand2 = new Operand(OperandType.Register8, 1); // CL
+        else
+            instr.Operand2 = new Operand(OperandType.Immediate8, 1);
         return instr;
     }
     private Instruction DecodeLoop(byte opcode)
