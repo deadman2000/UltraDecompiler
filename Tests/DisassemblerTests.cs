@@ -366,6 +366,61 @@ public class DisassemblerTests
         Assert.Equal(0, instructions[0].Operand1.Value); // ES = 0
     }
 
+    // Новые тесты на INT, XCHG, INC, DEC
+    [Fact]
+    public void DisassembleInt()
+    {
+        var instructions = Disassemble("CD 21"); // INT 21h
+        Assert.Equal(Mnemonic.INT, instructions[0].Mnemonic);
+        Assert.Equal("21h", instructions[0].Operands);
+        Assert.Equal(OperandType.Immediate8, instructions[0].Operand1.Type);
+        Assert.Equal(0x21, instructions[0].Operand1.Value);
+    }
+
+    [Fact]
+    public void DisassembleXchgAxReg()
+    {
+        var instructions = Disassemble("92"); // XCHG AX, DX
+        Assert.Equal(Mnemonic.XCHG, instructions[0].Mnemonic);
+        Assert.Equal("AX, DX", instructions[0].Operands);
+        Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
+        Assert.Equal(0, instructions[0].Operand1.Value); // AX
+        Assert.Equal(OperandType.Register16, instructions[0].Operand2.Type);
+        Assert.Equal(2, instructions[0].Operand2.Value); // DX
+    }
+
+    [Fact]
+    public void DisassembleXchgRegMem()
+    {
+        var instructions = Disassemble("87 07"); // XCHG AX, [BX]
+        Assert.Equal(Mnemonic.XCHG, instructions[0].Mnemonic);
+        Assert.Contains("BX", instructions[0].Operands);
+        Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
+        Assert.Equal(0, instructions[0].Operand1.Value); // AX
+        Assert.Equal(OperandType.Memory, instructions[0].Operand2.Type);
+        Assert.Equal(AddressRegister.BX, instructions[0].Operand2.BaseReg);
+    }
+
+    [Fact]
+    public void DisassembleIncReg()
+    {
+        var instructions = Disassemble("40"); // INC AX
+        Assert.Equal(Mnemonic.INC, instructions[0].Mnemonic);
+        Assert.Equal("AX", instructions[0].Operands);
+        Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
+        Assert.Equal(0, instructions[0].Operand1.Value); // AX
+    }
+
+    [Fact]
+    public void DisassembleDecReg()
+    {
+        var instructions = Disassemble("4B"); // DEC BX
+        Assert.Equal(Mnemonic.DEC, instructions[0].Mnemonic);
+        Assert.Equal("BX", instructions[0].Operands);
+        Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
+        Assert.Equal(3, instructions[0].Operand1.Value); // BX
+    }
+
     private static List<Instruction> Disassemble(string hex)
     {
         var disassembler = new X86Disassembler(hex.FromHex());
