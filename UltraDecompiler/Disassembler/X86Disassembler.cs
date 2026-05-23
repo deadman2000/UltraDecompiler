@@ -137,6 +137,10 @@ public class X86Disassembler
             case 0x09:
             case 0x0A:
             case 0x0B:
+            case 0x18:
+            case 0x19:
+            case 0x1A:
+            case 0x1B:
             case 0x20:
             case 0x21:
             case 0x22:
