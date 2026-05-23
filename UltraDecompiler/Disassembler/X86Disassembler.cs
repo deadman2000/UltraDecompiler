@@ -675,12 +675,30 @@ public class X86Disassembler
         string addr = $"{seg}{disp:X4}";
 
         var instr = new Instruction { Mnemonic = Mnemonic.MOV };
-        if (opcode == 0xA0) { instr.Operands = $"AL, {addr}"; instr.Operand1 = new Operand(OperandType.Register8, 0); }
-        if (opcode == 0xA1) { instr.Operands = $"AX, {addr}"; instr.Operand1 = new Operand(OperandType.Register16, 0); }
-        if (opcode == 0xA2) { instr.Operands = $"{addr}, AL"; instr.Operand2 = new Operand(OperandType.Register8, 0); }
-        if (opcode == 0xA3) { instr.Operands = $"{addr}, AX"; instr.Operand2 = new Operand(OperandType.Register16, 0); }
-
-        instr.Operand1 = new Operand(OperandType.Memory, disp);
+        if (opcode == 0xA0)
+        {
+            instr.Operands = $"AL, {addr}";
+            instr.Operand1 = new Operand(OperandType.Register8, 0);
+            instr.Operand2 = new Operand(OperandType.Memory, disp);
+        }
+        if (opcode == 0xA1)
+        {
+            instr.Operands = $"AX, {addr}";
+            instr.Operand1 = new Operand(OperandType.Register16, 0);
+            instr.Operand2 = new Operand(OperandType.Memory, disp);
+        }
+        if (opcode == 0xA2)
+        {
+            instr.Operands = $"{addr}, AL";
+            instr.Operand1 = new Operand(OperandType.Memory, disp);
+            instr.Operand2 = new Operand(OperandType.Register8, 0);
+        }
+        if (opcode == 0xA3)
+        {
+            instr.Operands = $"{addr}, AX";
+            instr.Operand1 = new Operand(OperandType.Memory, disp);
+            instr.Operand2 = new Operand(OperandType.Register16, 0);
+        }
         return instr;
     }
 
