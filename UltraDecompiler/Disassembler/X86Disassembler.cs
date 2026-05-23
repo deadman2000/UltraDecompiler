@@ -811,15 +811,23 @@ public class X86Disassembler
         int sreg = (modrm >> 3) & 7;
         int rm = modrm & 7;
 
-        var instr = new Instruction
+        var instr = new Instruction { Mnemonic = Mnemonic.MOV };
+        if ((opcode & 2) != 0)
         {
-            Mnemonic = Mnemonic.MOV,
-            Operand2 = new Operand(OperandType.SegmentRegister, sreg)
-        };
-        if (mod == 3)
-            instr.Operand1 = new Operand(OperandType.Register16, rm);
+            instr.Operand1 = new Operand(OperandType.SegmentRegister, sreg);
+            if (mod == 3)
+                instr.Operand2 = new Operand(OperandType.Register16, rm);
+            else
+                instr.Operand2 = ParseMemoryOperand(rm, mod);
+        }
         else
-            instr.Operand1 = ParseMemoryOperand(rm, mod);
+        {
+            if (mod == 3)
+                instr.Operand1 = new Operand(OperandType.Register16, rm);
+            else
+                instr.Operand1 = ParseMemoryOperand(rm, mod);
+            instr.Operand2 = new Operand(OperandType.SegmentRegister, sreg);
+        }
         return instr;
     }
 
@@ -917,11 +925,11 @@ public class X86Disassembler
         bool word = (opcode & 1) == 1;
 
         var instr = new Instruction { Mnemonic = Mnemonic.TEST };
-        instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, reg);
         if (mod == 3)
-            instr.Operand2 = new Operand(word ? OperandType.Register16 : OperandType.Register8, rm);
+            instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, rm);
         else
-            instr.Operand2 = ParseMemoryOperand(rm, mod);
+            instr.Operand1 = ParseMemoryOperand(rm, mod);
+        instr.Operand2 = new Operand(word ? OperandType.Register16 : OperandType.Register8, reg);
         return instr;
     }
 

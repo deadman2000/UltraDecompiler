@@ -1191,11 +1191,11 @@ public class DisassemblerTests
     [Fact]
     public void DisassembleCallNear()
     {
-        var instructions = Disassemble("E8 05 00"); // CALL near +7
+        var instructions = Disassemble("E8 05 00"); // CALL near +5 (target = 3 + 5 = 8)
         Assert.Equal(Mnemonic.CALL, instructions[0].Mnemonic);
-        Assert.Equal("7", instructions[0].Operands);
+        Assert.Equal("8", instructions[0].Operands);
         Assert.Equal(OperandType.Relative16, instructions[0].Operand1.Type);
-        Assert.Equal(7, instructions[0].Operand1.Value);
+        Assert.Equal(8, instructions[0].Operand1.Value);
     }
 
     [Fact]
