@@ -233,7 +233,15 @@ public class X86Disassembler
             case 0x55:
             case 0x56:
             case 0x57:
-                return new Instruction { Mnemonic = Mnemonic.PUSH, Operands = GetReg16Name(opcode - 0x50) };
+            {
+                int reg = opcode - 0x50;
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.PUSH,
+                    Operands = GetReg16Name(reg),
+                    Operand1 = new Operand(OperandType.Register16, reg)
+                };
+            }
             case 0x58:
             case 0x59:
             case 0x5A:
@@ -242,15 +250,23 @@ public class X86Disassembler
             case 0x5D:
             case 0x5E:
             case 0x5F:
-                return new Instruction { Mnemonic = Mnemonic.POP, Operands = GetReg16Name(opcode - 0x58) };
+            {
+                int reg = opcode - 0x58;
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.POP,
+                    Operands = GetReg16Name(reg),
+                    Operand1 = new Operand(OperandType.Register16, reg)
+                };
+            }
 
-            case 0x06: return new Instruction { Mnemonic = Mnemonic.PUSH, Operands = "ES" };
-            case 0x0E: return new Instruction { Mnemonic = Mnemonic.PUSH, Operands = "CS" };
-            case 0x16: return new Instruction { Mnemonic = Mnemonic.PUSH, Operands = "SS" };
-            case 0x1E: return new Instruction { Mnemonic = Mnemonic.PUSH, Operands = "DS" };
-            case 0x07: return new Instruction { Mnemonic = Mnemonic.POP, Operands = "ES" };
-            case 0x17: return new Instruction { Mnemonic = Mnemonic.POP, Operands = "SS" };
-            case 0x1F: return new Instruction { Mnemonic = Mnemonic.POP, Operands = "DS" };
+            case 0x06: return new Instruction { Mnemonic = Mnemonic.PUSH, Operands = "ES", Operand1 = new Operand(OperandType.SegmentRegister, 0) };
+            case 0x0E: return new Instruction { Mnemonic = Mnemonic.PUSH, Operands = "CS", Operand1 = new Operand(OperandType.SegmentRegister, 1) };
+            case 0x16: return new Instruction { Mnemonic = Mnemonic.PUSH, Operands = "SS", Operand1 = new Operand(OperandType.SegmentRegister, 2) };
+            case 0x1E: return new Instruction { Mnemonic = Mnemonic.PUSH, Operands = "DS", Operand1 = new Operand(OperandType.SegmentRegister, 3) };
+            case 0x07: return new Instruction { Mnemonic = Mnemonic.POP, Operands = "ES", Operand1 = new Operand(OperandType.SegmentRegister, 0) };
+            case 0x17: return new Instruction { Mnemonic = Mnemonic.POP, Operands = "SS", Operand1 = new Operand(OperandType.SegmentRegister, 2) };
+            case 0x1F: return new Instruction { Mnemonic = Mnemonic.POP, Operands = "DS", Operand1 = new Operand(OperandType.SegmentRegister, 3) };
 
             case 0x70:
             case 0x71:
