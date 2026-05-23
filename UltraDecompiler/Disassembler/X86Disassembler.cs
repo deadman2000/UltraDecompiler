@@ -583,51 +583,7 @@ public class X86Disassembler
         int regField = (modrm >> 3) & 7;
         bool word = (opcode & 1) == 1;
 
-        ushort disp = 0;
-        bool hasDisp = false;
-
-        if (mod != 3)
-        {
-            if (mod == 1) { disp = ReadByte(); hasDisp = true; }
-            else if (mod == 2) { disp = ReadUInt16(); hasDisp = true; }
-            else if (mod == 0 && (modrm & 7) == 6) { disp = ReadUInt16(); hasDisp = true; }
-        }
-
-        string dst;
-        if (mod == 3)
-        {
-            dst = GetReg8or16Name(modrm & 7, word);
-        }
-        else if (hasDisp)
-        {
-            string seg = _segmentOverride.ToPrefixString();
-
-            string baseReg = (modrm & 7) switch
-            {
-                0 => "BX+SI",
-                1 => "BX+DI",
-                2 => "BP+SI",
-                3 => "BP+DI",
-                4 => "SI",
-                5 => "DI",
-                6 => "BP",
-                7 => "BX",
-                _ => "?"
-            };
-
-            if (mod == 0 && (modrm & 7) == 6)
-                dst = $"{seg}0x{disp:X4}";
-            else if (mod == 1)
-                dst = $"{seg}{baseReg}+{disp}";
-            else
-                dst = $"{seg}{baseReg}+0x{disp:X4}";
-        }
-        else
-        {
-            dst = GetMemoryOperand(modrm & 7, mod);
-        }
-
-        var instr = new Instruction { Mnemonic = Mnemonic.DB, Operands = dst };
+        var instr = new Instruction();
 
         if (mod == 3)
             instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, modrm & 7);
@@ -676,10 +632,7 @@ public class X86Disassembler
         int rm = modrm & 7;
         bool word = (opcode & 1) == 1;
 
-        string regName = GetReg8or16Name(reg, word);
-        string mem = (mod == 3) ? GetReg8or16Name(rm, word) : GetMemoryOperand(rm, mod);
-
-        var instr = new Instruction { Mnemonic = Mnemonic.MOV, Operands = $"{regName}, {mem}" };
+        var instr = new Instruction();
 
         if ((opcode & 2) != 0)
         {
