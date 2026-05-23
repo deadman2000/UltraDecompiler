@@ -36,9 +36,27 @@ public class Instruction
         get
         {
             var ops = new List<string>();
-            if (Operand1 is not null) ops.Add(Operand1.Value.ToString() ?? UnknownOperand);
-            if (Operand2 is not null) ops.Add(Operand2.Value.ToString() ?? UnknownOperand);
-            return ops.Count > 0 ? string.Join(", ", ops) : _operands;
+            if (Operand1 is not null) ops.Add(Operand1.ToString() ?? UnknownOperand);
+            if (Operand2 is not null) ops.Add(Operand2.ToString() ?? UnknownOperand);
+
+            string result = ops.Count > 0 ? string.Join(", ", ops) : _operands;
+
+            // Добавляем сегментный префикс если есть
+            if (Segment != Segment.None && !string.IsNullOrEmpty(result))
+            {
+                string seg = Segment switch
+                {
+                    Segment.ES => "ES:",
+                    Segment.CS => "CS:",
+                    Segment.SS => "SS:",
+                    Segment.DS => "DS:",
+                    _ => ""
+                };
+                if (!result.StartsWith(seg))
+                    result = seg + result;
+            }
+
+            return result;
         }
         set => _operands = value;
     }
@@ -85,9 +103,9 @@ public class Instruction
     public int GetJumpTarget()
     {
         if (Operand1?.Type is OperandType.Relative8 or OperandType.Relative16)
-            return Operand1.Value.Value;
+            return Operand1.Value;
         if (Operand2?.Type is OperandType.Relative8 or OperandType.Relative16)
-            return Operand2.Value.Value;
+            return Operand2.Value;
         return -1;
     }
 
