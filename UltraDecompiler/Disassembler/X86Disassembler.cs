@@ -466,7 +466,12 @@ public class X86Disassembler
     {
         ushort alloc = ReadUInt16();
         byte level = ReadByte();
-        return new Instruction { Mnemonic = Mnemonic.ENTER, Operands = $"{alloc.ToHex()}, {level}" };
+        return new Instruction
+        {
+            Mnemonic = Mnemonic.ENTER,
+            Operand1 = new Operand(OperandType.Immediate16, alloc),
+            Operand2 = new Operand(OperandType.Immediate8, level)
+        };
     }
 
     private Instruction DecodeImulTwoOperand()

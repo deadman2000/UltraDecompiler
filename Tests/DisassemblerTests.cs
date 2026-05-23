@@ -421,6 +421,18 @@ public class DisassemblerTests
         Assert.Equal(3, instructions[0].Operand1.Value); // BX
     }
 
+    [Fact]
+    public void DisassembleEnter()
+    {
+        var instructions = Disassemble("C8 10 00 02"); // ENTER 0010h, 02
+        Assert.Equal(Mnemonic.ENTER, instructions[0].Mnemonic);
+        Assert.Equal("10h, 2", instructions[0].Operands);
+        Assert.Equal(OperandType.Immediate16, instructions[0].Operand1.Type);
+        Assert.Equal(0x0010, instructions[0].Operand1.Value);
+        Assert.Equal(OperandType.Immediate8, instructions[0].Operand2.Type);
+        Assert.Equal(2, instructions[0].Operand2.Value);
+    }
+
     private static List<Instruction> Disassemble(string hex)
     {
         var disassembler = new X86Disassembler(hex.FromHex());
