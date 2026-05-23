@@ -486,7 +486,10 @@ public class X86Disassembler
         Mnemonic op = GetAluMnemonicEnum(opcode);
         bool word = (opcode & 1) == 1;
         ushort imm = word ? ReadUInt16() : ReadByte();
-        return new Instruction { Mnemonic = op, Operands = $"{(word ? "AX" : "AL")}, {imm.ToHex()}" };
+        var instr = new Instruction { Mnemonic = op, Operands = $"{(word ? "AX" : "AL")}, {imm.ToHex()}" };
+        instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, 0);
+        instr.Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm);
+        return instr;
     }
 
     private Instruction DecodeGroup80(byte opcode)
@@ -637,9 +640,12 @@ public class X86Disassembler
     private Instruction DecodeMovRegImm(byte opcode)
     {
         bool word = opcode >= 0xB8;
-        string reg = GetReg8or16Name(opcode - (word ? 0xB8 : 0xB0), word);
+        int regIndex = opcode - (word ? 0xB8 : 0xB0);
         ushort imm = word ? ReadUInt16() : ReadByte();
-        return new Instruction { Mnemonic = Mnemonic.MOV, Operands = $"{reg}, {imm.ToHex()}" };
+        var instr = new Instruction { Mnemonic = Mnemonic.MOV, Operands = $"{GetReg8or16Name(regIndex, word)}, {imm.ToHex()}" };
+        instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, regIndex);
+        instr.Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm);
+        return instr;
     }
 
     private Instruction DecodeMovMemImm(byte opcode)
@@ -714,16 +720,13 @@ public class X86Disassembler
             0x7D => Mnemonic.JGE,
             0x7E => Mnemonic.JLE,
             0x7F => Mnemonic.JG,
-            0xE3 => Mnemonic.JCXZ,
             0xEB => Mnemonic.JMP,
+            0xE3 => Mnemonic.JCXZ,
             _ => Mnemonic.DB
         };
 
-        var instr = new Instruction
-        {
-            Mnemonic = mnem,
-            Operand1 = new Operand(OperandType.Relative8, target)
-        };
+        var instr = new Instruction { Mnemonic = mnem };
+        instr.Operand1 = new Operand(OperandType.Relative8, target);
         return instr;
     }
 
@@ -732,11 +735,24 @@ public class X86Disassembler
         short rel = (short)ReadUInt16();
         int target = _pos + rel;
 
-        var instr = new Instruction
-        {
-            Mnemonic = Mnemonic.JMP,
-            Operand1 = new Operand(OperandType.Relative16, target)
-        };
+        var instr = new Instruction { Mnemonic = Mnemonic.JMP };
+        instr.Operand1 = new Operand(OperandType.Relative16, target);
+        return instr;
+    }
+
+    private Instruction DecodeLea()
+    {
+        byte modrm = ReadByte();
+        int mod = (modrm >> 6) & 3;
+        int reg = (modrm >> 3) & 7;
+        int rm = modrm & 7;
+
+        var instr = new Instruction { Mnemonic = Mnemonic.LEA };
+        instr.Operand1 = new Operand(OperandType.Register16, reg);
+        if (mod == 3)
+            instr.Operand2 = new Operand(OperandType.Register16, rm);
+        else
+            instr.Operand2 = ParseMemoryOperand(rm, mod);
         return instr;
     }
 
@@ -754,19 +770,6 @@ public class X86Disassembler
             instr.Operand2 = new Operand(word ? OperandType.Register16 : OperandType.Register8, rm);
         else
             instr.Operand2 = ParseMemoryOperand(rm, mod);
-        return instr;
-    }
-
-    private Instruction DecodeLea()
-    {
-        byte modrm = ReadByte();
-        int reg = (modrm >> 3) & 7;
-        int rm = modrm & 7;
-        int mod = (modrm >> 6) & 3;
-
-        var instr = new Instruction { Mnemonic = Mnemonic.LEA };
-        instr.Operand1 = new Operand(OperandType.Register16, reg);
-        instr.Operand2 = ParseMemoryOperand(rm, mod);
         return instr;
     }
 
@@ -791,17 +794,18 @@ public class X86Disassembler
     {
         bool word = (opcode & 1) == 1;
         ushort imm = word ? ReadUInt16() : ReadByte();
-        return new Instruction { Mnemonic = Mnemonic.TEST, Operands = $"{(word ? "AX" : "AL")}, 0x{imm:X4}" };
+        var instr = new Instruction { Mnemonic = Mnemonic.TEST, Operands = $"{(word ? "AX" : "AL")}, {imm.ToHex()}" };
+        instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, 0);
+        instr.Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm);
+        return instr;
     }
 
     private Instruction DecodeShift(byte opcode)
     {
         byte modrm = ReadByte();
         int mod = (modrm >> 6) & 3;
-        int rm = modrm & 7;
         int regField = (modrm >> 3) & 7;
         bool word = (opcode & 1) == 1;
-        bool useCl = (opcode & 2) != 0;
 
         Mnemonic op = regField switch
         {
@@ -811,41 +815,86 @@ public class X86Disassembler
             3 => Mnemonic.RCR,
             4 => Mnemonic.SHL,
             5 => Mnemonic.SHR,
+            6 => Mnemonic.SHL,
             7 => Mnemonic.SAR,
             _ => Mnemonic.DB
         };
 
         var instr = new Instruction { Mnemonic = op };
         if (mod == 3)
-            instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, rm);
+            instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, modrm & 7);
         else
-            instr.Operand1 = ParseMemoryOperand(rm, mod);
+            instr.Operand1 = ParseMemoryOperand(modrm & 7, mod);
+        // CL or 1
         return instr;
     }
 
-    private Instruction DecodeLoop(byte opcode)
+    private Operand ParseMemoryOperand(int rm, int mod)
     {
-        sbyte rel = (sbyte)ReadByte();
-        int target = _pos + rel;
-        Mnemonic mnem = opcode switch
-        {
-            0xE0 => Mnemonic.LOOPNE,
-            0xE1 => Mnemonic.LOOPE,
-            0xE2 => Mnemonic.LOOP,
-            _ => Mnemonic.LOOP
-        };
+        int disp = 0;
+        if (mod == 1)
+            disp = (sbyte)ReadByte();
+        else if (mod == 2)
+            disp = (short)ReadUInt16();
 
-        var instr = new Instruction
+        byte baseReg = 0;
+        byte indexReg = 0;
+
+        switch (rm)
         {
-            Mnemonic = mnem,
-            Operand1 = new Operand(OperandType.Relative8, target)
-        };
-        return instr;
+            case 0: baseReg = 6; indexReg = 7; break; // BX+DI ? Wait, standard 8086:
+            case 0: baseReg = 3; indexReg = 7; break; // [BX+DI]
+            case 1: baseReg = 3; indexReg = 6; break; // [BX+SI]
+            case 2: baseReg = 5; indexReg = 7; break; // [BP+DI]
+            case 3: baseReg = 5; indexReg = 6; break; // [BP+SI]
+            case 4: baseReg = 6; break; // [SI]
+            case 5: baseReg = 7; break; // [DI]
+            case 6:
+                if (mod == 0)
+                {
+                    disp = ReadUInt16();
+                    baseReg = 0; // direct
+                }
+                else
+                    baseReg = 5; // [BP+disp]
+                break;
+            case 7: baseReg = 3; break; // [BX]
+        }
+
+        return new Operand(OperandType.Memory, disp, baseReg, indexReg);
     }
+
+    private string GetReg16Name(int index) => index switch
+    {
+        0 => "AX",
+        1 => "CX",
+        2 => "DX",
+        3 => "BX",
+        4 => "SP",
+        5 => "BP",
+        6 => "SI",
+        7 => "DI",
+        _ => "?"
+    };
+
+    private string GetReg8Name(int index) => index switch
+    {
+        0 => "AL",
+        1 => "CL",
+        2 => "DL",
+        3 => "BL",
+        4 => "AH",
+        5 => "CH",
+        6 => "DH",
+        7 => "BH",
+        _ => "?"
+    };
+
+    private string GetReg8or16Name(int index, bool word) => word ? GetReg16Name(index) : GetReg8Name(index);
 
     private Mnemonic GetAluMnemonicEnum(byte opcode)
     {
-        return (opcode >> 3) switch
+        return (opcode >> 3) & 7 switch
         {
             0 => Mnemonic.ADD,
             1 => Mnemonic.OR,
@@ -859,65 +908,14 @@ public class X86Disassembler
         };
     }
 
-    // === НОВЫЙ МЕТОД: правильное создание Operand для памяти ===
-    private Operand ParseMemoryOperand(int rm, int mod)
-    {
-        int disp = 0;
-        if (mod == 1) disp = ReadByte();
-        else if (mod == 2) disp = ReadUInt16();
-        else if (mod == 0 && rm == 6) disp = ReadUInt16();
-
-        byte baseReg = 0;
-        byte indexReg = 0;
-
-        switch (rm)
-        {
-            case 0: baseReg = 3; indexReg = 6; break; // BX+SI
-            case 1: baseReg = 3; indexReg = 7; break; // BX+DI
-            case 2: baseReg = 5; indexReg = 6; break; // BP+SI
-            case 3: baseReg = 5; indexReg = 7; break; // BP+DI
-            case 4: baseReg = 6; break;               // SI
-            case 5: baseReg = 7; break;               // DI
-            case 6: baseReg = 5; break;               // BP (или disp16)
-            case 7: baseReg = 3; break;               // BX
-        }
-
-        if (mod == 0 && rm == 6)
-            baseReg = 0; // только disp
-
-        return new Operand(OperandType.Memory, disp, baseReg, indexReg);
-    }
-
-    private string GetReg8or16Name(int reg, bool word)
-    {
-        if (word) return GetReg16Name(reg);
-        return reg switch
-        {
-            0 => "AL",
-            1 => "CL",
-            2 => "DL",
-            3 => "BL",
-            4 => "AH",
-            5 => "CH",
-            6 => "DH",
-            7 => "BH",
-            _ => "?"
-        };
-    }
-
-    private string GetReg16Name(int reg) => reg switch
-    {
-        0 => "AX",
-        1 => "CX",
-        2 => "DX",
-        3 => "BX",
-        4 => "SP",
-        5 => "BP",
-        6 => "SI",
-        7 => "DI",
-        _ => "?"
-    };
-
     private byte ReadByte() => _image[_pos++];
-    private ushort ReadUInt16() => (ushort)(_image[_pos++] | (_image[_pos++] << 8));
+
+    private ushort ReadUInt16()
+    {
+        ushort val = (ushort)(_image[_pos] | (_image[_pos + 1] << 8));
+        _pos += 2;
+        return val;
+    }
+
+    private string ToHex(this ushort v) => v > 9 ? $"{v:X4}h" : v.ToString();
 }
