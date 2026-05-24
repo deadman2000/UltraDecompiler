@@ -7,9 +7,10 @@ public record struct RegisterState(
     byte? AH, byte? AL,
     byte? BH, byte? BL,
     byte? CH, byte? CL,
-    byte? DH, byte? DL)
+    byte? DH, byte? DL,
+    ushort? SP, ushort? BP, ushort? SI, ushort? DI)
 {
-    public static readonly RegisterState Zeros = new(0, 0, 0, 0, 0, 0, 0, 0);
+    public static readonly RegisterState Zeros = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
     public ushort? AX => AH.HasValue && AL.HasValue ? (ushort)((AH.Value << 8) | AL.Value) : null;
     public ushort? BX => BH.HasValue && BL.HasValue ? (ushort)((BH.Value << 8) | BL.Value) : null;

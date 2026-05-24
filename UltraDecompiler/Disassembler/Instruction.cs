@@ -190,6 +190,10 @@ public class Instruction
                 1 => state with { CL = low, CH = high }, // CX
                 2 => state with { DL = low, DH = high }, // DX
                 3 => state with { BL = low, BH = high }, // BX
+                4 => state with { SP = val }, // SP
+                5 => state with { BP = val }, // BP
+                6 => state with { SI = val }, // SI
+                7 => state with { DI = val }, // DI
                 _ => state
             };
         }
