@@ -28,7 +28,7 @@ try
     Console.WriteLine("\n=== Disassembly from entry point ===");
 
     var disassembler = new X86Disassembler(parser.Image);
-    disassembler.Disassemble((int)parser.EntryPointOffset);
+    disassembler.Disassemble((int)parser.EntryPointOffset, RegisterState.InitExe);
 
     int next = 0;
     foreach (var instr in disassembler.Instructions)
@@ -46,7 +46,7 @@ try
     // === Шаг 1: Control Flow Graph ===
     Console.WriteLine("\n=== Control Flow Graph ===");
     var cfg = new ControlFlowGraph();
-    cfg.Build(disassembler, (int)parser.EntryPointOffset);
+    cfg.Build(disassembler, (int)parser.EntryPointOffset, RegisterState.InitExe);
 
     var dotPath = Path.Combine(Path.GetDirectoryName(exePath) ?? ".", "cfg.dot");
     var svgPath = Path.Combine(Path.GetDirectoryName(exePath) ?? ".", "cfg.svg");

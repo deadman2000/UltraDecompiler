@@ -12,6 +12,10 @@ public record struct RegisterState(
 {
     public static readonly RegisterState Zeros = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
+    public static readonly RegisterState InitExe = Zeros with { SP = null };
+
+    public static readonly RegisterState InitCom = Zeros with { SP = 0xfffe };
+
     public static readonly RegisterState Unknown = new();
 
     public ushort? AX => AH.HasValue && AL.HasValue ? (ushort)((AH.Value << 8) | AL.Value) : null;

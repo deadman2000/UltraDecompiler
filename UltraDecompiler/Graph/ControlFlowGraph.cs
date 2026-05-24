@@ -14,19 +14,24 @@ public class ControlFlowGraph
 
     public BasicBlock EntryBlock { get; private set; } = null!;
 
+    public void Build(X86Disassembler disassembler, int startOffset)
+    {
+        Build(disassembler, startOffset, RegisterState.Unknown);
+    }
+
     /// <summary>
     /// Строит CFG из списка инструкций
     /// </summary>
-    public void Build(X86Disassembler disassembler, int startOffset)
+    public void Build(X86Disassembler disassembler, int startOffset, RegisterState initRegisters)
     {
-        Queue<int> queue = [];
-        queue.Enqueue(startOffset);
+        Queue<(int, RegisterState)> queue = [];
+        queue.Enqueue((startOffset, initRegisters));
 
         HashSet<int> visited = [];
 
         while (queue.Count > 0)
         {
-            int offset = queue.Dequeue();
+            var (offset, registers) = queue.Dequeue();
             if (visited.Contains(offset))
                 continue;
 
@@ -40,7 +45,7 @@ public class ControlFlowGraph
             EntryBlock ??= block;
 
             bool isBreak = false;
-            foreach (var instr in disassembler.DisassembleBranch(offset))
+            foreach (var instr in disassembler.DisassembleBranch(offset, registers))
             {
                 if (visited.Contains(instr.Offset))
                 {
@@ -78,7 +83,7 @@ public class ControlFlowGraph
 
                 // Проверка, что адрес еще не был обработан
                 if (!visited.Contains(jumpAddr))
-                    queue.Enqueue(jumpAddr);
+                    queue.Enqueue((jumpAddr, lastInstr.Registers));
 
                 if (lastInstr.IsConditionalJump)
                 {
@@ -87,7 +92,7 @@ public class ControlFlowGraph
                     block.ConditionalOffset = jumpAddr;
 
                     if (!visited.Contains(next))
-                        queue.Enqueue(next);
+                        queue.Enqueue((next, lastInstr.Registers));
                 }
                 else
                 {

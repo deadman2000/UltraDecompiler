@@ -17,7 +17,7 @@ public class X86Disassembler
 
     public void Disassemble(int startOffset)
     {
-        Disassemble(startOffset, RegisterState.Zeros);
+        Disassemble(startOffset, RegisterState.Unknown);
     }
 
     public void Disassemble(int startOffset, RegisterState initRegisters)
@@ -80,7 +80,7 @@ public class X86Disassembler
     /// <param name="startOffset">Адрес первой инструкции</param>
     public IEnumerable<Instruction> DisassembleBranch(int startOffset)
     {
-        return DisassembleBranch(startOffset, RegisterState.Zeros);
+        return DisassembleBranch(startOffset, RegisterState.Unknown);
     }
 
     /// <summary>
