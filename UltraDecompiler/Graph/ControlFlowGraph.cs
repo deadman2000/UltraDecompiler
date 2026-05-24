@@ -1,5 +1,5 @@
-using UltraDecompiler.Disassembler;
 using System.Diagnostics;
+using UltraDecompiler.Disassembler;
 
 namespace UltraDecompiler.Graph;
 
@@ -39,8 +39,23 @@ public class ControlFlowGraph
             Blocks.Add(block);
             EntryBlock ??= block;
 
+            bool isBreak = false;
             foreach (var instr in disassembler.DisassembleBranch(offset))
             {
+                if (visited.Contains(instr.Offset))
+                {
+                    // Середина блока уже была обработана. Прерываем обработку и связываем со следующим блоком
+                    var nextBlock = Blocks.FirstOrDefault(b => b.StartOffset == instr.Offset);
+                    if (nextBlock == null)
+                    {
+                        throw new Exception();
+                    }
+
+                    block.NextBlock = nextBlock;
+                    isBreak = true;
+                    break;
+                }
+
                 block.Instructions.Add(instr);
                 visited.Add(instr.Offset);
 
@@ -50,6 +65,9 @@ public class ControlFlowGraph
                     // Как вариант рекурсивный анализ
                 }
             }
+
+            if (isBreak)
+                continue;
 
             var lastInstr = block.Instructions[^1];
             block.EndOffset = lastInstr.Offset;
