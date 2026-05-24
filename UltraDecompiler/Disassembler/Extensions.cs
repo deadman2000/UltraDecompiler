@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using UltraDecompiler.Extensions;
 
 namespace UltraDecompiler.Disassembler;
 
@@ -8,7 +9,7 @@ public static class Extensions
     {
         public string GetPrefix()
         {
-            if (instruction.Prefix== InstructionPrefix.None)
+            if (instruction.Prefix == InstructionPrefix.None)
                 return string.Empty;
 
             var sb = new StringBuilder();
@@ -150,7 +151,107 @@ public static class Extensions
             else if (operands.Contains("ES") || operands.Contains("CS") || operands.Contains("SS") || operands.Contains("DS"))
                 operands = GREEN + operands + RESET;
 
-            return $"{GRAY}{instruction.Offset:X6}:{RESET} {GRAY}{bytesStr,-20}{RESET} {instructionColor}{instruction.MnemonicString,-5}{RESET} {operands}";
+            var result = $"{GRAY}{instruction.Offset:X6}:{RESET} {GRAY}{bytesStr,-20}{RESET} {instructionColor}{instruction.MnemonicString,-5}{RESET} {operands}";
+
+            if (!string.IsNullOrEmpty(instruction.Commentary))
+                result = result + GRAY + "; " + instruction.Commentary + RESET;
+
+            return result;
+        }
+    }
+
+    extension(in Operand operand)
+    {
+        public string ToAsm() => operand.Type switch
+        {
+            OperandType.Register8 or OperandType.Register16 => operand.GetRegName(),
+            OperandType.Immediate8 or OperandType.Immediate16 => operand.Value.ToHex(),
+            OperandType.Memory => operand.GetMemoryString(),
+            OperandType.Relative8 or OperandType.Relative16 => operand.Value.ToHex(),
+            OperandType.SegmentRegister => operand.GetSegRegName(),
+            _ => "?"
+        };
+
+        private string GetRegName() => operand.Type switch
+        {
+            OperandType.Register8 => operand.Value switch
+            {
+                0 => "AL",
+                1 => "CL",
+                2 => "DL",
+                3 => "BL",
+                4 => "AH",
+                5 => "CH",
+                6 => "DH",
+                7 => "BH",
+                _ => "?"
+            },
+            OperandType.Register16 => operand.Value switch
+            {
+                0 => "AX",
+                1 => "CX",
+                2 => "DX",
+                3 => "BX",
+                4 => "SP",
+                5 => "BP",
+                6 => "SI",
+                7 => "DI",
+                _ => "?"
+            },
+            _ => "?"
+        };
+
+        private string GetSegRegName() => operand.Value switch
+        {
+            0 => "ES",
+            1 => "CS",
+            2 => "SS",
+            3 => "DS",
+            _ => "?SREG"
+        };
+
+        private string GetMemoryString()
+        {
+            var parts = new List<string>();
+
+            // Base register
+            if (operand.BaseReg != AddressRegister.None)
+            {
+                string baseName = operand.BaseReg switch
+                {
+                    AddressRegister.BX => "BX",
+                    AddressRegister.BP => "BP",
+                    AddressRegister.SI => "SI",
+                    AddressRegister.DI => "DI",
+                    _ => "?"
+                };
+                parts.Add(baseName);
+            }
+
+            // Index register
+            if (operand.IndexReg != AddressRegister.None && operand.IndexReg != operand.BaseReg)
+            {
+                string idxName = operand.IndexReg switch
+                {
+                    AddressRegister.BX => "BX",
+                    AddressRegister.BP => "BP",
+                    AddressRegister.SI => "SI",
+                    AddressRegister.DI => "DI",
+                    _ => "?"
+                };
+                parts.Add(idxName);
+            }
+
+            // Displacement
+            if (operand.Value != 0)
+            {
+                parts.Add(operand.Value.ToHex());
+            }
+
+            if (parts.Count == 0)
+                return "[0]";
+
+            return $"[{string.Join("+", parts)}]";
         }
     }
 }

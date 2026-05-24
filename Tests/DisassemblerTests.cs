@@ -2,7 +2,7 @@ using UltraDecompiler.Disassembler;
 
 namespace Tests;
 
-public class DisassemblerTests
+public class DisassemblerTests : BaseTests
 {
     [Fact]
     public void DisassembleNearInderectCall()
@@ -180,7 +180,7 @@ public class DisassemblerTests
     }
 
     [Fact]
-    public void SegmentChange()
+    public void DisassembSegmentChange()
     {
         var instructions = Disassemble("""
             36 FF 36 DA 00;  push word ptr ss:[0xda]
@@ -1278,12 +1278,5 @@ public class DisassemblerTests
         Assert.Equal("DS", instructions[0].Operands);
         Assert.Equal(OperandType.SegmentRegister, instructions[0].Operand1.Type);
         Assert.Equal(3, instructions[0].Operand1.Value);
-    }
-
-    private static List<Instruction> Disassemble(string hex)
-    {
-        var disassembler = new X86Disassembler(hex.FromHex());
-        disassembler.Disassemble(0);
-        return disassembler.Instructions;
     }
 }

@@ -12,6 +12,11 @@ public class Instruction
     public byte[] Bytes { get; set; } = Array.Empty<byte>();
 
     /// <summary>
+    /// Размер инструкции.
+    /// </summary>
+    public int Size => Bytes.Length;
+
+    /// <summary>
     /// Префиксы
     /// </summary>
     public InstructionPrefix Prefix { get; set; }
@@ -22,44 +27,19 @@ public class Instruction
     public Mnemonic Mnemonic { get; set; } = Mnemonic.DB;
 
     /// <summary>
+    /// Известные значения регистров
+    /// </summary>
+    public RegisterState Registers { get; set; }
+
+    /// <summary>
     /// Строковое представление мнемоники для вывода
     /// </summary>
     public string MnemonicString => this.GetPrefix() + this.GetMnemonicString();
 
-    private string _operands = "";
-
     /// <summary>
-    /// Строковое представление параметров (вычисляемое)
+    /// Сегментный префикс инструкции (если есть)
     /// </summary>
-    public string Operands
-    {
-        get
-        {
-            var ops = new List<string>();
-            if (Operand1.Type != OperandType.None) ops.Add(Operand1.ToString() ?? UnknownOperand);
-            if (Operand2.Type != OperandType.None) ops.Add(Operand2.ToString() ?? UnknownOperand);
-
-            string result = ops.Count > 0 ? string.Join(", ", ops) : _operands;
-
-            // Добавляем сегментный префикс если есть
-            if (Segment != Segment.None && !string.IsNullOrEmpty(result))
-            {
-                string seg = Segment switch
-                {
-                    Segment.ES => "ES:",
-                    Segment.CS => "CS:",
-                    Segment.SS => "SS:",
-                    Segment.DS => "DS:",
-                    _ => ""
-                };
-                if (!result.StartsWith(seg))
-                    result = seg + result;
-            }
-
-            return result;
-        }
-        set => _operands = value;
-    }
+    public Segment Segment { get; set; } = Segment.None;
 
     /// <summary>
     /// Первый операнд (dst)
@@ -72,9 +52,37 @@ public class Instruction
     public Operand Operand2 { get; set; }
 
     /// <summary>
-    /// Сегментный префикс инструкции (если есть)
+    /// Строковое представление параметров (вычисляемое)
     /// </summary>
-    public Segment Segment { get; set; } = Segment.None;
+    public string Operands
+    {
+        get
+        {
+            var ops = new List<string>();
+            if (Operand1.Type != OperandType.None) ops.Add(Operand1.ToString() ?? UnknownOperand);
+            if (Operand2.Type != OperandType.None) ops.Add(Operand2.ToString() ?? UnknownOperand);
+
+            string result = ops.Count > 0 ? string.Join(", ", ops) : "";
+
+            // Добавляем сегментный префикс если есть
+            if (Segment != Segment.None && !string.IsNullOrEmpty(result))
+            {
+                string seg = Segment switch
+                {
+                    Segment.ES => "ES:",
+                    Segment.CS => "CS:",
+                    Segment.SS => "SS:",
+                    Segment.DS => "DS:",
+                    _ => ""
+                };
+                result = seg + result;
+            }
+
+            return result;
+        }
+    }
+
+    public string? Commentary { get; set; }
 
     /// <summary>
     /// Инструкция является условным переходом
@@ -123,19 +131,62 @@ public class Instruction
     {
         get
         {
-            if (Mnemonic is Mnemonic.INT && Operand1.Value == 0x20)
-                return true;
+            if (Mnemonic is Mnemonic.INT)
+            {
+                if (Operand1.Value == 0x20 || Operand1.Value == 0x27)
+                    return true;
 
-            // TODO в каждой инструкции надо запоминать значения регистров, если они установлены константами
-            // return Mnemonic is Mnemonic.INT && Operand1.Value == 0x21 && AH == 4c;
+                if (Operand1.Value == 0x21)
+                {
+                    if (Registers.AH == 0 || Registers.AH == 0x4C || Registers.AH == 0x31)
+                        return true;
+                }
+            }
+
             return false;
         }
     }
 
-    /// <summary>
-    /// Размер инструкции.
-    /// </summary>
-    public int Size => Bytes.Length;
+    public RegisterState ApplyRegisters(RegisterState state)
+    {
+        Registers = ModifyRegisters(state);
+        return Registers;
+    }
+
+    private RegisterState ModifyRegisters(RegisterState state)
+        => Mnemonic switch
+        {
+            Mnemonic.MOV => ModifyRegistersMov(state),
+            // TODO остальные кейсы
+            _ => state,
+        };
+
+    private RegisterState ModifyRegistersMov(RegisterState state)
+    {
+        // TODO остальные кейсы
+        if (Operand1.Type == OperandType.Register8 && Operand2.Type == OperandType.Immediate8)
+        {
+            return Operand1.Value switch
+            {
+                0 => state with { AL = (byte)Operand2.Value },
+                4 => state with { AH = (byte)Operand2.Value },
+                _ => state
+            };
+        }
+        if (Operand1.Type == OperandType.Register16 && Operand2.Type == OperandType.Immediate16)
+        {
+            if (Operand1.Value == 0)
+            {
+                return state with
+                {
+                    AL = (byte)Operand2.Value,
+                    AH = (byte)(Operand2.Value >> 8)
+                };
+            }
+        }
+
+        return state;
+    }
 
     /// <summary>
     /// Возвращает целевой адрес прямого перехода
@@ -174,6 +225,10 @@ public class Instruction
     public override string ToString()
     {
         string bytesStr = string.Join(" ", Bytes.Select(b => $"{b:X2}"));
-        return $"{Offset:X6}: {bytesStr,-20} {MnemonicString,-7} {Operands}";
+        var result = $"{Offset:X6}: {bytesStr,-20} {MnemonicString,-7} {Operands}";
+        if (!string.IsNullOrEmpty(Commentary))
+            result = result + "; " + Commentary;
+
+        return result;
     }
 }

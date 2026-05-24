@@ -3,8 +3,6 @@ namespace UltraDecompiler.Disassembler;
 public class X86Disassembler
 {
     private int _pos;
-    private Segment _segmentOverride;
-    private readonly HashSet<int> _visited = [];
 
     public int DataSegmentBase { get; set; }
 
@@ -19,44 +17,47 @@ public class X86Disassembler
 
     public void Disassemble(int startOffset)
     {
-        _visited.Clear();
+        Disassemble(startOffset, RegisterState.Zeros);
+    }
+
+    public void Disassemble(int startOffset, RegisterState initRegisters)
+    {
+        HashSet<int> visited = [];
         Instructions.Clear();
 
-        var queue = new Queue<int>();
-        queue.Enqueue(startOffset);
+        var queue = new Queue<(int, RegisterState)>();
+        queue.Enqueue((startOffset, initRegisters));
 
         while (queue.Count > 0)
         {
-            int offset = queue.Dequeue();
+            var (offset, registers) = queue.Dequeue();
 
-            if (_visited.Contains(offset) || offset >= Image.Length)
+            if (visited.Contains(offset) || offset >= Image.Length)
                 continue;
 
-            DisassembleBlock(offset, queue);
+            DisassembleBlock(offset, queue, visited, registers);
         }
 
         Instructions = Instructions.OrderBy(i => i.Offset).ToList();
     }
 
-    private void DisassembleBlock(int startOffset, Queue<int> queue)
+    private void DisassembleBlock(int startOffset, Queue<(int, RegisterState)> queue, HashSet<int> visited, RegisterState registers)
     {
         _pos = startOffset;
-        _segmentOverride = Segment.None;
 
         while (_pos < Image.Length)
         {
-            if (_visited.Contains(_pos))
+            if (visited.Contains(_pos))
                 break;
 
-            _visited.Add(_pos);
+            visited.Add(_pos);
 
             int instrStart = _pos;
             var instr = DecodeOneInstruction();
             instr.Offset = instrStart;
             instr.Bytes = Image[instrStart.._pos].ToArray();
-            instr.Segment = _segmentOverride;
+            registers = instr.ApplyRegisters(registers);
             Instructions.Add(instr);
-            _segmentOverride = Segment.None;
 
             if (instr.IsReturn || instr.IsExit)
                 break;
@@ -65,7 +66,7 @@ public class X86Disassembler
             {
                 int target = GetEffectiveJumpTarget(instr);
                 if (target != -1)
-                    queue.Enqueue(target);
+                    queue.Enqueue((target, registers));
 
                 if (instr.IsCall)
                     break;
@@ -79,16 +80,24 @@ public class X86Disassembler
     /// <param name="startOffset">Адрес первой инструкции</param>
     public IEnumerable<Instruction> DisassembleBranch(int startOffset)
     {
+        return DisassembleBranch(startOffset, RegisterState.Zeros);
+    }
+
+    /// <summary>
+    /// Дизассемблирует инструкции до первого перехода.
+    /// </summary>
+    /// <param name="startOffset">Адрес первой инструкции</param>
+    public IEnumerable<Instruction> DisassembleBranch(int startOffset, RegisterState registers)
+    {
         _pos = startOffset;
 
         while (_pos < Image.Length)
         {
-            _segmentOverride = Segment.None;
             int instrStart = _pos;
             var instr = DecodeOneInstruction();
             instr.Offset = instrStart;
             instr.Bytes = Image[instrStart.._pos].ToArray();
-            instr.Segment = _segmentOverride;
+            registers = instr.ApplyRegisters(registers);
             yield return instr;
 
             if (instr.IsConditionalJump || instr.IsUnconditionalJump || instr.IsReturn || instr.IsExit)
@@ -142,10 +151,30 @@ public class X86Disassembler
                     return instr;
                 }
 
-            case 0x26: _segmentOverride = Segment.ES; return DecodeOneInstruction();
-            case 0x2E: _segmentOverride = Segment.CS; return DecodeOneInstruction();
-            case 0x36: _segmentOverride = Segment.SS; return DecodeOneInstruction();
-            case 0x3E: _segmentOverride = Segment.DS; return DecodeOneInstruction();
+            case 0x26:
+                {
+                    var instr = DecodeOneInstruction();
+                    instr.Segment = Segment.ES;
+                    return instr;
+                }
+            case 0x2E:
+                {
+                    var instr = DecodeOneInstruction();
+                    instr.Segment = Segment.CS;
+                    return instr;
+                }
+            case 0x36:
+                {
+                    var instr = DecodeOneInstruction();
+                    instr.Segment = Segment.SS;
+                    return instr;
+                }
+            case 0x3E:
+                {
+                    var instr = DecodeOneInstruction();
+                    instr.Segment = Segment.DS;
+                    return instr;
+                }
 
             case 0x00:
             case 0x01:
@@ -569,13 +598,13 @@ public class X86Disassembler
     private Instruction DecodeAam()
     {
         byte baseVal = ReadByte();
-        return baseVal == 0x0A ? new Instruction { Mnemonic = Mnemonic.AAM } : new Instruction { Mnemonic = Mnemonic.AAM, Operands = "; non-standard" };
+        return baseVal == 0x0A ? new Instruction { Mnemonic = Mnemonic.AAM } : new Instruction { Mnemonic = Mnemonic.AAM, Commentary = "non-standard" };
     }
 
     private Instruction DecodeAad()
     {
         byte baseVal = ReadByte();
-        return baseVal == 0x0A ? new Instruction { Mnemonic = Mnemonic.AAD } : new Instruction { Mnemonic = Mnemonic.AAD, Operands = "; non-standard" };
+        return baseVal == 0x0A ? new Instruction { Mnemonic = Mnemonic.AAD } : new Instruction { Mnemonic = Mnemonic.AAD, Commentary = "non-standard" };
     }
 
     private Instruction DecodeEnter()
