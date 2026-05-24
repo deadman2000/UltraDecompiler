@@ -125,7 +125,7 @@ public class Instruction
         {
             // TODO в каждой инструкции надо запоминать значения регистров, если они установлены константами
             // return Mnemonic is Mnemonic.INT && Operand1.Value == 0x21 && AH == 4c;
-            return true;
+            return false;
         }
     }
 
