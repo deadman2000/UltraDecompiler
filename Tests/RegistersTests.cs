@@ -29,6 +29,23 @@ public class RegistersTests : BaseTests
     }
 
     [Fact]
+    public void MovAX()
+    {
+        var instructions = Disassemble("""
+            B8 34 12; mov ax, 1234h
+            B8 78 56; mov ax, 5678h
+            CD 21; int 21h
+            """);
+        Assert.Equal((byte)0x34, instructions[0].Registers.AL);
+        Assert.Equal((byte)0x12, instructions[0].Registers.AH);
+        Assert.Equal((ushort)0x1234, instructions[0].Registers.AX);
+        Assert.Equal((byte)0x78, instructions[1].Registers.AL);
+        Assert.Equal((byte)0x56, instructions[1].Registers.AH);
+        Assert.Equal((ushort)0x5678, instructions[1].Registers.AX);
+        Assert.Equal((ushort)0x5678, instructions[2].Registers.AX);
+    }
+
+    [Fact]
     public void MovBL()
     {
         var instructions = Disassemble("""
