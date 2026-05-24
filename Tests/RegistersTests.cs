@@ -1,4 +1,4 @@
-﻿namespace Tests;
+namespace Tests;
 
 public class RegistersTests : BaseTests
 {
@@ -26,5 +26,61 @@ public class RegistersTests : BaseTests
         Assert.Equal((byte)0x20, instructions[0].Registers.AL);
         Assert.Equal((byte)0x40, instructions[1].Registers.AL);
         Assert.Equal((byte)0x40, instructions[2].Registers.AL);
+    }
+
+    [Fact]
+    public void MovBL()
+    {
+        var instructions = Disassemble("""
+            B3 30; mov bl, 30h
+            B3 50; mov bl, 50h
+            CD 21; int 21h
+            """);
+        Assert.Equal((byte)0x30, instructions[0].Registers.BL);
+        Assert.Equal((byte)0x50, instructions[1].Registers.BL);
+        Assert.Equal((byte)0x50, instructions[2].Registers.BL);
+    }
+
+    [Fact]
+    public void MovCH()
+    {
+        var instructions = Disassemble("""
+            B5 25; mov ch, 25h
+            B5 45; mov ch, 45h
+            CD 21; int 21h
+            """);
+        Assert.Equal((byte)0x25, instructions[0].Registers.CH);
+        Assert.Equal((byte)0x45, instructions[1].Registers.CH);
+        Assert.Equal((byte)0x45, instructions[2].Registers.CH);
+    }
+
+    [Fact]
+    public void MovCX()
+    {
+        var instructions = Disassemble("""
+            B9 1234; mov cx, 1234h
+            B9 5678; mov cx, 5678h
+            CD 21; int 21h
+            """);
+        Assert.Equal((byte)0x34, instructions[0].Registers.CL);
+        Assert.Equal((byte)0x12, instructions[0].Registers.CH);
+        Assert.Equal((byte)0x78, instructions[1].Registers.CL);
+        Assert.Equal((byte)0x56, instructions[1].Registers.CH);
+        Assert.Equal((byte)0x78, instructions[2].Registers.CL);
+        Assert.Equal((byte)0x56, instructions[2].Registers.CH);
+    }
+
+    [Fact]
+    public void MovBX()
+    {
+        var instructions = Disassemble("""
+            BB 1122; mov bx, 1122h
+            BB 3344; mov bx, 3344h
+            CD 21; int 21h
+            """);
+        Assert.Equal((byte)0x22, instructions[0].Registers.BL);
+        Assert.Equal((byte)0x11, instructions[0].Registers.BH);
+        Assert.Equal((byte)0x44, instructions[1].Registers.BL);
+        Assert.Equal((byte)0x33, instructions[1].Registers.BH);
     }
 }

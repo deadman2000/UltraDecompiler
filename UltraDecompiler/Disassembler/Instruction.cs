@@ -169,20 +169,29 @@ public class Instruction
             return Operand1.Value switch
             {
                 0 => state with { AL = (byte)Operand2.Value },
+                1 => state with { CL = (byte)Operand2.Value },
+                2 => state with { DL = (byte)Operand2.Value },
+                3 => state with { BL = (byte)Operand2.Value },
                 4 => state with { AH = (byte)Operand2.Value },
+                5 => state with { CH = (byte)Operand2.Value },
+                6 => state with { DH = (byte)Operand2.Value },
+                7 => state with { BH = (byte)Operand2.Value },
                 _ => state
             };
         }
         if (Operand1.Type == OperandType.Register16 && Operand2.Type == OperandType.Immediate16)
         {
-            if (Operand1.Value == 0)
+            ushort val = (ushort)Operand2.Value;
+            byte low = (byte)val;
+            byte high = (byte)(val >> 8);
+            return Operand1.Value switch
             {
-                return state with
-                {
-                    AL = (byte)Operand2.Value,
-                    AH = (byte)(Operand2.Value >> 8)
-                };
-            }
+                0 => state with { AL = low, AH = high }, // AX
+                1 => state with { CL = low, CH = high }, // CX
+                2 => state with { DL = low, DH = high }, // DX
+                3 => state with { BL = low, BH = high }, // BX
+                _ => state
+            };
         }
 
         return state;
