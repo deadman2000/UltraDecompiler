@@ -5,7 +5,7 @@ namespace Tests;
 public class DisassemblerTests : BaseTests
 {
     [Fact]
-    public void DisassembleNearInderectCall()
+    public void DisassembleNearIndirectCall()
     {
         var instructions = Disassemble("FF 16 46 00"); // CALL WORD PTR [0x46]
         Assert.Equal(Mnemonic.CALL, instructions[0].Mnemonic);

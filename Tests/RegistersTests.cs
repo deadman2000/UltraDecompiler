@@ -19,8 +19,8 @@ public class RegistersTests : BaseTests
     public void MovAL()
     {
         var instructions = Disassemble("""
-            B0 20;  mov ah, 20h
-            B0 40;  mov ah, 40h
+            B0 20;  mov al, 20h
+            B0 40;  mov al, 40h
             CD 21;  int 21h
             """);
         Assert.Equal((byte)0x20, instructions[0].Registers.AL);
