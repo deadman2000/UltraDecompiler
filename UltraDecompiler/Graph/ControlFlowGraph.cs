@@ -58,8 +58,12 @@ public class ControlFlowGraph
 
                 if (lastInstr.IsConditionalJump)
                 {
-                    block.NextOffset = lastInstr.Offset + lastInstr.Size;
+                    var next = lastInstr.Offset + lastInstr.Size;
+                    block.NextOffset = next;
                     block.ConditionalOffset = jumpAddr;
+
+                    if (!visited.Contains(next))
+                        queue.Enqueue(next);
                 }
                 else
                 {
@@ -151,7 +155,7 @@ public class ControlFlowGraph
         firstBlock.ConditionalOffset = null;
         firstBlock.ConditionalBlock = null;
 
-        firstBlock.NextBlock = firstBlock;
+        firstBlock.NextBlock = nextBlock;
 
         Blocks.Add(nextBlock);
 

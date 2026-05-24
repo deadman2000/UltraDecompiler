@@ -280,13 +280,13 @@ public class X86Disassembler
                     };
                 }
 
-            case 0x06: return new Instruction { Mnemonic = Mnemonic.PUSH, Operand1 = new Operand(OperandType.SegmentRegister, 0) };
-            case 0x0E: return new Instruction { Mnemonic = Mnemonic.PUSH, Operand1 = new Operand(OperandType.SegmentRegister, 1) };
-            case 0x16: return new Instruction { Mnemonic = Mnemonic.PUSH, Operand1 = new Operand(OperandType.SegmentRegister, 2) };
-            case 0x1E: return new Instruction { Mnemonic = Mnemonic.PUSH, Operand1 = new Operand(OperandType.SegmentRegister, 3) };
-            case 0x07: return new Instruction { Mnemonic = Mnemonic.POP, Operand1 = new Operand(OperandType.SegmentRegister, 0) };
-            case 0x17: return new Instruction { Mnemonic = Mnemonic.POP, Operand1 = new Operand(OperandType.SegmentRegister, 2) };
-            case 0x1F: return new Instruction { Mnemonic = Mnemonic.POP, Operand1 = new Operand(OperandType.SegmentRegister, 3) };
+            case 0x06: return new Instruction { Mnemonic = Mnemonic.PUSH, Operand1 = Operand.ES };
+            case 0x0E: return new Instruction { Mnemonic = Mnemonic.PUSH, Operand1 = Operand.CS };
+            case 0x16: return new Instruction { Mnemonic = Mnemonic.PUSH, Operand1 = Operand.SS };
+            case 0x1E: return new Instruction { Mnemonic = Mnemonic.PUSH, Operand1 = Operand.DS };
+            case 0x07: return new Instruction { Mnemonic = Mnemonic.POP, Operand1 = Operand.ES };
+            case 0x17: return new Instruction { Mnemonic = Mnemonic.POP, Operand1 = Operand.SS };
+            case 0x1F: return new Instruction { Mnemonic = Mnemonic.POP, Operand1 = Operand.DS };
 
             case 0x70:
             case 0x71:
@@ -351,7 +351,7 @@ public class X86Disassembler
                     return new Instruction
                     {
                         Mnemonic = Mnemonic.XCHG,
-                        Operand1 = new Operand(OperandType.Register16, 0),
+                        Operand1 = Operand.AX,
                         Operand2 = new Operand(OperandType.Register16, reg)
                     };
                 }
@@ -456,7 +456,7 @@ public class X86Disassembler
                     return new Instruction
                     {
                         Mnemonic = Mnemonic.IN,
-                        Operand1 = new Operand(OperandType.Register8, 0), // AL
+                        Operand1 = Operand.AL,
                         Operand2 = new Operand(OperandType.Immediate8, port)
                     };
                 }
@@ -466,7 +466,7 @@ public class X86Disassembler
                     return new Instruction
                     {
                         Mnemonic = Mnemonic.IN,
-                        Operand1 = new Operand(OperandType.Register16, 0), // AX
+                        Operand1 = Operand.AX,
                         Operand2 = new Operand(OperandType.Immediate8, port)
                     };
                 }
@@ -477,7 +477,7 @@ public class X86Disassembler
                     {
                         Mnemonic = Mnemonic.OUT,
                         Operand1 = new Operand(OperandType.Immediate8, port),
-                        Operand2 = new Operand(OperandType.Register8, 0) // AL
+                        Operand2 = Operand.AL
                     };
                 }
             case 0xE7: // OUT imm8, AX
@@ -487,40 +487,44 @@ public class X86Disassembler
                     {
                         Mnemonic = Mnemonic.OUT,
                         Operand1 = new Operand(OperandType.Immediate8, port),
-                        Operand2 = new Operand(OperandType.Register16, 0) // AX
+                        Operand2 = Operand.AX
                     };
                 }
             case 0xEC: // IN AL, DX
                 return new Instruction
                 {
                     Mnemonic = Mnemonic.IN,
-                    Operand1 = new Operand(OperandType.Register8, 0),
-                    Operand2 = new Operand(OperandType.Register16, 2) // DX
+                    Operand1 = Operand.AL,
+                    Operand2 = Operand.DX
                 };
             case 0xED: // IN AX, DX
                 return new Instruction
                 {
                     Mnemonic = Mnemonic.IN,
-                    Operand1 = new Operand(OperandType.Register16, 0),
-                    Operand2 = new Operand(OperandType.Register16, 2) // DX
+                    Operand1 = Operand.AX,
+                    Operand2 = Operand.DX
                 };
             case 0xEE: // OUT DX, AL
                 return new Instruction
                 {
                     Mnemonic = Mnemonic.OUT,
-                    Operand1 = new Operand(OperandType.Register16, 2), // DX
-                    Operand2 = new Operand(OperandType.Register8, 0) // AL
+                    Operand1 = Operand.DX,
+                    Operand2 = Operand.AL
                 };
             case 0xEF: // OUT DX, AX
                 return new Instruction
                 {
                     Mnemonic = Mnemonic.OUT,
-                    Operand1 = new Operand(OperandType.Register16, 2), // DX
-                    Operand2 = new Operand(OperandType.Register16, 0) // AX
+                    Operand1 = Operand.DX,
+                    Operand2 = Operand.AX
                 };
 
             default:
-                return new Instruction { Mnemonic = Mnemonic.DB, Operand1 = new(OperandType.Immediate8, opcode) };
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.DB,
+                    Operand1 = new(OperandType.Immediate8, opcode)
+                };
         }
     }
 
@@ -625,7 +629,7 @@ public class X86Disassembler
         var instr = new Instruction
         {
             Mnemonic = mnem,
-            Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, 0),
+            Operand1 = word ? Operand.AX : Operand.AL,
             Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm)
         };
         return instr;
@@ -799,23 +803,23 @@ public class X86Disassembler
         var instr = new Instruction { Mnemonic = Mnemonic.MOV };
         if (opcode == 0xA0)
         {
-            instr.Operand1 = new Operand(OperandType.Register8, 0);
+            instr.Operand1 = Operand.AL;
             instr.Operand2 = new Operand(OperandType.Memory, disp);
         }
         if (opcode == 0xA1)
         {
-            instr.Operand1 = new Operand(OperandType.Register16, 0);
+            instr.Operand1 = Operand.AX;
             instr.Operand2 = new Operand(OperandType.Memory, disp);
         }
         if (opcode == 0xA2)
         {
             instr.Operand1 = new Operand(OperandType.Memory, disp);
-            instr.Operand2 = new Operand(OperandType.Register8, 0);
+            instr.Operand2 = Operand.AL;
         }
         if (opcode == 0xA3)
         {
             instr.Operand1 = new Operand(OperandType.Memory, disp);
-            instr.Operand2 = new Operand(OperandType.Register16, 0);
+            instr.Operand2 = Operand.AX;
         }
         return instr;
     }
@@ -956,7 +960,7 @@ public class X86Disassembler
         var instr = new Instruction
         {
             Mnemonic = Mnemonic.TEST,
-            Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, 0),
+            Operand1 = word ? Operand.AX : Operand.AL,
             Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm)
         };
         return instr;
@@ -989,7 +993,7 @@ public class X86Disassembler
             instr.Operand1 = ParseMemoryOperand(modrm & 7, mod);
         // CL or 1
         if ((opcode & 2) != 0)   // D2 и D3
-            instr.Operand2 = new Operand(OperandType.Register8, 1); // CL (регистр CL = 1)
+            instr.Operand2 = Operand.CL;
         else                     // D0 и D1
             instr.Operand2 = new Operand(OperandType.Immediate8, 1);
         return instr;
