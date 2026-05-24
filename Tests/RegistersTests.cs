@@ -58,8 +58,8 @@ public class RegistersTests : BaseTests
     public void MovCX()
     {
         var instructions = Disassemble("""
-            B9 1234; mov cx, 1234h
-            B9 5678; mov cx, 5678h
+            B9 34 12; mov cx, 1234h
+            B9 78 56; mov cx, 5678h
             CD 21; int 21h
             """);
         Assert.Equal((byte)0x34, instructions[0].Registers.CL);
@@ -74,8 +74,8 @@ public class RegistersTests : BaseTests
     public void MovBX()
     {
         var instructions = Disassemble("""
-            BB 1122; mov bx, 1122h
-            BB 3344; mov bx, 3344h
+            BB 22 11; mov bx, 1122h
+            BB 44 33; mov bx, 3344h
             CD 21; int 21h
             """);
         Assert.Equal((byte)0x22, instructions[0].Registers.BL);
