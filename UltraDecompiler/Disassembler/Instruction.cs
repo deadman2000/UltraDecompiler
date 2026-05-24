@@ -198,6 +198,69 @@ public class Instruction
             };
         }
 
+        // Поддержка MOV reg, reg (копирование известных значений)
+        if (Operand1.Type == OperandType.Register8 && Operand2.Type == OperandType.Register8)
+        {
+            byte? srcVal = Operand2.Value switch
+            {
+                0 => state.AL,
+                1 => state.CL,
+                2 => state.DL,
+                3 => state.BL,
+                4 => state.AH,
+                5 => state.CH,
+                6 => state.DH,
+                7 => state.BH,
+                _ => null
+            };
+            if (srcVal.HasValue)
+            {
+                return Operand1.Value switch
+                {
+                    0 => state with { AL = srcVal.Value },
+                    1 => state with { CL = srcVal.Value },
+                    2 => state with { DL = srcVal.Value },
+                    3 => state with { BL = srcVal.Value },
+                    4 => state with { AH = srcVal.Value },
+                    5 => state with { CH = srcVal.Value },
+                    6 => state with { DH = srcVal.Value },
+                    7 => state with { BH = srcVal.Value },
+                    _ => state
+                };
+            }
+        }
+
+        if (Operand1.Type == OperandType.Register16 && Operand2.Type == OperandType.Register16)
+        {
+            ushort? srcVal = Operand2.Value switch
+            {
+                0 => state.AX,
+                1 => state.CX,
+                2 => state.DX,
+                3 => state.BX,
+                4 => state.SP,
+                5 => state.BP,
+                6 => state.SI,
+                7 => state.DI,
+                _ => null
+            };
+            if (srcVal.HasValue)
+            {
+                return Operand1.Value switch
+                {
+                    0 => state with { AL = (byte)srcVal.Value, AH = (byte)(srcVal.Value >> 8) },
+                    1 => state with { CL = (byte)srcVal.Value, CH = (byte)(srcVal.Value >> 8) },
+                    2 => state with { DL = (byte)srcVal.Value, DH = (byte)(srcVal.Value >> 8) },
+                    3 => state with { BL = (byte)srcVal.Value, BH = (byte)(srcVal.Value >> 8) },
+                    4 => state with { SP = srcVal.Value },
+                    5 => state with { BP = srcVal.Value },
+                    6 => state with { SI = srcVal.Value },
+                    7 => state with { DI = srcVal.Value },
+                    _ => state
+                };
+            }
+        }
+
         return state;
     }
 

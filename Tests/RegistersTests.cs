@@ -46,6 +46,23 @@ public class RegistersTests : BaseTests
     }
 
     [Fact]
+    public void MovRegToReg()
+    {
+        var instructions = Disassemble("""
+            B0 20;  mov al, 20h
+            88 C3;  mov bl, al      ; копируем известное значение
+            B8 34 12; mov ax, 1234h
+            89 C1;  mov cx, ax      ; копируем AX → CX
+            89 E5;  mov bp, sp      ; копируем (sp ещё не известен)
+            CD 21;  int 21h
+            """);
+        Assert.Equal((byte)0x20, instructions[1].Registers.BL);   // из AL
+        Assert.Equal((ushort)0x1234, instructions[3].Registers.CX); // из AX
+        // bp не должен измениться, т.к. sp неизвестен
+        Assert.Null(instructions[4].Registers.BP);
+    }
+
+    [Fact]
     public void MovSPBPSIDI()
     {
         var instructions = Disassemble("""
