@@ -213,21 +213,19 @@ public class Instruction
                 7 => state.BH,
                 _ => null
             };
-            if (srcVal.HasValue)
+
+            return Operand1.Value switch
             {
-                return Operand1.Value switch
-                {
-                    0 => state with { AL = srcVal.Value },
-                    1 => state with { CL = srcVal.Value },
-                    2 => state with { DL = srcVal.Value },
-                    3 => state with { BL = srcVal.Value },
-                    4 => state with { AH = srcVal.Value },
-                    5 => state with { CH = srcVal.Value },
-                    6 => state with { DH = srcVal.Value },
-                    7 => state with { BH = srcVal.Value },
-                    _ => state
-                };
-            }
+                0 => state with { AL = srcVal },
+                1 => state with { CL = srcVal },
+                2 => state with { DL = srcVal },
+                3 => state with { BL = srcVal },
+                4 => state with { AH = srcVal },
+                5 => state with { CH = srcVal },
+                6 => state with { DH = srcVal },
+                7 => state with { BH = srcVal },
+                _ => state
+            };
         }
 
         if (Operand1.Type == OperandType.Register16 && Operand2.Type == OperandType.Register16)
@@ -256,6 +254,22 @@ public class Instruction
                     5 => state with { BP = srcVal.Value },
                     6 => state with { SI = srcVal.Value },
                     7 => state with { DI = srcVal.Value },
+                    _ => state
+                };
+            }
+            else
+            {
+                // При присвоении неизвестного значения, результат становится неизвестным
+                return Operand1.Value switch
+                {
+                    0 => state with { AL = null, AH = null },
+                    1 => state with { CL = null, CH = null },
+                    2 => state with { DL = null, DH = null },
+                    3 => state with { BL = null, BH = null },
+                    4 => state with { SP = null },
+                    5 => state with { BP = null },
+                    6 => state with { SI = null },
+                    7 => state with { DI = null },
                     _ => state
                 };
             }
