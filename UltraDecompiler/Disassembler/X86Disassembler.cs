@@ -2,16 +2,17 @@ namespace UltraDecompiler.Disassembler;
 
 public class X86Disassembler
 {
-    private readonly byte[] _image;
     private int _pos;
     private Segment _segmentOverride;
     private readonly HashSet<int> _visited = [];
 
     public int DataSegmentBase { get; set; }
 
+    public byte[] Image { get; }
+
     public X86Disassembler(byte[] image)
     {
-        _image = image ?? throw new ArgumentNullException(nameof(image));
+        Image = image ?? throw new ArgumentNullException(nameof(image));
     }
 
     public List<Instruction> Instructions { get; private set; } = [];
@@ -28,7 +29,7 @@ public class X86Disassembler
         {
             int offset = queue.Dequeue();
 
-            if (_visited.Contains(offset) || offset >= _image.Length)
+            if (_visited.Contains(offset) || offset >= Image.Length)
                 continue;
 
             DisassembleBlock(offset, queue);
@@ -42,7 +43,7 @@ public class X86Disassembler
         _pos = startOffset;
         _segmentOverride = Segment.None;
 
-        while (_pos < _image.Length)
+        while (_pos < Image.Length)
         {
             if (_visited.Contains(_pos))
                 break;
@@ -52,27 +53,46 @@ public class X86Disassembler
             int instrStart = _pos;
             var instr = DecodeOneInstruction();
             instr.Offset = instrStart;
-            instr.Bytes = _image[instrStart.._pos].ToArray();
+            instr.Bytes = Image[instrStart.._pos].ToArray();
             instr.Segment = _segmentOverride;
             Instructions.Add(instr);
             _segmentOverride = Segment.None;
 
-            if (instr.Mnemonic is Mnemonic.RET or Mnemonic.RETF or Mnemonic.IRET)
+            if (instr.IsReturn || instr.IsExit)
                 break;
 
-            if (instr.Mnemonic == Mnemonic.JMP)
+            if (instr.IsConditionalJump || instr.IsUnconditionalJump)
             {
                 int target = GetEffectiveJumpTarget(instr);
                 if (target != -1)
                     queue.Enqueue(target);
+
+                if (instr.IsCall)
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Дизассемблирует инструкции до первого перехода.
+    /// </summary>
+    /// <param name="startOffset">Адрес первой инструкции</param>
+    public IEnumerable<Instruction> DisassembleBranch(int startOffset)
+    {
+        _pos = startOffset;
+
+        while (_pos < Image.Length)
+        {
+            _segmentOverride = Segment.None;
+            int instrStart = _pos;
+            var instr = DecodeOneInstruction();
+            instr.Offset = instrStart;
+            instr.Bytes = Image[instrStart.._pos].ToArray();
+            instr.Segment = _segmentOverride;
+            yield return instr;
+
+            if (instr.IsConditionalJump || instr.IsUnconditionalJump || instr.IsReturn || instr.IsExit)
                 break;
-            }
-            else if (instr.IsJump || instr.Mnemonic == Mnemonic.CALL)
-            {
-                int target = GetEffectiveJumpTarget(instr);
-                if (target != -1)
-                    queue.Enqueue(target);
-            }
         }
     }
 
@@ -86,9 +106,9 @@ public class X86Disassembler
         if ((instr.Mnemonic == Mnemonic.CALL || instr.Mnemonic == Mnemonic.JMP) && op.Type == OperandType.Memory)
         {
             int realAddr = DataSegmentBase + op.Value;
-            if (realAddr >= 0 && realAddr + 2 <= _image.Length)
+            if (realAddr >= 0 && realAddr + 2 <= Image.Length)
             {
-                return (ushort)(_image[realAddr] | (_image[realAddr + 1] << 8));
+                return (ushort)(Image[realAddr] | (Image[realAddr + 1] << 8));
             }
         }
 
@@ -235,14 +255,14 @@ public class X86Disassembler
             case 0x55:
             case 0x56:
             case 0x57:
-            {
-                int reg = opcode - 0x50;
-                return new Instruction
                 {
-                    Mnemonic = Mnemonic.PUSH,
-                    Operand1 = new Operand(OperandType.Register16, reg)
-                };
-            }
+                    int reg = opcode - 0x50;
+                    return new Instruction
+                    {
+                        Mnemonic = Mnemonic.PUSH,
+                        Operand1 = new Operand(OperandType.Register16, reg)
+                    };
+                }
             case 0x58:
             case 0x59:
             case 0x5A:
@@ -251,14 +271,14 @@ public class X86Disassembler
             case 0x5D:
             case 0x5E:
             case 0x5F:
-            {
-                int reg = opcode - 0x58;
-                return new Instruction
                 {
-                    Mnemonic = Mnemonic.POP,
-                    Operand1 = new Operand(OperandType.Register16, reg)
-                };
-            }
+                    int reg = opcode - 0x58;
+                    return new Instruction
+                    {
+                        Mnemonic = Mnemonic.POP,
+                        Operand1 = new Operand(OperandType.Register16, reg)
+                    };
+                }
 
             case 0x06: return new Instruction { Mnemonic = Mnemonic.PUSH, Operand1 = new Operand(OperandType.SegmentRegister, 0) };
             case 0x0E: return new Instruction { Mnemonic = Mnemonic.PUSH, Operand1 = new Operand(OperandType.SegmentRegister, 1) };
@@ -305,14 +325,14 @@ public class X86Disassembler
             case 0xCF: return new Instruction { Mnemonic = Mnemonic.IRET };
 
             case 0xCD:
-            {
-                byte intNum = ReadByte();
-                return new Instruction
                 {
-                    Mnemonic = Mnemonic.INT,
-                    Operand1 = new Operand(OperandType.Immediate8, intNum)
-                };
-            }
+                    byte intNum = ReadByte();
+                    return new Instruction
+                    {
+                        Mnemonic = Mnemonic.INT,
+                        Operand1 = new Operand(OperandType.Immediate8, intNum)
+                    };
+                }
 
             case 0x90: return new Instruction { Mnemonic = Mnemonic.NOP };
 
@@ -326,15 +346,15 @@ public class X86Disassembler
             case 0x95:
             case 0x96:
             case 0x97:
-            {
-                int reg = opcode - 0x90;
-                return new Instruction
                 {
-                    Mnemonic = Mnemonic.XCHG,
-                    Operand1 = new Operand(OperandType.Register16, 0),
-                    Operand2 = new Operand(OperandType.Register16, reg)
-                };
-            }
+                    int reg = opcode - 0x90;
+                    return new Instruction
+                    {
+                        Mnemonic = Mnemonic.XCHG,
+                        Operand1 = new Operand(OperandType.Register16, 0),
+                        Operand2 = new Operand(OperandType.Register16, reg)
+                    };
+                }
 
             case 0x40:
             case 0x41:
@@ -344,14 +364,14 @@ public class X86Disassembler
             case 0x45:
             case 0x46:
             case 0x47:
-            {
-                int reg = opcode - 0x40;
-                return new Instruction
                 {
-                    Mnemonic = Mnemonic.INC,
-                    Operand1 = new Operand(OperandType.Register16, reg)
-                };
-            }
+                    int reg = opcode - 0x40;
+                    return new Instruction
+                    {
+                        Mnemonic = Mnemonic.INC,
+                        Operand1 = new Operand(OperandType.Register16, reg)
+                    };
+                }
             case 0x48:
             case 0x49:
             case 0x4A:
@@ -360,14 +380,14 @@ public class X86Disassembler
             case 0x4D:
             case 0x4E:
             case 0x4F:
-            {
-                int reg = opcode - 0x48;
-                return new Instruction
                 {
-                    Mnemonic = Mnemonic.DEC,
-                    Operand1 = new Operand(OperandType.Register16, reg)
-                };
-            }
+                    int reg = opcode - 0x48;
+                    return new Instruction
+                    {
+                        Mnemonic = Mnemonic.DEC,
+                        Operand1 = new Operand(OperandType.Register16, reg)
+                    };
+                }
 
             case 0x8D: return DecodeLea();
 
@@ -430,47 +450,46 @@ public class X86Disassembler
             case 0xC8: return DecodeEnter();
             case 0xC9: return new Instruction { Mnemonic = Mnemonic.LEAVE };
 
-            // IN/OUT support added
             case 0xE4: // IN AL, imm8
-            {
-                byte port = ReadByte();
-                return new Instruction
                 {
-                    Mnemonic = Mnemonic.IN,
-                    Operand1 = new Operand(OperandType.Register8, 0), // AL
-                    Operand2 = new Operand(OperandType.Immediate8, port)
-                };
-            }
+                    byte port = ReadByte();
+                    return new Instruction
+                    {
+                        Mnemonic = Mnemonic.IN,
+                        Operand1 = new Operand(OperandType.Register8, 0), // AL
+                        Operand2 = new Operand(OperandType.Immediate8, port)
+                    };
+                }
             case 0xE5: // IN AX, imm8
-            {
-                byte port = ReadByte();
-                return new Instruction
                 {
-                    Mnemonic = Mnemonic.IN,
-                    Operand1 = new Operand(OperandType.Register16, 0), // AX
-                    Operand2 = new Operand(OperandType.Immediate8, port)
-                };
-            }
+                    byte port = ReadByte();
+                    return new Instruction
+                    {
+                        Mnemonic = Mnemonic.IN,
+                        Operand1 = new Operand(OperandType.Register16, 0), // AX
+                        Operand2 = new Operand(OperandType.Immediate8, port)
+                    };
+                }
             case 0xE6: // OUT imm8, AL
-            {
-                byte port = ReadByte();
-                return new Instruction
                 {
-                    Mnemonic = Mnemonic.OUT,
-                    Operand1 = new Operand(OperandType.Immediate8, port),
-                    Operand2 = new Operand(OperandType.Register8, 0) // AL
-                };
-            }
+                    byte port = ReadByte();
+                    return new Instruction
+                    {
+                        Mnemonic = Mnemonic.OUT,
+                        Operand1 = new Operand(OperandType.Immediate8, port),
+                        Operand2 = new Operand(OperandType.Register8, 0) // AL
+                    };
+                }
             case 0xE7: // OUT imm8, AX
-            {
-                byte port = ReadByte();
-                return new Instruction
                 {
-                    Mnemonic = Mnemonic.OUT,
-                    Operand1 = new Operand(OperandType.Immediate8, port),
-                    Operand2 = new Operand(OperandType.Register16, 0) // AX
-                };
-            }
+                    byte port = ReadByte();
+                    return new Instruction
+                    {
+                        Mnemonic = Mnemonic.OUT,
+                        Operand1 = new Operand(OperandType.Immediate8, port),
+                        Operand2 = new Operand(OperandType.Register16, 0) // AX
+                    };
+                }
             case 0xEC: // IN AL, DX
                 return new Instruction
                 {
@@ -500,11 +519,8 @@ public class X86Disassembler
                     Operand2 = new Operand(OperandType.Register16, 0) // AX
                 };
 
-            // SBB already supported via DecodeGroup80 / GetAluMnemonicEnum, but ensuring in DecodeOneInstruction path
-            // (SBB uses 0x18-0x1B, 0x80/83 with reg=3 etc. - handled)
-
             default:
-                return new Instruction { Mnemonic = Mnemonic.DB, Operands = Instruction.UnknownOperand };
+                return new Instruction { Mnemonic = Mnemonic.DB, Operand1 = new(OperandType.Immediate8, opcode) };
         }
     }
 
@@ -978,6 +994,7 @@ public class X86Disassembler
             instr.Operand2 = new Operand(OperandType.Immediate8, 1);
         return instr;
     }
+
     private Instruction DecodeLoop(byte opcode)
     {
         sbyte rel = (sbyte)ReadByte();
@@ -1047,11 +1064,11 @@ public class X86Disassembler
         };
     }
 
-    private byte ReadByte() => _image[_pos++];
+    private byte ReadByte() => Image[_pos++];
 
     private ushort ReadUInt16()
     {
-        ushort val = (ushort)(_image[_pos] | (_image[_pos + 1] << 8));
+        ushort val = (ushort)(Image[_pos] | (Image[_pos + 1] << 8));
         _pos += 2;
         return val;
     }

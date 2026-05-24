@@ -1,4 +1,5 @@
 using UltraDecompiler.Disassembler;
+using UltraDecompiler.Graph;
 using UltraDecompiler.Parser;
 
 if (args.Length == 0)
@@ -35,12 +36,10 @@ try
 
     // === Шаг 1: Control Flow Graph ===
     Console.WriteLine("\n=== Control Flow Graph ===");
-    var cfg = ControlFlowGraph.Build(disassembler.Instructions);
-    cfg.Print();
+    var cfg = new ControlFlowGraph();
+    cfg.Build(disassembler, (int)parser.EntryPointOffset);
 
-    // === Шаг 2: Function Detection ===
-    var functions = FunctionDetector.DetectFunctions(disassembler.Instructions, cfg);
-    FunctionDetector.PrintFunctions(functions);
+    cfg.SaveDot(Path.Combine(Path.GetDirectoryName(exePath) ?? ".", "cfg.dot"));
 }
 catch (Exception ex)
 {

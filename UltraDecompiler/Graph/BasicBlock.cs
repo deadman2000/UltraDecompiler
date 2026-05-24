@@ -1,4 +1,6 @@
-namespace UltraDecompiler.Disassembler;
+using UltraDecompiler.Disassembler;
+
+namespace UltraDecompiler.Graph;
 
 /// <summary>
 /// Базовый блок — последовательность инструкций без переходов внутри
@@ -7,11 +9,20 @@ public class BasicBlock
 {
     public int StartOffset { get; set; }
     public int EndOffset { get; set; }
+
     public List<Instruction> Instructions { get; set; } = new();
 
-    // Ссылки на другие блоки
-    public List<BasicBlock> Successors { get; set; } = new();
-    public List<BasicBlock> Predecessors { get; set; } = new();
+    // Перезоды
+
+    public int? NextOffset { get; set; }
+
+    public int? ConditionalOffset { get; set; }
+
+    public BasicBlock? NextBlock { get; set; }
+
+    public BasicBlock? ConditionalBlock { get; set; }
+
+    public Expression? Condition { get; set; }
 
     public override string ToString()
     {

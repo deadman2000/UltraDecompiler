@@ -77,9 +77,10 @@ public class Instruction
     public Segment Segment { get; set; } = Segment.None;
 
     /// <summary>
-    /// Инструкция является переходом
+    /// Инструкция является условным переходом
     /// </summary>
-    public bool IsJump => Mnemonic is Mnemonic.JO
+    public bool IsConditionalJump => Mnemonic
+        is Mnemonic.JO
         or Mnemonic.JNO
         or Mnemonic.JB
         or Mnemonic.JAE
@@ -95,7 +96,43 @@ public class Instruction
         or Mnemonic.JGE
         or Mnemonic.JLE
         or Mnemonic.JG
-        or Mnemonic.JCXZ;
+        or Mnemonic.JCXZ
+        or Mnemonic.LOOP
+        or Mnemonic.LOOPE
+        or Mnemonic.LOOPNE;
+
+    /// <summary>
+    /// Инструкция является безусловным переходом
+    /// </summary>
+    public bool IsUnconditionalJump => Mnemonic is Mnemonic.JMP or Mnemonic.JMP_FAR;
+
+    /// <summary>
+    /// Инструкция является переходом
+    /// </summary>
+    public bool IsReturn => Mnemonic is Mnemonic.RET or Mnemonic.RETF or Mnemonic.IRET;
+
+    /// <summary>
+    /// Инструкция является вызовом с возвратом
+    /// </summary>
+    public bool IsCall => Mnemonic is Mnemonic.CALL or Mnemonic.CALL_FAR;
+
+    /// <summary>
+    /// Инструкция является выходом из приложения
+    /// </summary>
+    public bool IsExit
+    {
+        get
+        {
+            // TODO в каждой инструкции надо запоминать значения регистров, если они установлены константами
+            // return Mnemonic is Mnemonic.INT && Operand1.Value == 0x21 && AH == 4c;
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Размер инструкции.
+    /// </summary>
+    public int Size => Bytes.Length;
 
     /// <summary>
     /// Возвращает целевой адрес прямого перехода
