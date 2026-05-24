@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.Graph;
 using UltraDecompiler.Parser;
@@ -10,6 +11,14 @@ if (args.Length == 0)
 }
 
 string exePath = args[0];
+
+void ConvertDotToSvg(string dotPath, string svgPath)
+{
+    var proc = new Process();
+    proc.StartInfo = new ProcessStartInfo("dot", $"-Tsvg {dotPath} -o {svgPath}");
+    proc.Start();
+    proc.WaitForExit();
+}
 
 try
 {
@@ -39,7 +48,10 @@ try
     var cfg = new ControlFlowGraph();
     cfg.Build(disassembler, (int)parser.EntryPointOffset);
 
-    cfg.SaveDot(Path.Combine(Path.GetDirectoryName(exePath) ?? ".", "cfg.dot"));
+    var dotPath = Path.Combine(Path.GetDirectoryName(exePath) ?? ".", "cfg.dot");
+    var svgPath = Path.Combine(Path.GetDirectoryName(exePath) ?? ".", "cfg.svg");
+    cfg.SaveDot(dotPath);
+    ConvertDotToSvg(dotPath, svgPath);
 }
 catch (Exception ex)
 {

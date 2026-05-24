@@ -1,6 +1,5 @@
 using UltraDecompiler.Disassembler;
-using System.IO;
-using System.Text;
+using System.Diagnostics;
 
 namespace UltraDecompiler.Graph;
 
@@ -28,10 +27,15 @@ public class ControlFlowGraph
         while (queue.Count > 0)
         {
             int offset = queue.Dequeue();
+            if (visited.Contains(offset))
+                continue;
+
             var block = new BasicBlock
             {
                 StartOffset = offset
             };
+
+            Debug.Assert(!Blocks.Any(b => b.StartOffset == offset));
             Blocks.Add(block);
             EntryBlock ??= block;
 
@@ -75,76 +79,6 @@ public class ControlFlowGraph
         }
 
         BuildEdges();
-    }
-
-    /// <summary>
-    /// Сохраняет граф в формате DOT
-    /// </summary>
-    /// <param name="fileName"></param>
-    public void SaveDot(string fileName)
-    {
-        if (Blocks.Count == 0)
-        {
-            File.WriteAllText(fileName, "digraph empty {}");
-            return;
-        }
-
-        var sb = new StringBuilder();
-        sb.AppendLine("digraph ControlFlowGraph {");
-        sb.AppendLine("    rankdir=TB;");
-        sb.AppendLine("    node [shape=box, fontname=\"Consolas\", fontsize=8, style=filled, fillcolor=\"#FFFACD\"];");
-        sb.AppendLine("    edge [fontname=\"Consolas\", fontsize=7];");
-
-        // Узлы - блоки с ассемблерным кодом
-        foreach (var block in Blocks)
-        {
-            string nodeId = $"b_{block.StartOffset:X6}";
-            var lines = new List<string> { $"0x{block.StartOffset:X4}..0x{block.EndOffset:X4}" };
-            foreach (var instr in block.Instructions)
-            {
-                string line = instr.ToString().Replace("\\", "\\\\").Replace("\"", "\\\"");
-                lines.Add(line);
-            }
-            string label = string.Join("\\l", lines) + "\\l";
-            sb.AppendLine($"    {nodeId} [label=\"{label}\"];");
-        }
-
-        // Стрелки: один переход - чёрная, два - зелёная (taken) и красная (fallthrough)
-        foreach (var block in Blocks)
-        {
-            string from = $"b_{block.StartOffset:X6}";
-            bool hasTwo = block.NextBlock != null && block.ConditionalBlock != null;
-
-            if (block.NextBlock != null)
-            {
-                string to = $"b_{block.NextBlock.StartOffset:X6}";
-                if (hasTwo)
-                {
-                    sb.AppendLine($"    {from} -> {to} [color=red, label=\"fallthrough\"];");
-                }
-                else
-                {
-                    sb.AppendLine($"    {from} -> {to} [color=black];");
-                }
-            }
-
-            if (block.ConditionalBlock != null)
-            {
-                string to = $"b_{block.ConditionalBlock.StartOffset:X6}";
-                if (hasTwo)
-                {
-                    sb.AppendLine($"    {from} -> {to} [color=green, label=\"taken\"];");
-                }
-                else
-                {
-                    sb.AppendLine($"    {from} -> {to} [color=green];");
-                }
-            }
-        }
-
-        sb.AppendLine("}");
-        File.WriteAllText(fileName, sb.ToString());
-        Console.WriteLine($"CFG saved to {fileName}");
     }
 
     /// <summary>
@@ -221,6 +155,7 @@ public class ControlFlowGraph
         firstBlock.NextBlock = nextBlock;
 
         Blocks.Add(nextBlock);
+        _blockByOffset.Add(nextBlock.StartOffset, nextBlock);
 
         return nextBlock;
     }
