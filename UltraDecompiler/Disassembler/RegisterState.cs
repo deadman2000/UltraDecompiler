@@ -1,4 +1,4 @@
-﻿namespace UltraDecompiler.Disassembler;
+namespace UltraDecompiler.Disassembler;
 
 /// <summary>
 /// Значения регистров. null - если значение неизвестно.
@@ -10,4 +10,9 @@ public record struct RegisterState(
     byte? DH, byte? DL)
 {
     public static readonly RegisterState Zeros = new(0, 0, 0, 0, 0, 0, 0, 0);
+
+    public ushort? AX => AH.HasValue && AL.HasValue ? (ushort)((AH.Value << 8) | AL.Value) : null;
+    public ushort? BX => BH.HasValue && BL.HasValue ? (ushort)((BH.Value << 8) | BL.Value) : null;
+    public ushort? CX => CH.HasValue && CL.HasValue ? (ushort)((CH.Value << 8) | CL.Value) : null;
+    public ushort? DX => DH.HasValue && DL.HasValue ? (ushort)((DH.Value << 8) | DL.Value) : null;
 }

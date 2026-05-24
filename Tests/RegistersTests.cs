@@ -68,6 +68,11 @@ public class RegistersTests : BaseTests
         Assert.Equal((byte)0x56, instructions[1].Registers.CH);
         Assert.Equal((byte)0x78, instructions[2].Registers.CL);
         Assert.Equal((byte)0x56, instructions[2].Registers.CH);
+
+        // Проверки вычисляемых свойств
+        Assert.Equal((ushort)0x1234, instructions[0].Registers.CX);
+        Assert.Equal((ushort)0x5678, instructions[1].Registers.CX);
+        Assert.Equal((ushort)0x5678, instructions[2].Registers.CX);
     }
 
     [Fact]
@@ -82,5 +87,9 @@ public class RegistersTests : BaseTests
         Assert.Equal((byte)0x11, instructions[0].Registers.BH);
         Assert.Equal((byte)0x44, instructions[1].Registers.BL);
         Assert.Equal((byte)0x33, instructions[1].Registers.BH);
+
+        // Проверки вычисляемых свойств
+        Assert.Equal((ushort)0x1122, instructions[0].Registers.BX);
+        Assert.Equal((ushort)0x3344, instructions[1].Registers.BX);
     }
 }
