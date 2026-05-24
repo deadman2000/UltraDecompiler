@@ -96,7 +96,7 @@ public class ControlFlowGraph
         sb.AppendLine("    edge [fontname=\"Consolas\", fontsize=7];");
 
         // Узлы - блоки с ассемблерным кодом
-        foreach (var block in Blocks.OrderBy(b => b.StartOffset))
+        foreach (var block in Blocks)
         {
             string nodeId = $"b_{block.StartOffset:X6}";
             var lines = new List<string> { $"0x{block.StartOffset:X4}..0x{block.EndOffset:X4}" };
