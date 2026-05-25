@@ -69,6 +69,26 @@ public enum Math2Operation
     /// Вычитание
     /// </summary>
     Sub,
+
+    /// <summary>
+    /// Побитовый сдвиг влево
+    /// </summary>
+    Shl,
+
+    /// <summary>
+    /// Побитовый сдвиг вправо
+    /// </summary>
+    Shr,
+
+    /// <summary>
+    /// Побитовое И
+    /// </summary>
+    And,
+
+    /// <summary>
+    /// Побитовое ИЛИ
+    /// </summary>
+    Or,
 }
 
 /// <summary>
@@ -83,6 +103,10 @@ public record Math2Expr(Math2Operation Operation, Expr First, Expr Second) : Exp
     {
         Math2Operation.Add => $"{First} + {Second}",
         Math2Operation.Sub => $"{First} - {Second}",
+        Math2Operation.Shl => $"{First} << {Second}",
+        Math2Operation.Shr => $"{First} >> {Second}",
+        Math2Operation.And => $"{First} & {Second}",
+        Math2Operation.Or => $"{First} | {Second}",
         _ => throw new NotImplementedException(),
     };
 }
