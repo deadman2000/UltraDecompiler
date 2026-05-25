@@ -54,10 +54,6 @@ public class Decompiler
                     else if (instr.Operand1.Value == 3)
                         registers = registers with { BX = exprSrc };
                 }
-
-                var variable = Variables.CreateVariable();
-
-                codeBlock.Operations.Add(new SetOperation(variable, exprSrc));
             }
 
             if (instr.Mnemonic == Mnemonic.ADD)
