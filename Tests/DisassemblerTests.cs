@@ -1403,11 +1403,11 @@ public class DisassemblerTests : BaseTests
     [Fact]
     public void DisassembleIndirectJumpMemoryTarget()
     {
-        // JMP WORD PTR [0004] where at [0004] is 0005 (target offset 5)
-        var disassembler = new X86Disassembler("FF 26 04 00 90 90 05 00".FromHex());
+        // JMP WORD PTR [0004] where pointer at 0004 = 0005h (target offset 5), then RET to terminate cleanly
+        var disassembler = new X86Disassembler("FF 26 04 00 05 00 C3".FromHex());
         disassembler.DataSegmentBase = 0;
         disassembler.Disassemble(0);
         Assert.Equal(Mnemonic.JMP, disassembler.Instructions[0].Mnemonic);
-        // Covers the memory indirect jump target resolution in GetEffectiveJumpTarget
+        // Covers the memory indirect jump target resolution in GetEffectiveJumpTarget (realAddr + read ushort)
     }
 }
