@@ -23,6 +23,15 @@ public class InstructionIsExitTests : BaseTests
     }
 
     [Fact]
+    public void IsExit_Int20()
+    {
+        var instructions = Disassemble("""
+            CD 20;  int 21h
+            """);
+        Assert.True(instructions[0].IsExit);
+    }
+
+    [Fact]
     public void IsNotExit_Int21_AH_30()
     {
         var instructions = Disassemble("""
