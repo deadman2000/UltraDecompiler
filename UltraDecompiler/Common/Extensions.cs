@@ -1,4 +1,4 @@
-﻿namespace UltraDecompiler.Extensions;
+﻿namespace UltraDecompiler.Common;
 
 public static class Extensions
 {
