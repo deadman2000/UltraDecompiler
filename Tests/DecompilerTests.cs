@@ -125,7 +125,7 @@ public class DecompilerTests : BaseTests
     {
         var decomp = Decompile("""
             B8 01 00 ; mov ax, 1
-            EB 01    ; jmp short +1
+            EB 00    ; jmp short +0
             90       ; nop (в следующем блоке)
             """);
 
