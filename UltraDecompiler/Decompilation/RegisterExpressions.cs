@@ -14,6 +14,15 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
     public Expr? DH { get; init; }
     public Expr? DL { get; init; }
 
+    public Expr? SP { get; init; }
+    public Expr? BP { get; init; }
+    public Expr? SI { get; init; }
+    public Expr? DI { get; init; }
+    public Expr? ES { get; init; }
+    public Expr? CS { get; init; }
+    public Expr? SS { get; init; }
+    public Expr? DS { get; init; }
+
     public static RegisterExpressions InitZero()
     {
         var zero = new ConstExpr(0);
@@ -26,7 +35,15 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
             CH = zero,
             CL = zero,
             DH = zero,
-            DL = zero
+            DL = zero,
+            SP = zero,
+            BP = zero,
+            SI = zero,
+            DI = zero,
+            ES = zero,
+            CS = zero,
+            SS = zero,
+            DS = zero
         };
     }
 
@@ -71,9 +88,19 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
     /// </summary>
     public RegisterExpressions Set16(int reg16, Expr expr)
     {
-        int group = reg16 switch { 0 => 0, 1 => 1, 2 => 2, 3 => 3, _ => -1 };
-        if (group < 0) return this;
-        return SetX(group, expr);
+        if (reg16 >= 0 && reg16 <= 3)
+        {
+            int group = reg16;
+            return SetX(group, expr);
+        }
+        return reg16 switch
+        {
+            4 => this with { SP = expr ?? new ConstExpr(0) },
+            5 => this with { BP = expr ?? new ConstExpr(0) },
+            6 => this with { SI = expr ?? new ConstExpr(0) },
+            7 => this with { DI = expr ?? new ConstExpr(0) },
+            _ => this
+        };
     }
 
     private static Math2Expr LowByte(Expr e) => new(Math2Operation.And, e, new ConstExpr(0xff));
@@ -118,17 +145,26 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
     public readonly Expr Get16(int reg16)
     {
         int group = reg16 switch { 0 => 0, 1 => 1, 2 => 2, 3 => 3, _ => -1 };
-        if (group < 0) return new ConstExpr(0);
-
-        Expr? h = GetH(group);
-        Expr? l = GetL(group);
-        if (h != null && l != null)
+        if (group >= 0)
         {
-            var shl = new Math2Expr(Math2Operation.Shl, h, new ConstExpr(8));
-            return new Math2Expr(Math2Operation.Or, shl, l);
-        }
+            Expr? h = GetH(group);
+            Expr? l = GetL(group);
+            if (h != null && l != null)
+            {
+                var shl = new Math2Expr(Math2Operation.Shl, h, new ConstExpr(8));
+                return new Math2Expr(Math2Operation.Or, shl, l);
+            }
 
-        return GetX(group) ?? throw new InvalidOperationException();
+            return GetX(group) ?? throw new InvalidOperationException();
+        }
+        return reg16 switch
+        {
+            4 => SP ?? throw new InvalidOperationException(),
+            5 => BP ?? throw new InvalidOperationException(),
+            6 => SI ?? throw new InvalidOperationException(),
+            7 => DI ?? throw new InvalidOperationException(),
+            _ => new ConstExpr(0)
+        };
     }
 
     /// <summary>
@@ -152,5 +188,35 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
 
         Expr x = GetX(group) ?? throw new InvalidOperationException();
         return isHigh ? HighByte(x) : LowByte(x);
+    }
+
+    /// <summary>
+    /// Установка сегментного регистра (ES=0, CS=1, SS=2, DS=3)
+    /// </summary>
+    public RegisterExpressions SetSegment(int sreg, Expr expr)
+    {
+        return sreg switch
+        {
+            0 => this with { ES = expr ?? new ConstExpr(0) },
+            1 => this with { CS = expr ?? new ConstExpr(0) },
+            2 => this with { SS = expr ?? new ConstExpr(0) },
+            3 => this with { DS = expr ?? new ConstExpr(0) },
+            _ => this
+        };
+    }
+
+    /// <summary>
+    /// Получение сегментного регистра
+    /// </summary>
+    public readonly Expr GetSegment(int sreg)
+    {
+        return sreg switch
+        {
+            0 => ES ?? new ConstExpr(0),
+            1 => CS ?? new ConstExpr(0),
+            2 => SS ?? new ConstExpr(0),
+            3 => DS ?? new ConstExpr(0),
+            _ => new ConstExpr(0)
+        };
     }
 }
