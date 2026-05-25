@@ -335,4 +335,79 @@ public class RegistersTests : BaseTests
         Assert.Null(regs.AL);
         Assert.Equal(newAx, regs.Get16(0));
     }
+
+    [Fact]
+    public void MovBH()
+    {
+        var instructions = Disassemble("""
+            B7 30; mov bh, 30h
+            B7 50; mov bh, 50h
+            CD 21; int 21h
+            """);
+        Assert.Equal((byte)0x30, instructions[0].Registers.BH);
+        Assert.Equal((byte)0x50, instructions[1].Registers.BH);
+        Assert.Equal((byte)0x50, instructions[2].Registers.BH);
+    }
+
+    [Fact]
+    public void MovCL()
+    {
+        var instructions = Disassemble("""
+            B1 15; mov cl, 15h
+            B1 25; mov cl, 25h
+            CD 21; int 21h
+            """);
+        Assert.Equal((byte)0x15, instructions[0].Registers.CL);
+        Assert.Equal((byte)0x25, instructions[1].Registers.CL);
+        Assert.Equal((byte)0x25, instructions[2].Registers.CL);
+    }
+
+    [Fact]
+    public void MovDL()
+    {
+        var instructions = Disassemble("""
+            B2 0A; mov dl, 0Ah
+            B2 1A; mov dl, 1Ah
+            CD 21; int 21h
+            """);
+        Assert.Equal((byte)0x0A, instructions[0].Registers.DL);
+        Assert.Equal((byte)0x1A, instructions[1].Registers.DL);
+        Assert.Equal((byte)0x1A, instructions[2].Registers.DL);
+    }
+
+    [Fact]
+    public void MovDH()
+    {
+        var instructions = Disassemble("""
+            B6 55; mov dh, 55h
+            B6 66; mov dh, 66h
+            CD 21; int 21h
+            """);
+        Assert.Equal((byte)0x55, instructions[0].Registers.DH);
+        Assert.Equal((byte)0x66, instructions[1].Registers.DH);
+        Assert.Equal((byte)0x66, instructions[2].Registers.DH);
+    }
+
+    [Fact]
+    public void AddBlImm()
+    {
+        var instructions = Disassemble("""
+            B3 05;  mov bl, 05h
+            80 C3 03; add bl, 03h
+            CD 21;  int 21h
+            """);
+        Assert.Equal((byte)0x08, instructions[1].Registers.BL);
+        Assert.Equal((byte)0x08, instructions[2].Registers.BL);
+    }
+
+    [Fact]
+    public void SubChImm()
+    {
+        var instructions = Disassemble("""
+            B5 0A;  mov ch, 0Ah
+            80 ED 03; sub ch, 03h
+            CD 21;  int 21h
+            """);
+        Assert.Equal((byte)0x07, instructions[1].Registers.CH);
+    }
 }
