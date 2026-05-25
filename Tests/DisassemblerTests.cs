@@ -1279,4 +1279,135 @@ public class DisassemblerTests : BaseTests
         Assert.Equal(OperandType.SegmentRegister, instructions[0].Operand1.Type);
         Assert.Equal(3, instructions[0].Operand1.Value);
     }
+
+    [Fact]
+    public void DisassembleWithCsSegmentOverride()
+    {
+        var instructions = Disassemble("2E 8B 06 34 12"); // CS: MOV AX, [1234]
+        Assert.Equal(Segment.CS, instructions[0].Segment);
+        Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
+        Assert.Contains("CS:", instructions[0].Operands);
+    }
+
+    [Fact]
+    public void DisassembleWithDsSegmentOverride()
+    {
+        var instructions = Disassemble("3E 8B 06 34 12"); // DS: MOV AX, [1234]
+        Assert.Equal(Segment.DS, instructions[0].Segment);
+        Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
+        Assert.Contains("DS:", instructions[0].Operands);
+    }
+
+    [Fact]
+    public void DisassembleMemoryBxDi()
+    {
+        var instructions = Disassemble("8B 01"); // MOV AX, [BX+DI]
+        Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand2.Type);
+        Assert.Equal(AddressRegister.BX, instructions[0].Operand2.BaseReg);
+        Assert.Equal(AddressRegister.DI, instructions[0].Operand2.IndexReg);
+    }
+
+    [Fact]
+    public void DisassembleMemoryBpSi()
+    {
+        var instructions = Disassemble("8B 0A"); // MOV CX, [BP+SI]
+        Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand2.Type);
+        Assert.Equal(AddressRegister.BP, instructions[0].Operand2.BaseReg);
+        Assert.Equal(AddressRegister.SI, instructions[0].Operand2.IndexReg);
+    }
+
+    [Fact]
+    public void DisassembleMemoryDi()
+    {
+        var instructions = Disassemble("8B 0D"); // MOV CX, [DI]
+        Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand2.Type);
+        Assert.Equal(AddressRegister.DI, instructions[0].Operand2.BaseReg);
+        Assert.Equal(AddressRegister.None, instructions[0].Operand2.IndexReg);
+    }
+
+    [Fact]
+    public void DisassembleMemoryBpDisp()
+    {
+        var instructions = Disassemble("8B 4E 05"); // MOV CX, [BP+5]
+        Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand2.Type);
+        Assert.Equal(AddressRegister.BP, instructions[0].Operand2.BaseReg);
+        Assert.Equal(5, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleGroupF6TestImm()
+    {
+        var instructions = Disassemble("F6 07 05"); // TEST BYTE PTR [BX], 5
+        Assert.Equal(Mnemonic.TEST, instructions[0].Mnemonic);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
+        Assert.Equal(OperandType.Immediate8, instructions[0].Operand2.Type);
+        Assert.Equal(5, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleTestModRmReg()
+    {
+        var instructions = Disassemble("84 C3"); // TEST BL, AL
+        Assert.Equal(Mnemonic.TEST, instructions[0].Mnemonic);
+        Assert.Equal(OperandType.Register8, instructions[0].Operand1.Type);
+        Assert.Equal(3, instructions[0].Operand1.Value); // BL
+        Assert.Equal(OperandType.Register8, instructions[0].Operand2.Type);
+        Assert.Equal(0, instructions[0].Operand2.Value); // AL
+    }
+
+    [Fact]
+    public void DisassembleShiftImm1()
+    {
+        var instructions = Disassemble("D0 C0"); // ROL AL, 1
+        Assert.Equal(Mnemonic.ROL, instructions[0].Mnemonic);
+        Assert.Equal(OperandType.Register8, instructions[0].Operand1.Type);
+        Assert.Equal(0, instructions[0].Operand1.Value);
+        Assert.Equal(OperandType.Immediate8, instructions[0].Operand2.Type);
+        Assert.Equal(1, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleLeaRegReg()
+    {
+        var instructions = Disassemble("8D D8"); // LEA BX, AX
+        Assert.Equal(Mnemonic.LEA, instructions[0].Mnemonic);
+        Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
+        Assert.Equal(3, instructions[0].Operand1.Value);
+        Assert.Equal(OperandType.Register16, instructions[0].Operand2.Type);
+        Assert.Equal(0, instructions[0].Operand2.Value);
+    }
+
+    [Fact]
+    public void DisassembleSimpleDisassembleOverload()
+    {
+        var disassembler = new X86Disassembler("B8 34 12".FromHex());
+        disassembler.Disassemble(0); // call the 1-param version to cover uncovered overload
+        Assert.Single(disassembler.Instructions);
+        Assert.Equal(Mnemonic.MOV, disassembler.Instructions[0].Mnemonic);
+    }
+
+    [Fact]
+    public void DisassembleBranchTest()
+    {
+        var disassembler = new X86Disassembler("B8 34 12 C3".FromHex());
+        var branch = disassembler.DisassembleBranch(0).ToList();
+        Assert.Equal(2, branch.Count);
+        Assert.Equal(Mnemonic.MOV, branch[0].Mnemonic);
+        Assert.Equal(Mnemonic.RET, branch[1].Mnemonic);
+    }
+
+    [Fact]
+    public void DisassembleIndirectJumpMemoryTarget()
+    {
+        // JMP WORD PTR [0004] where at [0004] is 0005 (target offset 5)
+        var disassembler = new X86Disassembler("FF 26 04 00 90 90 05 00".FromHex());
+        disassembler.DataSegmentBase = 0;
+        disassembler.Disassemble(0);
+        Assert.Equal(Mnemonic.JMP, disassembler.Instructions[0].Mnemonic);
+        // Covers the memory indirect jump target resolution in GetEffectiveJumpTarget
+    }
 }
