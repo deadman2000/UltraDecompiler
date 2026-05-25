@@ -8,9 +8,10 @@ public record struct RegisterState(
     byte? BH, byte? BL,
     byte? CH, byte? CL,
     byte? DH, byte? DL,
-    ushort? SP, ushort? BP, ushort? SI, ushort? DI)
+    ushort? SP, ushort? BP, ushort? SI, ushort? DI,
+    ushort? ES, ushort? CS, ushort? SS, ushort? DS)
 {
-    public static readonly RegisterState Zeros = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    public static readonly RegisterState Zeros = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
     public static readonly RegisterState InitExe = Zeros with { SP = null };
 
