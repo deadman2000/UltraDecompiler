@@ -74,8 +74,7 @@ public class RegistersTests : BaseTests
             """);
         Assert.Equal((ushort)0x1234, instructions[0].Registers.SP);
         Assert.Equal((ushort)0x5678, instructions[1].Registers.BP);
-        Assert.Equal((ushort)0x9ABC, instructions[2].Registers.SI
-);
+        Assert.Equal((ushort)0x9ABC, instructions[2].Registers.SI);
         Assert.Equal((ushort)0xDEF0, instructions[3].Registers.DI);
         Assert.Equal((ushort)0xDEF0, instructions[4].Registers.DI);
     }

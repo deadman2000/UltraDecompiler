@@ -13,9 +13,9 @@ public record struct RegisterState(
 {
     public static readonly RegisterState Zeros = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-    public static readonly RegisterState InitExe = Zeros with { SP = null };
+    public static readonly RegisterState InitExe = Zeros with { SP = null, CS = null, DS = null, SS = null };
 
-    public static readonly RegisterState InitCom = Zeros with { SP = 0xfffe };
+    public static readonly RegisterState InitCom = Zeros with { SP = 0xfffe, CS = null, DS = null, ES = null, SS = null };
 
     public static readonly RegisterState Unknown = new();
 
