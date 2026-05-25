@@ -80,7 +80,21 @@ public class Decompiler
                     {
                         registers = registers.Set8(instr.Operand1.Value, exprSrc);
                     }
+                    else if (instr.Operand1.Type == OperandType.SegmentRegister)
+                    {
+                        registers = registers.SetSegment(instr.Operand1.Value, exprSrc);
+                    }
                     // TODO: поддержка регистров памяти, сегментных
+                    break;
+
+                case Mnemonic.LEA:
+                    if (instr.Operand1.Type == OperandType.Register16)
+                    {
+                        // LEA загружает эффективный адрес (offset) в регистр (индексный или общий)
+                        // Полная поддержка Memory будет позже; placeholder чтобы не падать и регистр поддерживался
+                        var eaExpr = new ConstExpr(0);
+                        registers = registers.Set16(instr.Operand1.Value, eaExpr);
+                    }
                     break;
 
                 case Mnemonic.ADD:
@@ -159,6 +173,17 @@ public class Decompiler
         if (operand.Type == OperandType.Register8)
         {
             return registers.Get8(operand.Value);
+        }
+
+        if (operand.Type == OperandType.SegmentRegister)
+        {
+            return registers.GetSegment(operand.Value);
+        }
+
+        if (operand.Type == OperandType.Memory)
+        {
+            // Placeholder до полной поддержки memory operands (для LEA и т.д.)
+            return new ConstExpr(operand.Value);
         }
 
         throw new NotImplementedException($"Unsupported operand type: {operand.Type}");
