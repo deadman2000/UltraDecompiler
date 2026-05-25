@@ -80,7 +80,7 @@ public class Decompiler
                     {
                         registers = registers.Set8(instr.Operand1.Value, exprSrc);
                     }
-                    // TODO: поддержка 8-битных регистров, памяти, сегментных
+                    // TODO: поддержка регистров памяти, сегментных
                     break;
 
                 case Mnemonic.ADD:
@@ -105,19 +105,6 @@ public class Decompiler
         codeBlock.EndRegisters = registers;
 
         return codeBlock;
-    }
-
-    private RegisterExpressions UpdateRegister(RegisterExpressions regs, int regValue, Expr expr)
-    {
-        return regValue switch
-        {
-            0 => regs with { AX = expr }, // AX
-            1 => regs with { CX = expr }, // CX
-            2 => regs with { DX = expr }, // DX
-            3 => regs with { BX = expr }, // BX
-            // 4=SP, 5=BP, 6=SI, 7=DI
-            _ => regs
-        };
     }
 
     private void HandleArithmetic(CodeBlock codeBlock, Instruction instr, RegisterExpressions regs, ref RegisterExpressions registers)
