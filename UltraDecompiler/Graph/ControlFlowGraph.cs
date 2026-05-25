@@ -35,6 +35,9 @@ public class ControlFlowGraph
             if (visited.Contains(offset))
                 continue;
 
+            if (offset < 0 || offset >= disassembler.Image.Length)
+                continue;
+
             var block = new BasicBlock
             {
                 StartOffset = offset
