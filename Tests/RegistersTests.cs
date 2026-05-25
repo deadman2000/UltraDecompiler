@@ -410,4 +410,51 @@ public class RegistersTests : BaseTests
             """);
         Assert.Equal((byte)0x07, instructions[1].Registers.CH);
     }
+
+    [Fact]
+    public void RegisterExpressions_SegmentAndIndex_SetGet()
+    {
+        // Тест поддержки сегментных и индексных регистров в Decompilation.RegisterExpressions
+        var regs = RegisterExpressions.InitZero();
+
+        // Установка индексных регистров (SP=4, BP=5, SI=6, DI=7)
+        var spExpr = new ConstExpr(0x1234);
+        regs = regs.Set16(4, spExpr);
+        Assert.Equal(spExpr, regs.SP);
+        Assert.Equal(spExpr, regs.Get16(4));
+
+        var bpExpr = new ConstExpr(0x5678);
+        regs = regs.Set16(5, bpExpr);
+        Assert.Equal(bpExpr, regs.BP);
+        Assert.Equal(bpExpr, regs.Get16(5));
+
+        var siExpr = new ConstExpr(0x9ABC);
+        regs = regs.Set16(6, siExpr);
+        Assert.Equal(siExpr, regs.SI);
+        Assert.Equal(siExpr, regs.Get16(6));
+
+        var diExpr = new ConstExpr(0xDEF0);
+        regs = regs.Set16(7, diExpr);
+        Assert.Equal(diExpr, regs.DI);
+        Assert.Equal(diExpr, regs.Get16(7));
+
+        // Установка сегментных регистров (ES=0, CS=1, SS=2, DS=3)
+        var dsExpr = new ConstExpr(0x1000);
+        regs = regs.SetSegment(3, dsExpr);
+        Assert.Equal(dsExpr, regs.DS);
+        Assert.Equal(dsExpr, regs.GetSegment(3));
+
+        var esExpr = new ConstExpr(0x2000);
+        regs = regs.SetSegment(0, esExpr);
+        Assert.Equal(esExpr, regs.ES);
+        Assert.Equal(esExpr, regs.GetSegment(0));
+
+        var csExpr = new ConstExpr(0xF000);
+        regs = regs.SetSegment(1, csExpr);
+        Assert.Equal(csExpr, regs.CS);
+        Assert.Equal(csExpr, regs.GetSegment(1));
+
+        // Проверка что общие регистры не сломаны
+        Assert.Equal(new ConstExpr(0), regs.AX); // init zero
+    }
 }
