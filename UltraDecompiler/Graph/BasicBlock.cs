@@ -10,10 +10,9 @@ public class BasicBlock
     public int StartOffset { get; set; }
     public int EndOffset { get; set; }
 
-    public List<Instruction> Instructions { get; set; } = new();
+    public List<Instruction> Instructions { get; set; } = [];
 
-    // Перезоды
-
+    // Переходы
     public int? NextOffset { get; set; }
 
     public int? ConditionalOffset { get; set; }
@@ -22,10 +21,8 @@ public class BasicBlock
 
     public BasicBlock? ConditionalBlock { get; set; }
 
-    public Expression? Condition { get; set; }
-
     public override string ToString()
     {
-        return $"Block 0x{StartOffset:X6} - 0x{EndOffset:X6} ({Instructions.Count} instr)";
+        return $"Block {StartOffset:X6}h - {EndOffset:X6}h ({Instructions.Count} instr)";
     }
 }

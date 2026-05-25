@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using UltraDecompiler.Decompilation;
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.Graph;
 using UltraDecompiler.Parser;
@@ -52,6 +53,9 @@ try
     var svgPath = Path.Combine(Path.GetDirectoryName(exePath) ?? ".", "cfg.svg");
     cfg.SaveDot(dotPath);
     ConvertDotToSvg(dotPath, svgPath);
+
+    var decompiler = new Decompiler();
+    decompiler.Decompile(cfg);
 }
 catch (Exception ex)
 {

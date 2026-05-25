@@ -166,12 +166,10 @@ public class ControlFlowGraph
         }
 
         // Переносим переходы
-        nextBlock.Condition = firstBlock.Condition;
         nextBlock.ConditionalOffset = firstBlock.ConditionalOffset;
         nextBlock.ConditionalBlock = firstBlock.ConditionalBlock;
         nextBlock.NextBlock = firstBlock.NextBlock;
 
-        firstBlock.Condition = null;
         firstBlock.ConditionalOffset = null;
         firstBlock.ConditionalBlock = null;
 

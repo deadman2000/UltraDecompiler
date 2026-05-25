@@ -1,4 +1,5 @@
-﻿using UltraDecompiler.Disassembler;
+﻿using UltraDecompiler.Decompilation;
+using UltraDecompiler.Disassembler;
 using UltraDecompiler.Graph;
 
 namespace Tests;
@@ -20,5 +21,13 @@ public abstract class BaseTests
         var graph = new ControlFlowGraph();
         graph.Build(disassembler, 0);
         return graph;
+    }
+
+    protected static Decompiler Decompile(string hex)
+    {
+        var graph = GetGraph(hex);
+        var decompiler = new Decompiler();
+        decompiler.Decompile(graph);
+        return decompiler;
     }
 }
