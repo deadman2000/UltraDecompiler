@@ -74,7 +74,8 @@ public class RegistersTests : BaseTests
             """);
         Assert.Equal((ushort)0x1234, instructions[0].Registers.SP);
         Assert.Equal((ushort)0x5678, instructions[1].Registers.BP);
-        Assert.Equal((ushort)0x9ABC, instructions[2].Registers.SI);
+        Assert.Equal((ushort)0x9ABC, instructions[2].Registers.SI
+);
         Assert.Equal((ushort)0xDEF0, instructions[3].Registers.DI);
         Assert.Equal((ushort)0xDEF0, instructions[4].Registers.DI);
     }
@@ -279,5 +280,19 @@ public class RegistersTests : BaseTests
             """);
         Assert.Equal((byte)0xFF, instructions[1].Registers.DH);
         Assert.Equal((byte)0xFF, instructions[1].Registers.DL);
+    }
+
+    [Fact]
+    public void MovSegmentRegisters()
+    {
+        var instructions = Disassemble("""
+            B8 00 10; mov ax, 1000h
+            8E D8;    mov ds, ax
+            8C DB;    mov bx, ds
+            CD 21;    int 21h
+            """);
+        Assert.Equal((ushort)0x1000, instructions[1].Registers.DS);
+        Assert.Equal((ushort)0x1000, instructions[2].Registers.BX);
+        Assert.Equal((ushort)0x1000, instructions[3].Registers.BX);
     }
 }
