@@ -144,6 +144,22 @@ public partial class Instruction
 			}
 		}
 
+		// Поддержка сегментных регистров (ES=0, CS=1, SS=2, DS=3)
+		if (Operand1.Type == OperandType.SegmentRegister && Operand2.Type == OperandType.Register16)
+		{
+			ushort? srcVal = GetReg16(state, Operand2.Value);
+			return SetSreg(state, Operand1.Value, srcVal);
+		}
+		if (Operand1.Type == OperandType.Register16 && Operand2.Type == OperandType.SegmentRegister)
+		{
+			ushort? srcVal = GetSreg(state, Operand2.Value);
+			return SetReg16(state, Operand1.Value, srcVal);
+		}
+		if (Operand1.Type == OperandType.SegmentRegister && Operand2.Type == OperandType.Immediate16)
+		{
+			return SetSreg(state, Operand1.Value, (ushort)Operand2.Value);
+		}
+
 		return state;
 	}
 
@@ -218,6 +234,24 @@ public partial class Instruction
 			_ => state
 		};
 	}
+
+	private ushort? GetSreg(RegisterState state, int idx) => idx switch
+	{
+		0 => state.ES,
+		1 => state.CS,
+		2 => state.SS,
+		3 => state.DS,
+		_ => null
+	};
+
+	private RegisterState SetSreg(RegisterState state, int idx, ushort? val) => idx switch
+	{
+		0 => state with { ES = val },
+		1 => state with { CS = val },
+		2 => state with { SS = val },
+		3 => state with { DS = val },
+		_ => state
+	};
 
 	private RegisterState ModifyBinary(RegisterState state, Func<byte, byte, byte> op8, Func<ushort, ushort, ushort> op16)
 	{
