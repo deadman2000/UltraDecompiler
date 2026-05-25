@@ -1,3 +1,5 @@
+using UltraDecompiler.Decompilation;
+
 namespace Tests;
 
 public class RegistersTests : BaseTests

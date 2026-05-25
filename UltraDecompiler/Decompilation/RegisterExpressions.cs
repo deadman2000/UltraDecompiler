@@ -3,7 +3,7 @@ namespace UltraDecompiler.Decompilation;
 /// <summary>
 /// Выражения в регистрах
 /// </summary>
-public record struct RegisterExpressions(Expr AX, Expr BX, Expr CX, Expr DX)
+public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
 {
     public Expr? AH { get; init; }
     public Expr? AL { get; init; }
@@ -30,7 +30,7 @@ public record struct RegisterExpressions(Expr AX, Expr BX, Expr CX, Expr DX)
         };
     }
 
-    private Expr GetX(int group) => group switch
+    private readonly Expr? GetX(int group) => group switch
     {
         0 => AX,
         1 => CX,
@@ -39,7 +39,7 @@ public record struct RegisterExpressions(Expr AX, Expr BX, Expr CX, Expr DX)
         _ => new ConstExpr(0)
     };
 
-    private Expr? GetH(int group) => group switch
+    private readonly Expr? GetH(int group) => group switch
     {
         0 => AH,
         1 => CH,
@@ -48,7 +48,7 @@ public record struct RegisterExpressions(Expr AX, Expr BX, Expr CX, Expr DX)
         _ => null
     };
 
-    private Expr? GetL(int group) => group switch
+    private readonly Expr? GetL(int group) => group switch
     {
         0 => AL,
         1 => CL,
@@ -76,8 +76,8 @@ public record struct RegisterExpressions(Expr AX, Expr BX, Expr CX, Expr DX)
         return SetX(group, expr);
     }
 
-    private static Expr LowByte(Expr e) => new Math2Expr(Math2Operation.And, e, new ConstExpr(0xff));
-    private static Expr HighByte(Expr e) => new Math2Expr(Math2Operation.Shr, e, new ConstExpr(8));
+    private static Math2Expr LowByte(Expr e) => new(Math2Operation.And, e, new ConstExpr(0xff));
+    private static Math2Expr HighByte(Expr e) => new(Math2Operation.Shr, e, new ConstExpr(8));
 
     /// <summary>
     /// Установка 8-битного регистра с логикой: если есть X - разделяем на другой байт с & 0xff или >>8, X в null
@@ -95,7 +95,7 @@ public record struct RegisterExpressions(Expr AX, Expr BX, Expr CX, Expr DX)
         if (group < 0) return this;
 
         bool isHigh = reg8 >= 4;
-        Expr x = GetX(group);
+        Expr? x = GetX(group);
         Expr? other = x != null ? (isHigh ? LowByte(x) : HighByte(x)) : null;
 
         Expr? newH = isHigh ? expr : (other ?? GetH(group));
@@ -115,7 +115,7 @@ public record struct RegisterExpressions(Expr AX, Expr BX, Expr CX, Expr DX)
     /// <summary>
     /// Получение 16-битного как выражение: если оба H и L установлены - объединяем (H << 8) | L
     /// </summary>
-    public Expr Get16(int reg16)
+    public readonly Expr Get16(int reg16)
     {
         int group = reg16 switch { 0 => 0, 1 => 1, 2 => 2, 3 => 3, _ => -1 };
         if (group < 0) return new ConstExpr(0);
@@ -127,13 +127,14 @@ public record struct RegisterExpressions(Expr AX, Expr BX, Expr CX, Expr DX)
             var shl = new Math2Expr(Math2Operation.Shl, h, new ConstExpr(8));
             return new Math2Expr(Math2Operation.Or, shl, l);
         }
-        return GetX(group);
+
+        return GetX(group) ?? throw new InvalidOperationException();
     }
 
     /// <summary>
     /// Получение 8-битного выражения
     /// </summary>
-    public Expr Get8(int reg8)
+    public readonly Expr Get8(int reg8)
     {
         int group = reg8 switch
         {
@@ -149,7 +150,7 @@ public record struct RegisterExpressions(Expr AX, Expr BX, Expr CX, Expr DX)
         Expr? b = isHigh ? GetH(group) : GetL(group);
         if (b != null) return b;
 
-        Expr x = GetX(group);
+        Expr x = GetX(group) ?? throw new InvalidOperationException();
         return isHigh ? HighByte(x) : LowByte(x);
     }
 }
