@@ -412,12 +412,11 @@ public class RegistersTests : BaseTests
     }
 
     [Fact]
-    public void RegisterExpressions_SegmentAndIndex_SetGet()
+    public void RegisterExpressions_IndexRegisters_SetGet()
     {
-        // Тест поддержки сегментных и индексных регистров в Decompilation.RegisterExpressions
+        // Тест поддержки индексных регистров (SP, BP, SI, DI) в RegisterExpressions
         var regs = RegisterExpressions.InitZero();
 
-        // Установка индексных регистров (SP=4, BP=5, SI=6, DI=7)
         var spExpr = new ConstExpr(0x1234);
         regs = regs.Set16(4, spExpr);
         Assert.Equal(spExpr, regs.SP);
@@ -437,8 +436,14 @@ public class RegistersTests : BaseTests
         regs = regs.Set16(7, diExpr);
         Assert.Equal(diExpr, regs.DI);
         Assert.Equal(diExpr, regs.Get16(7));
+    }
 
-        // Установка сегментных регистров (ES=0, CS=1, SS=2, DS=3)
+    [Fact]
+    public void RegisterExpressions_SegmentRegisters_SetGet()
+    {
+        // Тест поддержки сегментных регистров (ES, CS, SS, DS) в RegisterExpressions
+        var regs = RegisterExpressions.InitZero();
+
         var dsExpr = new ConstExpr(0x1000);
         regs = regs.SetSegment(3, dsExpr);
         Assert.Equal(dsExpr, regs.DS);
@@ -454,7 +459,7 @@ public class RegistersTests : BaseTests
         Assert.Equal(csExpr, regs.CS);
         Assert.Equal(csExpr, regs.GetSegment(1));
 
-        // Проверка что общие регистры не сломаны
+        // Проверка совместимости: общие регистры не сломаны
         Assert.Equal(new ConstExpr(0), regs.AX); // init zero
     }
 }
