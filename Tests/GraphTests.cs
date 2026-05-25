@@ -23,7 +23,7 @@ public class GraphTests : BaseTests
             90       ; nop
             """);
 
-        Assert.Equal(1, graph.Blocks.Count);
+        Assert.Single(graph.Blocks);
         Assert.NotNull(graph.EntryBlock);
         Assert.Equal(0, graph.EntryBlock.StartOffset);
     }

@@ -1,20 +1,25 @@
 ﻿namespace UltraDecompiler.Decompilation;
 
+/// <summary>
+/// Хранилище переменных
+/// </summary>
 public class VariableStorage
 {
-    private List<Variable> _variables = [];
+    private readonly List<Variable> _variables = [];
 
     public void Clear()
     {
         _variables.Clear();
     }
 
+    /// <summary>
+    /// Создает новую переменную
+    /// </summary>
     public Variable CreateVariable()
     {
-        var ind = _variables.Count;
         var v = new Variable
         {
-            Number = ind
+            Number = _variables.Count
         };
         _variables.Add(v);
         return v;
