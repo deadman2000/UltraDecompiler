@@ -14,14 +14,14 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
     public Expr? DH { get; init; }
     public Expr? DL { get; init; }
 
-    public Expr? SP { get; init; }
-    public Expr? BP { get; init; }
-    public Expr? SI { get; init; }
-    public Expr? DI { get; init; }
-    public Expr? ES { get; init; }
-    public Expr? CS { get; init; }
-    public Expr? SS { get; init; }
-    public Expr? DS { get; init; }
+    public Expr SP { get; init; }
+    public Expr BP { get; init; }
+    public Expr SI { get; init; }
+    public Expr DI { get; init; }
+    public Expr ES { get; init; }
+    public Expr CS { get; init; }
+    public Expr SS { get; init; }
+    public Expr DS { get; init; }
 
     public static RegisterExpressions InitZero()
     {
@@ -95,10 +95,10 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
         }
         return reg16 switch
         {
-            4 => this with { SP = expr ?? new ConstExpr(0) },
-            5 => this with { BP = expr ?? new ConstExpr(0) },
-            6 => this with { SI = expr ?? new ConstExpr(0) },
-            7 => this with { DI = expr ?? new ConstExpr(0) },
+            4 => this with { SP = expr },
+            5 => this with { BP = expr },
+            6 => this with { SI = expr },
+            7 => this with { DI = expr },
             _ => this
         };
     }
@@ -159,10 +159,10 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
         }
         return reg16 switch
         {
-            4 => SP ?? throw new InvalidOperationException(),
-            5 => BP ?? throw new InvalidOperationException(),
-            6 => SI ?? throw new InvalidOperationException(),
-            7 => DI ?? throw new InvalidOperationException(),
+            4 => SP,
+            5 => BP,
+            6 => SI,
+            7 => DI,
             _ => new ConstExpr(0)
         };
     }
@@ -197,10 +197,10 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
     {
         return sreg switch
         {
-            0 => this with { ES = expr ?? new ConstExpr(0) },
-            1 => this with { CS = expr ?? new ConstExpr(0) },
-            2 => this with { SS = expr ?? new ConstExpr(0) },
-            3 => this with { DS = expr ?? new ConstExpr(0) },
+            0 => this with { ES = expr },
+            1 => this with { CS = expr },
+            2 => this with { SS = expr },
+            3 => this with { DS = expr },
             _ => this
         };
     }
@@ -212,10 +212,10 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
     {
         return sreg switch
         {
-            0 => ES ?? new ConstExpr(0),
-            1 => CS ?? new ConstExpr(0),
-            2 => SS ?? new ConstExpr(0),
-            3 => DS ?? new ConstExpr(0),
+            0 => ES,
+            1 => CS,
+            2 => SS,
+            3 => DS,
             _ => new ConstExpr(0)
         };
     }
