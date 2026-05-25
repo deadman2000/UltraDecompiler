@@ -74,7 +74,11 @@ public class Decompiler
                     var exprSrc = GetExpression(instr.Operand2, registers);
                     if (instr.Operand1.Type == OperandType.Register16)
                     {
-                        registers = UpdateRegister(registers, instr.Operand1.Value, exprSrc);
+                        registers = registers.Set16(instr.Operand1.Value, exprSrc);
+                    }
+                    else if (instr.Operand1.Type == OperandType.Register8)
+                    {
+                        registers = registers.Set8(instr.Operand1.Value, exprSrc);
                     }
                     // TODO: поддержка 8-битных регистров, памяти, сегментных
                     break;
@@ -128,7 +132,11 @@ public class Decompiler
 
         if (dst.Type == OperandType.Register16)
         {
-            registers = UpdateRegister(registers, dst.Value, resultVar);
+            registers = registers.Set16(dst.Value, resultVar);
+        }
+        else if (dst.Type == OperandType.Register8)
+        {
+            registers = registers.Set8(dst.Value, resultVar);
         }
     }
 
@@ -143,7 +151,11 @@ public class Decompiler
 
         if (dst.Type == OperandType.Register16)
         {
-            registers = UpdateRegister(registers, dst.Value, resultVar);
+            registers = registers.Set16(dst.Value, resultVar);
+        }
+        else if (dst.Type == OperandType.Register8)
+        {
+            registers = registers.Set8(dst.Value, resultVar);
         }
     }
 
@@ -154,14 +166,12 @@ public class Decompiler
 
         if (operand.Type == OperandType.Register16)
         {
-            return operand.Value switch
-            {
-                0 => registers.AX,
-                1 => registers.CX,
-                2 => registers.DX,
-                3 => registers.BX,
-                _ => new ConstExpr(0)
-            };
+            return registers.Get16(operand.Value);
+        }
+
+        if (operand.Type == OperandType.Register8)
+        {
+            return registers.Get8(operand.Value);
         }
 
         throw new NotImplementedException($"Unsupported operand type: {operand.Type}");
