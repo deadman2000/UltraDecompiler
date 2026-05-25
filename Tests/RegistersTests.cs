@@ -294,4 +294,43 @@ public class RegistersTests : BaseTests
         Assert.Equal((ushort)0x1000, instructions[2].Registers.BX);
         Assert.Equal((ushort)0x1000, instructions[3].Registers.BX);
     }
+
+    [Fact]
+    public void RegisterExpressions_8bit_SetGet_Logic()
+    {
+        // Тест новой логики 8-битных регистров в Decompilation.RegisterExpressions
+        var regs = RegisterExpressions.InitZero();
+
+        // Установка 16-bit AX
+        var axExpr = new ConstExpr(0x1234);
+        regs = regs.Set16(0, axExpr);
+        Assert.Null(regs.AH);
+        Assert.Null(regs.AL);
+        Assert.Equal(axExpr, regs.Get16(0));
+
+        // Установка AH - разбиваем X на AL = X & 0xff, X=null
+        var ahExpr = new ConstExpr(0x12);
+        regs = regs.Set8(4, ahExpr); // AH=4
+        Assert.Equal(ahExpr, regs.AH);
+        Assert.NotNull(regs.AL); // должна быть LowByte из прежнего X
+        Assert.Null(regs.AX);
+        Assert.Equal(ahExpr, regs.Get8(4));
+
+        // Установка AL - оба установлены, Get16 = (AH<<8)|AL
+        var alExpr = new ConstExpr(0x34);
+        regs = regs.Set8(0, alExpr); // AL=0
+        Assert.Equal(alExpr, regs.AL);
+        var combined = regs.Get16(0);
+        Assert.NotNull(combined);
+        // проверка типа выражения
+        Assert.Contains("<< 8", combined.ToString());
+        Assert.Contains("| ", combined.ToString());
+
+        // Установка обратно AX - H/L в null
+        var newAx = new ConstExpr(0x5678);
+        regs = regs.Set16(0, newAx);
+        Assert.Null(regs.AH);
+        Assert.Null(regs.AL);
+        Assert.Equal(newAx, regs.Get16(0));
+    }
 }
