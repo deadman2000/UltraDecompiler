@@ -127,3 +127,29 @@ public record Math2Expr(Math2Operation Operation, Expr First, Expr Second) : Exp
 /// Вызов метода
 /// </summary>
 public record CallExpr(Procedure Procedure, IReadOnlyList<Expr> Args) : Expr;
+
+/// <summary>
+/// Операции сравнения, используемые для представления флагов (ZF и т.д.) и условий.
+/// </summary>
+public enum CmpOperation
+{
+    /// <summary>Равно</summary>
+    Eq,
+    /// <summary>Не равно</summary>
+    Ne,
+}
+
+/// <summary>
+/// Выражение сравнения двух операндов.
+/// Используется чтобы символически представить значение флагов после CMP/TEST/арифметики.
+/// Пример: после "CMP AX, 5" флаг ZF может быть CmpExpr(Eq, AX, Const(5))
+/// </summary>
+public record CmpExpr(CmpOperation Operation, Expr Left, Expr Right) : Expr
+{
+    public override string ToString() => Operation switch
+    {
+        CmpOperation.Eq => $"{Left} == {Right}",
+        CmpOperation.Ne => $"{Left} != {Right}",
+        _ => throw new NotImplementedException(),
+    };
+}

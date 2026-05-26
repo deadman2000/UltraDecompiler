@@ -218,11 +218,16 @@ public class ExpressionBuilder
                     HandleShift(exprBlock, instr, Math2Operation.Shr, registers, ref registers);
                     break;
 
+                case Mnemonic.CMP:
+                    HandleCmp(exprBlock, instr, registers, ref registers);
+                    break;
+
+                case Mnemonic.TEST:
+                    HandleTest(exprBlock, instr, registers, ref registers);
+                    break;
+
                 // TODO: MUL, IMUL, DIV, IDIV — меняют несколько регистров (AX/DX),
                 // имеют сложную семантику флагов и переполнений.
-                //
-                // TODO: CMP, TEST — не записывают результат в регистр, а только
-                // влияют на флаги. Нужна отдельная модель для отслеживания флагов.
                 //
                 // TODO: Jcc — требует анализа предыдущей CMP/TEST + текущих флагов.
                 default:
@@ -268,6 +273,8 @@ public class ExpressionBuilder
         {
             registers = registers.Set8(dst.Value, resultVar);
         }
+
+        registers = ApplyArithmeticFlags(registers, resultVar);
     }
 
     /// <summary>
@@ -294,6 +301,8 @@ public class ExpressionBuilder
         {
             registers = registers.Set8(dst.Value, resultVar);
         }
+
+        registers = ApplyArithmeticFlags(registers, resultVar);
     }
 
     /// <summary>
@@ -327,6 +336,8 @@ public class ExpressionBuilder
         {
             registers = registers.Set8(dst.Value, resultVar);
         }
+
+        registers = ApplyArithmeticFlags(registers, resultVar);
     }
 
     /// <summary>
@@ -353,6 +364,8 @@ public class ExpressionBuilder
         {
             registers = registers.Set8(dst.Value, resultVar);
         }
+
+        registers = ApplyArithmeticFlags(registers, resultVar);
     }
 
     /// <summary>
@@ -386,6 +399,63 @@ public class ExpressionBuilder
         {
             registers = registers.Set8(dst.Value, resultVar);
         }
+
+        registers = ApplyArithmeticFlags(registers, resultVar);
+    }
+
+    /// <summary>
+    /// Обрабатывает CMP (сравнение). Не создаёт SetOperation (результат не записывается),
+    /// но обновляет символические значения флагов в RegisterExpressions.
+    /// ZF для CMP представляется как CmpExpr(Eq, left, right) — это позволяет
+    /// в будущем легко строить условия вида "if (ax == bx)".
+    /// </summary>
+    private void HandleCmp(ExprBlock exprBlock, Instruction instr, RegisterExpressions regs, ref RegisterExpressions registers)
+    {
+        var left = GetExpression(instr.Operand1, regs);
+        var right = GetExpression(instr.Operand2, regs);
+
+        // Прямое равенство — лучший способ представить ZF после CMP
+        var zfExpr = new CmpExpr(CmpOperation.Eq, left, right);
+
+        // Другие флаги (CF, SF, OF) оставляем как есть или null (полная модель сложнее).
+        // В будущем можно вычислять через виртуальный Sub и bit-анализ.
+        registers = registers with { ZF = zfExpr };
+    }
+
+    /// <summary>
+    /// Обрабатывает TEST (побитовое И без записи результата).
+    /// Обновляет флаги: ZF = ((left & right) == 0), CF=0, OF=0.
+    /// Не порождает Operation.
+    /// </summary>
+    private void HandleTest(ExprBlock exprBlock, Instruction instr, RegisterExpressions regs, ref RegisterExpressions registers)
+    {
+        var left = GetExpression(instr.Operand1, regs);
+        var right = GetExpression(instr.Operand2, regs);
+
+        var andExpr = new Math2Expr(Math2Operation.And, left, right);
+        var zfExpr = new CmpExpr(CmpOperation.Eq, andExpr, ConstExpr.Zero);
+
+        registers = registers with
+        {
+            ZF = zfExpr,
+            CF = ConstExpr.Zero,
+            OF = ConstExpr.Zero
+            // SF/PF от битов результата AND — при необходимости доработать
+        };
+    }
+
+    /// <summary>
+    /// Применяет обновление флагов после арифметической/логической операции,
+    /// которая записала результат в resultExpr (обычно Variable).
+    /// На данный момент устанавливаем только ZF = (resultExpr == 0).
+    /// </summary>
+    private static RegisterExpressions ApplyArithmeticFlags(RegisterExpressions regs, Expr resultExpr)
+    {
+        return regs with
+        {
+            ZF = new CmpExpr(CmpOperation.Eq, resultExpr, ConstExpr.Zero)
+            // CF, SF, OF при необходимости (требуют знания операции и bit-логики)
+        };
     }
 
     /// <summary>

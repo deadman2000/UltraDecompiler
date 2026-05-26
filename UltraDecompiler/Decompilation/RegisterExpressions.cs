@@ -3,7 +3,10 @@ namespace UltraDecompiler.Decompilation;
 /// <summary>
 /// Выражения в регистрах
 /// </summary>
-public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX, Expr SP, Expr BP, Expr SI, Expr DI, Expr ES, Expr CS, Expr SS, Expr DS)
+public record struct RegisterExpressions(
+    Expr? AX, Expr? BX, Expr? CX, Expr? DX,
+    Expr SP, Expr BP, Expr SI, Expr DI,
+    Expr ES, Expr CS, Expr SS, Expr DS)
 {
     public Expr? AH { get; init; }
     public Expr? AL { get; init; }
@@ -13,6 +16,12 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX,
     public Expr? CL { get; init; }
     public Expr? DH { get; init; }
     public Expr? DL { get; init; }
+
+    // Флаги (символические выражения). null = неизвестен/не вычислен.
+    public Expr? ZF { get; init; }
+    public Expr? CF { get; init; }
+    public Expr? SF { get; init; }
+    public Expr? OF { get; init; }
 
     public static RegisterExpressions InitZero()
     {
