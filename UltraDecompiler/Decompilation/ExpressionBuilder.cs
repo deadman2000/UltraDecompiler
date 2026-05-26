@@ -136,78 +136,54 @@ public class ExpressionBuilder
     /// </summary>
     private ExprBlock GenerateCode(ExprBlock exprBlock)
     {
-        var registers = exprBlock.InitRegisters;
+        // Начинаем обработку блока с копии InitRegisters.
+        exprBlock.EndRegisters = exprBlock.InitRegisters;
+
         foreach (var instr in exprBlock.BasicBlock.Instructions)
         {
             switch (instr.Mnemonic)
             {
                 case Mnemonic.MOV:
-                    var exprSrc = GetExpression(instr.Operand2, registers);
-
-                    // Обновляем символическое значение регистра-назначения.
-                    // Сама операция MOV обычно не порождает отдельный SetOperation —
-                    // она просто "передаёт" выражение дальше.
-                    if (instr.Operand1.Type == OperandType.Register16)
-                    {
-                        registers = registers.Set16(instr.Operand1.Value, exprSrc);
-                    }
-                    else if (instr.Operand1.Type == OperandType.Register8)
-                    {
-                        registers = registers.Set8(instr.Operand1.Value, exprSrc);
-                    }
-                    else if (instr.Operand1.Type == OperandType.SegmentRegister)
-                    {
-                        registers = registers.SetSegment(instr.Operand1.Value, exprSrc);
-                    }
-                    // TODO: Добавить поддержку записи в память (MOV [bx], ax и т.п.).
-                    // Сейчас такие инструкции молча игнорируются.
+                    HandleMov(exprBlock, instr);
                     break;
 
                 case Mnemonic.LEA:
-                    if (instr.Operand1.Type == OperandType.Register16)
-                    {
-                        // LEA загружает эффективный адрес (offset) в регистр.
-                        // Полноценная поддержка сложных выражений памяти ([bx+si+1234h])
-                        // потребует отдельного типа выражения (например, AddressExpr).
-                        // Пока используем заглушку, чтобы хотя бы регистр не потерялся.
-                        var eaExpr = ConstExpr.Zero;
-                        registers = registers.Set16(instr.Operand1.Value, eaExpr);
-                    }
+                    HandleLea(exprBlock, instr);
                     break;
 
                 case Mnemonic.ADD:
                 case Mnemonic.SUB:
-                    HandleArithmetic(exprBlock, instr, registers, ref registers);
+                    HandleArithmetic(exprBlock, instr);
                     break;
 
                 case Mnemonic.INC:
-                    HandleIncDec(exprBlock, instr, registers, true, ref registers);
+                    HandleIncDec(exprBlock, instr, true);
                     break;
 
                 case Mnemonic.DEC:
-                    HandleIncDec(exprBlock, instr, registers, false, ref registers);
+                    HandleIncDec(exprBlock, instr, false);
                     break;
 
                 case Mnemonic.AND:
                 case Mnemonic.OR:
                 case Mnemonic.XOR:
-                    HandleLogical(exprBlock, instr, registers, ref registers);
+                    HandleLogical(exprBlock, instr);
                     break;
 
                 case Mnemonic.NOT:
-                    HandleUnary(exprBlock, instr, Math1Operation.Not, registers, ref registers);
+                    HandleUnary(exprBlock, instr, Math1Operation.Not);
                     break;
 
                 case Mnemonic.NEG:
-                    HandleUnary(exprBlock, instr, Math1Operation.Neg, registers, ref registers);
+                    HandleUnary(exprBlock, instr, Math1Operation.Neg);
                     break;
 
                 case Mnemonic.SAL:
-                    HandleShift(exprBlock, instr, Math2Operation.Shl, registers, ref registers);
+                    HandleShift(exprBlock, instr, Math2Operation.Shl);
                     break;
 
                 case Mnemonic.SHR:
-                    HandleShift(exprBlock, instr, Math2Operation.Shr, registers, ref registers);
+                    HandleShift(exprBlock, instr, Math2Operation.Shr);
                     break;
 
                 case Mnemonic.SAR:
@@ -215,15 +191,15 @@ public class ExpressionBuilder
                     // Сейчас мы упрощённо трактуем его как логический SHR.
                     // Для корректной поддержки знаковых типов в будущем потребуется
                     // отдельная операция или флаг в Math2Expr.
-                    HandleShift(exprBlock, instr, Math2Operation.Shr, registers, ref registers);
+                    HandleShift(exprBlock, instr, Math2Operation.Shr);
                     break;
 
                 case Mnemonic.CMP:
-                    HandleCmp(exprBlock, instr, registers, ref registers);
+                    HandleCmp(exprBlock, instr);
                     break;
 
                 case Mnemonic.TEST:
-                    HandleTest(exprBlock, instr, registers, ref registers);
+                    HandleTest(exprBlock, instr);
                     break;
 
                 // TODO: MUL, IMUL, DIV, IDIV — меняют несколько регистров (AX/DX),
@@ -237,11 +213,45 @@ public class ExpressionBuilder
             }
         }
 
-        // Сохраняем финальное символическое состояние регистров после обработки блока.
-        // Это состояние будет передано в следующий блок(и) при обходе CFG.
-        exprBlock.EndRegisters = registers;
-
+        // После обработки всех инструкций EndRegisters уже содержит актуальное
+        // состояние (все Handle* методы пишут напрямую в block.EndRegisters).
         return exprBlock;
+    }
+
+    private void HandleLea(ExprBlock block, Instruction instr)
+    {
+        if (instr.Operand1.Type == OperandType.Register16)
+        {
+            // LEA загружает эффективный адрес (offset) в регистр.
+            // Полноценная поддержка сложных выражений памяти ([bx+si+1234h])
+            // потребует отдельного типа выражения (например, AddressExpr).
+            // Пока используем заглушку, чтобы хотя бы регистр не потерялся.
+            var eaExpr = ConstExpr.Zero;
+            block.EndRegisters = block.EndRegisters.Set16(instr.Operand1.Value, eaExpr);
+        }
+    }
+
+    private void HandleMov(ExprBlock block, Instruction instr)
+    {
+        var exprSrc = GetExpression(instr.Operand2, block.EndRegisters);
+
+        // Обновляем символическое значение регистра-назначения.
+        // Сама операция MOV обычно не порождает отдельный SetOperation —
+        // она просто "передаёт" выражение дальше.
+        if (instr.Operand1.Type == OperandType.Register16)
+        {
+            block.EndRegisters = block.EndRegisters.Set16(instr.Operand1.Value, exprSrc);
+        }
+        else if (instr.Operand1.Type == OperandType.Register8)
+        {
+            block.EndRegisters = block.EndRegisters.Set8(instr.Operand1.Value, exprSrc);
+        }
+        else if (instr.Operand1.Type == OperandType.SegmentRegister)
+        {
+            block.EndRegisters = block.EndRegisters.SetSegment(instr.Operand1.Value, exprSrc);
+        }
+        // TODO: Добавить поддержку записи в память (MOV [bx], ax и т.п.).
+        // Сейчас такие инструкции молча игнорируются.
     }
 
     /// <summary>
@@ -252,29 +262,29 @@ public class ExpressionBuilder
     /// Мы всегда выделяем новую Variable для результата — это позволяет
     /// в дальнейшем строить более чистые выражения и избегать мутации.
     /// </summary>
-    private void HandleArithmetic(ExprBlock exprBlock, Instruction instr, RegisterExpressions regs, ref RegisterExpressions registers)
+    private void HandleArithmetic(ExprBlock block, Instruction instr)
     {
         var dst = instr.Operand1;
-        var srcExpr = GetExpression(instr.Operand2, regs);
-        var dstCurrent = GetExpression(dst, regs);
+        var srcExpr = GetExpression(instr.Operand2, block.EndRegisters);
+        var dstCurrent = GetExpression(dst, block.EndRegisters);
 
         var op = instr.Mnemonic == Mnemonic.ADD ? Math2Operation.Add : Math2Operation.Sub;
         var math = new Math2Expr(op, dstCurrent, srcExpr);
 
         var resultVar = Variables.CreateVariable();
-        exprBlock.Operations.Add(new SetOperation(resultVar, math));
+        block.Operations.Add(new SetOperation(resultVar, math));
 
         // Обновляем символическое состояние: теперь в регистре dst лежит resultVar
         if (dst.Type == OperandType.Register16)
         {
-            registers = registers.Set16(dst.Value, resultVar);
+            block.EndRegisters = block.EndRegisters.Set16(dst.Value, resultVar);
         }
         else if (dst.Type == OperandType.Register8)
         {
-            registers = registers.Set8(dst.Value, resultVar);
+            block.EndRegisters = block.EndRegisters.Set8(dst.Value, resultVar);
         }
 
-        registers = ApplyArithmeticFlags(registers, resultVar);
+        block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, resultVar);
     }
 
     /// <summary>
@@ -282,27 +292,27 @@ public class ExpressionBuilder
     /// Выделена в отдельный метод для читаемости и будущего расширения
     /// (INC/DEC по-разному влияют на флаги по сравнению с ADD/SUB 1).
     /// </summary>
-    private void HandleIncDec(ExprBlock exprBlock, Instruction instr, RegisterExpressions regs, bool isInc, ref RegisterExpressions registers)
+    private void HandleIncDec(ExprBlock block, Instruction instr, bool isInc)
     {
         var dst = instr.Operand1;
-        var current = GetExpression(dst, regs);
+        var current = GetExpression(dst, block.EndRegisters);
         var one = new ConstExpr(1);
 
         var math = new Math2Expr(isInc ? Math2Operation.Add : Math2Operation.Sub, current, one);
 
         var resultVar = Variables.CreateVariable();
-        exprBlock.Operations.Add(new SetOperation(resultVar, math));
+        block.Operations.Add(new SetOperation(resultVar, math));
 
         if (dst.Type == OperandType.Register16)
         {
-            registers = registers.Set16(dst.Value, resultVar);
+            block.EndRegisters = block.EndRegisters.Set16(dst.Value, resultVar);
         }
         else if (dst.Type == OperandType.Register8)
         {
-            registers = registers.Set8(dst.Value, resultVar);
+            block.EndRegisters = block.EndRegisters.Set8(dst.Value, resultVar);
         }
 
-        registers = ApplyArithmeticFlags(registers, resultVar);
+        block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, resultVar);
     }
 
     /// <summary>
@@ -310,11 +320,11 @@ public class ExpressionBuilder
     /// Логика полностью аналогична HandleArithmetic, но использует
     /// соответствующие Math2Operation (And, Or, Xor).
     /// </summary>
-    private void HandleLogical(ExprBlock exprBlock, Instruction instr, RegisterExpressions regs, ref RegisterExpressions registers)
+    private void HandleLogical(ExprBlock block, Instruction instr)
     {
         var dst = instr.Operand1;
-        var srcExpr = GetExpression(instr.Operand2, regs);
-        var dstCurrent = GetExpression(dst, regs);
+        var srcExpr = GetExpression(instr.Operand2, block.EndRegisters);
+        var dstCurrent = GetExpression(dst, block.EndRegisters);
 
         var op = instr.Mnemonic switch
         {
@@ -326,18 +336,18 @@ public class ExpressionBuilder
 
         var math = new Math2Expr(op, dstCurrent, srcExpr);
         var resultVar = Variables.CreateVariable();
-        exprBlock.Operations.Add(new SetOperation(resultVar, math));
+        block.Operations.Add(new SetOperation(resultVar, math));
 
         if (dst.Type == OperandType.Register16)
         {
-            registers = registers.Set16(dst.Value, resultVar);
+            block.EndRegisters = block.EndRegisters.Set16(dst.Value, resultVar);
         }
         else if (dst.Type == OperandType.Register8)
         {
-            registers = registers.Set8(dst.Value, resultVar);
+            block.EndRegisters = block.EndRegisters.Set8(dst.Value, resultVar);
         }
 
-        registers = ApplyArithmeticFlags(registers, resultVar);
+        block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, resultVar);
     }
 
     /// <summary>
@@ -347,25 +357,25 @@ public class ExpressionBuilder
     /// 
     /// Результат всегда оборачивается в новую Variable через SetOperation.
     /// </summary>
-    private void HandleUnary(ExprBlock exprBlock, Instruction instr, Math1Operation operation, RegisterExpressions regs, ref RegisterExpressions registers)
+    private void HandleUnary(ExprBlock block, Instruction instr, Math1Operation operation)
     {
         var dst = instr.Operand1;
-        var current = GetExpression(dst, regs);
+        var current = GetExpression(dst, block.EndRegisters);
         var math = new Math1Expr(operation, current);
 
         var resultVar = Variables.CreateVariable();
-        exprBlock.Operations.Add(new SetOperation(resultVar, math));
+        block.Operations.Add(new SetOperation(resultVar, math));
 
         if (dst.Type == OperandType.Register16)
         {
-            registers = registers.Set16(dst.Value, resultVar);
+            block.EndRegisters = block.EndRegisters.Set16(dst.Value, resultVar);
         }
         else if (dst.Type == OperandType.Register8)
         {
-            registers = registers.Set8(dst.Value, resultVar);
+            block.EndRegisters = block.EndRegisters.Set8(dst.Value, resultVar);
         }
 
-        registers = ApplyArithmeticFlags(registers, resultVar);
+        block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, resultVar);
     }
 
     /// <summary>
@@ -377,30 +387,30 @@ public class ExpressionBuilder
     /// 
     /// Сейчас SAR трактуется как SHR. Это упрощение.
     /// </summary>
-    private void HandleShift(ExprBlock exprBlock, Instruction instr, Math2Operation shiftOp, RegisterExpressions regs, ref RegisterExpressions registers)
+    private void HandleShift(ExprBlock block, Instruction instr, Math2Operation shiftOp)
     {
         var dst = instr.Operand1;
 
         // Второй операнд сдвига — обычно константа или CL.
         // GetExpression корректно обработает и то, и другое.
-        var srcExpr = GetExpression(instr.Operand2, regs);
-        var dstCurrent = GetExpression(dst, regs);
+        var srcExpr = GetExpression(instr.Operand2, block.EndRegisters);
+        var dstCurrent = GetExpression(dst, block.EndRegisters);
 
         var math = new Math2Expr(shiftOp, dstCurrent, srcExpr);
 
         var resultVar = Variables.CreateVariable();
-        exprBlock.Operations.Add(new SetOperation(resultVar, math));
+        block.Operations.Add(new SetOperation(resultVar, math));
 
         if (dst.Type == OperandType.Register16)
         {
-            registers = registers.Set16(dst.Value, resultVar);
+            block.EndRegisters = block.EndRegisters.Set16(dst.Value, resultVar);
         }
         else if (dst.Type == OperandType.Register8)
         {
-            registers = registers.Set8(dst.Value, resultVar);
+            block.EndRegisters = block.EndRegisters.Set8(dst.Value, resultVar);
         }
 
-        registers = ApplyArithmeticFlags(registers, resultVar);
+        block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, resultVar);
     }
 
     /// <summary>
@@ -409,17 +419,17 @@ public class ExpressionBuilder
     /// ZF для CMP представляется как CmpExpr(Eq, left, right) — это позволяет
     /// в будущем легко строить условия вида "if (ax == bx)".
     /// </summary>
-    private void HandleCmp(ExprBlock exprBlock, Instruction instr, RegisterExpressions regs, ref RegisterExpressions registers)
+    private void HandleCmp(ExprBlock block, Instruction instr)
     {
-        var left = GetExpression(instr.Operand1, regs);
-        var right = GetExpression(instr.Operand2, regs);
+        var left = GetExpression(instr.Operand1, block.EndRegisters);
+        var right = GetExpression(instr.Operand2, block.EndRegisters);
 
         // Прямое равенство — лучший способ представить ZF после CMP
         var zfExpr = new CmpExpr(CmpOperation.Eq, left, right);
 
         // Другие флаги (CF, SF, OF) оставляем как есть или null (полная модель сложнее).
         // В будущем можно вычислять через виртуальный Sub и bit-анализ.
-        registers = registers with { ZF = zfExpr };
+        block.EndRegisters = block.EndRegisters with { ZF = zfExpr };
     }
 
     /// <summary>
@@ -427,15 +437,15 @@ public class ExpressionBuilder
     /// Обновляет флаги: ZF = ((left & right) == 0), CF=0, OF=0.
     /// Не порождает Operation.
     /// </summary>
-    private void HandleTest(ExprBlock exprBlock, Instruction instr, RegisterExpressions regs, ref RegisterExpressions registers)
+    private void HandleTest(ExprBlock block, Instruction instr)
     {
-        var left = GetExpression(instr.Operand1, regs);
-        var right = GetExpression(instr.Operand2, regs);
+        var left = GetExpression(instr.Operand1, block.EndRegisters);
+        var right = GetExpression(instr.Operand2, block.EndRegisters);
 
         var andExpr = new Math2Expr(Math2Operation.And, left, right);
         var zfExpr = new CmpExpr(CmpOperation.Eq, andExpr, ConstExpr.Zero);
 
-        registers = registers with
+        block.EndRegisters = block.EndRegisters with
         {
             ZF = zfExpr,
             CF = ConstExpr.Zero,
