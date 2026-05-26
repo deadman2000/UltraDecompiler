@@ -94,10 +94,20 @@ public class ExpressionBuilder
             {
                 exprBlock.ConditionalBlock = condCode;
 
-                // TODO: Здесь нужно анализировать последнее условие (обычно CMP или TEST + Jcc)
-                // и строить настоящее булево выражение вместо заглушки ConstExpr(1).
-                // Без этого все условные переходы сейчас превращаются в "if (1)".
-                exprBlock.Condition = new ConstExpr(1);
+                // Пытаемся построить настоящее условие по последней Jcc + текущим флагам.
+                var lastInstr = basicBlock.Instructions.Count > 0
+                    ? basicBlock.Instructions[^1]
+                    : null;
+
+                if (lastInstr?.IsConditionalJump == true)
+                {
+                    exprBlock.Condition = BuildJumpCondition(lastInstr, exprBlock.EndRegisters);
+                }
+                else
+                {
+                    // fallback (должен быть очень редким)
+                    exprBlock.Condition = ConstExpr.One;
+                }
             }
         }
     }
@@ -204,8 +214,6 @@ public class ExpressionBuilder
 
                 // TODO: MUL, IMUL, DIV, IDIV — меняют несколько регистров (AX/DX),
                 // имеют сложную семантику флагов и переполнений.
-                //
-                // TODO: Jcc — требует анализа предыдущей CMP/TEST + текущих флагов.
                 default:
                     // Инструкция не поддерживается — просто пропускаем.
                     // В будущем здесь можно добавлять комментарии или специальные маркеры.
@@ -465,6 +473,73 @@ public class ExpressionBuilder
         {
             ZF = new CmpExpr(CmpOperation.Eq, resultExpr, ConstExpr.Zero)
             // CF, SF, OF при необходимости (требуют знания операции и bit-логики)
+        };
+    }
+
+    // =====================================================================
+    // Построение условий для условных переходов (Jcc)
+    // =====================================================================
+
+    private static Expr Negate(Expr e) => new Math1Expr(Math1Operation.Not, e);
+    private static Expr And(Expr a, Expr b) => new Math2Expr(Math2Operation.And, a, b);
+    private static Expr Or(Expr a, Expr b) => new Math2Expr(Math2Operation.Or, a, b);
+
+    private static Expr GetFlagOrTrue(Expr? flagExpr) => flagExpr ?? ConstExpr.One; // fallback (всегда "истина" если флаг неизвестен)
+
+    /// <summary>
+    /// Строит символическое условие для взятия ConditionalBlock по Jcc-инструкции
+    /// и текущему состоянию флагов (из EndRegisters).
+    /// </summary>
+    private static Expr BuildJumpCondition(Instruction jumpInstr, RegisterExpressions registers)
+    {
+        var zf = GetFlagOrTrue(registers.ZF);
+        var cf = GetFlagOrTrue(registers.CF);
+        var sf = GetFlagOrTrue(registers.SF);
+        var of = GetFlagOrTrue(registers.OF);
+
+        // SF == OF  (используем эквивалент XOR: (a&b) | (!a & !b) )
+        var sfEqOf = Or(And(sf, of), And(Negate(sf), Negate(of)));
+
+        return jumpInstr.Mnemonic switch
+        {
+            // Равенство (лучше всего поддерживается после CMP/TEST)
+            Mnemonic.JE  => zf,
+            Mnemonic.JNE => Negate(zf),
+
+            // Беззнаковые сравнения
+            Mnemonic.JB  => cf,
+            Mnemonic.JAE => Negate(cf),
+
+            Mnemonic.JBE => Or(cf, zf),
+            Mnemonic.JA  => And(Negate(cf), Negate(zf)),
+
+            // Знаковый бит
+            Mnemonic.JS  => sf,
+            Mnemonic.JNS => Negate(sf),
+
+            // Знаковые сравнения
+            Mnemonic.JL  => Negate(sfEqOf),
+            Mnemonic.JGE => sfEqOf,
+            Mnemonic.JLE => Or(zf, Negate(sfEqOf)),
+            Mnemonic.JG  => And(Negate(zf), sfEqOf),
+
+            // Переполнение
+            Mnemonic.JO  => of,
+            Mnemonic.JNO => Negate(of),
+
+            // Чётность (редко используется в высокоуровневом коде)
+            Mnemonic.JP  => zf, // заглушка (PF не отслеживаем)
+            Mnemonic.JNP => Negate(zf),
+
+            // Специальные (CX-based) — упрощённо
+            Mnemonic.JCXZ => ConstExpr.Zero, // TODO: CX == 0
+
+            // Циклы — упрощённо
+            Mnemonic.LOOP   => Negate(zf),
+            Mnemonic.LOOPE  => zf,
+            Mnemonic.LOOPNE => Negate(zf),
+
+            _ => ConstExpr.One
         };
     }
 

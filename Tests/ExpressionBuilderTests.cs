@@ -387,4 +387,128 @@ public class ExpressionBuilderTests : BaseTests
         var andExpr = Assert.IsType<Math2Expr>(zf.Left);
         Assert.Equal(Math2Operation.And, andExpr.Operation);
     }
+
+    // ============================================================
+    // Тесты на BuildJumpCondition (правильное Condition на Jcc)
+    // ============================================================
+
+    [Fact]
+    public void ConditionalJump_CmpJe_ProducesEqualityCondition()
+    {
+        // CMP + JE — лучший случай: должны получить CmpExpr(Eq, ...)
+        var expr = BuildExpressions("""
+            B8 05 00 ; mov ax, 5
+            3D 05 00 ; cmp ax, 5
+            74 01    ; je +1
+            90       ; nop (fallthrough)
+            90       ; nop (target of je)
+            """);
+
+        // Ищем блок, у которого есть условный преемник
+        var condBlock = expr.Blocks.FirstOrDefault(b => b.ConditionalBlock != null);
+        Assert.NotNull(condBlock);
+        Assert.NotNull(condBlock.Condition);
+
+        // Не должно быть старой заглушки
+        Assert.NotEqual(ConstExpr.One, condBlock.Condition);
+
+        var condition = Assert.IsType<CmpExpr>(condBlock.Condition);
+        Assert.Equal(CmpOperation.Eq, condition.Operation);
+    }
+
+    [Fact]
+    public void ConditionalJump_CmpJne_ProducesNegatedCondition()
+    {
+        // CMP + JNE
+        var expr = BuildExpressions("""
+            B8 05 00 ; mov ax, 5
+            3D 06 00 ; cmp ax, 6
+            75 01    ; jne +1
+            90       ; nop (fallthrough)
+            90       ; nop (target)
+            """);
+
+        var condBlock = expr.Blocks.FirstOrDefault(b => b.ConditionalBlock != null);
+        Assert.NotNull(condBlock);
+        Assert.NotNull(condBlock.Condition);
+
+        var notExpr = Assert.IsType<Math1Expr>(condBlock.Condition);
+        Assert.Equal(Math1Operation.Not, notExpr.Operation);
+
+        // Внутреннее условие должно быть CmpExpr (от CMP)
+        var inner = Assert.IsType<CmpExpr>(notExpr.Op);
+        Assert.Equal(CmpOperation.Eq, inner.Operation);
+    }
+
+    [Fact]
+    public void ConditionalJump_Arithmetic_Jz_UsesResultVariable()
+    {
+        // ADD + JZ — проверяем, что ZF от арифметики используется
+        var expr = BuildExpressions("""
+            B8 01 00 ; mov ax, 1
+            05 FF FF ; add ax, -1   (результат = 0 → ZF должен сработать)
+            74 01    ; jz +1
+            90       ; nop fall
+            90       ; nop target
+            """);
+
+        var condBlock = expr.Blocks.FirstOrDefault(b => b.ConditionalBlock != null);
+        Assert.NotNull(condBlock);
+        Assert.NotNull(condBlock.Condition);
+
+        // Условие должно ссылаться на Variable (результат ADD), а не быть Const(1)
+        Assert.NotEqual(ConstExpr.One, condBlock.Condition);
+
+        // Проверяем, что это CmpExpr(Eq, <что-то>, 0)
+        var cmp = Assert.IsType<CmpExpr>(condBlock.Condition);
+        Assert.Equal(CmpOperation.Eq, cmp.Operation);
+        var zero = Assert.IsType<ConstExpr>(cmp.Right);
+        Assert.Equal(0, zero.Value);
+    }
+
+    [Fact]
+    public void ConditionalJump_CmpJa_ProducesCompoundCondition()
+    {
+        // JA = !CF && !ZF  (compound)
+        var expr = BuildExpressions("""
+            B8 05 00 ; mov ax, 5
+            3D 03 00 ; cmp ax, 3
+            77 01    ; ja +1
+            90       ; nop fall
+            90       ; nop target
+            """);
+
+        var condBlock = expr.Blocks.FirstOrDefault(b => b.ConditionalBlock != null);
+        Assert.NotNull(condBlock);
+        Assert.NotNull(condBlock.Condition);
+
+        // Не заглушка
+        Assert.NotEqual(ConstExpr.One, condBlock.Condition);
+
+        // Должно быть And-выражение (или вложенное)
+        var andExpr = Assert.IsType<Math2Expr>(condBlock.Condition);
+        Assert.Equal(Math2Operation.And, andExpr.Operation);
+    }
+
+    [Fact]
+    public void ConditionalJump_NoLongerUsesConstOnePlaceholder()
+    {
+        // Общий sanity-check: после рефакторинга не должно быть ConstExpr(1) на нормальных Jcc
+        // Используем JNE — он опирается на ZF, который отлично заполняется после CMP
+        var expr = BuildExpressions("""
+            B8 10 00 ; mov ax, 10h
+            3D 05 00 ; cmp ax, 5
+            75 01    ; jne +1
+            90       ; fall
+            90       ; target
+            """);
+
+        foreach (var block in expr.Blocks)
+        {
+            if (block.ConditionalBlock != null)
+            {
+                Assert.NotEqual(ConstExpr.One, block.Condition);
+            }
+        }
+    }
 }
