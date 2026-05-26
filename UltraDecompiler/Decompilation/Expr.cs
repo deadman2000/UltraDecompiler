@@ -95,6 +95,11 @@ public enum Math2Operation
     /// Побитовое ИЛИ
     /// </summary>
     Or,
+
+    /// <summary>
+    /// Побитовое исключающее ИЛИ
+    /// </summary>
+    Xor,
 }
 
 /// <summary>
@@ -113,6 +118,7 @@ public record Math2Expr(Math2Operation Operation, Expr First, Expr Second) : Exp
         Math2Operation.Shr => $"{First} >> {Second}",
         Math2Operation.And => $"{First} & {Second}",
         Math2Operation.Or => $"{First} | {Second}",
+        Math2Operation.Xor => $"{First} ^ {Second}",
         _ => throw new NotImplementedException(),
     };
 }

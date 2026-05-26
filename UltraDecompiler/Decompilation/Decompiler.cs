@@ -112,7 +112,35 @@ public class Decompiler
                     HandleIncDec(codeBlock, instr, registers, false, ref registers);
                     break;
 
-                // TODO: MUL, IMUL, DIV, IDIV, AND, OR, XOR, CMP, Jcc и т.д. по 8086 instruction set
+                case Mnemonic.AND:
+                case Mnemonic.OR:
+                case Mnemonic.XOR:
+                    HandleLogical(codeBlock, instr, registers, ref registers);
+                    break;
+
+                case Mnemonic.NOT:
+                    HandleUnary(codeBlock, instr, Math1Operation.Not, registers, ref registers);
+                    break;
+
+                case Mnemonic.NEG:
+                    HandleUnary(codeBlock, instr, Math1Operation.Neg, registers, ref registers);
+                    break;
+
+                case Mnemonic.SAL:
+                    HandleShift(codeBlock, instr, Math2Operation.Shl, registers, ref registers);
+                    break;
+
+                case Mnemonic.SHR:
+                    HandleShift(codeBlock, instr, Math2Operation.Shr, registers, ref registers);
+                    break;
+
+                case Mnemonic.SAR:
+                    // SAR пока трактуем как SHR (арифметический сдвиг вправо с сохранением знака)
+                    // Полная поддержка знака потребует отдельного выражения
+                    HandleShift(codeBlock, instr, Math2Operation.Shr, registers, ref registers);
+                    break;
+
+                // TODO: MUL, IMUL, DIV, IDIV, CMP, TEST, Jcc и т.д.
                 default:
                     break;
             }
@@ -149,6 +177,71 @@ public class Decompiler
         var current = GetExpression(dst, regs);
         var one = new ConstExpr(1);
         var math = new Math2Expr(isInc ? Math2Operation.Add : Math2Operation.Sub, current, one);
+        var resultVar = Variables.CreateVariable();
+        codeBlock.Operations.Add(new SetOperation(resultVar, math));
+
+        if (dst.Type == OperandType.Register16)
+        {
+            registers = registers.Set16(dst.Value, resultVar);
+        }
+        else if (dst.Type == OperandType.Register8)
+        {
+            registers = registers.Set8(dst.Value, resultVar);
+        }
+    }
+
+    private void HandleLogical(CodeBlock codeBlock, Instruction instr, RegisterExpressions regs, ref RegisterExpressions registers)
+    {
+        var dst = instr.Operand1;
+        var srcExpr = GetExpression(instr.Operand2, regs);
+        var dstCurrent = GetExpression(dst, regs);
+
+        var op = instr.Mnemonic switch
+        {
+            Mnemonic.AND => Math2Operation.And,
+            Mnemonic.OR  => Math2Operation.Or,
+            Mnemonic.XOR => Math2Operation.Xor,
+            _ => throw new InvalidOperationException()
+        };
+
+        var math = new Math2Expr(op, dstCurrent, srcExpr);
+        var resultVar = Variables.CreateVariable();
+        codeBlock.Operations.Add(new SetOperation(resultVar, math));
+
+        if (dst.Type == OperandType.Register16)
+        {
+            registers = registers.Set16(dst.Value, resultVar);
+        }
+        else if (dst.Type == OperandType.Register8)
+        {
+            registers = registers.Set8(dst.Value, resultVar);
+        }
+    }
+
+    private void HandleUnary(CodeBlock codeBlock, Instruction instr, Math1Operation operation, RegisterExpressions regs, ref RegisterExpressions registers)
+    {
+        var dst = instr.Operand1;
+        var current = GetExpression(dst, regs);
+        var math = new Math1Expr(operation, current);
+        var resultVar = Variables.CreateVariable();
+        codeBlock.Operations.Add(new SetOperation(resultVar, math));
+
+        if (dst.Type == OperandType.Register16)
+        {
+            registers = registers.Set16(dst.Value, resultVar);
+        }
+        else if (dst.Type == OperandType.Register8)
+        {
+            registers = registers.Set8(dst.Value, resultVar);
+        }
+    }
+
+    private void HandleShift(CodeBlock codeBlock, Instruction instr, Math2Operation shiftOp, RegisterExpressions regs, ref RegisterExpressions registers)
+    {
+        var dst = instr.Operand1;
+        var srcExpr = GetExpression(instr.Operand2, regs); // обычно константа или CL
+        var dstCurrent = GetExpression(dst, regs);
+        var math = new Math2Expr(shiftOp, dstCurrent, srcExpr);
         var resultVar = Variables.CreateVariable();
         codeBlock.Operations.Add(new SetOperation(resultVar, math));
 
