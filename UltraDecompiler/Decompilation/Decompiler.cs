@@ -9,12 +9,14 @@ public class Decompiler
 
     public VariableStorage Variables { get; } = new();
 
-    public void Decompile(ControlFlowGraph graph)
+    public void Decompile(ControlFlowGraph graph, bool isCom = false)
     {
         Blocks.Clear();
         Variables.Clear();
 
-        var registers = RegisterExpressions.InitExe(Variables);
+        var registers = isCom
+            ? RegisterExpressions.InitCom(Variables)
+            : RegisterExpressions.InitExe(Variables);
 
         Dictionary<BasicBlock, CodeBlock> blocksMap = [];
 

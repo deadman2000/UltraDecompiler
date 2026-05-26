@@ -11,6 +11,7 @@ public class DosExeParser
     public byte[] Image { get; private set; }          // Полный загруженный образ программы
     public long ImageBase { get; private set; }        // Линейный адрес начала программы
     public uint EntryPointOffset { get; private set; } // Смещение точки входа относительно ImageBase
+    public bool IsCom { get; private set; }            // true для .COM файлов (без MZ заголовка)
 
     public DosExeParser(string filePath)
     {
@@ -18,6 +19,31 @@ public class DosExeParser
 
         using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
         using var br = new BinaryReader(fs);
+
+        // Проверяем сигнатуру: .COM файлы не имеют MZ заголовка
+        if (fs.Length >= 2)
+        {
+            ushort magic = br.ReadUInt16();
+            fs.Position = 0;
+
+            if (magic != 0x5A4D)
+            {
+                // Это .COM файл (или сырой бинарник)
+                IsCom = true;
+                Relocations = [];
+                DosHeader = default; // нет заголовка
+
+                // Для .COM: загружаем весь файл как есть. Точка входа = 0
+                Image = br.ReadBytes((int)fs.Length);
+                ImageBase = 0;
+                EntryPointOffset = 0;
+
+                return;
+            }
+        }
+
+        // === Обычный MZ EXE ===
+        IsCom = false;
 
         // Читаем MZ-заголовок
         DosHeader = ReadStructure<ImageDosHeader>(br);
@@ -117,6 +143,16 @@ public class DosExeParser
 
     public void PrintInfo()
     {
+        if (IsCom)
+        {
+            Console.WriteLine("=== 16-bit MS-DOS .COM для декомпилятора ===");
+            Console.WriteLine($"Файл: {_filePath}");
+            Console.WriteLine($"Тип:  .COM (нет MZ заголовка)");
+            Console.WriteLine($"Точка входа     : 0000:0000 (линейно: 0x{EntryPointOffset:X6})");
+            Console.WriteLine($"Размер образа   : {Image.Length} байт");
+            return;
+        }
+
         Console.WriteLine("=== 16-bit MS-DOS EXE для декомпилятора ===");
         Console.WriteLine($"Файл: {_filePath}");
         Console.WriteLine($"Размер заголовка: {DosHeader.HeaderSizeInParagraphs * 16} байт");
