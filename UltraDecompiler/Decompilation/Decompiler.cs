@@ -14,7 +14,7 @@ public class Decompiler
         Blocks.Clear();
         Variables.Clear();
 
-        var registers = RegisterExpressions.InitZero();
+        var registers = RegisterExpressions.InitExe(Variables);
 
         Dictionary<BasicBlock, CodeBlock> blocksMap = [];
 
@@ -92,7 +92,7 @@ public class Decompiler
                     {
                         // LEA загружает эффективный адрес (offset) в регистр (индексный или общий)
                         // Полная поддержка Memory будет позже; placeholder чтобы не падать и регистр поддерживался
-                        var eaExpr = new ConstExpr(0);
+                        var eaExpr = ConstExpr.Zero;
                         registers = registers.Set16(instr.Operand1.Value, eaExpr);
                     }
                     break;

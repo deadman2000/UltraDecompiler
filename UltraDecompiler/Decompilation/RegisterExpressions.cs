@@ -3,7 +3,7 @@ namespace UltraDecompiler.Decompilation;
 /// <summary>
 /// Выражения в регистрах
 /// </summary>
-public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
+public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX, Expr SP, Expr BP, Expr SI, Expr DI, Expr ES, Expr CS, Expr SS, Expr DS)
 {
     public Expr? AH { get; init; }
     public Expr? AL { get; init; }
@@ -14,19 +14,10 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
     public Expr? DH { get; init; }
     public Expr? DL { get; init; }
 
-    public Expr SP { get; init; }
-    public Expr BP { get; init; }
-    public Expr SI { get; init; }
-    public Expr DI { get; init; }
-    public Expr ES { get; init; }
-    public Expr CS { get; init; }
-    public Expr SS { get; init; }
-    public Expr DS { get; init; }
-
     public static RegisterExpressions InitZero()
     {
-        var zero = new ConstExpr(0);
-        return new RegisterExpressions(zero, zero, zero, zero)
+        var zero = ConstExpr.Zero;
+        return new RegisterExpressions(zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero)
         {
             AH = zero,
             AL = zero,
@@ -36,14 +27,67 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
             CL = zero,
             DH = zero,
             DL = zero,
-            SP = zero,
-            BP = zero,
-            SI = zero,
-            DI = zero,
-            ES = zero,
-            CS = zero,
-            SS = zero,
-            DS = zero
+        };
+    }
+
+    public static RegisterExpressions InitCom(VariableStorage variables)
+    {
+        var initCS = variables.CreateVariable("_initCS");
+
+        var zero = ConstExpr.Zero;
+        return new RegisterExpressions(AX: zero,
+                                       BX: zero,
+                                       CX: zero,
+                                       DX: zero,
+                                       SP: new ConstExpr(0xfffe),
+                                       BP: zero,
+                                       SI: zero,
+                                       DI: zero,
+                                       ES: initCS,
+                                       CS: initCS,
+                                       SS: initCS,
+                                       DS: initCS)
+        {
+            AH = zero,
+            AL = zero,
+            BH = zero,
+            BL = zero,
+            CH = zero,
+            CL = zero,
+            DH = zero,
+            DL = zero,
+        };
+    }
+
+    public static RegisterExpressions InitExe(VariableStorage variables)
+    {
+        var psp = variables.CreateVariable("_psp");
+        var initCS = variables.CreateVariable("_initCS");
+        var initSS = variables.CreateVariable("_initSS");
+        var initSP = variables.CreateVariable("_initSP");
+
+        var zero = ConstExpr.Zero;
+        return new RegisterExpressions(AX: zero,
+                                       BX: zero,
+                                       CX: zero,
+                                       DX: zero,
+                                       SP: initSP,
+                                       BP: zero,
+                                       SI: zero,
+                                       DI: zero,
+                                       ES: psp,
+                                       CS: initCS,
+                                       SS: initSS,
+                                       DS: psp)
+        {
+            AH = zero,
+            AL = zero,
+            BH = zero,
+            BL = zero,
+            CH = zero,
+            CL = zero,
+            DH = zero,
+            DL = zero,
         };
     }
 
@@ -53,7 +97,7 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
         1 => CX,
         2 => DX,
         3 => BX,
-        _ => new ConstExpr(0)
+        _ => ConstExpr.Zero
     };
 
     private readonly Expr? GetH(int group) => group switch
@@ -76,10 +120,10 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
 
     private RegisterExpressions SetX(int group, Expr? expr) => group switch
     {
-        0 => this with { AX = expr ?? new ConstExpr(0), AH = null, AL = null },
-        1 => this with { CX = expr ?? new ConstExpr(0), CH = null, CL = null },
-        2 => this with { DX = expr ?? new ConstExpr(0), DH = null, DL = null },
-        3 => this with { BX = expr ?? new ConstExpr(0), BH = null, BL = null },
+        0 => this with { AX = expr ?? ConstExpr.Zero, AH = null, AL = null },
+        1 => this with { CX = expr ?? ConstExpr.Zero, CH = null, CL = null },
+        2 => this with { DX = expr ?? ConstExpr.Zero, DH = null, DL = null },
+        3 => this with { BX = expr ?? ConstExpr.Zero, BH = null, BL = null },
         _ => this
     };
 
@@ -163,7 +207,7 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
             5 => BP,
             6 => SI,
             7 => DI,
-            _ => new ConstExpr(0)
+            _ => ConstExpr.Zero
         };
     }
 
@@ -180,7 +224,7 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
             3 or 7 => 3,
             _ => -1
         };
-        if (group < 0) return new ConstExpr(0);
+        if (group < 0) return ConstExpr.Zero;
 
         bool isHigh = reg8 >= 4;
         Expr? b = isHigh ? GetH(group) : GetL(group);
@@ -216,7 +260,7 @@ public record struct RegisterExpressions(Expr? AX, Expr? BX, Expr? CX, Expr? DX)
             1 => CS,
             2 => SS,
             3 => DS,
-            _ => new ConstExpr(0)
+            _ => ConstExpr.Zero
         };
     }
 }

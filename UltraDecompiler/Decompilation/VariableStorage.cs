@@ -15,11 +15,12 @@ public class VariableStorage
     /// <summary>
     /// Создает новую переменную
     /// </summary>
-    public Variable CreateVariable()
+    public Variable CreateVariable(string? name = null)
     {
         var v = new Variable
         {
-            Number = _variables.Count
+            Number = _variables.Count,
+            Name = name
         };
         _variables.Add(v);
         return v;

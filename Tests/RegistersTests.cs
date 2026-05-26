@@ -460,6 +460,6 @@ public class RegistersTests : BaseTests
         Assert.Equal(csExpr, regs.GetSegment(1));
 
         // Проверка совместимости: общие регистры не сломаны
-        Assert.Equal(new ConstExpr(0), regs.AX); // init zero
+        Assert.Equal(ConstExpr.Zero, regs.AX); // init zero
     }
 }

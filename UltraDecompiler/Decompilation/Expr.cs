@@ -9,9 +9,13 @@ public abstract record Expr;
 /// Переменная
 /// </summary>
 /// <param name="Number">Номер</param>
-/// <param name="Name">Имя</param>
-public record Variable(int Number = 0, string? Name = null) : Expr
+public record Variable(int Number = 0) : Expr
 {
+    /// <summary>
+    /// Имя
+    /// </summary>
+    public string? Name { get; set; }
+
     public override string ToString() => Name is not null ? Name : $"var{Number}";
 }
 
@@ -21,6 +25,8 @@ public record Variable(int Number = 0, string? Name = null) : Expr
 /// <param name="Value">Значение</param>
 public record ConstExpr(int Value) : Expr
 {
+    public static readonly ConstExpr Zero = new(0);
+
     public override string ToString() => Value.ToString();
 }
 
