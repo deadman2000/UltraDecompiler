@@ -57,8 +57,8 @@ try
     cfg.SaveDot(dotPath);
     ConvertDotToSvg(dotPath, svgPath);
 
-    var decompiler = new Decompiler();
-    decompiler.Decompile(cfg, parser.IsCom);
+    var expressions = new ExpressionBuilder();
+    expressions.Build(cfg, parser.IsCom);
 }
 catch (Exception ex)
 {

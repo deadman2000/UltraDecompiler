@@ -9,9 +9,12 @@ namespace UltraDecompiler.Decompilation;
 /// Выполняет преобразование потока инструкций x86 (через CFG) в высокоуровневые
 /// выражения и операции (SetOperation, Math1Expr, Math2Expr и т.д.).
 /// </summary>
-public class Decompiler
+public class ExpressionBuilder
 {
-    public List<CodeBlock> Blocks { get; } = [];
+    private readonly Dictionary<BasicBlock, ExprBlock> _blocksMap = [];
+    private readonly Queue<ExprBlock> _queue = new();
+
+    public List<ExprBlock> Blocks { get; } = [];
 
     public VariableStorage Variables { get; } = new();
 
@@ -22,8 +25,8 @@ public class Decompiler
     /// 1. Выбираем начальное символическое состояние регистров (разное для .COM и .EXE).
     /// 2. Обходим все BasicBlock'и в ширину (BFS), начиная с EntryBlock.
     /// 3. Для каждого блока вызываем GenerateCode, который выполняет symbolic execution
-    ///    инструкций и заполняет CodeBlock.Operations.
-    /// 4. После обхода связываем CodeBlock'и между собой по ссылкам из CFG
+    ///    инструкций и заполняет ExprBlock.Operations.
+    /// 4. После обхода связываем ExprBlock'и между собой по ссылкам из CFG
     ///    (Next и ConditionalBlock).
     /// 
     /// Важно: состояние регистров (RegisterExpressions) передаётся между блоками.
@@ -31,70 +34,87 @@ public class Decompiler
     /// </summary>
     /// <param name="graph">Построенный граф потока управления</param>
     /// <param name="isCom">true для .COM файлов (другая инициализация регистров)</param>
-    public void Decompile(ControlFlowGraph graph, bool isCom = false)
+    public void Build(ControlFlowGraph graph, bool isCom = false)
     {
         Blocks.Clear();
         Variables.Clear();
+        _blocksMap.Clear();
+        _queue.Clear();
 
         // Выбираем начальное символическое состояние регистров.
         // Для .COM и .EXE оно разное (разные значения SP, сегментных регистров и т.д.).
-        var registers = isCom
+        var initialRegisters = isCom
             ? RegisterExpressions.InitCom(Variables)
             : RegisterExpressions.InitExe(Variables);
 
-        Dictionary<BasicBlock, CodeBlock> blocksMap = [];
-
-        var queue = new Queue<BasicBlock>();
-        queue.Enqueue(graph.EntryBlock);
+        // Формируем первый блок и добавляем его в очередь на обработку
+        CreateExprBlock(graph.EntryBlock, initialRegisters);
 
         var visited = new HashSet<BasicBlock>();
 
-        // Обход в ширину по блокам CFG.
-        // Это важно, потому что состояние регистров на входе в блок зависит от того,
-        // как мы в него пришли.
-        while (queue.Count > 0)
+        // Обход в ширину (BFS) с правильной передачей данных между блоками.
+        while (_queue.Count > 0)
         {
-            var block = queue.Dequeue();
-            if (visited.Contains(block))
+            var block = _queue.Dequeue();
+            if (visited.Contains(block.BasicBlock))
                 continue;
 
-            visited.Add(block);
+            visited.Add(block.BasicBlock);
 
-            // GenerateCode выполняет symbolic execution инструкций блока
-            // и возвращает CodeBlock с заполненным списком Operations.
-            // При этом она обновляет текущее символическое состояние registers.
-            var codeBlock = GenerateCode(block, registers);
-            Blocks.Add(codeBlock);
-            blocksMap[block] = codeBlock;
+            GenerateCode(block);
 
-            // Добавляем последователей в очередь для дальнейшей обработки.
-            if (block.NextBlock != null)
-                queue.Enqueue(block.NextBlock);
-            if (block.ConditionalBlock != null)
-                queue.Enqueue(block.ConditionalBlock);
+            // Передаём выходное состояние successor'ам.
+            // Важно: мы сохраняем состояние только при ПЕРВОМ посещении блока.
+            // Если к блоку можно прийти несколькими путями (слияние), то
+            // "победит" первый обработанный предшественник.
+            // Это упрощение. Полноценное решение требует merge/phi-функций.
+            if (block.BasicBlock.NextBlock != null)
+            {
+                CreateExprBlock(block.BasicBlock.NextBlock, block.EndRegisters);
+            }
+
+            if (block.BasicBlock.ConditionalBlock != null)
+            {
+                CreateExprBlock(block.BasicBlock.ConditionalBlock, block.EndRegisters);
+            }
         }
 
-        // Второй проход: связываем CodeBlock'и между собой.
+        // Второй проход: связываем ExprBlock'и между собой.
         // Это нужно, чтобы потом можно было генерировать структурированный C-код
         // (if/else, циклы и т.д.) на основе связей между блоками.
-        foreach (var kvp in blocksMap)
+        foreach (var kvp in _blocksMap)
         {
-            var codeBlock = kvp.Value;
+            var exprBlock = kvp.Value;
             var basicBlock = kvp.Key;
 
-            if (basicBlock.NextBlock != null && blocksMap.TryGetValue(basicBlock.NextBlock, out var nextCode))
-                codeBlock.Next = nextCode;
+            if (basicBlock.NextBlock != null && _blocksMap.TryGetValue(basicBlock.NextBlock, out var nextCode))
+                exprBlock.Next = nextCode;
 
-            if (basicBlock.ConditionalBlock != null && blocksMap.TryGetValue(basicBlock.ConditionalBlock, out var condCode))
+            if (basicBlock.ConditionalBlock != null && _blocksMap.TryGetValue(basicBlock.ConditionalBlock, out var condCode))
             {
-                codeBlock.ConditionalBlock = condCode;
+                exprBlock.ConditionalBlock = condCode;
 
                 // TODO: Здесь нужно анализировать последнее условие (обычно CMP или TEST + Jcc)
                 // и строить настоящее булево выражение вместо заглушки ConstExpr(1).
                 // Без этого все условные переходы сейчас превращаются в "if (1)".
-                codeBlock.Condition = new ConstExpr(1);
+                exprBlock.Condition = new ConstExpr(1);
             }
         }
+    }
+
+    private void CreateExprBlock(BasicBlock block, in RegisterExpressions registers)
+    {
+        // TODO Подумать, что делать, если в блок мы попадаем из разных мест
+        if (_blocksMap.ContainsKey(block))
+            return;
+
+        var exprBlock = new ExprBlock(block)
+        {
+            InitRegisters = registers
+        };
+        Blocks.Add(exprBlock);
+        _blocksMap[block] = exprBlock;
+        _queue.Enqueue(exprBlock);
     }
 
     /// <summary>
@@ -112,18 +132,12 @@ public class Decompiler
     /// тогда, когда происходит "полезное" вычисление (ADD, AND, NEG и т.д.).
     /// 
     /// В конце работы метод сохраняет финальное состояние регистров в
-    /// codeBlock.EndRegisters — это состояние будет использовано как входное
-    /// для следующих блоков.
+    /// exprBlock.EndRegisters.
     /// </summary>
-    private CodeBlock GenerateCode(BasicBlock block, RegisterExpressions registers)
+    private ExprBlock GenerateCode(ExprBlock exprBlock)
     {
-        var codeBlock = new CodeBlock(block)
-        {
-            // Сохраняем состояние регистров на входе в блок (полезно для отладки и генерации кода)
-            InitRegisters = registers
-        };
-
-        foreach (var instr in block.Instructions)
+        var registers = exprBlock.InitRegisters;
+        foreach (var instr in exprBlock.BasicBlock.Instructions)
         {
             switch (instr.Mnemonic)
             {
@@ -163,37 +177,37 @@ public class Decompiler
 
                 case Mnemonic.ADD:
                 case Mnemonic.SUB:
-                    HandleArithmetic(codeBlock, instr, registers, ref registers);
+                    HandleArithmetic(exprBlock, instr, registers, ref registers);
                     break;
 
                 case Mnemonic.INC:
-                    HandleIncDec(codeBlock, instr, registers, true, ref registers);
+                    HandleIncDec(exprBlock, instr, registers, true, ref registers);
                     break;
 
                 case Mnemonic.DEC:
-                    HandleIncDec(codeBlock, instr, registers, false, ref registers);
+                    HandleIncDec(exprBlock, instr, registers, false, ref registers);
                     break;
 
                 case Mnemonic.AND:
                 case Mnemonic.OR:
                 case Mnemonic.XOR:
-                    HandleLogical(codeBlock, instr, registers, ref registers);
+                    HandleLogical(exprBlock, instr, registers, ref registers);
                     break;
 
                 case Mnemonic.NOT:
-                    HandleUnary(codeBlock, instr, Math1Operation.Not, registers, ref registers);
+                    HandleUnary(exprBlock, instr, Math1Operation.Not, registers, ref registers);
                     break;
 
                 case Mnemonic.NEG:
-                    HandleUnary(codeBlock, instr, Math1Operation.Neg, registers, ref registers);
+                    HandleUnary(exprBlock, instr, Math1Operation.Neg, registers, ref registers);
                     break;
 
                 case Mnemonic.SAL:
-                    HandleShift(codeBlock, instr, Math2Operation.Shl, registers, ref registers);
+                    HandleShift(exprBlock, instr, Math2Operation.Shl, registers, ref registers);
                     break;
 
                 case Mnemonic.SHR:
-                    HandleShift(codeBlock, instr, Math2Operation.Shr, registers, ref registers);
+                    HandleShift(exprBlock, instr, Math2Operation.Shr, registers, ref registers);
                     break;
 
                 case Mnemonic.SAR:
@@ -201,7 +215,7 @@ public class Decompiler
                     // Сейчас мы упрощённо трактуем его как логический SHR.
                     // Для корректной поддержки знаковых типов в будущем потребуется
                     // отдельная операция или флаг в Math2Expr.
-                    HandleShift(codeBlock, instr, Math2Operation.Shr, registers, ref registers);
+                    HandleShift(exprBlock, instr, Math2Operation.Shr, registers, ref registers);
                     break;
 
                 // TODO: MUL, IMUL, DIV, IDIV — меняют несколько регистров (AX/DX),
@@ -220,9 +234,9 @@ public class Decompiler
 
         // Сохраняем финальное символическое состояние регистров после обработки блока.
         // Это состояние будет передано в следующий блок(и) при обходе CFG.
-        codeBlock.EndRegisters = registers;
+        exprBlock.EndRegisters = registers;
 
-        return codeBlock;
+        return exprBlock;
     }
 
     /// <summary>
@@ -233,7 +247,7 @@ public class Decompiler
     /// Мы всегда выделяем новую Variable для результата — это позволяет
     /// в дальнейшем строить более чистые выражения и избегать мутации.
     /// </summary>
-    private void HandleArithmetic(CodeBlock codeBlock, Instruction instr, RegisterExpressions regs, ref RegisterExpressions registers)
+    private void HandleArithmetic(ExprBlock exprBlock, Instruction instr, RegisterExpressions regs, ref RegisterExpressions registers)
     {
         var dst = instr.Operand1;
         var srcExpr = GetExpression(instr.Operand2, regs);
@@ -243,7 +257,7 @@ public class Decompiler
         var math = new Math2Expr(op, dstCurrent, srcExpr);
 
         var resultVar = Variables.CreateVariable();
-        codeBlock.Operations.Add(new SetOperation(resultVar, math));
+        exprBlock.Operations.Add(new SetOperation(resultVar, math));
 
         // Обновляем символическое состояние: теперь в регистре dst лежит resultVar
         if (dst.Type == OperandType.Register16)
@@ -261,7 +275,7 @@ public class Decompiler
     /// Выделена в отдельный метод для читаемости и будущего расширения
     /// (INC/DEC по-разному влияют на флаги по сравнению с ADD/SUB 1).
     /// </summary>
-    private void HandleIncDec(CodeBlock codeBlock, Instruction instr, RegisterExpressions regs, bool isInc, ref RegisterExpressions registers)
+    private void HandleIncDec(ExprBlock exprBlock, Instruction instr, RegisterExpressions regs, bool isInc, ref RegisterExpressions registers)
     {
         var dst = instr.Operand1;
         var current = GetExpression(dst, regs);
@@ -270,7 +284,7 @@ public class Decompiler
         var math = new Math2Expr(isInc ? Math2Operation.Add : Math2Operation.Sub, current, one);
 
         var resultVar = Variables.CreateVariable();
-        codeBlock.Operations.Add(new SetOperation(resultVar, math));
+        exprBlock.Operations.Add(new SetOperation(resultVar, math));
 
         if (dst.Type == OperandType.Register16)
         {
@@ -287,7 +301,7 @@ public class Decompiler
     /// Логика полностью аналогична HandleArithmetic, но использует
     /// соответствующие Math2Operation (And, Or, Xor).
     /// </summary>
-    private void HandleLogical(CodeBlock codeBlock, Instruction instr, RegisterExpressions regs, ref RegisterExpressions registers)
+    private void HandleLogical(ExprBlock exprBlock, Instruction instr, RegisterExpressions regs, ref RegisterExpressions registers)
     {
         var dst = instr.Operand1;
         var srcExpr = GetExpression(instr.Operand2, regs);
@@ -296,14 +310,14 @@ public class Decompiler
         var op = instr.Mnemonic switch
         {
             Mnemonic.AND => Math2Operation.And,
-            Mnemonic.OR  => Math2Operation.Or,
+            Mnemonic.OR => Math2Operation.Or,
             Mnemonic.XOR => Math2Operation.Xor,
             _ => throw new InvalidOperationException()
         };
 
         var math = new Math2Expr(op, dstCurrent, srcExpr);
         var resultVar = Variables.CreateVariable();
-        codeBlock.Operations.Add(new SetOperation(resultVar, math));
+        exprBlock.Operations.Add(new SetOperation(resultVar, math));
 
         if (dst.Type == OperandType.Register16)
         {
@@ -322,14 +336,14 @@ public class Decompiler
     /// 
     /// Результат всегда оборачивается в новую Variable через SetOperation.
     /// </summary>
-    private void HandleUnary(CodeBlock codeBlock, Instruction instr, Math1Operation operation, RegisterExpressions regs, ref RegisterExpressions registers)
+    private void HandleUnary(ExprBlock exprBlock, Instruction instr, Math1Operation operation, RegisterExpressions regs, ref RegisterExpressions registers)
     {
         var dst = instr.Operand1;
         var current = GetExpression(dst, regs);
         var math = new Math1Expr(operation, current);
 
         var resultVar = Variables.CreateVariable();
-        codeBlock.Operations.Add(new SetOperation(resultVar, math));
+        exprBlock.Operations.Add(new SetOperation(resultVar, math));
 
         if (dst.Type == OperandType.Register16)
         {
@@ -350,7 +364,7 @@ public class Decompiler
     /// 
     /// Сейчас SAR трактуется как SHR. Это упрощение.
     /// </summary>
-    private void HandleShift(CodeBlock codeBlock, Instruction instr, Math2Operation shiftOp, RegisterExpressions regs, ref RegisterExpressions registers)
+    private void HandleShift(ExprBlock exprBlock, Instruction instr, Math2Operation shiftOp, RegisterExpressions regs, ref RegisterExpressions registers)
     {
         var dst = instr.Operand1;
 
@@ -362,7 +376,7 @@ public class Decompiler
         var math = new Math2Expr(shiftOp, dstCurrent, srcExpr);
 
         var resultVar = Variables.CreateVariable();
-        codeBlock.Operations.Add(new SetOperation(resultVar, math));
+        exprBlock.Operations.Add(new SetOperation(resultVar, math));
 
         if (dst.Type == OperandType.Register16)
         {

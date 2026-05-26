@@ -23,11 +23,11 @@ public abstract class BaseTests
         return graph;
     }
 
-    protected static Decompiler Decompile(string hex)
+    protected static ExpressionBuilder BuildExpressions(string hex)
     {
         var graph = GetGraph(hex);
-        var decompiler = new Decompiler();
-        decompiler.Decompile(graph);
+        var decompiler = new ExpressionBuilder();
+        decompiler.Build(graph);
         return decompiler;
     }
 }

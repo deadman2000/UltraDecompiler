@@ -108,7 +108,11 @@ public class ControlFlowGraph
     }
 
     /// <summary>
-    /// Устанавливает взаимосвязи между блоками.
+    /// Устанавливает взаимосвязи между блоками (NextBlock / ConditionalBlock).
+    /// 
+    /// Важно: внутри этого метода может происходить разбиение существующих блоков
+    /// (см. GetBlock), поэтому вызов BuildPredecessors() должен быть строго после
+    /// полного завершения BuildEdges().
     /// </summary>
     private void BuildEdges()
     {

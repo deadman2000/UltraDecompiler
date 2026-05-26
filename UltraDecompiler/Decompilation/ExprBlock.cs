@@ -5,7 +5,7 @@ namespace UltraDecompiler.Decompilation;
 /// <summary>
 /// Блок выражений
 /// </summary>
-public class CodeBlock(BasicBlock basicBlock)
+public class ExprBlock(BasicBlock basicBlock)
 {
     /// <summary>
     /// Связанный ассемблерный блок
@@ -13,19 +13,19 @@ public class CodeBlock(BasicBlock basicBlock)
     public BasicBlock BasicBlock { get; } = basicBlock;
 
     /// <summary>
-    /// Выражения в порядке выполнения.
+    /// Операции в порядке выполнения.
     /// </summary>
     public List<Operation> Operations { get; } = [];
 
     /// <summary>
     /// Следующий блок
     /// </summary>
-    public CodeBlock? Next { get; set; }
+    public ExprBlock? Next { get; set; }
 
     /// <summary>
     /// Следующий блок, если выполнилось условие (выражение вернуло true)
     /// </summary>
-    public CodeBlock? ConditionalBlock { get; set; }
+    public ExprBlock? ConditionalBlock { get; set; }
 
     /// <summary>
     /// Условие перехода в ConditionalBlock
