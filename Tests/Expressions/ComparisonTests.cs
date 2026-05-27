@@ -110,6 +110,6 @@ public class ComparisonTests : BaseTests
         var left = Assert.IsType<Math2Expr>(cond.Left);
         Assert.Equal(Math2Operation.And, left.Operation);
 
-        Assert.Equal("var4 & 255 >= 2", cond.ToString());
+        Assert.Equal("(var4 & 255) >= 2", cond.ToString());
     }
 }

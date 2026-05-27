@@ -3,7 +3,38 @@
 /// <summary>
 /// Базовый класс выражений
 /// </summary>
-public abstract record Expr;
+public abstract record Expr
+{
+    /// <summary>
+    /// Приоритет оператора выражения (по аналогии с C/C++).
+    /// Чем выше — тем сильнее связывание, меньше нужда в скобках.
+    /// </summary>
+    public virtual int GetPrecedence() => Prec.Atom;
+
+    public override string ToString() => ToString(0);
+
+    /// <summary>
+    /// Генерация строки выражения с учётом приоритета родительского контекста.
+    /// При необходимости добавляются скобки.
+    /// </summary>
+    public virtual string ToString(int parentPrec) => ToString();
+}
+
+/// <summary>
+/// Константы приоритетов операторов (как в языке C).
+/// Используются для корректной расстановки скобок в ToString.
+/// </summary>
+static class Prec
+{
+    public const int Atom = 100;      // переменные, константы, вызовы, обращения к памяти
+    public const int Unary = 15;      // -x, !x
+    public const int AddSub = 13;     // + -
+    public const int Shift = 12;      // << >>
+    public const int Compare = 11;    // < <= > >= == !=
+    public const int BitAnd = 9;      // &
+    public const int BitXor = 8;      // ^
+    public const int BitOr = 7;       // |
+}
 
 /// <summary>
 /// Переменная
@@ -38,11 +69,22 @@ public record ConstExpr(int Value) : Expr
 /// </summary>
 public record MemExpr(Expr Address, Expr? Segment = null) : Expr
 {
-    public override string ToString()
+    public override int GetPrecedence() => Prec.Atom;
+
+    public override string ToString() => ToString(0);
+
+    public override string ToString(int parentPrec)
     {
-        if (Segment is null)
-            return $"[{Address}]";
-        return $"{Segment}:[{Address}]";
+        string addrStr = Address.ToString(0); // содержимое [] рендерим как самостоятельное выражение
+        string segPrefix = Segment is null ? "" : $"{Segment.ToString(Prec.Atom)}:";
+
+        string result = $"{segPrefix}[{addrStr}]";
+
+        int myPrecMem = GetPrecedence();
+        if (parentPrec > 0 && (myPrecMem < parentPrec || (myPrecMem > parentPrec && myPrecMem < Prec.Atom)))
+            result = $"({result})";
+
+        return result;
     }
 }
 
@@ -69,12 +111,30 @@ public enum Math1Operation
 /// <param name="Op">Операнд</param>
 public record Math1Expr(Math1Operation Operation, Expr Op) : Expr
 {
-    public override string ToString() => Operation switch
+    public override int GetPrecedence() => Prec.Unary;
+
+    public override string ToString() => ToString(0);
+
+    public override string ToString(int parentPrec)
     {
-        Math1Operation.Neg => $"-{Op}",
-        Math1Operation.Not => $"!{Op}",
-        _ => throw new NotImplementedException(),
-    };
+        string opSym = Operation switch
+        {
+            Math1Operation.Neg => "-",
+            Math1Operation.Not => "!",
+            _ => throw new NotImplementedException(),
+        };
+
+        // Унарные операторы — правоассоциативны. Для одинакового приоритета скобки не нужны (цепочки !!x, --x).
+        string operandStr = Op.ToString(GetPrecedence());
+
+        string result = $"{opSym}{operandStr}";
+
+        int myPrec = GetPrecedence();
+        if (parentPrec > 0 && (myPrec < parentPrec || (myPrec > parentPrec && myPrec < Prec.Atom)))
+            result = $"({result})";
+
+        return result;
+    }
 }
 
 /// <summary>
@@ -126,17 +186,47 @@ public enum Math2Operation
 /// <param name="Second">Второй операнд</param>
 public record Math2Expr(Math2Operation Operation, Expr First, Expr Second) : Expr
 {
-    public override string ToString() => Operation switch
+    public override int GetPrecedence() => Operation switch
     {
-        Math2Operation.Add => $"{First} + {Second}",
-        Math2Operation.Sub => $"{First} - {Second}",
-        Math2Operation.Shl => $"{First} << {Second}",
-        Math2Operation.Shr => $"{First} >> {Second}",
-        Math2Operation.And => $"{First} & {Second}",
-        Math2Operation.Or => $"{First} | {Second}",
-        Math2Operation.Xor => $"{First} ^ {Second}",
-        _ => throw new NotImplementedException(),
+        Math2Operation.Add or Math2Operation.Sub => Prec.AddSub,
+        Math2Operation.Shl or Math2Operation.Shr => Prec.Shift,
+        Math2Operation.And => Prec.BitAnd,
+        Math2Operation.Xor => Prec.BitXor,
+        Math2Operation.Or => Prec.BitOr,
+        _ => 0
     };
+
+    public override string ToString() => ToString(0);
+
+    public override string ToString(int parentPrec)
+    {
+        int myPrec = GetPrecedence();
+
+        string opSym = Operation switch
+        {
+            Math2Operation.Add => "+",
+            Math2Operation.Sub => "-",
+            Math2Operation.Shl => "<<",
+            Math2Operation.Shr => ">>",
+            Math2Operation.And => "&",
+            Math2Operation.Or => "|",
+            Math2Operation.Xor => "^",
+            _ => throw new NotImplementedException(),
+        };
+
+        // Все наши бинарные операторы — левоассоциативны.
+        // Левому потомку передаём myPrec (одинаковый приоритет без скобок),
+        // правому — myPrec + 1 (чтобы при одинаковом приоритете справа появились скобки: a - (b - c)).
+        string leftStr = First.ToString(myPrec);
+        string rightStr = Second.ToString(myPrec + 1);
+
+        string result = $"{leftStr} {opSym} {rightStr}";
+
+        if (parentPrec > 0 && (myPrec < parentPrec || (myPrec > parentPrec && myPrec < Prec.Atom)))
+            result = $"({result})";
+
+        return result;
+    }
 }
 
 /// <summary>
@@ -178,14 +268,35 @@ public enum CmpOperation
 /// </summary>
 public record CmpExpr(CmpOperation Operation, Expr Left, Expr Right) : Expr
 {
-    public override string ToString() => Operation switch
+    public override int GetPrecedence() => Prec.Compare;
+
+    public override string ToString() => ToString(0);
+
+    public override string ToString(int parentPrec)
     {
-        CmpOperation.Eq => $"{Left} == {Right}",
-        CmpOperation.Ne => $"{Left} != {Right}",
-        CmpOperation.Ult => $"{Left} < {Right}",
-        CmpOperation.Ule => $"{Left} <= {Right}",
-        CmpOperation.Ugt => $"{Left} > {Right}",
-        CmpOperation.Uge => $"{Left} >= {Right}",
-        _ => throw new NotImplementedException(),
-    };
+        int myPrec = GetPrecedence();
+
+        string opSym = Operation switch
+        {
+            CmpOperation.Eq => "==",
+            CmpOperation.Ne => "!=",
+            CmpOperation.Ult => "<",
+            CmpOperation.Ule => "<=",
+            CmpOperation.Ugt => ">",
+            CmpOperation.Uge => ">=",
+            _ => throw new NotImplementedException(),
+        };
+
+        // Операции сравнения не ассоциативны. Для одинакового уровня используем правило левоассоциативности
+        // (на практике Cmp редко вкладываются друг в друга напрямую).
+        string leftStr = Left.ToString(myPrec);
+        string rightStr = Right.ToString(myPrec + 1);
+
+        string result = $"{leftStr} {opSym} {rightStr}";
+
+        if (parentPrec > 0 && (myPrec < parentPrec || (myPrec > parentPrec && myPrec < Prec.Atom)))
+            result = $"({result})";
+
+        return result;
+    }
 }
