@@ -109,19 +109,6 @@ public partial class ExpressionBuilder
             if (basicBlock.ConditionalBlock != null && _blocksMap.TryGetValue(basicBlock.ConditionalBlock, out var condCode))
             {
                 exprBlock.ConditionalBlock = condCode;
-
-                var lastInstr = basicBlock.Instructions.Count > 0
-                    ? basicBlock.Instructions[^1]
-                    : null;
-
-                if (lastInstr?.IsConditionalJump == true)
-                {
-                    exprBlock.Condition = BuildJumpCondition(lastInstr, exprBlock.EndRegisters);
-                }
-                else
-                {
-                    exprBlock.Condition = ConstExpr.One;
-                }
             }
         }
     }
@@ -165,79 +152,162 @@ public partial class ExpressionBuilder
 
         foreach (var instr in exprBlock.BasicBlock.Instructions)
         {
+            // === Управление потоком ===
+            // При встрече прыжка/возврата/выхода сразу завершаем обработку блока.
+            // Для условных переходов сразу заполняем Condition.
+            if (instr.IsUnconditionalJump || instr.IsReturn)
+            {
+                return exprBlock;
+            }
+
+            if (instr.IsConditionalJump)
+            {
+                exprBlock.Condition = exprBlock.BasicBlock.ConditionalBlock != null
+                    ? BuildJumpCondition(instr, exprBlock.EndRegisters)
+                    : throw new InvalidOperationException();
+                return exprBlock;
+            }
+
+            if (instr.IsCall)
+            {
+                // TODO: моделировать вызов процедуры (с сохранением состояния возврата)
+                continue;
+            }
+
+            if (instr.IsExit)
+            {
+                return exprBlock;
+            }
+
+            // === Обычные вычисляющие инструкции ===
             switch (instr.Mnemonic)
             {
+                // Данные
                 case Mnemonic.MOV:
                     HandleMov(exprBlock, instr);
                     break;
-
                 case Mnemonic.LEA:
                     HandleLea(exprBlock, instr);
                     break;
 
+                // Арифметика
                 case Mnemonic.ADD:
                 case Mnemonic.SUB:
                     HandleArithmetic(exprBlock, instr);
                     break;
-
                 case Mnemonic.INC:
                     HandleIncDec(exprBlock, instr, true);
                     break;
-
                 case Mnemonic.DEC:
                     HandleIncDec(exprBlock, instr, false);
                     break;
 
+                // Логика
                 case Mnemonic.AND:
                 case Mnemonic.OR:
                 case Mnemonic.XOR:
                     HandleLogical(exprBlock, instr);
                     break;
 
+                // Унарные
                 case Mnemonic.NOT:
                     HandleUnary(exprBlock, instr, Math1Operation.Not);
                     break;
-
                 case Mnemonic.NEG:
                     HandleUnary(exprBlock, instr, Math1Operation.Neg);
                     break;
 
+                // Сдвиги (SAR трактуем как SHR — упрощение)
                 case Mnemonic.SAL:
                     HandleShift(exprBlock, instr, Math2Operation.Shl);
                     break;
-
                 case Mnemonic.SHR:
-                    HandleShift(exprBlock, instr, Math2Operation.Shr);
-                    break;
-
                 case Mnemonic.SAR:
-                    // SAR — арифметический сдвиг вправо (с сохранением знака).
-                    // Сейчас мы упрощённо трактуем его как логический SHR.
-                    // Для корректной поддержки знаковых типов в будущем потребуется
-                    // отдельная операция или флаг в Math2Expr.
                     HandleShift(exprBlock, instr, Math2Operation.Shr);
                     break;
 
+                // Сравнения (обновляют флаги для последующих Jcc)
                 case Mnemonic.CMP:
                     HandleCmp(exprBlock, instr);
                     break;
-
                 case Mnemonic.TEST:
                     HandleTest(exprBlock, instr);
                     break;
 
-                // TODO: MUL, IMUL, DIV, IDIV — меняют несколько регистров (AX/DX),
-                // имеют сложную семантику флагов и переполнений.
-                default:
-                    // Инструкция не поддерживается — просто пропускаем.
-                    // В будущем здесь можно добавлять комментарии или специальные маркеры.
+                case Mnemonic.NOP:
                     break;
+
+                // TODO: MUL/IMUL/DIV/IDIV, строковые операции и др.
+                default:
+                    throw new NotImplementedException($"Instruction {instr} is not yet supported");
             }
         }
 
-        // После обработки всех инструкций EndRegisters уже содержит актуальное
-        // состояние (все Handle* методы пишут напрямую в block.EndRegisters).
+        // Если дошли сюда — блок не закончился явным прыжком/возвратом.
+        // Для блоков с ConditionalBlock (теоретически не должно случаться) ставим заглушку.
+        if (exprBlock.BasicBlock.ConditionalBlock != null && exprBlock.Condition == null)
+        {
+            exprBlock.Condition = ConstExpr.One;
+        }
+
         return exprBlock;
+    }
+
+    /// <summary>
+    /// Строит символическое условие для взятия ConditionalBlock по Jcc-инструкции
+    /// и текущему состоянию флагов (из EndRegisters).
+    /// </summary>
+    private static Expr BuildJumpCondition(Instruction jumpInstr, RegisterExpressions registers)
+    {
+        var zf = GetFlagOrTrue(registers.ZF);
+        var cf = GetFlagOrTrue(registers.CF);
+        var sf = GetFlagOrTrue(registers.SF);
+        var of = GetFlagOrTrue(registers.OF);
+
+        // SF == OF  (используем эквивалент XOR: (a&b) | (!a & !b) )
+        var sfEqOf = Or(And(sf, of), And(Negate(sf), Negate(of)));
+
+        return jumpInstr.Mnemonic switch
+        {
+            // Равенство (лучше всего поддерживается после CMP/TEST)
+            Mnemonic.JE => zf,
+            Mnemonic.JNE => Negate(zf),
+
+            // Беззнаковые сравнения
+            Mnemonic.JB => cf,
+            Mnemonic.JAE => Negate(cf),
+
+            Mnemonic.JBE => Or(cf, zf),
+            Mnemonic.JA => And(Negate(cf), Negate(zf)),
+
+            // Знаковый бит
+            Mnemonic.JS => sf,
+            Mnemonic.JNS => Negate(sf),
+
+            // Знаковые сравнения
+            Mnemonic.JL => Negate(sfEqOf),
+            Mnemonic.JGE => sfEqOf,
+            Mnemonic.JLE => Or(zf, Negate(sfEqOf)),
+            Mnemonic.JG => And(Negate(zf), sfEqOf),
+
+            // Переполнение
+            Mnemonic.JO => of,
+            Mnemonic.JNO => Negate(of),
+
+            // Чётность (редко используется в высокоуровневом коде)
+            Mnemonic.JP => zf, // заглушка (PF не отслеживаем)
+            Mnemonic.JNP => Negate(zf),
+
+            // Специальные (CX-based) — упрощённо
+            Mnemonic.JCXZ => ConstExpr.Zero, // TODO: CX == 0
+
+            // Циклы — упрощённо
+            Mnemonic.LOOP => Negate(zf),
+            Mnemonic.LOOPE => zf,
+            Mnemonic.LOOPNE => Negate(zf),
+
+            _ => throw new NotImplementedException($"Instruction {jumpInstr.Mnemonic} is not yet supported")
+        };
     }
 
     private void HandleLea(ExprBlock block, Instruction instr)

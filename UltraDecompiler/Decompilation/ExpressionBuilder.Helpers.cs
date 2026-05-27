@@ -11,63 +11,6 @@ public partial class ExpressionBuilder
     private static Expr GetFlagOrTrue(Expr? flagExpr) => flagExpr ?? ConstExpr.One; // fallback (всегда "истина" если флаг неизвестен)
 
     /// <summary>
-    /// Строит символическое условие для взятия ConditionalBlock по Jcc-инструкции
-    /// и текущему состоянию флагов (из EndRegisters).
-    /// </summary>
-    private static Expr BuildJumpCondition(Instruction jumpInstr, RegisterExpressions registers)
-    {
-        var zf = GetFlagOrTrue(registers.ZF);
-        var cf = GetFlagOrTrue(registers.CF);
-        var sf = GetFlagOrTrue(registers.SF);
-        var of = GetFlagOrTrue(registers.OF);
-
-        // SF == OF  (используем эквивалент XOR: (a&b) | (!a & !b) )
-        var sfEqOf = Or(And(sf, of), And(Negate(sf), Negate(of)));
-
-        return jumpInstr.Mnemonic switch
-        {
-            // Равенство (лучше всего поддерживается после CMP/TEST)
-            Mnemonic.JE => zf,
-            Mnemonic.JNE => Negate(zf),
-
-            // Беззнаковые сравнения
-            Mnemonic.JB => cf,
-            Mnemonic.JAE => Negate(cf),
-
-            Mnemonic.JBE => Or(cf, zf),
-            Mnemonic.JA => And(Negate(cf), Negate(zf)),
-
-            // Знаковый бит
-            Mnemonic.JS => sf,
-            Mnemonic.JNS => Negate(sf),
-
-            // Знаковые сравнения
-            Mnemonic.JL => Negate(sfEqOf),
-            Mnemonic.JGE => sfEqOf,
-            Mnemonic.JLE => Or(zf, Negate(sfEqOf)),
-            Mnemonic.JG => And(Negate(zf), sfEqOf),
-
-            // Переполнение
-            Mnemonic.JO => of,
-            Mnemonic.JNO => Negate(of),
-
-            // Чётность (редко используется в высокоуровневом коде)
-            Mnemonic.JP => zf, // заглушка (PF не отслеживаем)
-            Mnemonic.JNP => Negate(zf),
-
-            // Специальные (CX-based) — упрощённо
-            Mnemonic.JCXZ => ConstExpr.Zero, // TODO: CX == 0
-
-            // Циклы — упрощённо
-            Mnemonic.LOOP => Negate(zf),
-            Mnemonic.LOOPE => zf,
-            Mnemonic.LOOPNE => Negate(zf),
-
-            _ => ConstExpr.One
-        };
-    }
-
-    /// <summary>
     /// Строит символическое выражение эффективного адреса (offset) для memory-операнда.
     /// Сегмент здесь не учитывается — LEA и подобные операции работают только с offset-частью.
     /// </summary>
