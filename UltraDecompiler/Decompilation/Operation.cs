@@ -16,3 +16,15 @@ public record SetOperation(Variable Dst, Expr Src) : Operation
 /// Вызов метода
 /// </summary>
 public record CallOperation(Procedure Procedure, IReadOnlyList<Expr> Args) : Operation;
+
+/// <summary>
+/// Запись значения в память (store).
+/// </summary>
+public record StoreOperation(Expr Address, Expr? Segment, Expr Value) : Operation
+{
+    public override string ToString()
+    {
+        var segPrefix = Segment != null ? $"{Segment}:" : "";
+        return $"{segPrefix}[{Address}] = {Value}";
+    }
+}

@@ -258,8 +258,11 @@ public class ExpressionBuilder
         {
             block.EndRegisters = block.EndRegisters.SetSegment(instr.Operand1.Value, exprSrc);
         }
-        // TODO: Поддержка записи в память (MOV [bx], ax и т.п.) — пока игнорируется.
-        // При реализации потребуется новый тип Operation (например, StoreOperation).
+        else if (instr.Operand1.Type == OperandType.Memory)
+        {
+            var (addr, seg) = BuildMemoryReference(instr.Operand1, block.EndRegisters, instr.Segment);
+            block.Operations.Add(new StoreOperation(addr, seg, exprSrc));
+        }
     }
 
     /// <summary>
@@ -282,7 +285,7 @@ public class ExpressionBuilder
         var resultVar = Variables.CreateVariable();
         block.Operations.Add(new SetOperation(resultVar, math));
 
-        // Обновляем символическое состояние: теперь в регистре dst лежит resultVar
+        // Обновляем символическое состояние
         if (dst.Type == OperandType.Register16)
         {
             block.EndRegisters = block.EndRegisters.Set16(dst.Value, resultVar);
@@ -290,6 +293,11 @@ public class ExpressionBuilder
         else if (dst.Type == OperandType.Register8)
         {
             block.EndRegisters = block.EndRegisters.Set8(dst.Value, resultVar);
+        }
+        else if (dst.Type == OperandType.Memory)
+        {
+            var (addr, seg) = BuildMemoryReference(dst, block.EndRegisters, instr.Segment);
+            block.Operations.Add(new StoreOperation(addr, seg, resultVar));
         }
 
         block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, resultVar);
@@ -317,6 +325,11 @@ public class ExpressionBuilder
         else if (dst.Type == OperandType.Register8)
         {
             block.EndRegisters = block.EndRegisters.Set8(dst.Value, resultVar);
+        }
+        else if (dst.Type == OperandType.Memory)
+        {
+            var (addr, seg) = BuildMemoryReference(dst, block.EndRegisters, instr.Segment);
+            block.Operations.Add(new StoreOperation(addr, seg, resultVar));
         }
 
         block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, resultVar);
@@ -353,6 +366,11 @@ public class ExpressionBuilder
         {
             block.EndRegisters = block.EndRegisters.Set8(dst.Value, resultVar);
         }
+        else if (dst.Type == OperandType.Memory)
+        {
+            var (addr, seg) = BuildMemoryReference(dst, block.EndRegisters, instr.Segment);
+            block.Operations.Add(new StoreOperation(addr, seg, resultVar));
+        }
 
         block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, resultVar);
     }
@@ -380,6 +398,11 @@ public class ExpressionBuilder
         else if (dst.Type == OperandType.Register8)
         {
             block.EndRegisters = block.EndRegisters.Set8(dst.Value, resultVar);
+        }
+        else if (dst.Type == OperandType.Memory)
+        {
+            var (addr, seg) = BuildMemoryReference(dst, block.EndRegisters, instr.Segment);
+            block.Operations.Add(new StoreOperation(addr, seg, resultVar));
         }
 
         block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, resultVar);
@@ -415,6 +438,11 @@ public class ExpressionBuilder
         else if (dst.Type == OperandType.Register8)
         {
             block.EndRegisters = block.EndRegisters.Set8(dst.Value, resultVar);
+        }
+        else if (dst.Type == OperandType.Memory)
+        {
+            var (addr, seg) = BuildMemoryReference(dst, block.EndRegisters, instr.Segment);
+            block.Operations.Add(new StoreOperation(addr, seg, resultVar));
         }
 
         block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, resultVar);
@@ -605,36 +633,7 @@ public class ExpressionBuilder
 
         if (operand.Type == OperandType.Memory)
         {
-            var address = GetEffectiveAddress(operand, registers, segmentOverride);
-
-            // Определяем сегментное выражение
-            Expr? segExpr = null;
-
-            if (segmentOverride != Segment.None)
-            {
-                // Явный сегментный префикс на инструкции
-                int segIdx = segmentOverride switch
-                {
-                    Segment.ES => 0,
-                    Segment.CS => 1,
-                    Segment.SS => 2,
-                    Segment.DS => 3,
-                    _ => -1
-                };
-                if (segIdx >= 0)
-                    segExpr = registers.GetSegment(segIdx);
-            }
-            else
-            {
-                // Правило умолчания для 8086 (real mode)
-                // Если в адресации участвует BP (включая [BP], [BP+SI], [BP+DI]) — по умолчанию SS
-                // В остальных случаях (BX, SI, DI, прямой адрес) — по умолчанию DS
-                bool usesStackSegment = operand.BaseReg == AddressRegister.BP ||
-                                        operand.IndexReg == AddressRegister.BP;
-
-                int defaultSegIdx = usesStackSegment ? 2 : 3; // SS : DS
-                segExpr = registers.GetSegment(defaultSegIdx);
-            }
+            var (address, segExpr) = BuildMemoryReference(operand, registers, segmentOverride);
 
             // Пытаемся распознать доступ к известной структуре в памяти (PSP и т.п.)
             var knownVar = Variables.TryGetKnownMemoryVariable(address, segExpr);
@@ -645,5 +644,43 @@ public class ExpressionBuilder
         }
 
         throw new NotImplementedException($"Unsupported operand type: {operand.Type}");
+    }
+
+    /// <summary>
+    /// Строит описание адреса памяти (address + segment) для операнда Memory.
+    /// Используется как для загрузок (MemExpr), так и для записей (StoreOperation).
+    /// </summary>
+    private (Expr Address, Expr? Segment) BuildMemoryReference(
+        Operand operand,
+        in RegisterExpressions registers,
+        Segment segmentOverride)
+    {
+        var address = GetEffectiveAddress(operand, registers, segmentOverride);
+
+        Expr? segExpr = null;
+
+        if (segmentOverride != Segment.None)
+        {
+            int segIdx = segmentOverride switch
+            {
+                Segment.ES => 0,
+                Segment.CS => 1,
+                Segment.SS => 2,
+                Segment.DS => 3,
+                _ => -1
+            };
+            if (segIdx >= 0)
+                segExpr = registers.GetSegment(segIdx);
+        }
+        else
+        {
+            bool usesStackSegment = operand.BaseReg == AddressRegister.BP ||
+                                    operand.IndexReg == AddressRegister.BP;
+
+            int defaultSegIdx = usesStackSegment ? 2 : 3; // SS : DS
+            segExpr = registers.GetSegment(defaultSegIdx);
+        }
+
+        return (address, segExpr);
     }
 }
