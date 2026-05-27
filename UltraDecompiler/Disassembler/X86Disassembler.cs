@@ -67,9 +67,6 @@ public class X86Disassembler
                 int target = GetEffectiveJumpTarget(instr);
                 if (target != -1)
                     queue.Enqueue((target, registers));
-
-                if (instr.IsCall)
-                    break;
             }
         }
     }

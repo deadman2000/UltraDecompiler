@@ -124,7 +124,7 @@ public partial class Instruction
     /// <summary>
     /// Инструкция является вызовом с возвратом
     /// </summary>
-    public bool IsCall => Mnemonic is Mnemonic.CALL or Mnemonic.CALL_FAR;
+    public bool IsCall => Mnemonic is Mnemonic.CALL or Mnemonic.CALL_FAR or Mnemonic.INT;
 
     /// <summary>
     /// Инструкция является выходом из приложения

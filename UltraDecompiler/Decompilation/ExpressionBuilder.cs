@@ -169,11 +169,6 @@ public partial class ExpressionBuilder
                 return exprBlock;
             }
 
-            if (instr.IsCall)
-            {
-                throw new NotImplementedException($"Call instruction {instr.Mnemonic} at {exprBlock.BasicBlock.StartOffset:X6} is not supported");
-            }
-
             if (instr.IsExit)
             {
                 return exprBlock;
