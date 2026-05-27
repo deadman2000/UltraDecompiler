@@ -87,6 +87,10 @@ void far *dos_get_dta(void);                       /* 2Fh */
 int  dos_fcb_open(void far *fcb);
 int  dos_fcb_close(void far *fcb);
 
+/* Low-level CPU interrupt control (corresponds to CLI/STI) */
+void _disable(void);                               /* CLI - disable interrupts (QuickC/MSC style) */
+void _enable(void);                                /* STI - enable interrupts (QuickC/MSC style) */
+
 /* Low-level fallback (when AH value is not a compile-time constant) */
 int  intdos(void *inregs, void *outregs);          /* from original QuickC <dos.h> */
 int  int86(int intno, void *inregs, void *outregs);
