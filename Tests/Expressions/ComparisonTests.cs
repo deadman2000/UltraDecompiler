@@ -105,6 +105,11 @@ public class ComparisonTests : BaseTests
 
         Assert.NotNull(expr.Blocks[0].Condition);
         var cond = Assert.IsType<CmpExpr>(expr.Blocks[0].Condition);
-        Assert.Equal("var4 & 255 == 2", cond.ToString());
+        Assert.Equal(CmpOperation.Uge, cond.Operation);
+
+        var left = Assert.IsType<Math2Expr>(cond.Left);
+        Assert.Equal(Math2Operation.And, left.Operation);
+
+        Assert.Equal("var4 & 255 >= 2", cond.ToString());
     }
 }

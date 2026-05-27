@@ -31,11 +31,10 @@ public record struct RegisterExpressions(
     public Expr? DH { get; init; }
     public Expr? DL { get; init; }
 
-    // Флаги (символические выражения). null = неизвестен/не вычислен.
-    public Expr? ZF { get; init; }
-    public Expr? CF { get; init; }
-    public Expr? SF { get; init; }
-    public Expr? OF { get; init; }
+    public Expr ZF { get; init; } = ConstExpr.Zero;
+    public Expr CF { get; init; } = ConstExpr.Zero;
+    public Expr SF { get; init; } = ConstExpr.Zero;
+    public Expr OF { get; init; } = ConstExpr.Zero;
 
     // ===== Хелперы для сокращения дублирования логики 4 групп (AX/AH/AL, CX/CH/CL и т.д.) =====
 

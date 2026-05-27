@@ -4,11 +4,70 @@ namespace UltraDecompiler.Decompilation;
 
 public partial class ExpressionBuilder
 {
-    private static Expr Negate(Expr e) => Calculate(Math1Operation.Not, e);
-    private static Expr And(Expr a, Expr b) => Calculate(Math2Operation.And, a, b);
-    private static Expr Or(Expr a, Expr b) => Calculate(Math2Operation.Or, a, b);
+    /// <summary>
+    /// Булевы версии And/Or/Not для построения условий переходов.
+    /// Выполняют агрессивное упрощение, когда один или оба операнда — константы (0/1).
+    /// Используются в BuildJumpCondition.
+    /// </summary>
+    private static Expr BoolAnd(Expr a, Expr b)
+    {
+        if (a is ConstExpr ca)
+        {
+            if (ca.Value == 0) return ConstExpr.Zero;
+            if (ca.Value != 0) return b;
+        }
+        if (b is ConstExpr cb)
+        {
+            if (cb.Value == 0) return ConstExpr.Zero;
+            if (cb.Value != 0) return a;
+        }
+        return Calculate(Math2Operation.And, a, b);
+    }
 
-    private static Expr GetFlagOrTrue(Expr? flagExpr) => flagExpr ?? ConstExpr.One; // fallback (всегда "истина" если флаг неизвестен)
+    private static Expr BoolOr(Expr a, Expr b)
+    {
+        if (a is ConstExpr ca)
+        {
+            if (ca.Value != 0) return ConstExpr.One;
+            if (ca.Value == 0) return b;
+        }
+        if (b is ConstExpr cb)
+        {
+            if (cb.Value != 0) return ConstExpr.One;
+            if (cb.Value == 0) return a;
+        }
+        return Calculate(Math2Operation.Or, a, b);
+    }
+
+    private static Expr BoolNot(Expr e)
+    {
+        if (e is ConstExpr c)
+        {
+            return c.Value == 0 ? ConstExpr.One : ConstExpr.Zero;
+        }
+
+        // Инверсия известных сравнений — даёт более чистые условия
+        if (e is CmpExpr cmp)
+        {
+            var invertedOp = cmp.Operation switch
+            {
+                CmpOperation.Eq  => CmpOperation.Ne,
+                CmpOperation.Ne  => CmpOperation.Eq,
+                CmpOperation.Ult => CmpOperation.Uge,
+                CmpOperation.Uge => CmpOperation.Ult,
+                CmpOperation.Ule => CmpOperation.Ugt,
+                CmpOperation.Ugt => CmpOperation.Ule,
+                _ => (CmpOperation?)null
+            };
+
+            if (invertedOp.HasValue)
+            {
+                return new CmpExpr(invertedOp.Value, cmp.Left, cmp.Right);
+            }
+        }
+
+        return Calculate(Math1Operation.Not, e);
+    }
 
     /// <summary>
     /// Строит символическое выражение эффективного адреса (offset) для memory-операнда.
@@ -97,7 +156,7 @@ public partial class ExpressionBuilder
     {
         var address = GetEffectiveAddress(operand, registers, segmentOverride);
 
-        Expr? segExpr = null;
+        Expr? segExpr;
 
         if (segmentOverride != Segment.None)
         {

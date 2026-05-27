@@ -258,57 +258,51 @@ public partial class ExpressionBuilder
     /// </summary>
     private static Expr BuildJumpCondition(Instruction jumpInstr, RegisterExpressions registers)
     {
-        var zf = GetFlagOrTrue(registers.ZF);
-        var cf = GetFlagOrTrue(registers.CF);
-        var sf = GetFlagOrTrue(registers.SF);
-        var of = GetFlagOrTrue(registers.OF);
-
-        // SF == OF  (используем эквивалент XOR: (a&b) | (!a & !b) )
-        var sfEqOf = Or(And(sf, of), And(Negate(sf), Negate(of)));
+        // SF == OF  (эквивалентность, т.е. не XOR)
+        // Используется для знаковых условных переходов.
+        // Используем Bool* версии, чтобы сразу сворачивать константы.
+        Expr SfEqOf() => BoolOr(
+            BoolAnd(registers.SF, registers.OF),
+            BoolAnd(BoolNot(registers.SF), BoolNot(registers.OF))
+        );
+        Expr SfNeOf() => BoolNot(SfEqOf());
 
         return jumpInstr.Mnemonic switch
         {
-            // Равенство (лучше всего поддерживается после CMP/TEST)
-            Mnemonic.JE => zf,
-            Mnemonic.JNE => Negate(zf),
+            // Равенство
+            Mnemonic.JE => registers.ZF,
+            Mnemonic.JNE => BoolNot(registers.ZF),
 
             // Беззнаковые сравнения
-            // Если CF не был установлен явно (после CMP/TEST он остаётся null),
-            // то для JAE/JB fallback'им на CmpExpr из ZF — это позволяет
-            // сохранить символическое сравнение (например "var & 255 == 2")
-            // в Condition прыжка вместо ConstExpr.
-            // Когда CF будет полноценно вычисляться в HandleCmp — здесь будут
-            // точные Or/And-выражения для u>= / u< и т.д.
-            Mnemonic.JB => registers.CF is null ? Negate(zf) : And(cf, Negate(zf)),
-            Mnemonic.JAE => registers.CF is null ? zf : Or(zf, And(Negate(cf), Negate(zf))),
-
-            Mnemonic.JBE => Or(cf, zf),
-            Mnemonic.JA => And(Negate(cf), Negate(zf)),
+            Mnemonic.JB  => registers.CF,
+            Mnemonic.JAE => BoolNot(registers.CF),
+            Mnemonic.JBE => BoolOr(registers.CF, registers.ZF),
+            Mnemonic.JA  => BoolAnd(BoolNot(registers.CF), BoolNot(registers.ZF)),
 
             // Знаковый бит
-            Mnemonic.JS => sf,
-            Mnemonic.JNS => Negate(sf),
+            Mnemonic.JS  => registers.SF,
+            Mnemonic.JNS => BoolNot(registers.SF),
 
             // Знаковые сравнения
-            Mnemonic.JL => Negate(sfEqOf),
-            Mnemonic.JGE => sfEqOf,
-            Mnemonic.JLE => Or(zf, Negate(sfEqOf)),
-            Mnemonic.JG => And(Negate(zf), sfEqOf),
+            Mnemonic.JL  => SfNeOf(),
+            Mnemonic.JGE => SfEqOf(),
+            Mnemonic.JLE => BoolOr(registers.ZF, SfNeOf()),
+            Mnemonic.JG  => BoolAnd(BoolNot(registers.ZF), SfEqOf()),
 
             // Переполнение
-            Mnemonic.JO => of,
-            Mnemonic.JNO => Negate(of),
+            Mnemonic.JO  => registers.OF,
+            Mnemonic.JNO => BoolNot(registers.OF),
 
-            // Чётность (не поддерживаем PF)
-            Mnemonic.JP => throw new NotImplementedException("JP/JPE is not supported (PF flag not tracked)"),
+            // Чётность
+            Mnemonic.JP  => throw new NotImplementedException("JP/JPE is not supported (PF flag not tracked)"),
             Mnemonic.JNP => throw new NotImplementedException("JNP/JPO is not supported (PF flag not tracked)"),
 
             // Специальные (CX-based)
             Mnemonic.JCXZ => throw new NotImplementedException("JCXZ is not supported"),
 
             // Циклы
-            Mnemonic.LOOP => throw new NotImplementedException("LOOP is not supported"),
-            Mnemonic.LOOPE => throw new NotImplementedException("LOOPE/LOOPZ is not supported"),
+            Mnemonic.LOOP   => throw new NotImplementedException("LOOP is not supported"),
+            Mnemonic.LOOPE  => throw new NotImplementedException("LOOPE/LOOPZ is not supported"),
             Mnemonic.LOOPNE => throw new NotImplementedException("LOOPNE/LOOPNZ is not supported"),
 
             _ => throw new NotImplementedException($"Instruction {jumpInstr.Mnemonic} is not yet supported")
@@ -367,8 +361,9 @@ public partial class ExpressionBuilder
     /// Создаёт выражение "dstCurrent + src" или "dstCurrent - src",
     /// сохраняет его в новую Variable и записывает эту переменную в регистр-назначение.
     /// 
-    /// Мы всегда выделяем новую Variable для результата — это позволяет
-    /// в дальнейшем строить более чистые выражения и избегать мутации.
+    /// Также обновляет флаги:
+    /// - ZF = (result == 0)
+    /// - CF для SUB = (dst u< src), для ADD — приближённая оценка
     /// </summary>
     private void HandleArithmetic(ExprBlock block, Instruction instr)
     {
@@ -406,12 +401,28 @@ public partial class ExpressionBuilder
         }
 
         block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, result);
+
+        // Дополнительно выставляем CF для ADD и SUB (важно для JAE/JB и т.п.)
+        if (instr.Mnemonic == Mnemonic.SUB)
+        {
+            // Для вычитания CF = 1, если было заимствование (dst < src unsigned)
+            var cfExpr = new CmpExpr(CmpOperation.Ult, dstCurrent, srcExpr);
+            block.EndRegisters = block.EndRegisters with { CF = cfExpr };
+        }
+        else if (instr.Mnemonic == Mnemonic.ADD)
+        {
+            // Для сложения — приближённая оценка carry: результат "меньше" исходного dst
+            // (хорошо работает в большинстве практических случаев)
+            var cfExpr = new CmpExpr(CmpOperation.Ult, result, dstCurrent);
+            block.EndRegisters = block.EndRegisters with { CF = cfExpr };
+        }
     }
 
     /// <summary>
     /// Обрабатывает INC и DEC (специальный случай арифметики на 1).
-    /// Выделена в отдельный метод для читаемости и будущего расширения
-    /// (INC/DEC по-разному влияют на флаги по сравнению с ADD/SUB 1).
+    /// 
+    /// Важно: на реальном x86 INC/DEC **не затрагивают** флаг CF
+    /// (в отличие от ADD/SUB 1). Поэтому мы не трогаем CF здесь.
     /// </summary>
     private void HandleIncDec(ExprBlock block, Instruction instr, bool isInc)
     {
@@ -453,6 +464,8 @@ public partial class ExpressionBuilder
     /// Обрабатывает побитовые логические операции: AND, OR, XOR.
     /// Логика полностью аналогична HandleArithmetic, но использует
     /// соответствующие Math2Operation (And, Or, Xor).
+    ///
+    /// На x86 эти операции сбрасывают флаги CF и OF в 0.
     /// </summary>
     private void HandleLogical(ExprBlock block, Instruction instr)
     {
@@ -496,6 +509,13 @@ public partial class ExpressionBuilder
         }
 
         block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, result);
+
+        // На реальном x86 AND, OR, XOR сбрасывают Carry и Overflow
+        block.EndRegisters = block.EndRegisters with
+        {
+            CF = ConstExpr.Zero,
+            OF = ConstExpr.Zero
+        };
     }
 
     /// <summary>
@@ -590,20 +610,26 @@ public partial class ExpressionBuilder
     /// <summary>
     /// Обрабатывает CMP (сравнение). Не создаёт SetOperation (результат не записывается),
     /// но обновляет символические значения флагов в RegisterExpressions.
-    /// ZF для CMP представляется как CmpExpr(Eq, left, right) — это позволяет
-    /// в будущем легко строить условия вида "if (ax == bx)".
+    ///
+    /// - ZF = (left == right)
+    /// - CF = (left u< right)   ← беззнаковое "меньше", соответствует биту переноса (borrow)
+    ///
+    /// Это позволяет корректно строить условия для JAE/JB/JA/JBE.
     /// </summary>
     private void HandleCmp(ExprBlock block, Instruction instr)
     {
         var left = GetExpression(instr.Operand1, block.EndRegisters, instr.Segment);
         var right = GetExpression(instr.Operand2, block.EndRegisters, instr.Segment);
 
-        // Прямое равенство — лучший способ представить ZF после CMP
         var zfExpr = new CmpExpr(CmpOperation.Eq, left, right);
+        var cfExpr = new CmpExpr(CmpOperation.Ult, left, right); // left < right (unsigned) → CF
 
-        // Другие флаги (CF, SF, OF) оставляем как есть или null (полная модель сложнее).
-        // В будущем можно вычислять через виртуальный Sub и bit-анализ.
-        block.EndRegisters = block.EndRegisters with { ZF = zfExpr };
+        block.EndRegisters = block.EndRegisters with
+        {
+            ZF = zfExpr,
+            CF = cfExpr
+            // SF и OF можно добавить позже при необходимости (для знаковых Jcc)
+        };
     }
 
     /// <summary>
@@ -678,16 +704,18 @@ public partial class ExpressionBuilder
     }
 
     /// <summary>
-    /// Применяет обновление флагов после арифметической/логической операции,
-    /// которая записала результат в resultExpr (обычно Variable).
-    /// На данный момент устанавливаем только ZF = (resultExpr == 0).
+    /// Применяет обновление флагов после арифметической/логической операции.
+    /// Устанавливает только ZF = (resultExpr == 0).
+    ///
+    /// Для ADD/SUB CF устанавливается напрямую в HandleArithmetic (более точная информация).
+    /// Для INC/DEC CF намеренно не трогается (согласно x86).
     /// </summary>
     private static RegisterExpressions ApplyArithmeticFlags(RegisterExpressions regs, Expr resultExpr)
     {
         return regs with
         {
             ZF = new CmpExpr(CmpOperation.Eq, resultExpr, ConstExpr.Zero)
-            // CF, SF, OF при необходимости (требуют знания операции и bit-логики)
+            // CF, SF, OF оставляем как есть
         };
     }
 }

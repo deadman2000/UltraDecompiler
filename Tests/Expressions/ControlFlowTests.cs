@@ -61,11 +61,9 @@ public class ControlFlowTests : BaseTests
         var condBlock = expr.Blocks.FirstOrDefault(b => b.ConditionalBlock != null);
         Assert.NotNull(condBlock);
 
-        var notExpr = Assert.IsType<Math1Expr>(condBlock.Condition);
-        Assert.Equal(Math1Operation.Not, notExpr.Operation);
-
-        var inner = Assert.IsType<CmpExpr>(notExpr.Op);
-        Assert.Equal(CmpOperation.Eq, inner.Operation);
+        // Благодаря BoolNot(Eq) теперь сразу получаем Ne (более чистое представление)
+        var cond = Assert.IsType<CmpExpr>(condBlock.Condition);
+        Assert.Equal(CmpOperation.Ne, cond.Operation);
     }
 
     [Fact]
@@ -104,8 +102,9 @@ public class ControlFlowTests : BaseTests
         Assert.NotNull(condBlock);
         Assert.NotEqual(ConstExpr.One, condBlock.Condition);
 
-        var andExpr = Assert.IsType<Math2Expr>(condBlock.Condition);
-        Assert.Equal(Math2Operation.And, andExpr.Operation);
+        // JA = !CF && !ZF → составное выражение (Math2 And)
+        var cond = Assert.IsType<Math2Expr>(condBlock.Condition);
+        Assert.Equal(Math2Operation.And, cond.Operation);
     }
 
     [Fact]

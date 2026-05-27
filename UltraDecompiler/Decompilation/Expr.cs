@@ -160,6 +160,15 @@ public enum CmpOperation
     Eq,
     /// <summary>Не равно</summary>
     Ne,
+
+    /// <summary>Беззнаковое меньше (unsigned &lt;). Соответствует CF=1 после CMP/SUB.</summary>
+    Ult,
+    /// <summary>Беззнаковое меньше или равно (unsigned &lt;=)</summary>
+    Ule,
+    /// <summary>Беззнаковое больше (unsigned &gt;)</summary>
+    Ugt,
+    /// <summary>Беззнаковое больше или равно (unsigned &gt;=)</summary>
+    Uge,
 }
 
 /// <summary>
@@ -173,6 +182,10 @@ public record CmpExpr(CmpOperation Operation, Expr Left, Expr Right) : Expr
     {
         CmpOperation.Eq => $"{Left} == {Right}",
         CmpOperation.Ne => $"{Left} != {Right}",
+        CmpOperation.Ult => $"{Left} < {Right}",
+        CmpOperation.Ule => $"{Left} <= {Right}",
+        CmpOperation.Ugt => $"{Left} > {Right}",
+        CmpOperation.Uge => $"{Left} >= {Right}",
         _ => throw new NotImplementedException(),
     };
 }
