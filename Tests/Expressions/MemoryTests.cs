@@ -41,38 +41,31 @@ public class MemoryTests : BaseTests
     public void HandleLea_ComputesEffectiveAddress()
     {
         // LEA BX, [SI+0Ah]  — 8D 5C 0A
+        // SI init = 0 (const) => eff addr 0+10 folds to const 10
         var expr = BuildExpressions("8D 5C 0A");
 
         var bx = expr.Blocks[0].EndRegisters.BX;
-        var math = Assert.IsType<Math2Expr>(bx);
-        Assert.Equal(Math2Operation.Add, math.Operation);
-
-        // Один из операндов — SI (или его выражение), второй — Const(10)
-        Assert.True(
-            (math.First is ConstExpr c && c.Value == 10) ||
-            (math.Second is ConstExpr c2 && c2.Value == 10),
-            "LEA должен содержать смещение 10"
-        );
-        Assert.Contains("+", bx.ToString());
+        var addr = Assert.IsType<ConstExpr>(bx);
+        Assert.Equal(10, addr.Value);
     }
 
     [Fact]
     public void GetExpression_ComplexAddress_BxSiPlusDisp_UsedInAdd()
     {
         // ADD AX, [BX+SI+5]  — 03 40 05
+        // BX=SI=0 init => addr folds to Const(5)
         var expr = BuildExpressions("03 40 05");
 
         Assert.Single(expr.Blocks[0].Operations);
         var setOp = Assert.IsType<SetOperation>(expr.Blocks[0].Operations[0]);
         var add = Assert.IsType<Math2Expr>(setOp.Src);
 
-        // Один из операндов Add — MemExpr
+        // Один из операндов Add — MemExpr с const-адресом (улучшение от folding)
         MemExpr? memExpr = add.First as MemExpr ?? add.Second as MemExpr;
         Assert.NotNull(memExpr);
 
-        // Адрес должен быть (BX + SI) + 5
-        var addrAdd = Assert.IsType<Math2Expr>(memExpr.Address);
-        Assert.Equal(Math2Operation.Add, addrAdd.Operation);
+        var addr = Assert.IsType<ConstExpr>(memExpr.Address);
+        Assert.Equal(5, addr.Value);
         Assert.Contains("[", memExpr.ToString());
     }
 

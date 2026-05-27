@@ -17,16 +17,11 @@ public class BitwiseTests : BaseTests
 
         Assert.Single(expr.Blocks);
         var block = expr.Blocks[0];
-        Assert.Single(block.Operations);
+        // 0xFF & 0x0F => 0x0F const, folded, no Set
+        Assert.Empty(block.Operations);
 
-        var e0 = Assert.IsType<SetOperation>(block.Operations[0]);
-        var m2 = Assert.IsType<Math2Expr>(e0.Src);
-        Assert.Equal(Math2Operation.And, m2.Operation);
-
-        var c1 = Assert.IsType<ConstExpr>(m2.Second);
-        Assert.Equal(0x0F, c1.Value);
-
-        Assert.Equal(e0.Dst, block.EndRegisters.AX);
+        var ax = Assert.IsType<ConstExpr>(block.EndRegisters.AX);
+        Assert.Equal(0x0F, ax.Value);
     }
 
     [Fact]
@@ -39,13 +34,11 @@ public class BitwiseTests : BaseTests
 
         Assert.Single(expr.Blocks);
         var block = expr.Blocks[0];
-        Assert.Single(block.Operations);
+        // 0x10 | 1 => 0x11 const, no Set
+        Assert.Empty(block.Operations);
 
-        var e0 = Assert.IsType<SetOperation>(block.Operations[0]);
-        var m2 = Assert.IsType<Math2Expr>(e0.Src);
-        Assert.Equal(Math2Operation.Or, m2.Operation);
-
-        Assert.Equal(e0.Dst, block.EndRegisters.AX);
+        var ax = Assert.IsType<ConstExpr>(block.EndRegisters.AX);
+        Assert.Equal(0x11, ax.Value);
     }
 
     [Fact]
@@ -58,16 +51,11 @@ public class BitwiseTests : BaseTests
 
         Assert.Single(expr.Blocks);
         var block = expr.Blocks[0];
-        Assert.Single(block.Operations);
+        // 0xFF ^ 0x0F => 0xF0 const, no Set
+        Assert.Empty(block.Operations);
 
-        var e0 = Assert.IsType<SetOperation>(block.Operations[0]);
-        var m2 = Assert.IsType<Math2Expr>(e0.Src);
-        Assert.Equal(Math2Operation.Xor, m2.Operation);
-
-        var c1 = Assert.IsType<ConstExpr>(m2.Second);
-        Assert.Equal(0x0F, c1.Value);
-
-        Assert.Equal(e0.Dst, block.EndRegisters.AX);
+        var ax = Assert.IsType<ConstExpr>(block.EndRegisters.AX);
+        Assert.Equal(0xF0, ax.Value);
     }
 
     [Fact]
@@ -80,11 +68,12 @@ public class BitwiseTests : BaseTests
 
         Assert.Single(expr.Blocks);
         var block = expr.Blocks[0];
-        Assert.Single(block.Operations);
+        // not 5 (const) => ~5 folded, no SetOperation
+        Assert.Empty(block.Operations);
 
-        var e0 = Assert.IsType<SetOperation>(block.Operations[0]);
-        var m1 = Assert.IsType<Math1Expr>(e0.Src);
-        Assert.Equal(Math1Operation.Not, m1.Operation);
+        // AL holds the folded const (~5)
+        var al = Assert.IsType<ConstExpr>(block.EndRegisters.AL);
+        Assert.Equal(~5, al.Value);
     }
 
     [Fact]
@@ -97,12 +86,10 @@ public class BitwiseTests : BaseTests
 
         Assert.Single(expr.Blocks);
         var block = expr.Blocks[0];
-        Assert.Single(block.Operations);
+        // neg 5 => -5 const folded, no Set
+        Assert.Empty(block.Operations);
 
-        var e0 = Assert.IsType<SetOperation>(block.Operations[0]);
-        var m1 = Assert.IsType<Math1Expr>(e0.Src);
-        Assert.Equal(Math1Operation.Neg, m1.Operation);
-
-        Assert.Equal(e0.Dst, block.EndRegisters.BX);
+        var bx = Assert.IsType<ConstExpr>(block.EndRegisters.BX);
+        Assert.Equal(-5, bx.Value);
     }
 }

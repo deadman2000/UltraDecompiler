@@ -18,19 +18,11 @@ public class ArithmeticTests : BaseTests
 
         Assert.Single(expr.Blocks);
         var block = expr.Blocks[0];
-        Assert.Single(block.Operations);
+        // const + const => folded, no SetOperation emitted (same spirit as Calculate)
+        Assert.Empty(block.Operations);
 
-        var e0 = Assert.IsType<SetOperation>(block.Operations[0]);
-        var m2 = Assert.IsType<Math2Expr>(e0.Src);
-        Assert.Equal(Math2Operation.Add, m2.Operation);
-
-        var c0 = Assert.IsType<ConstExpr>(m2.First);
-        var c1 = Assert.IsType<ConstExpr>(m2.Second);
-
-        Assert.Equal(5, c0.Value);
-        Assert.Equal(7, c1.Value);
-        
-        Assert.Equal(e0.Dst, block.EndRegisters.AX);
+        var ax = Assert.IsType<ConstExpr>(block.EndRegisters.AX);
+        Assert.Equal(12, ax.Value);
     }
 
     [Fact]
@@ -44,19 +36,11 @@ public class ArithmeticTests : BaseTests
 
         Assert.Single(expr.Blocks);
         var block = expr.Blocks[0];
-        Assert.Single(block.Operations);
+        // const - const => folded, no SetOperation
+        Assert.Empty(block.Operations);
 
-        var e0 = Assert.IsType<SetOperation>(block.Operations[0]);
-        var m2 = Assert.IsType<Math2Expr>(e0.Src);
-        Assert.Equal(Math2Operation.Sub, m2.Operation);
-
-        var c0 = Assert.IsType<ConstExpr>(m2.First);
-        var c1 = Assert.IsType<ConstExpr>(m2.Second);
-
-        Assert.Equal(10, c0.Value);
-        Assert.Equal(3, c1.Value);
-        
-        Assert.Equal(e0.Dst, block.EndRegisters.AX);
+        var ax = Assert.IsType<ConstExpr>(block.EndRegisters.AX);
+        Assert.Equal(7, ax.Value);
     }
 
     [Fact]
@@ -69,16 +53,11 @@ public class ArithmeticTests : BaseTests
 
         Assert.Single(expr.Blocks);
         var block = expr.Blocks[0];
-        Assert.Single(block.Operations);
+        // inc on const => folded to 6, no SetOperation
+        Assert.Empty(block.Operations);
 
-        var e0 = Assert.IsType<SetOperation>(block.Operations[0]);
-        var m2 = Assert.IsType<Math2Expr>(e0.Src);
-        Assert.Equal(Math2Operation.Add, m2.Operation);
-
-        var c1 = Assert.IsType<ConstExpr>(m2.Second);
-        Assert.Equal(1, c1.Value);
-        
-        Assert.Equal(e0.Dst, block.EndRegisters.AX);
+        var ax = Assert.IsType<ConstExpr>(block.EndRegisters.AX);
+        Assert.Equal(6, ax.Value);
     }
 
     [Fact]
@@ -91,16 +70,11 @@ public class ArithmeticTests : BaseTests
 
         Assert.Single(expr.Blocks);
         var block = expr.Blocks[0];
-        Assert.Single(block.Operations);
+        // dec on const => folded, no SetOperation
+        Assert.Empty(block.Operations);
 
-        var e0 = Assert.IsType<SetOperation>(block.Operations[0]);
-        var m2 = Assert.IsType<Math2Expr>(e0.Src);
-        Assert.Equal(Math2Operation.Sub, m2.Operation);
-
-        var c1 = Assert.IsType<ConstExpr>(m2.Second);
-        Assert.Equal(1, c1.Value);
-        
-        Assert.Equal(e0.Dst, block.EndRegisters.BX);
+        var bx = Assert.IsType<ConstExpr>(block.EndRegisters.BX);
+        Assert.Equal(9, bx.Value);
     }
 
     [Fact]
@@ -114,12 +88,10 @@ public class ArithmeticTests : BaseTests
 
         Assert.Single(expr.Blocks);
         var block = expr.Blocks[0];
-        Assert.Single(block.Operations);
+        // const + const folded, no operation
+        Assert.Empty(block.Operations);
 
-        var e0 = Assert.IsType<SetOperation>(block.Operations[0]);
-        var m2 = Assert.IsType<Math2Expr>(e0.Src);
-        Assert.Equal(Math2Operation.Add, m2.Operation);
-
-        Assert.Equal(e0.Dst, block.EndRegisters.CX);
+        var cx = Assert.IsType<ConstExpr>(block.EndRegisters.CX);
+        Assert.Equal(30, cx.Value);
     }
 }

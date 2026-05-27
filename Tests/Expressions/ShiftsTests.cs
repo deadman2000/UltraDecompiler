@@ -17,16 +17,11 @@ public class ShiftsTests : BaseTests
 
         Assert.Single(expr.Blocks);
         var block = expr.Blocks[0];
-        Assert.Single(block.Operations);
+        // 1 << 1 => 2 const, folded, no Set
+        Assert.Empty(block.Operations);
 
-        var e0 = Assert.IsType<SetOperation>(block.Operations[0]);
-        var m2 = Assert.IsType<Math2Expr>(e0.Src);
-        Assert.Equal(Math2Operation.Shl, m2.Operation);
-
-        var c1 = Assert.IsType<ConstExpr>(m2.Second);
-        Assert.Equal(1, c1.Value);
-
-        Assert.Equal(e0.Dst, block.EndRegisters.AX);
+        var ax = Assert.IsType<ConstExpr>(block.EndRegisters.AX);
+        Assert.Equal(2, ax.Value);
     }
 
     [Fact]
@@ -39,19 +34,17 @@ public class ShiftsTests : BaseTests
 
         Assert.Single(expr.Blocks);
         var block = expr.Blocks[0];
-        Assert.Single(block.Operations);
+        // 0x80 >> 1 => 0x40 const, no Set
+        Assert.Empty(block.Operations);
 
-        var e0 = Assert.IsType<SetOperation>(block.Operations[0]);
-        var m2 = Assert.IsType<Math2Expr>(e0.Src);
-        Assert.Equal(Math2Operation.Shr, m2.Operation);
-
-        Assert.Equal(e0.Dst, block.EndRegisters.CX);
+        var cx = Assert.IsType<ConstExpr>(block.EndRegisters.CX);
+        Assert.Equal(0x40, cx.Value);
     }
 
     [Fact]
     public void DecompileSalWithCl()
     {
-        // Сдвиг на значение из CL (D3 /4). Сам mov cl не создаёт Operation.
+        // Сдвиг на значение из CL (D3 /4). mov'ы const => sal 1<<3 тоже const, всё folded.
         var expr = BuildExpressions("""
             B8 01 00 ; mov ax, 1
             B1 03    ; mov cl, 3
@@ -61,10 +54,10 @@ public class ShiftsTests : BaseTests
         Assert.Single(expr.Blocks);
         var block = expr.Blocks[0];
 
-        var e0 = Assert.IsType<SetOperation>(block.Operations[^1]);
-        var m2 = Assert.IsType<Math2Expr>(e0.Src);
-        Assert.Equal(Math2Operation.Shl, m2.Operation);
+        // Полностью статическое: 1 << 3 = 8, без SetOperation
+        Assert.Empty(block.Operations);
 
-        Assert.Equal(e0.Dst, block.EndRegisters.AX);
+        var ax = Assert.IsType<ConstExpr>(block.EndRegisters.AX);
+        Assert.Equal(8, ax.Value);
     }
 }

@@ -64,8 +64,9 @@ public class ComparisonTests : BaseTests
         var zf = Assert.IsType<CmpExpr>(block.EndRegisters.ZF);
         Assert.Equal(CmpOperation.Eq, zf.Operation);
 
-        var and = Assert.IsType<Math2Expr>(zf.Left);
-        Assert.Equal(Math2Operation.And, and.Operation);
+        // ax=5 & 1 => const 1 (folded by Calculate in HandleTest)
+        var left = Assert.IsType<ConstExpr>(zf.Left);
+        Assert.Equal(1, left.Value);
         var zero = Assert.IsType<ConstExpr>(zf.Right);
         Assert.Equal(0, zero.Value);
 
@@ -84,7 +85,8 @@ public class ComparisonTests : BaseTests
             """);
 
         var zf = Assert.IsType<CmpExpr>(expr.Blocks[0].EndRegisters.ZF);
-        var andExpr = Assert.IsType<Math2Expr>(zf.Left);
-        Assert.Equal(Math2Operation.And, andExpr.Operation);
+        // test 0,0 => and folded to const 0
+        var left = Assert.IsType<ConstExpr>(zf.Left);
+        Assert.Equal(0, left.Value);
     }
 }

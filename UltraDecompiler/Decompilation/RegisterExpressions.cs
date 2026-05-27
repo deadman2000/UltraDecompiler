@@ -156,8 +156,19 @@ public record struct RegisterExpressions(
         };
     }
 
-    private static Math2Expr LowByte(Expr e) => new(Math2Operation.And, e, new ConstExpr(0xff));
-    private static Math2Expr HighByte(Expr e) => new(Math2Operation.Shr, e, new ConstExpr(8));
+    private static Expr LowByte(Expr e)
+    {
+        if (e is ConstExpr c)
+            return new ConstExpr(c.Value & 0xff);
+        return new Math2Expr(Math2Operation.And, e, new ConstExpr(0xff));
+    }
+
+    private static Expr HighByte(Expr e)
+    {
+        if (e is ConstExpr c)
+            return new ConstExpr(c.Value >> 8);
+        return new Math2Expr(Math2Operation.Shr, e, new ConstExpr(8));
+    }
 
     /// <summary>
     /// Установка 8-битного регистра с логикой: если есть X - разделяем на другой байт с & 0xff или >>8, X в null
@@ -204,8 +215,13 @@ public record struct RegisterExpressions(
             Expr? l = GetL(group);
             if (h != null && l != null)
             {
-                var shl = new Math2Expr(Math2Operation.Shl, h, new ConstExpr(8));
-                return new Math2Expr(Math2Operation.Or, shl, l);
+                Expr shl = h is ConstExpr ch
+                    ? new ConstExpr(ch.Value << 8)
+                    : new Math2Expr(Math2Operation.Shl, h, new ConstExpr(8));
+                Expr combined = (shl is ConstExpr cshl && l is ConstExpr cl)
+                    ? new ConstExpr(cshl.Value | cl.Value)
+                    : new Math2Expr(Math2Operation.Or, shl, l);
+                return combined;
             }
 
             return GetX(group) ?? throw new InvalidOperationException();

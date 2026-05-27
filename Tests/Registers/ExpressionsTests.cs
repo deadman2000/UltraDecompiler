@@ -34,9 +34,9 @@ public class ExpressionsTests : BaseTests
         Assert.Equal(alExpr, regs.AL);
         var combined = regs.Get16(0);
         Assert.NotNull(combined);
-        // проверка типа выражения
-        Assert.Contains("<< 8", combined.ToString());
-        Assert.Contains("| ", combined.ToString());
+        // С folding'ом (Calculate в Get16) для констант получаем чистый ConstExpr
+        var c = Assert.IsType<ConstExpr>(combined);
+        Assert.Equal(0x1234, c.Value);
 
         // Установка обратно AX - H/L в null
         var newAx = new ConstExpr(0x5678);
