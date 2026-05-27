@@ -52,10 +52,10 @@ try
     var cfg = new ControlFlowGraph();
     cfg.Build(disassembler, (int)parser.EntryPointOffset, initRegisterState);
 
-    var dotPath = Path.Combine(Path.GetDirectoryName(exePath) ?? ".", "cfg.dot");
+    /*var dotPath = Path.Combine(Path.GetDirectoryName(exePath) ?? ".", "cfg.dot");
     var svgPath = Path.Combine(Path.GetDirectoryName(exePath) ?? ".", "cfg.svg");
     cfg.SaveDot(dotPath);
-    ConvertDotToSvg(dotPath, svgPath);
+    ConvertDotToSvg(dotPath, svgPath);*/
 
     var expressions = new ExpressionBuilder();
     expressions.Build(cfg, parser.IsCom);

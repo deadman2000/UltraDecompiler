@@ -230,18 +230,18 @@ public class ExpressionBuilder
     {
         if (instr.Operand1.Type == OperandType.Register16)
         {
-            // LEA загружает эффективный адрес (offset) в регистр.
-            // Полноценная поддержка сложных выражений памяти ([bx+si+1234h])
-            // потребует отдельного типа выражения (например, AddressExpr).
-            // Пока используем заглушку, чтобы хотя бы регистр не потерялся.
-            var eaExpr = ConstExpr.Zero;
+            // LEA загружает эффективный адрес (не разыменовывает память).
+            Expr eaExpr = instr.Operand2.Type == OperandType.Memory
+                ? GetEffectiveAddress(instr.Operand2, block.EndRegisters, instr.Segment)
+                : GetExpression(instr.Operand2, block.EndRegisters, instr.Segment);
+
             block.EndRegisters = block.EndRegisters.Set16(instr.Operand1.Value, eaExpr);
         }
     }
 
     private void HandleMov(ExprBlock block, Instruction instr)
     {
-        var exprSrc = GetExpression(instr.Operand2, block.EndRegisters);
+        var exprSrc = GetExpression(instr.Operand2, block.EndRegisters, instr.Segment);
 
         // Обновляем символическое значение регистра-назначения.
         // Сама операция MOV обычно не порождает отдельный SetOperation —
@@ -258,8 +258,8 @@ public class ExpressionBuilder
         {
             block.EndRegisters = block.EndRegisters.SetSegment(instr.Operand1.Value, exprSrc);
         }
-        // TODO: Добавить поддержку записи в память (MOV [bx], ax и т.п.).
-        // Сейчас такие инструкции молча игнорируются.
+        // TODO: Поддержка записи в память (MOV [bx], ax и т.п.) — пока игнорируется.
+        // При реализации потребуется новый тип Operation (например, StoreOperation).
     }
 
     /// <summary>
@@ -273,8 +273,8 @@ public class ExpressionBuilder
     private void HandleArithmetic(ExprBlock block, Instruction instr)
     {
         var dst = instr.Operand1;
-        var srcExpr = GetExpression(instr.Operand2, block.EndRegisters);
-        var dstCurrent = GetExpression(dst, block.EndRegisters);
+        var srcExpr = GetExpression(instr.Operand2, block.EndRegisters, instr.Segment);
+        var dstCurrent = GetExpression(dst, block.EndRegisters, instr.Segment);
 
         var op = instr.Mnemonic == Mnemonic.ADD ? Math2Operation.Add : Math2Operation.Sub;
         var math = new Math2Expr(op, dstCurrent, srcExpr);
@@ -303,7 +303,7 @@ public class ExpressionBuilder
     private void HandleIncDec(ExprBlock block, Instruction instr, bool isInc)
     {
         var dst = instr.Operand1;
-        var current = GetExpression(dst, block.EndRegisters);
+        var current = GetExpression(dst, block.EndRegisters, instr.Segment);
         var one = new ConstExpr(1);
 
         var math = new Math2Expr(isInc ? Math2Operation.Add : Math2Operation.Sub, current, one);
@@ -331,8 +331,8 @@ public class ExpressionBuilder
     private void HandleLogical(ExprBlock block, Instruction instr)
     {
         var dst = instr.Operand1;
-        var srcExpr = GetExpression(instr.Operand2, block.EndRegisters);
-        var dstCurrent = GetExpression(dst, block.EndRegisters);
+        var srcExpr = GetExpression(instr.Operand2, block.EndRegisters, instr.Segment);
+        var dstCurrent = GetExpression(dst, block.EndRegisters, instr.Segment);
 
         var op = instr.Mnemonic switch
         {
@@ -368,7 +368,7 @@ public class ExpressionBuilder
     private void HandleUnary(ExprBlock block, Instruction instr, Math1Operation operation)
     {
         var dst = instr.Operand1;
-        var current = GetExpression(dst, block.EndRegisters);
+        var current = GetExpression(dst, block.EndRegisters, instr.Segment);
         var math = new Math1Expr(operation, current);
 
         var resultVar = Variables.CreateVariable();
@@ -401,8 +401,8 @@ public class ExpressionBuilder
 
         // Второй операнд сдвига — обычно константа или CL.
         // GetExpression корректно обработает и то, и другое.
-        var srcExpr = GetExpression(instr.Operand2, block.EndRegisters);
-        var dstCurrent = GetExpression(dst, block.EndRegisters);
+        var srcExpr = GetExpression(instr.Operand2, block.EndRegisters, instr.Segment);
+        var dstCurrent = GetExpression(dst, block.EndRegisters, instr.Segment);
 
         var math = new Math2Expr(shiftOp, dstCurrent, srcExpr);
 
@@ -429,8 +429,8 @@ public class ExpressionBuilder
     /// </summary>
     private void HandleCmp(ExprBlock block, Instruction instr)
     {
-        var left = GetExpression(instr.Operand1, block.EndRegisters);
-        var right = GetExpression(instr.Operand2, block.EndRegisters);
+        var left = GetExpression(instr.Operand1, block.EndRegisters, instr.Segment);
+        var right = GetExpression(instr.Operand2, block.EndRegisters, instr.Segment);
 
         // Прямое равенство — лучший способ представить ZF после CMP
         var zfExpr = new CmpExpr(CmpOperation.Eq, left, right);
@@ -447,8 +447,8 @@ public class ExpressionBuilder
     /// </summary>
     private void HandleTest(ExprBlock block, Instruction instr)
     {
-        var left = GetExpression(instr.Operand1, block.EndRegisters);
-        var right = GetExpression(instr.Operand2, block.EndRegisters);
+        var left = GetExpression(instr.Operand1, block.EndRegisters, instr.Segment);
+        var right = GetExpression(instr.Operand2, block.EndRegisters, instr.Segment);
 
         var andExpr = new Math2Expr(Math2Operation.And, left, right);
         var zfExpr = new CmpExpr(CmpOperation.Eq, andExpr, ConstExpr.Zero);
@@ -544,18 +544,45 @@ public class ExpressionBuilder
     }
 
     /// <summary>
+    /// Строит символическое выражение эффективного адреса (offset) для memory-операнда.
+    /// Сегмент здесь не учитывается — LEA и подобные операции работают только с offset-частью.
+    /// </summary>
+    private Expr GetEffectiveAddress(Operand operand, in RegisterExpressions registers, Segment segmentOverride = Segment.None)
+    {
+        Expr? addr = null;
+
+        if (operand.BaseReg != AddressRegister.None)
+            addr = registers.Get16((int)operand.BaseReg);
+
+        if (operand.IndexReg != AddressRegister.None)
+        {
+            var idx = registers.Get16((int)operand.IndexReg);
+            addr = addr == null ? idx : new Math2Expr(Math2Operation.Add, addr, idx);
+        }
+
+        if (operand.Value != 0 || addr == null)
+        {
+            var disp = new ConstExpr(operand.Value);
+            addr = addr == null ? disp : new Math2Expr(Math2Operation.Add, addr, disp);
+        }
+
+        return addr ?? ConstExpr.Zero;
+    }
+
+    /// <summary>
     /// Преобразует Operand (из дизассемблера) в символическое выражение (Expr).
     /// 
     /// Это центральная точка, где мы "поднимаем" низкоуровневые операнды
     /// в наше высокоуровневое представление.
     /// 
-    /// Поддерживаемые типы на данный момент:
-    /// - Immediate (константы) → ConstExpr
-    /// - Регистры (8/16 бит, сегментные) → текущее символическое значение из RegisterExpressions
-    /// - Memory → заглушка (ConstExpr с адресом). Полноценная поддержка
-    ///   адресации (BaseReg + IndexReg + Displacement + Scale) — в будущем.
+    /// Поддерживаемые типы:
+    /// - Immediate → ConstExpr
+    /// - Регистры (8/16, сегментные) → текущее символическое значение из RegisterExpressions
+    /// - Memory → MemExpr(адрес, сегмент). 
+    ///   Сегмент заполняется либо из явного префикса (ES:/CS:/SS:/DS:), либо по умолчанию
+    ///   (BP-адресация → SS, всё остальное → DS).
     /// </summary>
-    private Expr GetExpression(Operand operand, in RegisterExpressions registers)
+    private Expr GetExpression(Operand operand, in RegisterExpressions registers, Segment segmentOverride = Segment.None)
     {
         if (operand.Type == OperandType.Immediate8 || operand.Type == OperandType.Immediate16)
             return new ConstExpr(operand.Value);
@@ -579,15 +606,38 @@ public class ExpressionBuilder
 
         if (operand.Type == OperandType.Memory)
         {
-            // TODO: Здесь должна быть полноценная поддержка выражений памяти.
-            // Примеры того, что нужно уметь выражать:
-            //   [1234h]           → ConstExpr(0x1234) или специальный MemoryExpr
-            //   [bx]              → Variable или AddressExpr с Base = BX
-            //   [bx+si+5]         → Math2Expr( Add, Math2Expr(Add, BX, SI), 5 )
-            //   [es:bx]           → с учётом сегмента
-            //
-            // Пока возвращаем адрес как константу, чтобы не падать и не терять данные.
-            return new ConstExpr(operand.Value);
+            var address = GetEffectiveAddress(operand, registers, segmentOverride);
+
+            // Определяем сегментное выражение
+            Expr? segExpr = null;
+
+            if (segmentOverride != Segment.None)
+            {
+                // Явный сегментный префикс на инструкции
+                int segIdx = segmentOverride switch
+                {
+                    Segment.ES => 0,
+                    Segment.CS => 1,
+                    Segment.SS => 2,
+                    Segment.DS => 3,
+                    _ => -1
+                };
+                if (segIdx >= 0)
+                    segExpr = registers.GetSegment(segIdx);
+            }
+            else
+            {
+                // Правило умолчания для 8086 (real mode)
+                // Если в адресации участвует BP (включая [BP], [BP+SI], [BP+DI]) — по умолчанию SS
+                // В остальных случаях (BX, SI, DI, прямой адрес) — по умолчанию DS
+                bool usesStackSegment = operand.BaseReg == AddressRegister.BP ||
+                                        operand.IndexReg == AddressRegister.BP;
+
+                int defaultSegIdx = usesStackSegment ? 2 : 3; // SS : DS
+                segExpr = registers.GetSegment(defaultSegIdx);
+            }
+
+            return new MemExpr(address, segExpr);
         }
 
         throw new NotImplementedException($"Unsupported operand type: {operand.Type}");

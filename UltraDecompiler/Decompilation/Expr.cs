@@ -32,6 +32,21 @@ public record ConstExpr(int Value) : Expr
 }
 
 /// <summary>
+/// Доступ к памяти по вычисленному адресу (dereference / load).
+/// Представляет значение по адресу, например ES:[BX+SI+5] или [BP-2].
+/// Segment — символическое выражение сегментного регистра (если известно).
+/// </summary>
+public record MemExpr(Expr Address, Expr? Segment = null) : Expr
+{
+    public override string ToString()
+    {
+        if (Segment is null)
+            return $"[{Address}]";
+        return $"{Segment}:[{Address}]";
+    }
+}
+
+/// <summary>
 /// Типы математических операций с одним аргументом
 /// </summary>
 public enum Math1Operation
