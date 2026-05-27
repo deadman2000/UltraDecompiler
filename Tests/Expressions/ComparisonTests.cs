@@ -89,4 +89,22 @@ public class ComparisonTests : BaseTests
         var left = Assert.IsType<ConstExpr>(zf.Left);
         Assert.Equal(0, left.Value);
     }
+
+    [Fact]
+    public void DecompileCmpJaeFlagVariable()
+    {
+        // ожидается проверка нижнего байта результата dos_get_dos_version()
+        var expr = BuildExpressions("""
+            B4 30 ; mov AH, 30h
+            CD 21 ; int   21h
+            3C 02 ; cmp AL, 2
+            73 01 ; jae   3
+            90    ; nop
+            90    ; nop
+            """);
+
+        Assert.NotNull(expr.Blocks[0].Condition);
+        var cond = Assert.IsType<CmpExpr>(expr.Blocks[0].Condition);
+        Assert.Equal("var4 & 255 == 2", cond.ToString());
+    }
 }

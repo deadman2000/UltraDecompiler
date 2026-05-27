@@ -273,8 +273,14 @@ public partial class ExpressionBuilder
             Mnemonic.JNE => Negate(zf),
 
             // Беззнаковые сравнения
-            Mnemonic.JB => cf,
-            Mnemonic.JAE => Negate(cf),
+            // Если CF не был установлен явно (после CMP/TEST он остаётся null),
+            // то для JAE/JB fallback'им на CmpExpr из ZF — это позволяет
+            // сохранить символическое сравнение (например "var & 255 == 2")
+            // в Condition прыжка вместо ConstExpr.
+            // Когда CF будет полноценно вычисляться в HandleCmp — здесь будут
+            // точные Or/And-выражения для u>= / u< и т.д.
+            Mnemonic.JB => registers.CF is null ? Negate(zf) : And(cf, Negate(zf)),
+            Mnemonic.JAE => registers.CF is null ? zf : Or(zf, And(Negate(cf), Negate(zf))),
 
             Mnemonic.JBE => Or(cf, zf),
             Mnemonic.JA => And(Negate(cf), Negate(zf)),
