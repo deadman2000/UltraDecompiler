@@ -162,16 +162,16 @@ public partial class ExpressionBuilder
 
             if (instr.IsConditionalJump)
             {
-                exprBlock.Condition = exprBlock.BasicBlock.ConditionalBlock != null
-                    ? BuildJumpCondition(instr, exprBlock.EndRegisters)
-                    : throw new InvalidOperationException();
+                if (exprBlock.BasicBlock.ConditionalBlock == null)
+                    throw new InvalidOperationException($"Conditional jump {instr.Mnemonic} in block without ConditionalBlock at {exprBlock.BasicBlock.StartOffset:X6}");
+
+                exprBlock.Condition = BuildJumpCondition(instr, exprBlock.EndRegisters);
                 return exprBlock;
             }
 
             if (instr.IsCall)
             {
-                // TODO: моделировать вызов процедуры (с сохранением состояния возврата)
-                continue;
+                throw new NotImplementedException($"Call instruction {instr.Mnemonic} at {exprBlock.BasicBlock.StartOffset:X6} is not supported");
             }
 
             if (instr.IsExit)
@@ -244,10 +244,10 @@ public partial class ExpressionBuilder
         }
 
         // Если дошли сюда — блок не закончился явным прыжком/возвратом.
-        // Для блоков с ConditionalBlock (теоретически не должно случаться) ставим заглушку.
         if (exprBlock.BasicBlock.ConditionalBlock != null && exprBlock.Condition == null)
         {
-            exprBlock.Condition = ConstExpr.One;
+            throw new InvalidOperationException(
+                $"Block at {exprBlock.BasicBlock.StartOffset:X6} has ConditionalBlock but no Condition was set");
         }
 
         return exprBlock;
@@ -294,17 +294,17 @@ public partial class ExpressionBuilder
             Mnemonic.JO => of,
             Mnemonic.JNO => Negate(of),
 
-            // Чётность (редко используется в высокоуровневом коде)
-            Mnemonic.JP => zf, // заглушка (PF не отслеживаем)
-            Mnemonic.JNP => Negate(zf),
+            // Чётность (не поддерживаем PF)
+            Mnemonic.JP => throw new NotImplementedException("JP/JPE is not supported (PF flag not tracked)"),
+            Mnemonic.JNP => throw new NotImplementedException("JNP/JPO is not supported (PF flag not tracked)"),
 
-            // Специальные (CX-based) — упрощённо
-            Mnemonic.JCXZ => ConstExpr.Zero, // TODO: CX == 0
+            // Специальные (CX-based)
+            Mnemonic.JCXZ => throw new NotImplementedException("JCXZ is not supported"),
 
-            // Циклы — упрощённо
-            Mnemonic.LOOP => Negate(zf),
-            Mnemonic.LOOPE => zf,
-            Mnemonic.LOOPNE => Negate(zf),
+            // Циклы
+            Mnemonic.LOOP => throw new NotImplementedException("LOOP is not supported"),
+            Mnemonic.LOOPE => throw new NotImplementedException("LOOPE/LOOPZ is not supported"),
+            Mnemonic.LOOPNE => throw new NotImplementedException("LOOPNE/LOOPNZ is not supported"),
 
             _ => throw new NotImplementedException($"Instruction {jumpInstr.Mnemonic} is not yet supported")
         };
@@ -320,6 +320,10 @@ public partial class ExpressionBuilder
                 : GetExpression(instr.Operand2, block.EndRegisters, instr.Segment);
 
             block.EndRegisters = block.EndRegisters.Set16(instr.Operand1.Value, eaExpr);
+        }
+        else
+        {
+            throw new NotImplementedException($"LEA with destination {instr.Operand1.Type} is not supported");
         }
     }
 
@@ -346,6 +350,10 @@ public partial class ExpressionBuilder
         {
             var (addr, seg) = BuildMemoryReference(instr.Operand1, block.EndRegisters, instr.Segment);
             block.Operations.Add(new StoreOperation(addr, seg, exprSrc));
+        }
+        else
+        {
+            throw new NotImplementedException($"MOV with destination {instr.Operand1.Type} is not supported");
         }
     }
 
@@ -387,6 +395,10 @@ public partial class ExpressionBuilder
             var (addr, seg) = BuildMemoryReference(dst, block.EndRegisters, instr.Segment);
             block.Operations.Add(new StoreOperation(addr, seg, result));
         }
+        else
+        {
+            throw new NotImplementedException($"Arithmetic {instr.Mnemonic} with destination {dst.Type} is not supported");
+        }
 
         block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, result);
     }
@@ -424,6 +436,10 @@ public partial class ExpressionBuilder
             var (addr, seg) = BuildMemoryReference(dst, block.EndRegisters, instr.Segment);
             block.Operations.Add(new StoreOperation(addr, seg, result));
         }
+        else
+        {
+            throw new NotImplementedException($"{(isInc ? "INC" : "DEC")} with destination {dst.Type} is not supported");
+        }
 
         block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, result);
     }
@@ -444,7 +460,7 @@ public partial class ExpressionBuilder
             Mnemonic.AND => Math2Operation.And,
             Mnemonic.OR => Math2Operation.Or,
             Mnemonic.XOR => Math2Operation.Xor,
-            _ => throw new InvalidOperationException()
+            _ => throw new InvalidOperationException($"Unexpected logical mnemonic: {instr.Mnemonic}")
         };
 
         Expr result = Calculate(op, dstCurrent, srcExpr);
@@ -468,6 +484,10 @@ public partial class ExpressionBuilder
         {
             var (addr, seg) = BuildMemoryReference(dst, block.EndRegisters, instr.Segment);
             block.Operations.Add(new StoreOperation(addr, seg, result));
+        }
+        else
+        {
+            throw new NotImplementedException($"Logical {instr.Mnemonic} with destination {dst.Type} is not supported");
         }
 
         block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, result);
@@ -505,6 +525,10 @@ public partial class ExpressionBuilder
         {
             var (addr, seg) = BuildMemoryReference(dst, block.EndRegisters, instr.Segment);
             block.Operations.Add(new StoreOperation(addr, seg, result));
+        }
+        else
+        {
+            throw new NotImplementedException($"{operation} with destination {dst.Type} is not supported");
         }
 
         block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, result);
@@ -549,6 +573,10 @@ public partial class ExpressionBuilder
         {
             var (addr, seg) = BuildMemoryReference(dst, block.EndRegisters, instr.Segment);
             block.Operations.Add(new StoreOperation(addr, seg, result));
+        }
+        else
+        {
+            throw new NotImplementedException($"Shift {shiftOp} with destination {dst.Type} is not supported");
         }
 
         block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, result);

@@ -107,10 +107,9 @@ public partial class ExpressionBuilder
                 Segment.CS => 1,
                 Segment.SS => 2,
                 Segment.DS => 3,
-                _ => -1
+                _ => throw new NotImplementedException($"Segment override {segmentOverride} is not supported")
             };
-            if (segIdx >= 0)
-                segExpr = registers.GetSegment(segIdx);
+            segExpr = registers.GetSegment(segIdx);
         }
         else
         {
