@@ -15,11 +15,19 @@ public record SetOperation(Variable Dst, Expr Src) : Operation
 /// <summary>
 /// Вызов метода
 /// </summary>
-public record CallOperation(Procedure Procedure, IReadOnlyList<Expr> Args) : Operation;
+public record CallOperation(Procedure Procedure, IReadOnlyList<Expr> Args) : Operation
+{
+    public override string ToString()
+    {
+        var args = string.Join(", ", Args);
+        return $"{Procedure.Name}({args})";
+    }
+}
 
 /// <summary>
 /// Запись значения в память (store).
 /// </summary>
+/// TODO: Объединить Address и Segment
 public record StoreOperation(Expr Address, Expr? Segment, Expr Value) : Operation
 {
     public override string ToString()
