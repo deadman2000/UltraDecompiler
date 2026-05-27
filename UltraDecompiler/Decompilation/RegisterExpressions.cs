@@ -1,7 +1,21 @@
+using System.Diagnostics;
+
 namespace UltraDecompiler.Decompilation;
 
 /// <summary>
-/// Выражения в регистрах
+/// Выражения в регистрах (символическое состояние для декомпиляции).
+/// 
+/// Для 16-битных gp-регистров (AX/BX/CX/DX) и их 8-битных половин (AH/AL и т.д.) поддерживается
+/// две канонические формы хранения:
+///   1. X != null, H = L = null   — последнее присвоение было 16-битным (полное выражение).
+///   2. X = null, H != null, L != null — последнее присвоение было через 8-битные регистры.
+/// 
+/// Инварианты (охраняются Debug.Assert в WithGroup + проверки в Get):
+///   - Никогда не все три (X/H/L) null в группе.
+///   - Никогда не (X != null && H/L установлены одновременно).
+/// 
+/// При Set/Get 8-битных регистров автоматически выполняются правила "split/merge":
+///   Set AX → H=L=null;   Set AH (когда X) → AL=Low(X);   Get AX (когда X=null) → (H<<8)|L и т.д.
 /// </summary>
 public record struct RegisterExpressions(
     Expr? AX, Expr? BX, Expr? CX, Expr? DX,
@@ -23,20 +37,54 @@ public record struct RegisterExpressions(
     public Expr? SF { get; init; }
     public Expr? OF { get; init; }
 
+    // ===== Хелперы для сокращения дублирования логики 4 групп (AX/AH/AL, CX/CH/CL и т.д.) =====
+
+    private static int Reg8ToGroup(int reg8) => reg8 switch
+    {
+        0 or 4 => 0, // AL/AH -> AX
+        1 or 5 => 1, // CL/CH -> CX
+        2 or 6 => 2, // DL/DH -> DX
+        3 or 7 => 3, // BL/BH -> BX
+        _ => -1
+    };
+
+    private static int Reg16ToGroup(int reg16) => reg16 is >= 0 and <= 3 ? reg16 : -1;
+
+    private static bool IsHighReg8(int reg8) => reg8 >= 4;
+
+    private readonly (Expr? X, Expr? H, Expr? L) GetGroup(int group) => group switch
+    {
+        0 => (AX, AH, AL),
+        1 => (CX, CH, CL),
+        2 => (DX, DH, DL),
+        3 => (BX, BH, BL),
+        _ => (null, null, null)
+    };
+
+    private RegisterExpressions WithGroup(int group, Expr? x, Expr? h, Expr? l)
+    {
+        Debug.Assert(IsValidGroupState(x, h, l),
+            $"Invalid register group {group} state: X={x}, H={h}, L={l}");
+        return group switch
+        {
+            0 => this with { AX = x, AH = h, AL = l },
+            1 => this with { CX = x, CH = h, CL = l },
+            2 => this with { DX = x, DH = h, DL = l },
+            3 => this with { BX = x, BH = h, BL = l },
+            _ => this
+        };
+    }
+
+    private static bool IsValidGroupState(Expr? x, Expr? h, Expr? l) =>
+        (x != null && h == null && l == null) ||
+        (x == null && h != null && l != null);
+
+    // ===== Инициализация =====
+
     public static RegisterExpressions InitZero()
     {
         var zero = ConstExpr.Zero;
-        return new RegisterExpressions(zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero)
-        {
-            AH = zero,
-            AL = zero,
-            BH = zero,
-            BL = zero,
-            CH = zero,
-            CL = zero,
-            DH = zero,
-            DL = zero,
-        };
+        return new RegisterExpressions(zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero);
     }
 
     public static RegisterExpressions InitCom(VariableStorage variables)
@@ -55,17 +103,7 @@ public record struct RegisterExpressions(
                                        ES: psp,
                                        CS: psp,
                                        SS: psp,
-                                       DS: psp)
-        {
-            AH = zero,
-            AL = zero,
-            BH = zero,
-            BL = zero,
-            CH = zero,
-            CL = zero,
-            DH = zero,
-            DL = zero,
-        };
+                                       DS: psp);
     }
 
     public static RegisterExpressions InitExe(VariableStorage variables)
@@ -87,64 +125,19 @@ public record struct RegisterExpressions(
                                        ES: psp,
                                        CS: initCS,
                                        SS: initSS,
-                                       DS: psp)
-        {
-            AH = zero,
-            AL = zero,
-            BH = zero,
-            BL = zero,
-            CH = zero,
-            CL = zero,
-            DH = zero,
-            DL = zero,
-        };
+                                       DS: psp);
     }
 
-    private readonly Expr? GetX(int group) => group switch
-    {
-        0 => AX,
-        1 => CX,
-        2 => DX,
-        3 => BX,
-        _ => ConstExpr.Zero
-    };
-
-    private readonly Expr? GetH(int group) => group switch
-    {
-        0 => AH,
-        1 => CH,
-        2 => DH,
-        3 => BH,
-        _ => null
-    };
-
-    private readonly Expr? GetL(int group) => group switch
-    {
-        0 => AL,
-        1 => CL,
-        2 => DL,
-        3 => BL,
-        _ => null
-    };
-
-    private RegisterExpressions SetX(int group, Expr? expr) => group switch
-    {
-        0 => this with { AX = expr ?? ConstExpr.Zero, AH = null, AL = null },
-        1 => this with { CX = expr ?? ConstExpr.Zero, CH = null, CL = null },
-        2 => this with { DX = expr ?? ConstExpr.Zero, DH = null, DL = null },
-        3 => this with { BX = expr ?? ConstExpr.Zero, BH = null, BL = null },
-        _ => this
-    };
-
     /// <summary>
-    /// Установка 16-битного регистра: сбрасывает H и L в null
+    /// Установка 16-битного регистра: сбрасывает H и L в null.
+    /// Для gp-регистров (0-3) переводит группу в состояние (X=expr, H=null, L=null).
     /// </summary>
     public RegisterExpressions Set16(int reg16, Expr expr)
     {
-        if (reg16 >= 0 && reg16 <= 3)
+        int group = Reg16ToGroup(reg16);
+        if (group >= 0)
         {
-            int group = reg16;
-            return SetX(group, expr);
+            return WithGroup(group, expr, null, null);
         }
         return reg16 switch
         {
@@ -171,50 +164,56 @@ public record struct RegisterExpressions(
     }
 
     /// <summary>
-    /// Установка 8-битного регистра с логикой: если есть X - разделяем на другой байт с & 0xff или >>8, X в null
+    /// Установка 8-битного регистра.
+    /// Точная логика (по ТЗ):
+    /// - если AX (или CX..) != null, то при установке AH: AL = AX &amp; 0xFF; при установке AL: AH = AX >> 8.
+    /// - X всегда сбрасывается в null, устанавливаются оба байта (H и L).
+    /// - Если X == null — просто обновляем нужный байт, второй оставляем как есть (предполагается, что он был).
     /// </summary>
     public RegisterExpressions Set8(int reg8, Expr expr)
     {
-        int group = reg8 switch
-        {
-            0 or 4 => 0, // AL/AH -> AX
-            1 or 5 => 1, // CL/CH -> CX
-            2 or 6 => 2, // DL/DH -> DX
-            3 or 7 => 3, // BL/BH -> BX
-            _ => -1
-        };
+        int group = Reg8ToGroup(reg8);
         if (group < 0) return this;
 
-        bool isHigh = reg8 >= 4;
-        Expr? x = GetX(group);
-        Expr? other = x != null ? (isHigh ? LowByte(x) : HighByte(x)) : null;
+        bool isHigh = IsHighReg8(reg8);
+        var (x, oldH, oldL) = GetGroup(group);
 
-        Expr? newH = isHigh ? expr : (other ?? GetH(group));
-        Expr? newL = !isHigh ? expr : (other ?? GetL(group));
-
-        // сбрасываем X, устанавливаем H/L
-        return group switch
+        Expr? newH;
+        Expr? newL;
+        if (x != null)
         {
-            0 => this with { AX = null, AH = newH, AL = newL },
-            1 => this with { CX = null, CH = newH, CL = newL },
-            2 => this with { DX = null, DH = newH, DL = newL },
-            3 => this with { BX = null, BH = newH, BL = newL },
-            _ => this
-        };
+            // Правило: при присвоении AH/AL, если есть X — вычисляем "другой" байт из X
+            Expr other = isHigh ? LowByte(x) : HighByte(x);
+            newH = isHigh ? expr : other;
+            newL = !isHigh ? expr : other;
+        }
+        else
+        {
+            // X == null: оставляем второй байт как был (GetH/GetL)
+            newH = isHigh ? expr : oldH;
+            newL = !isHigh ? expr : oldL;
+        }
+
+        // WithGroup выполнит assert IsValidGroupState (X=null + оба bytes != null)
+        return WithGroup(group, null, newH, newL);
     }
 
     /// <summary>
-    /// Получение 16-битного как выражение: если оба H и L установлены - объединяем (H << 8) | L
+    /// Получение 16-битного как выражение.
+    /// Если X != null — возвращаем его.
+    /// Если X == null — собираем (H << 8) | L (если оба байта установлены).
+    /// При нарушении инварианта (все null) — assert + исключение.
     /// </summary>
     public readonly Expr Get16(int reg16)
     {
-        int group = reg16 switch { 0 => 0, 1 => 1, 2 => 2, 3 => 3, _ => -1 };
+        int group = Reg16ToGroup(reg16);
         if (group >= 0)
         {
-            Expr? h = GetH(group);
-            Expr? l = GetL(group);
+            var (x, h, l) = GetGroup(group);
+
             if (h != null && l != null)
             {
+                // Собираем выражение из байтов (правило "если AX null — объединяем AL и AH")
                 Expr shl = h is ConstExpr ch
                     ? new ConstExpr(ch.Value << 8)
                     : new Math2Expr(Math2Operation.Shl, h, new ConstExpr(8));
@@ -224,7 +223,12 @@ public record struct RegisterExpressions(
                 return combined;
             }
 
-            return GetX(group) ?? throw new InvalidOperationException();
+            if (x != null)
+                return x;
+
+            // Недопустимое состояние: X null и не оба байта
+            Debug.Assert(false, $"Group {group} is in invalid state (all null or partial bytes) in Get16");
+            throw new InvalidOperationException($"Register group {group} has no value (X/H/L all effectively null)");
         }
         return reg16 switch
         {
@@ -237,26 +241,29 @@ public record struct RegisterExpressions(
     }
 
     /// <summary>
-    /// Получение 8-битного выражения
+    /// Получение 8-битного выражения.
+    /// Если байт (H или L) установлен — возвращаем его.
+    /// Если байт null, но есть X — вычисляем HighByte/LowByte(X).
+    /// При нарушении инварианта — assert + исключение.
     /// </summary>
     public readonly Expr Get8(int reg8)
     {
-        int group = reg8 switch
-        {
-            0 or 4 => 0,
-            1 or 5 => 1,
-            2 or 6 => 2,
-            3 or 7 => 3,
-            _ => -1
-        };
+        int group = Reg8ToGroup(reg8);
         if (group < 0) return ConstExpr.Zero;
 
-        bool isHigh = reg8 >= 4;
-        Expr? b = isHigh ? GetH(group) : GetL(group);
+        bool isHigh = IsHighReg8(reg8);
+        var (x, h, l) = GetGroup(group);
+
+        Expr? b = isHigh ? h : l;
         if (b != null) return b;
 
-        Expr x = GetX(group) ?? throw new InvalidOperationException();
-        return isHigh ? HighByte(x) : LowByte(x);
+        // Правило: "при получении AH/AL, если они null — вычисляем из AX"
+        if (x != null)
+            return isHigh ? HighByte(x) : LowByte(x);
+
+        // Недопустимое состояние
+        Debug.Assert(false, $"Group {group} is in invalid state in Get8 (no byte and no X)");
+        throw new InvalidOperationException($"Register group {group} has no value for 8-bit access");
     }
 
     /// <summary>
