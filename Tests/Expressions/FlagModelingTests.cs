@@ -283,4 +283,85 @@ public class FlagModelingTests : BaseTests
             Assert.NotEqual(ConstExpr.One, condBlock.Condition);
         }
     }
+
+    // ==================== CLI / STI / флаговые инструкции ====================
+
+    [Fact]
+    public void Cli_Sti_ProduceDisableEnableCallOperations()
+    {
+        // CLI → _disable(), STI → _enable()
+        // Эти инструкции теперь порождают реальные CallOperation (в стиле QuickC).
+        // Они не влияют на gp-регистры и отслеживаемые флаги (IF не моделируется).
+        var expr = BuildExpressions("""
+            FA       ; cli   → _disable
+            FB       ; sti   → _enable
+            B8 01 00 ; mov ax, 1   ; не порождает Operation
+            """);
+
+        var block = expr.Blocks[0];
+
+        // Должно быть ровно 2 операции (от CLI и STI). MOV в регистр Operation не создаёт.
+        Assert.Equal(2, block.Operations.Count);
+
+        var op0 = Assert.IsType<CallOperation>(block.Operations[0]);
+        Assert.Equal("_disable", op0.Procedure.Name);
+        Assert.Empty(op0.Args);
+
+        var op1 = Assert.IsType<CallOperation>(block.Operations[1]);
+        Assert.Equal("_enable", op1.Procedure.Name);
+        Assert.Empty(op1.Args);
+
+        // Регистр AX должен обновиться от MOV
+        Assert.IsType<ConstExpr>(block.EndRegisters.AX);
+        Assert.Equal(1, ((ConstExpr)block.EndRegisters.AX).Value);
+    }
+
+    [Fact]
+    public void Clc_Stc_Cmc_UpdateCfCorrectly()
+    {
+        // CLC → CF=0, STC → CF=1, CMC → инверсия CF
+        var clc = BuildExpressions("""
+            F8       ; clc
+            """);
+        Assert.IsType<ConstExpr>(clc.Blocks[0].EndRegisters.CF);
+        Assert.Equal(0, ((ConstExpr)clc.Blocks[0].EndRegisters.CF).Value);
+
+        var stc = BuildExpressions("""
+            F9       ; stc
+            """);
+        Assert.IsType<ConstExpr>(stc.Blocks[0].EndRegisters.CF);
+        Assert.Equal(1, ((ConstExpr)stc.Blocks[0].EndRegisters.CF).Value);
+
+        // CMC после известного CF
+        var cmc = BuildExpressions("""
+            F9       ; stc   ; CF=1
+            F5       ; cmc   ; CF=0
+            """);
+        var cf = Assert.IsType<ConstExpr>(cmc.Blocks[0].EndRegisters.CF);
+        Assert.Equal(0, cf.Value);
+
+        // CMC после SUB (CF = CmpExpr)
+        var withCmp = BuildExpressions("""
+            B8 05 00 ; mov ax, 5
+            2D 03 00 ; sub ax, 3   ; устанавливает CF как Ult
+            F5       ; cmc         ; инвертирует
+            """);
+        var cfAfterCmc = withCmp.Blocks[0].EndRegisters.CF;
+        // После CMC это должен быть BoolNot(...) — Math2Expr с Not? или инвертированный Cmp
+        Assert.NotNull(cfAfterCmc);
+        // Не должно быть Const, т.к. исходный CF был CmpExpr
+        Assert.False(cfAfterCmc is ConstExpr);
+    }
+
+    [Fact]
+    public void Cld_Std_DoNotThrow()
+    {
+        var expr = BuildExpressions("""
+            FC       ; cld
+            FD       ; std
+            90       ; nop
+            """);
+
+        Assert.NotEmpty(expr.Blocks);
+    }
 }

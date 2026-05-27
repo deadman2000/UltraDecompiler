@@ -6,7 +6,7 @@ namespace UltraDecompiler.Decompilation;
 /// и расширенного набора высокоуровневых обёрток над INT 21h (MS-DOS).
 ///
 /// Опирается на:
-///   - D:\Dos\PROGRAMS\QuickC\INCLUDE\DOS.H (оригинальный QuickC)
+///   - UltraDecompiler/assets/QuickC/ (оригинальные заголовки Microsoft QuickC 1.0, включённые в репозиторий)
 ///   - UltraDecompiler/assets/msdos.h (собственный заголовок проекта с
 ///     дружественными именами для распространённых сервисов INT 21h)
 ///

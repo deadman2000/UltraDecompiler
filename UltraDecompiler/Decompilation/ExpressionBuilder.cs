@@ -232,11 +232,39 @@ public partial class ExpressionBuilder
                 case Mnemonic.NOP:
                     break;
 
+                // Флаговые инструкции
+                case Mnemonic.CLI:
+                    // CLI → _disable() (отключение аппаратных прерываний)
+                    exprBlock.Operations.Add(new CallOperation(new Procedure { Name = "_disable" }, []));
+                    break;
+
+                case Mnemonic.STI:
+                    // STI → _enable() (включение аппаратных прерываний)
+                    exprBlock.Operations.Add(new CallOperation(new Procedure { Name = "_enable" }, []));
+                    break;
+
+                case Mnemonic.CLD:
+                case Mnemonic.STD:
+                    // DF (direction flag) для строковых операций. Строковые опкоды пока TODO.
+                    break;
+
+                case Mnemonic.CLC:
+                    exprBlock.EndRegisters = exprBlock.EndRegisters with { CF = ConstExpr.Zero };
+                    break;
+
+                case Mnemonic.STC:
+                    exprBlock.EndRegisters = exprBlock.EndRegisters with { CF = ConstExpr.One };
+                    break;
+
+                case Mnemonic.CMC:
+                    exprBlock.EndRegisters = exprBlock.EndRegisters with { CF = BoolNot(exprBlock.EndRegisters.CF) };
+                    break;
+
                 case Mnemonic.INT:
                     HandleInterrupt(exprBlock, instr);
                     break;
 
-                // TODO: MUL/IMUL/DIV/IDIV, строковые операции и др.
+                // TODO: MUL/IMUL/DIV/IDIV, строковые операции, LAHF/SAHF/PUSHF/POPF, CLD/STD и др.
                 default:
                     throw new NotImplementedException($"Instruction {instr} is not yet supported");
             }
@@ -274,35 +302,35 @@ public partial class ExpressionBuilder
             Mnemonic.JNE => BoolNot(registers.ZF),
 
             // Беззнаковые сравнения
-            Mnemonic.JB  => registers.CF,
+            Mnemonic.JB => registers.CF,
             Mnemonic.JAE => BoolNot(registers.CF),
             Mnemonic.JBE => BoolOr(registers.CF, registers.ZF),
-            Mnemonic.JA  => BoolAnd(BoolNot(registers.CF), BoolNot(registers.ZF)),
+            Mnemonic.JA => BoolAnd(BoolNot(registers.CF), BoolNot(registers.ZF)),
 
             // Знаковый бит
-            Mnemonic.JS  => registers.SF,
+            Mnemonic.JS => registers.SF,
             Mnemonic.JNS => BoolNot(registers.SF),
 
             // Знаковые сравнения
-            Mnemonic.JL  => SfNeOf(),
+            Mnemonic.JL => SfNeOf(),
             Mnemonic.JGE => SfEqOf(),
             Mnemonic.JLE => BoolOr(registers.ZF, SfNeOf()),
-            Mnemonic.JG  => BoolAnd(BoolNot(registers.ZF), SfEqOf()),
+            Mnemonic.JG => BoolAnd(BoolNot(registers.ZF), SfEqOf()),
 
             // Переполнение
-            Mnemonic.JO  => registers.OF,
+            Mnemonic.JO => registers.OF,
             Mnemonic.JNO => BoolNot(registers.OF),
 
             // Чётность
-            Mnemonic.JP  => throw new NotImplementedException("JP/JPE is not supported (PF flag not tracked)"),
+            Mnemonic.JP => throw new NotImplementedException("JP/JPE is not supported (PF flag not tracked)"),
             Mnemonic.JNP => throw new NotImplementedException("JNP/JPO is not supported (PF flag not tracked)"),
 
             // Специальные (CX-based)
             Mnemonic.JCXZ => throw new NotImplementedException("JCXZ is not supported"),
 
             // Циклы
-            Mnemonic.LOOP   => throw new NotImplementedException("LOOP is not supported"),
-            Mnemonic.LOOPE  => throw new NotImplementedException("LOOPE/LOOPZ is not supported"),
+            Mnemonic.LOOP => throw new NotImplementedException("LOOP is not supported"),
+            Mnemonic.LOOPE => throw new NotImplementedException("LOOPE/LOOPZ is not supported"),
             Mnemonic.LOOPNE => throw new NotImplementedException("LOOPNE/LOOPNZ is not supported"),
 
             _ => throw new NotImplementedException($"Instruction {jumpInstr.Mnemonic} is not yet supported")

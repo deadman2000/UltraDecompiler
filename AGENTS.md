@@ -68,7 +68,7 @@ DosExeParser → X86Disassembler → ControlFlowGraph → ExpressionBuilder → 
 - `Operation.cs` — side-effect операции: `SetOperation`, `CallOperation`, `StoreOperation`.
 - `ExprBlock.cs` — результат для одного BasicBlock (Operations + Condition + ссылки на следующие блоки).
 - `VariableStorage.cs` + `PspKnownFields` — отслеживание переменных + распознавание обращений к PSP (Program Segment Prefix).
-- `DosInterruptHelper.cs` — преобразование INT 21h в красивые вызовы (`dos_open`, `dos_print_string` и т.д.) на основе `assets/msdos.h`.
+- `DosInterruptHelper.cs` — преобразование INT 21h в красивые вызовы (`dos_open`, `dos_print_string` и т.д.) на основе `assets/msdos.h`. При генерации кода ориентируется на оригинальные заголовки из `assets/QuickC/`.
 
 **Ключевой принцип ExpressionBuilder:**
 > MOV/LEA просто обновляют символическое состояние регистров.  
@@ -87,8 +87,20 @@ DosExeParser → X86Disassembler → ControlFlowGraph → ExpressionBuilder → 
 | `UltraDecompiler/Decompilation/ExpressionBuilder.cs` | Основная логика декомпиляции (символическое выполнение) |
 | `UltraDecompiler/Decompilation/RegisterExpressions.cs` | Моделирование регистров + флагов |
 | `UltraDecompiler/assets/msdos.h` | Целевой стиль API для сгенерированного кода (QuickC-совместимый) |
+| `UltraDecompiler/assets/QuickC/` | Оригинальные заголовочные файлы Microsoft QuickC 1.0 (DOS.H, CONIO.H, STDIO.H, BIOS.H и др.). Используются как эталон для генерации совместимого кода |
 | `Tests/BaseTests.cs` | Удобные хелперы для тестов (hex DSL) |
 | `Tests/Tools/HexConverter.cs` | Парсер hex-строк с комментариями `;` |
+
+### Заголовочные файлы QuickC
+
+В папке `UltraDecompiler/assets/QuickC/` хранятся оригинальные заголовочные файлы компилятора **Microsoft QuickC 1.0** (включая `DOS.H`, `CONIO.H`, `BIOS.H`, `STDIO.H`, `STDLIB.H`, `PROCESS.H`, `GRAPH.H` и др., а также содержимое `SYS\`).
+
+Эти файлы служат эталоном при:
+- Проектировании обёрток в `msdos.h`
+- Реализации `DosInterruptHelper`
+- Будущей генерации `#include` директив и сигнатур функций в выходном C-коде
+
+При добавлении новых распознаваемых INT 21h функций рекомендуется сверяться именно с этими заголовками.
 
 ---
 
@@ -153,6 +165,7 @@ dotnet build -c Release
 4. **Флаги**:
    - PF (чётность) не отслеживается вообще.
    - Часть флаговой арифметики — приближённая.
+   - CLI/STI теперь порождают CallOperation `_disable()` / `_enable()` (см. ExpressionBuilder + msdos.h). CLD/STD пока игнорируются. CLC/STC/CMC обновляют CF. См. ExpressionBuilder.cs:236 и FlagModelingTests. (обновлено 2026)
 
 5. **Code Generation**:
    - На данный момент ExpressionBuilder только строит IR (`ExprBlock` + `Operations`).
@@ -199,6 +212,6 @@ dotnet build -c Release
 
 ---
 
-**Дата последнего обновления этого файла:** (обновляй при значимых архитектурных изменениях)
+**Дата последнего обновления этого файла:** 2026-04 (CLI/STI теперь эмитят CallOperation _disable/_enable)
 
 Проект активно развивается. Основной фокус — точность symbolic execution и соответствие стилю QuickC.
