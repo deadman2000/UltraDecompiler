@@ -35,4 +35,29 @@ public abstract class BaseTests
         decompiler.Build(graph, isCom);
         return decompiler;
     }
+
+    /// <summary>
+    /// Строит выражения с явно заданным начальным состоянием регистров.
+    /// Удобно для тестов, где нужно проверить работу с символическими переменными.
+    /// </summary>
+    protected static ExpressionBuilder BuildExpressions(string hex, RegisterExpressions initialRegisters)
+    {
+        var graph = GetGraph(hex);
+        var decompiler = new ExpressionBuilder();
+        decompiler.Build(graph, initialRegisters);
+        return decompiler;
+    }
+
+    /// <summary>
+    /// Самый удобный вариант для тестов с переменными:
+    /// позволяет создать переменные через хранилище билдера и сразу собрать начальные регистры.
+    /// </summary>
+    protected static ExpressionBuilder BuildExpressions(string hex, Func<VariableStorage, RegisterExpressions> configureInitial)
+    {
+        var graph = GetGraph(hex);
+        var decompiler = new ExpressionBuilder();
+        var initial = configureInitial(decompiler.Variables);
+        decompiler.Build(graph, initial);
+        return decompiler;
+    }
 }

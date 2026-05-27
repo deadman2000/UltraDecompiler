@@ -36,16 +36,38 @@ public partial class ExpressionBuilder
     /// <param name="isCom">true для .COM файлов (другая инициализация регистров)</param>
     public void Build(ControlFlowGraph graph, bool isCom = false)
     {
-        Blocks.Clear();
         Variables.Clear();
-        _blocksMap.Clear();
-        _queue.Clear();
 
-        // Выбираем начальное символическое состояние регистров.
-        // Для .COM и .EXE оно разное (разные значения SP, сегментных регистров и т.д.).
         var initialRegisters = isCom
             ? RegisterExpressions.InitCom(Variables)
             : RegisterExpressions.InitExe(Variables);
+
+        RunBuild(graph, initialRegisters);
+    }
+
+    /// <summary>
+    /// Выполняет декомпиляцию с явно заданным начальным состоянием регистров.
+    /// 
+    /// Полезно в тестах для проверки работы с символическими переменными
+    /// (когда регистры уже содержат Variable или сложные выражения).
+    /// 
+    /// В отличие от версии с isCom, эта перегрузка НЕ очищает <see cref="Variables"/>
+    /// (чтобы созданные пользователем переменные в initialRegisters остались валидными).
+    /// </summary>
+    public void Build(ControlFlowGraph graph, RegisterExpressions initialRegisters)
+    {
+        // Важно: Variables НЕ очищаем — пользователь мог создать в них переменные для initialRegisters.
+        RunBuild(graph, initialRegisters);
+    }
+
+    /// <summary>
+    /// Общая логика построения (BFS + linking). Clears должны быть сделаны вызывающим кодом.
+    /// </summary>
+    private void RunBuild(ControlFlowGraph graph, RegisterExpressions initialRegisters)
+    {
+        Blocks.Clear();
+        _blocksMap.Clear();
+        _queue.Clear();
 
         // Формируем первый блок и добавляем его в очередь на обработку
         CreateExprBlock(graph.EntryBlock, initialRegisters);
@@ -64,10 +86,6 @@ public partial class ExpressionBuilder
             GenerateCode(block);
 
             // Передаём выходное состояние successor'ам.
-            // Важно: мы сохраняем состояние только при ПЕРВОМ посещении блока.
-            // Если к блоку можно прийти несколькими путями (слияние), то
-            // "победит" первый обработанный предшественник.
-            // Это упрощение. Полноценное решение требует merge/phi-функций.
             if (block.BasicBlock.NextBlock != null)
             {
                 CreateExprBlock(block.BasicBlock.NextBlock, block.EndRegisters);
@@ -80,8 +98,6 @@ public partial class ExpressionBuilder
         }
 
         // Второй проход: связываем ExprBlock'и между собой.
-        // Это нужно, чтобы потом можно было генерировать структурированный C-код
-        // (if/else, циклы и т.д.) на основе связей между блоками.
         foreach (var kvp in _blocksMap)
         {
             var exprBlock = kvp.Value;
@@ -94,7 +110,6 @@ public partial class ExpressionBuilder
             {
                 exprBlock.ConditionalBlock = condCode;
 
-                // Пытаемся построить настоящее условие по последней Jcc + текущим флагам.
                 var lastInstr = basicBlock.Instructions.Count > 0
                     ? basicBlock.Instructions[^1]
                     : null;
@@ -105,7 +120,6 @@ public partial class ExpressionBuilder
                 }
                 else
                 {
-                    // fallback (должен быть очень редким)
                     exprBlock.Condition = ConstExpr.One;
                 }
             }

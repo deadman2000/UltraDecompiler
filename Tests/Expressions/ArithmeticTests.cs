@@ -94,4 +94,128 @@ public class ArithmeticTests : BaseTests
         var cx = Assert.IsType<ConstExpr>(block.EndRegisters.CX);
         Assert.Equal(30, cx.Value);
     }
+
+    // ==================== Тесты с символическими переменными (не константы) ====================
+
+    [Fact]
+    public void Add_VariablePlusConst_ProducesMathExprAndNewVariable()
+    {
+        // BX уже содержит символическую переменную (например, результат предыдущих вычислений)
+        // Используем Set16, чтобы корректно сбросить байтовые представления (AH/AL и т.д.)
+        var expr = BuildExpressions("01 C3", vars =>
+        {
+            var prev = vars.CreateVariable("prev");
+            var init = RegisterExpressions.InitZero();
+            return init
+                .Set16(3, prev)                    // BX = prev
+                .Set16(0, new ConstExpr(7));       // AX = 7
+        });
+
+        var block = expr.Blocks[0];
+        Assert.Single(block.Operations);
+
+        var set = Assert.IsType<SetOperation>(block.Operations[0]);
+        var math = Assert.IsType<Math2Expr>(set.Src);
+        Assert.Equal(Math2Operation.Add, math.Operation);
+
+        // Первый операнд — предыдущая переменная, второй — константа
+        Assert.Equal("prev", Assert.IsType<Variable>(math.First).Name);
+        Assert.Equal(7, Assert.IsType<ConstExpr>(math.Second).Value);
+
+        // BX теперь указывает на *новую* переменную (результат сложения)
+        var resultVar = Assert.IsType<Variable>(block.EndRegisters.BX);
+        Assert.NotEqual("prev", resultVar.Name);
+        Assert.Equal(set.Dst, resultVar);
+    }
+
+    [Fact]
+    public void Add_ConstPlusVariable_ProducesMathExpr()
+    {
+        var expr = BuildExpressions("01 D8", vars =>   // add ax, bx
+        {
+            var v = vars.CreateVariable("val");
+            var init = RegisterExpressions.InitZero();
+            return init
+                .Set16(0, new ConstExpr(10))   // AX
+                .Set16(3, v);                  // BX
+        });
+
+        var block = expr.Blocks[0];
+        Assert.Single(block.Operations);
+
+        var set = Assert.IsType<SetOperation>(block.Operations[0]);
+        var math = Assert.IsType<Math2Expr>(set.Src);
+        Assert.Equal(Math2Operation.Add, math.Operation);
+
+        Assert.Equal(10, Assert.IsType<ConstExpr>(math.First).Value);
+        Assert.Equal("val", Assert.IsType<Variable>(math.Second).Name);
+    }
+
+    [Fact]
+    public void Add_TwoVariables_ProducesMathWithBothVariables()
+    {
+        var expr = BuildExpressions("01 D0", vars =>   // add ax, dx
+        {
+            var a = vars.CreateVariable("a");
+            var d = vars.CreateVariable("d");
+            var init = RegisterExpressions.InitZero();
+            return init
+                .Set16(0, a)
+                .Set16(2, d);
+        });
+
+        var block = expr.Blocks[0];
+        Assert.Single(block.Operations);
+
+        var set = Assert.IsType<SetOperation>(block.Operations[0]);
+        var math = Assert.IsType<Math2Expr>(set.Src);
+        Assert.Equal(Math2Operation.Add, math.Operation);
+
+        Assert.Equal("a", Assert.IsType<Variable>(math.First).Name);
+        Assert.Equal("d", Assert.IsType<Variable>(math.Second).Name);
+    }
+
+    [Fact]
+    public void Inc_OnVariable_CreatesAddWithOne()
+    {
+        var expr = BuildExpressions("40", vars =>   // inc ax
+        {
+            var prev = vars.CreateVariable("x");
+            return RegisterExpressions.InitZero().Set16(0, prev);
+        });
+
+        var block = expr.Blocks[0];
+        Assert.Single(block.Operations);
+
+        var set = Assert.IsType<SetOperation>(block.Operations[0]);
+        var math = Assert.IsType<Math2Expr>(set.Src);
+        Assert.Equal(Math2Operation.Add, math.Operation);
+
+        Assert.Equal("x", Assert.IsType<Variable>(math.First).Name);
+        Assert.Equal(1, Assert.IsType<ConstExpr>(math.Second).Value);
+    }
+
+    [Fact]
+    public void Sub_VariableMinusVariable()
+    {
+        var expr = BuildExpressions("29 D0", vars =>   // sub ax, dx
+        {
+            var left = vars.CreateVariable("left");
+            var right = vars.CreateVariable("right");
+            var init = RegisterExpressions.InitZero();
+            return init
+                .Set16(0, left)
+                .Set16(2, right);
+        });
+
+        var block = expr.Blocks[0];
+        Assert.Single(block.Operations);
+
+        var set = Assert.IsType<SetOperation>(block.Operations[0]);
+        var math = Assert.IsType<Math2Expr>(set.Src);
+        Assert.Equal(Math2Operation.Sub, math.Operation);
+
+        Assert.Equal("left", Assert.IsType<Variable>(math.First).Name);
+        Assert.Equal("right", Assert.IsType<Variable>(math.Second).Name);
+    }
 }
