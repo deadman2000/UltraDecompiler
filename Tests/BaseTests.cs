@@ -25,9 +25,14 @@ public abstract class BaseTests
 
     protected static ExpressionBuilder BuildExpressions(string hex)
     {
+        return BuildExpressions(hex, isCom: false);
+    }
+
+    protected static ExpressionBuilder BuildExpressions(string hex, bool isCom)
+    {
         var graph = GetGraph(hex);
         var decompiler = new ExpressionBuilder();
-        decompiler.Build(graph);
+        decompiler.Build(graph, isCom);
         return decompiler;
     }
 }

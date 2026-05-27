@@ -304,9 +304,8 @@ public class ExpressionBuilder
     {
         var dst = instr.Operand1;
         var current = GetExpression(dst, block.EndRegisters, instr.Segment);
-        var one = new ConstExpr(1);
 
-        var math = new Math2Expr(isInc ? Math2Operation.Add : Math2Operation.Sub, current, one);
+        var math = new Math2Expr(isInc ? Math2Operation.Add : Math2Operation.Sub, current, ConstExpr.One);
 
         var resultVar = Variables.CreateVariable();
         block.Operations.Add(new SetOperation(resultVar, math));
@@ -636,6 +635,11 @@ public class ExpressionBuilder
                 int defaultSegIdx = usesStackSegment ? 2 : 3; // SS : DS
                 segExpr = registers.GetSegment(defaultSegIdx);
             }
+
+            // Пытаемся распознать доступ к известной структуре в памяти (PSP и т.п.)
+            var knownVar = Variables.TryGetKnownMemoryVariable(address, segExpr);
+            if (knownVar != null)
+                return knownVar;
 
             return new MemExpr(address, segExpr);
         }

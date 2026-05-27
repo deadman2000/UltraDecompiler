@@ -156,4 +156,5 @@ public class MemoryTests : BaseTests
         // Должен присутствовать какой-то сегмент (либо "CS:" либо имя переменной)
         Assert.True(s.Contains(":") || s.StartsWith("["), "MemExpr.ToString должен отражать сегмент");
     }
+
 }

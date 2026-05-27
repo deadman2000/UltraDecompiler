@@ -41,7 +41,7 @@ public record struct RegisterExpressions(
 
     public static RegisterExpressions InitCom(VariableStorage variables)
     {
-        var initCS = variables.CreateVariable("_initCS");
+        var psp = variables.PspBase;   // каноническая база PSP
 
         var zero = ConstExpr.Zero;
         return new RegisterExpressions(AX: zero,
@@ -52,10 +52,10 @@ public record struct RegisterExpressions(
                                        BP: zero,
                                        SI: zero,
                                        DI: zero,
-                                       ES: initCS,
-                                       CS: initCS,
-                                       SS: initCS,
-                                       DS: initCS)
+                                       ES: psp,
+                                       CS: psp,
+                                       SS: psp,
+                                       DS: psp)
         {
             AH = zero,
             AL = zero,
@@ -70,7 +70,7 @@ public record struct RegisterExpressions(
 
     public static RegisterExpressions InitExe(VariableStorage variables)
     {
-        var psp = variables.CreateVariable("_psp");
+        var psp = variables.PspBase;   // каноническая база PSP
         var initCS = variables.CreateVariable("_initCS");
         var initSS = variables.CreateVariable("_initSS");
         var initSP = variables.CreateVariable("_initSP");
