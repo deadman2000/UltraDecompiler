@@ -265,12 +265,14 @@ public partial class ExpressionBuilder
         }
 
         // Создаём loop-переменные
+        var siLoop = Variables.CreateVariable();
         var diLoop = Variables.CreateVariable();
         var cxLoop = Variables.CreateVariable();
 
         // === Инициализация ПЕРЕД циклом ===
         var initOps = new List<Operation>
         {
+            new SetOperation(siLoop, block.EndRegisters.Get16(6)), // текущий SI (для MOVS/LODS/CMPS)
             new SetOperation(diLoop, block.EndRegisters.Get16(7)), // текущий DI
             new SetOperation(cxLoop, block.EndRegisters.Get16(1))  // текущий CX
         };
@@ -280,14 +282,10 @@ public partial class ExpressionBuilder
 
         var iterationOps = kind switch
         {
-            StringOpKind.Store => BuildOneStosIterationWithVars(block, instr, size, (Variable)diLoop, (Variable)cxLoop),
-            // Для Move и Load пока оставляем старую логику
-            _ => kind switch
-            {
-                StringOpKind.Move  => BuildOneMovsIteration(block, instr, size),
-                StringOpKind.Load  => BuildOneLodsIteration(block, instr, size),
-                _ => new List<Operation>()
-            }
+            StringOpKind.Store => BuildOneStosIterationWithVars(block, instr, size, diLoop, cxLoop),
+            StringOpKind.Move  => BuildOneMovsIterationWithVars(block, instr, size, siLoop, diLoop),
+            StringOpKind.Load  => BuildOneLodsIterationWithVars(block, instr, size, siLoop),
+            _ => new List<Operation>()
         };
 
         loopBody.AddRange(iterationOps);
@@ -304,34 +302,6 @@ public partial class ExpressionBuilder
 
         // Обновляем EndRegisters после REP-цикла
         ApplyRepLoopPostState(block, size, kind);
-    }
-
-    private IReadOnlyList<Operation> BuildOneMovsIteration(ExprBlock block, Instruction instr, int size)
-    {
-        var ops = new List<Operation>();
-
-        Expr src = BuildStringMemoryRead(block, instr, isSource: true, size);
-        var (dstAddr, dstSeg) = BuildStringMemoryAddress(block, isDestination: true);
-
-        ops.Add(new StoreOperation(dstAddr, dstSeg, src));
-
-        // Обновление SI/DI внутри тела цикла
-        Expr df = block.EndRegisters.DF;
-        Expr delta = (df is ConstExpr c && c.Value == 0)
-            ? new ConstExpr(size)
-            : new ConstExpr(-size);
-
-        Expr currentSi = block.EndRegisters.Get16(6);
-        Expr currentDi = block.EndRegisters.Get16(7);
-
-        Expr newSi = Calculate(Math2Operation.Add, currentSi, delta);
-        Expr newDi = Calculate(Math2Operation.Add, currentDi, delta);
-
-        // Эмитим SetOperation на "текущие" значения указателей (в реальности они будут обновляться на каждой итерации)
-        ops.Add(new SetOperation(Variables.CreateVariable(), newSi));
-        ops.Add(new SetOperation(Variables.CreateVariable(), newDi));
-
-        return ops;
     }
 
     /// <summary>
@@ -369,23 +339,48 @@ public partial class ExpressionBuilder
         return ops;
     }
 
-    private IReadOnlyList<Operation> BuildOneLodsIteration(ExprBlock block, Instruction instr, int size)
+    private IReadOnlyList<Operation> BuildOneMovsIterationWithVars(
+        ExprBlock block, Instruction instr, int size,
+        Variable siVar, Variable diVar)
+    {
+        var ops = new List<Operation>();
+
+        Expr src = BuildStringMemoryRead(block, instr, isSource: true, size);
+        var (_, dstSeg) = BuildStringMemoryAddress(block, isDestination: true);
+
+        ops.Add(new StoreOperation(diVar, dstSeg, src));
+
+        Expr df = block.EndRegisters.DF;
+        Expr delta = (df is ConstExpr c && c.Value == 0)
+            ? new ConstExpr(size)
+            : new ConstExpr(-size);
+
+        Expr newSi = Calculate(Math2Operation.Add, siVar, delta);
+        Expr newDi = Calculate(Math2Operation.Add, diVar, delta);
+
+        ops.Add(new SetOperation(siVar, newSi));
+        ops.Add(new SetOperation(diVar, newDi));
+
+        return ops;
+    }
+
+    private IReadOnlyList<Operation> BuildOneLodsIterationWithVars(
+        ExprBlock block, Instruction instr, int size,
+        Variable siVar)
     {
         var ops = new List<Operation>();
 
         Expr value = BuildStringMemoryRead(block, instr, isSource: true, size);
 
-        // Обновление AX/AL
         if (size == 1)
             ops.Add(new SetOperation(Variables.CreateVariable(), value));
         else
             ops.Add(new SetOperation(Variables.CreateVariable(), value));
 
-        // Обновление SI
         Expr df = block.EndRegisters.DF;
         Expr delta = (df is ConstExpr c && c.Value == 0) ? new ConstExpr(size) : new ConstExpr(-size);
-        Expr newSi = Calculate(Math2Operation.Add, block.EndRegisters.Get16(6), delta);
-        ops.Add(new SetOperation(Variables.CreateVariable(), newSi));
+        Expr newSi = Calculate(Math2Operation.Add, siVar, delta);
+        ops.Add(new SetOperation(siVar, newSi));
 
         return ops;
     }
@@ -408,15 +403,28 @@ public partial class ExpressionBuilder
         // Для REPNZ (REPNE): продолжаем, пока ZF == 0 (не равны)
         Expr expectedZf = isRepz ? ConstExpr.One : ConstExpr.Zero;
 
-        // === Строим тело одной итерации ===
-        var bodyOps = new List<Operation>();
+        // Создаём loop-переменные
+        var siLoop = Variables.CreateVariable();
+        var diLoop = Variables.CreateVariable();
+        var cxLoop = Variables.CreateVariable();
+
+        // === Инициализация ПЕРЕД циклом ===
+        var initOps = new List<Operation>
+        {
+            new SetOperation(siLoop, block.EndRegisters.Get16(6)),
+            new SetOperation(diLoop, block.EndRegisters.Get16(7)),
+            new SetOperation(cxLoop, block.EndRegisters.Get16(1))
+        };
+
+        // === Тело цикла ===
+        var loopBody = new List<Operation>();
 
         Expr left, right;
 
         if (isCompare)
         {
-            left  = BuildStringMemoryRead(block, instr, isSource: true, size);   // [DS:SI]
-            right = BuildStringMemoryRead(block, instr, isSource: false, size);  // [ES:DI]
+            left  = BuildStringMemoryRead(block, instr, isSource: true, size);
+            right = BuildStringMemoryRead(block, instr, isSource: false, size);
         }
         else
         {
@@ -424,45 +432,40 @@ public partial class ExpressionBuilder
             right = BuildStringMemoryRead(block, instr, isSource: false, size);
         }
 
-        // Добавляем операции сравнения + обновление флагов
-        // Мы эмитим CmpExpr для ZF (основной флаг для REPZ/REPNZ)
         Expr equality = new CmpExpr(CmpOperation.Eq, left, right);
 
-        // Обновляем флаги в EndRegisters **сразу** (это даст эффект "последнего сравнения" после цикла)
-        // Для тела цикла мы всё равно добавляем операции, но флаги обновляем здесь для пост-состояния.
+        // Обновляем флаги для пост-состояния после цикла
         block.EndRegisters = block.EndRegisters with
         {
             ZF = equality,
             CF = new CmpExpr(CmpOperation.Ult, left, right)
         };
 
-        // Добавляем в тело "след" сравнения (для читаемости IR)
-        bodyOps.Add(new SetOperation(Variables.CreateVariable("last_cmp"), equality));
+        loopBody.Add(new SetOperation(Variables.CreateVariable(), equality));
 
-        // Обновляем SI/DI внутри тела
+        // Обновления внутри тела, используя loop-переменные
         Expr df = block.EndRegisters.DF;
         Expr delta = (df is ConstExpr c && c.Value == 0)
             ? new ConstExpr(size)
             : new ConstExpr(-size);
 
-        Expr newSi = Calculate(Math2Operation.Add, block.EndRegisters.Get16(6), delta);
-        Expr newDi = Calculate(Math2Operation.Add, block.EndRegisters.Get16(7), delta);
+        Expr newSi = Calculate(Math2Operation.Add, siLoop, delta);
+        Expr newDi = Calculate(Math2Operation.Add, diLoop, delta);
+        Expr newCx = Calculate(Math2Operation.Sub, cxLoop, ConstExpr.One);
 
-        bodyOps.Add(new SetOperation(Variables.CreateVariable(), newSi));
-        bodyOps.Add(new SetOperation(Variables.CreateVariable(), newDi));
+        loopBody.Add(new SetOperation(siLoop, newSi));
+        loopBody.Add(new SetOperation(diLoop, newDi));
+        loopBody.Add(new SetOperation(cxLoop, newCx));
 
-        // Декремент CX
-        Expr cxExpr = block.EndRegisters.Get16(1);
-        Expr decrementedCx = Calculate(Math2Operation.Sub, cxExpr, ConstExpr.One);
-        bodyOps.Add(new SetOperation(Variables.CreateVariable(), decrementedCx));
-
-        // === Составное условие цикла ===
-        // CX != 0 && ZF == expected
-        Expr cxCondition = new CmpExpr(CmpOperation.Ne, cxExpr, ConstExpr.Zero);
+        // === Составное условие ===
+        Expr cxCondition = new CmpExpr(CmpOperation.Ne, cxLoop, ConstExpr.Zero);
         Expr zfCondition = new CmpExpr(CmpOperation.Eq, block.EndRegisters.ZF, expectedZf);
         Expr condition = RepBoolAnd(cxCondition, zfCondition);
 
-        var whileLoop = new WhileOperation(condition, bodyOps);
+        // Добавляем инициализацию перед циклом
+        block.Operations.AddRange(initOps);
+
+        var whileLoop = new WhileOperation(condition, loopBody);
         block.Operations.Add(whileLoop);
 
         // После цикла флаги уже обновлены на значение от "последнего" сравнения
@@ -490,7 +493,7 @@ public partial class ExpressionBuilder
         Expr cxBefore = block.EndRegisters.Get16(1); // CX до цикла
 
         bool cxIsConst = cxBefore is ConstExpr;
-        int? cxValue = cxIsConst ? ((ConstExpr)cxBefore).Value : (int?)null;
+        int? cxValue = cxIsConst ? ((ConstExpr)cxBefore).Value : null;
 
         Expr df = block.EndRegisters.DF;
         bool dfForward = df is ConstExpr c && c.Value == 0;

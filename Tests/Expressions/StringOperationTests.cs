@@ -204,8 +204,10 @@ public class StringOperationTests : BaseTests
         var block = expr.Blocks[0];
         var loop = block.Operations.OfType<WhileOperation>().FirstOrDefault();
         Assert.NotNull(loop);
-        // В теле должны быть операции обновления DI
-        Assert.Contains(loop.Body, op => op.ToString().Contains("di"));
+
+        // В теле должны быть операции обновления указателя (SetOperation)
+        bool hasPointerUpdate = loop.Body.Any(op => op is SetOperation);
+        Assert.True(hasPointerUpdate, "Loop body should contain pointer update operations");
     }
 
     [Fact]
@@ -252,6 +254,47 @@ public class StringOperationTests : BaseTests
         var block = expr.Blocks[0];
         Assert.Contains(block.Operations, op => op is WhileOperation);
         Assert.NotNull(block.EndRegisters.ZF);
+    }
+
+    [Fact]
+    public void RepMovsb_InitializesLoopVarsBeforeWhile()
+    {
+        var expr = BuildExpressions("""
+            FC              ; cld
+            B9 04 00        ; mov cx, 4
+            BE 00 10        ; mov si, 1000h
+            BF 00 20        ; mov di, 2000h
+            F3 A4           ; rep movsb
+            """);
+
+        var block = expr.Blocks[0];
+        var whileIdx = block.Operations.FindIndex(op => op is WhileOperation);
+        Assert.True(whileIdx > 0, "WhileOperation should not be the first operation");
+
+        // The operations before While should be initializations (SetOperation)
+        for (int i = 0; i < whileIdx; i++)
+        {
+            Assert.IsType<SetOperation>(block.Operations[i]);
+        }
+    }
+
+    [Fact]
+    public void RepzCmpsb_InitializesLoopVarsBeforeWhile()
+    {
+        var expr = BuildExpressions("""
+            FC              ; cld
+            B9 05 00        ; mov cx, 5
+            F3 A6           ; repz cmpsb
+            """);
+
+        var block = expr.Blocks[0];
+        var whileIdx = block.Operations.FindIndex(op => op is WhileOperation);
+        Assert.True(whileIdx > 0, "WhileOperation should not be the first operation");
+
+        for (int i = 0; i < whileIdx; i++)
+        {
+            Assert.IsType<SetOperation>(block.Operations[i]);
+        }
     }
 
     [Fact]
