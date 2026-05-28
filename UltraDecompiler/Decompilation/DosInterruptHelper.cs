@@ -28,12 +28,21 @@ public static class DosInterruptHelper
         "dos_char_output",
         "dos_print_string",
         "dos_set_current_drive",
-        "dos_exit",
+        "__exit",
         // При добавлении новых void-функций в msdos.h — добавляй сюда:
         // "dos_set_time",
         // "dos_set_date",
         // "dos_set_dta",
     };
+
+    /// <summary>
+    /// Создаёт CallExpr для инструкции выхода из программы (INT 20h/27h, INT 21h с AH=00h/4Ch/31h).
+    /// </summary>
+    public static CallExpr CreateForExit(int vector, in RegisterExpressions regs)
+    {
+        Expr status = vector == 0x21 ? regs.Get8(GpRegister8.AL) : new ConstExpr(0);
+        return new CallExpr(new Procedure { Name = "__exit" }, [status]);
+    }
 
     /// <summary>
     /// Создаёт CallExpr, моделирующий вызов прерывания.
@@ -131,9 +140,6 @@ public static class DosInterruptHelper
             // === Misc useful services ===
             0x30 => ("dos_get_dos_version", Array.Empty<Expr>()),
             0x36 => ("dos_get_free_disk_space", [regs.Get8(GpRegister8.AL)]),
-
-            // Exit (обычно уже отфильтрован IsExit, но на всякий случай)
-            0x4C => ("dos_exit", [regs.Get8(GpRegister8.AL)]),
 
             // Fallback — оставляем низкоуровневый intdos (как в оригинальном QuickC <dos.h>)
             _ => ("intdos", Array.Empty<Expr>())

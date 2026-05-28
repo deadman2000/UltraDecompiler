@@ -106,6 +106,42 @@ public class InterruptTests : BaseTests
     }
 
     [Fact]
+    public void Int20h_ProducesExitCall()
+    {
+        var expr = BuildExpressions("""
+            CD 20          ; int 20h
+            """);
+
+        var block = expr.Blocks[0];
+        Assert.Single(block.Operations);
+
+        var callOp = Assert.IsType<CallOperation>(block.Operations[0]);
+        Assert.Equal("__exit", callOp.Procedure.Name);
+        Assert.Single(callOp.Args);
+        Assert.IsType<ConstExpr>(callOp.Args[0]);
+        Assert.Equal(0, ((ConstExpr)callOp.Args[0]).Value);
+    }
+
+    [Fact]
+    public void Int21h_AH4C_ProducesExitCallWithStatus()
+    {
+        var expr = BuildExpressions("""
+            B4 4C          ; mov ah, 4Ch
+            B0 01          ; mov al, 1
+            CD 21          ; int 21h
+            """);
+
+        var block = expr.Blocks[0];
+        Assert.Single(block.Operations);
+
+        var callOp = Assert.IsType<CallOperation>(block.Operations[0]);
+        Assert.Equal("__exit", callOp.Procedure.Name);
+        Assert.Single(callOp.Args);
+        Assert.IsType<ConstExpr>(callOp.Args[0]);
+        Assert.Equal(1, ((ConstExpr)callOp.Args[0]).Value);
+    }
+
+    [Fact]
     public void Int21h_AH3F_ProducesDosReadCallExpr()
     {
         // MOV AH,3Fh ; MOV BX,handle ; MOV CX,512 ; MOV DX,buffer ; INT 21h → dos_read

@@ -18,7 +18,7 @@ public class LoopOperationTests
         };
 
         var ifOp = new IfOperation(cond, thenBody);
-        string result = ifOp.ToString();
+        string result = ifOp.ToCString();
 
         Assert.Contains("if (var1 == 0)", result);
         Assert.Contains("var2 = var3;", result);
@@ -33,7 +33,7 @@ public class LoopOperationTests
         var elseBody = new List<Operation> { new SetOperation(new Variable(1), ConstExpr.Zero) };
 
         var ifOp = new IfOperation(cond, thenBody, elseBody);
-        string result = ifOp.ToString();
+        string result = ifOp.ToCString();
 
         Assert.Contains("if (x != 0)", result);
         Assert.Contains("else", result);
@@ -45,7 +45,7 @@ public class LoopOperationTests
     public void IfOperation_EmptyThen_ProducesSemicolon()
     {
         var ifOp = new IfOperation(ConstExpr.One, Array.Empty<Operation>());
-        string result = ifOp.ToString();
+        string result = ifOp.ToCString();
 
         Assert.Contains("; // пустое тело", result);
     }
@@ -60,7 +60,7 @@ public class LoopOperationTests
         };
 
         var loop = new WhileOperation(cond, body);
-        string result = loop.ToString();
+        string result = loop.ToCString();
 
         Assert.Contains("while (", result);
         Assert.Contains("while (var1 != 0)", result);
@@ -82,7 +82,7 @@ public class LoopOperationTests
         };
 
         var loop = new ForOperation(init, cond, iter, body);
-        string result = loop.ToString(0);
+        string result = loop.ToCString(0);
 
         Assert.Contains("for (i = 0; i < 10; i = i + 1)", result);
         Assert.Contains("{", result);
@@ -94,7 +94,7 @@ public class LoopOperationTests
         var cond = ConstExpr.One;
         var loop = new WhileOperation(cond, Array.Empty<Operation>());
 
-        string result = loop.ToString();
+        string result = loop.ToCString();
 
         Assert.Contains("; // пустое тело", result);
     }
@@ -107,7 +107,7 @@ public class LoopOperationTests
             [new SetOperation(new Variable(5), new Variable(6))]);
 
         var loop = new WhileOperation(ConstExpr.One, [innerIf]);
-        string result = loop.ToString(0);
+        string result = loop.ToCString(0);
 
         Assert.Contains("    if (1)", result);
         Assert.Contains("        var5 = var6;", result);
@@ -127,7 +127,7 @@ public class LoopOperationTests
         var outerBody = new List<Operation> { innerWhile };
 
         var outer = new ForOperation(null, null, null, outerBody);
-        string result = outer.ToString(0);
+        string result = outer.ToCString(0);
 
         // Проверяем, что вложенный while имеет отступ 4 пробела
         Assert.Contains("    while (1)", result);

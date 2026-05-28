@@ -3,12 +3,13 @@ namespace UltraDecompiler.Decompilation.InstructionHandlers;
 /// <summary>
 /// Обрабатывает INT (программное прерывание).
 ///
-/// Non-exit INT представляются как CallExpr, вызывающие функции из msdos.h
-/// (dos_open, dos_read, dos_print_string и др.) либо fallback к int86/intdos.
+/// Exit INT (INT 20h/27h, INT 21h с завершением программы) → <c>__exit(status)</c>.
+/// Остальные INT — CallExpr с функциями из msdos.h (dos_open, dos_read, dos_print_string и др.)
+/// либо fallback к int86/intdos.
 ///
 /// Логика выбора операции:
 ///   - Если функция в msdos.h объявлена как <c>void</c> (dos_print_string, dos_char_output,
-///     dos_set_current_drive, dos_exit и т.п.) → порождаем <b>CallOperation</b>.
+///     dos_set_current_drive и т.п.) → порождаем <b>CallOperation</b>.
 ///   - Если функция возвращает значение (dos_open, dos_read, dos_lseek и т.д.) →
 ///     порождаем <b>SetOperation(resultVar, CallExpr)</b> и кладём результат в AX.
 ///
@@ -27,6 +28,13 @@ public class InterruptHandler : IInstructionHandler
         }
 
         int vector = instr.Operand1.Value;
+
+        if (instr.IsExit)
+        {
+            var exitCall = DosInterruptHelper.CreateForExit(vector, block.EndRegisters);
+            block.Operations.Add(new CallOperation(exitCall.Procedure, exitCall.Args));
+            return;
+        }
 
         var callExpr = DosInterruptHelper.CreateForInt(vector, block.EndRegisters);
 

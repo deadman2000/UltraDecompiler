@@ -49,7 +49,8 @@ int  dos_get_file_attribute(const char far *pathname, unsigned *attr); /* 43h */
 int  dos_set_file_attribute(const char far *pathname, unsigned attr);
 
 /* Memory / program control */
-void dos_exit(int status);                         /* 4Ch */
+void __exit();                                     /* 20h, 27h */
+void __exit(int status);                           /* 4Ch */
 int  dos_get_dos_version(void);                    /* 30h */
 int  dos_get_free_disk_space(int drive, unsigned *total_clusters,
                              unsigned *avail_clusters,

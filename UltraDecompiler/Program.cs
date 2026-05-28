@@ -51,13 +51,29 @@ try
     var cfg = new ControlFlowGraph();
     cfg.Build(disassembler, (int)parser.EntryPointOffset, initRegisterState);
 
-    /*var dotPath = Path.Combine(Path.GetDirectoryName(exePath) ?? ".", "cfg.dot");
-    var svgPath = Path.Combine(Path.GetDirectoryName(exePath) ?? ".", "cfg.svg");
-    cfg.SaveDot(dotPath);
-    ConvertDotToSvg(dotPath, svgPath);*/
+    var outputDir = Path.GetDirectoryName(exePath) ?? ".";
+
+    var cfgDotPath = Path.Combine(outputDir, "asm.dot");
+    var cfgSvgPath = Path.Combine(outputDir, "asm.svg");
+    cfg.SaveDot(cfgDotPath);
+    ConvertDotToSvg(cfgDotPath, cfgSvgPath);
+    Console.WriteLine($"CFG: {cfgDotPath}, {cfgSvgPath}");
 
     var expressions = new ExpressionBuilder();
     expressions.Build(cfg, parser.IsCom);
+
+    var exprDotPath = Path.Combine(outputDir, "expr.dot");
+    var exprSvgPath = Path.Combine(outputDir, "expr.svg");
+    expressions.SaveDot(exprDotPath);
+    ConvertDotToSvg(exprDotPath, exprSvgPath);
+    Console.WriteLine($"Expressions: {exprDotPath}, {exprSvgPath}");
+
+    var operations = expressions.GetAllOperations();
+    Console.WriteLine();
+    foreach (var op in operations)
+    {
+        Console.WriteLine(op.ToCString(asStatement: true));
+    }
 }
 catch (Exception ex)
 {

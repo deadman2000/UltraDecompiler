@@ -5,7 +5,4 @@
 /// </summary>
 /// <param name="Dst">Назначение</param>
 /// <param name="Src">Источник</param>
-public record SetOperation(Variable Dst, Expr Src) : Operation
-{
-    public override string ToString() => $"{Dst} = {Src}";
-}
+public record SetOperation(Variable Dst, Expr Src) : Operation;

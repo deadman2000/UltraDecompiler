@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using UltraDecompiler.Decompilation.InstructionHandlers;
 using UltraDecompiler.Graph;
 
@@ -9,10 +10,11 @@ namespace UltraDecompiler.Decompilation;
 /// Выполняет преобразование потока инструкций x86 (через CFG) в высокоуровневые
 /// выражения и операции (SetOperation, Math1Expr, Math2Expr и т.д.).
 /// </summary>
-public class ExpressionBuilder
+public partial class ExpressionBuilder
 {
     private readonly Dictionary<BasicBlock, ExprBlock> _blocksMap = [];
     private readonly Queue<ExprBlock> _queue = new();
+    private ExprBlock? _entryBlock;
 
     public List<ExprBlock> Blocks { get; } = [];
 
@@ -68,6 +70,7 @@ public class ExpressionBuilder
         Blocks.Clear();
         _blocksMap.Clear();
         _queue.Clear();
+        _entryBlock = null;
 
         // Формируем первый блок и добавляем его в очередь на обработку
         CreateExprBlock(graph.EntryBlock, initialRegisters, initialStack);
@@ -127,6 +130,7 @@ public class ExpressionBuilder
         };
         Blocks.Add(exprBlock);
         _blocksMap[block] = exprBlock;
+        _entryBlock ??= exprBlock;
         _queue.Enqueue(exprBlock);
     }
 
@@ -164,11 +168,18 @@ public class ExpressionBuilder
             // Для условных переходов сразу заполняем Condition.
             if (instr.IsUnconditionalJump || instr.IsReturn)
             {
+                Debug.Assert(block.BasicBlock.ConditionalBlock == null);
                 return block;
             }
 
             var handler = Handlers.Get(instr.Mnemonic) ?? throw new NotImplementedException($"Instruction {instr} is not yet supported");
             handler.Handle(block, instr);
+
+            if (instr.IsExit)
+            {
+                Debug.Assert(block.BasicBlock.ConditionalBlock == null);
+                return block;
+            }
         }
 
         // Если дошли сюда — блок не закончился явным прыжком/возвратом.
