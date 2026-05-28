@@ -1,0 +1,141 @@
+using UltraDecompiler.Decompilation;
+
+namespace Tests.Expressions;
+
+/// <summary>
+/// Тесты символической поддержки стека (PUSH/POP) в ExpressionBuilder.
+/// </summary>
+public class StackTests : BaseTests
+{
+    [Fact]
+    public void PushReg16_PlacesValueOnEndStack()
+    {
+        var expr = BuildExpressions("""
+            b8 34 12   ; mov ax, 1234h
+            50         ; push ax
+            """);
+
+        var block = expr.Blocks[0];
+        Assert.Empty(block.Operations); // PUSH не создаёт Operation, только обновляет стек
+        Assert.Single(block.EndStack);
+        var top = block.EndStack.Peek();
+        var c = Assert.IsType<ConstExpr>(top);
+        Assert.Equal(0x1234, c.Value);
+    }
+
+    [Fact]
+    public void PushPop_SameRegister_Roundtrip()
+    {
+        var expr = BuildExpressions("""
+            bb cd ab   ; mov bx, 0abcdh
+            53         ; push bx
+            59         ; pop cx
+            """);
+
+        var block = expr.Blocks[0];
+        Assert.Empty(block.Operations);
+
+        // После POP CX должен содержать то же значение, что было в BX
+        var cxVal = block.EndRegisters.Get16(1);
+        var c = Assert.IsType<ConstExpr>(cxVal);
+        Assert.Equal(0xABCD, c.Value);
+    }
+
+    [Fact]
+    public void PushVariable_PopToMemory_ProducesStoreOperation()
+    {
+        // Значение input уже лежит на стеке (передали через initialStack)
+        var expr = BuildExpressions("""
+            8f 06 00 20   ; pop word ptr [2000h]
+            """, vars =>
+        {
+            var input = vars.CreateVariable("input");
+            var regs = RegisterExpressions.InitCom(vars) with { AX = input };
+            var stack = new Stack<Expr>();
+            stack.Push(input);
+            return (regs, stack);
+        });
+
+        var store = Assert.Single(expr.Blocks[0].Operations);
+        var s = Assert.IsType<StoreOperation>(store);
+
+        var addr = Assert.IsType<ConstExpr>(s.Address);
+        Assert.Equal(0x2000, addr.Value);
+
+        var v = Assert.IsType<Variable>(s.Value);
+        Assert.Equal("input", v.Name);
+    }
+
+    [Fact]
+    public void MultiplePushPop_PreservesOrder()
+    {
+        var expr = BuildExpressions("""
+            b8 01 00   ; mov ax, 0001h
+            50         ; push ax
+            b8 02 00   ; mov ax, 0002h
+            50         ; push ax
+            5b         ; pop bx
+            59         ; pop cx
+            """);
+
+        var block = expr.Blocks[0];
+        Assert.Empty(block.Operations);
+
+        var bx = Assert.IsType<ConstExpr>(block.EndRegisters.Get16(3)); // BX
+        var cx = Assert.IsType<ConstExpr>(block.EndRegisters.Get16(1)); // CX
+
+        Assert.Equal(0x0002, bx.Value); // значение из второго PUSH
+        Assert.Equal(0x0001, cx.Value); // значение из первого PUSH
+    }
+
+    [Fact]
+    public void PopToSegmentRegister_UpdatesRegister()
+    {
+        // Значение DS уже лежит на стеке (передали через initialStack)
+        var expr = BuildExpressions("""
+            07   ; pop es
+            """, vars =>
+        {
+            var regs = RegisterExpressions.InitCom(vars);
+            var stack = new Stack<Expr>();
+            stack.Push(regs.GetSegment(3)); // DS
+            return (regs, stack);
+        });
+
+        var esVal = expr.Blocks[0].EndRegisters.GetSegment(0);
+        var dsVal = expr.Blocks[0].EndRegisters.GetSegment(3);
+
+        // ES получает то же символическое значение, что было в DS
+        Assert.Same(dsVal, esVal);
+    }
+
+    [Fact]
+    public void PopFromEmptyStack_Throws()
+    {
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            BuildExpressions("""
+                58   ; pop ax   (стек пуст)
+                """));
+
+        Assert.Contains("empty symbolic stack", ex.Message);
+    }
+
+    [Fact]
+    public void PushThenPopToMemory_ProducesStoreWithPushedValue()
+    {
+        var expr = BuildExpressions("""
+            b8 dc fe      ; mov ax, 0fedch
+            50            ; push ax
+            8f 06 00 10   ; pop word ptr [1000h]
+            """);
+
+        var store = Assert.Single(expr.Blocks[0].Operations);
+        var s = Assert.IsType<StoreOperation>(store);
+
+        var addr = Assert.IsType<ConstExpr>(s.Address);
+        Assert.Equal(0x1000, addr.Value);
+
+        var val = Assert.IsType<ConstExpr>(s.Value);
+        Assert.Equal(0xFEDC, val.Value);
+    }
+}

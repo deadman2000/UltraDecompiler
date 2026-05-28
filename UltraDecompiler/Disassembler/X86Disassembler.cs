@@ -245,6 +245,9 @@ public class X86Disassembler
             case 0x8E:
                 return DecodeMovSreg(opcode);
 
+            case 0x8F:
+                return DecodeGroup8F();
+
             case 0xA0:
             case 0xA1:
             case 0xA2:
@@ -760,6 +763,24 @@ public class X86Disassembler
             6 => Mnemonic.PUSH,
             _ => Mnemonic.DB
         };
+        return instr;
+    }
+
+    private Instruction DecodeGroup8F()
+    {
+        byte modrm = ReadByte();
+        int mod = (modrm >> 6) & 3;
+        int regField = (modrm >> 3) & 7;
+
+        var instr = new Instruction();
+
+        if (mod == 3)
+            instr.Operand1 = new Operand(OperandType.Register16, modrm & 7);
+        else
+            instr.Operand1 = ParseMemoryOperand(modrm & 7, mod);
+
+        // 8F /0 = POP r/m16. Остальные regField на 8086 — недопустимы.
+        instr.Mnemonic = regField == 0 ? Mnemonic.POP : Mnemonic.DB;
         return instr;
     }
 

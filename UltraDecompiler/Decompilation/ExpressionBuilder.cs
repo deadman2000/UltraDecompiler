@@ -42,7 +42,7 @@ public partial class ExpressionBuilder
             ? RegisterExpressions.InitCom(Variables)
             : RegisterExpressions.InitExe(Variables);
 
-        RunBuild(graph, initialRegisters);
+        RunBuild(graph, initialRegisters, []);
     }
 
     /// <summary>
@@ -54,23 +54,23 @@ public partial class ExpressionBuilder
     /// В отличие от версии с isCom, эта перегрузка НЕ очищает <see cref="Variables"/>
     /// (чтобы созданные пользователем переменные в initialRegisters остались валидными).
     /// </summary>
-    public void Build(ControlFlowGraph graph, RegisterExpressions initialRegisters)
+    public void Build(ControlFlowGraph graph, RegisterExpressions initialRegisters, Stack<Expr> initialStack)
     {
         // Важно: Variables НЕ очищаем — пользователь мог создать в них переменные для initialRegisters.
-        RunBuild(graph, initialRegisters);
+        RunBuild(graph, initialRegisters, initialStack);
     }
 
     /// <summary>
     /// Общая логика построения (BFS + linking). Clears должны быть сделаны вызывающим кодом.
     /// </summary>
-    private void RunBuild(ControlFlowGraph graph, RegisterExpressions initialRegisters)
+    private void RunBuild(ControlFlowGraph graph, RegisterExpressions initialRegisters, IEnumerable<Expr> initialStack)
     {
         Blocks.Clear();
         _blocksMap.Clear();
         _queue.Clear();
 
         // Формируем первый блок и добавляем его в очередь на обработку
-        CreateExprBlock(graph.EntryBlock, initialRegisters);
+        CreateExprBlock(graph.EntryBlock, initialRegisters, initialStack);
 
         var visited = new HashSet<BasicBlock>();
 
@@ -88,12 +88,12 @@ public partial class ExpressionBuilder
             // Передаём выходное состояние successor'ам.
             if (block.BasicBlock.NextBlock != null)
             {
-                CreateExprBlock(block.BasicBlock.NextBlock, block.EndRegisters);
+                CreateExprBlock(block.BasicBlock.NextBlock, block.EndRegisters, block.EndStack);
             }
 
             if (block.BasicBlock.ConditionalBlock != null)
             {
-                CreateExprBlock(block.BasicBlock.ConditionalBlock, block.EndRegisters);
+                CreateExprBlock(block.BasicBlock.ConditionalBlock, block.EndRegisters, block.EndStack);
             }
         }
 
@@ -113,7 +113,7 @@ public partial class ExpressionBuilder
         }
     }
 
-    private void CreateExprBlock(BasicBlock block, in RegisterExpressions registers)
+    private void CreateExprBlock(BasicBlock block, in RegisterExpressions registers, IEnumerable<Expr> stack)
     {
         // TODO Подумать, что делать, если в блок мы попадаем из разных мест
         if (_blocksMap.ContainsKey(block))
@@ -121,7 +121,8 @@ public partial class ExpressionBuilder
 
         var exprBlock = new ExprBlock(block)
         {
-            InitRegisters = registers
+            InitRegisters = registers,
+            InitStack= stack.ToArray()
         };
         Blocks.Add(exprBlock);
         _blocksMap[block] = exprBlock;
@@ -149,6 +150,11 @@ public partial class ExpressionBuilder
     {
         // Начинаем обработку блока с копии InitRegisters.
         exprBlock.EndRegisters = exprBlock.InitRegisters;
+
+        // Копируем символический стек. Reverse() нужен, потому что конструктор Stack<T>(IEnumerable)
+        // кладёт первый элемент перечисления на дно, а последний — на вершину.
+        // InitStack[0] — самый глубокий, InitStack[^1] — вершина (результат последнего PUSH).
+        exprBlock.EndStack = new Stack<Expr>(exprBlock.InitStack.Reverse());
 
         foreach (var instr in exprBlock.BasicBlock.Instructions)
         {
@@ -262,6 +268,15 @@ public partial class ExpressionBuilder
 
                 case Mnemonic.INT:
                     HandleInterrupt(exprBlock, instr);
+                    break;
+
+                // Стек
+                case Mnemonic.PUSH:
+                    HandlePush(exprBlock, instr);
+                    break;
+
+                case Mnemonic.POP:
+                    HandlePop(exprBlock, instr);
                     break;
 
                 // TODO: MUL/IMUL/DIV/IDIV, строковые операции, LAHF/SAHF/PUSHF/POPF, CLD/STD и др.
@@ -702,6 +717,7 @@ public partial class ExpressionBuilder
         if (instr.Operand1.Type != OperandType.Immediate8 &&
             instr.Operand1.Type != OperandType.Immediate16)
         {
+            // TODO Подставлять CallExpr на intdos, int86 и т.д.
             throw new NotImplementedException($"INT with non-immediate operand is not supported: {instr}");
         }
 
@@ -731,19 +747,43 @@ public partial class ExpressionBuilder
             vector, block.EndRegisters, Variables, callExpr);
     }
 
-    /// <summary>
-    /// Применяет обновление флагов после арифметической/логической операции.
-    /// Устанавливает только ZF = (resultExpr == 0).
-    ///
-    /// Для ADD/SUB CF устанавливается напрямую в HandleArithmetic (более точная информация).
-    /// Для INC/DEC CF намеренно не трогается (согласно x86).
-    /// </summary>
-    private static RegisterExpressions ApplyArithmeticFlags(RegisterExpressions regs, Expr resultExpr)
+    private void HandlePush(ExprBlock exprBlock, Instruction instr)
     {
-        return regs with
-        {
-            ZF = new CmpExpr(CmpOperation.Eq, resultExpr, ConstExpr.Zero)
-            // CF, SF, OF оставляем как есть
-        };
+        var expr = GetExpression(instr.Operand1, exprBlock.EndRegisters, instr.Segment);
+        exprBlock.EndStack.Push(expr);
     }
+
+    private void HandlePop(ExprBlock exprBlock, Instruction instr)
+    {
+        if (exprBlock.EndStack.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"POP at offset {instr.Offset:X4} from empty symbolic stack (unbalanced PUSH/POP or indirect manipulation of SP)");
+        }
+
+        var value = exprBlock.EndStack.Pop();
+
+        var dst = instr.Operand1;
+        if (dst.Type == OperandType.Register16)
+        {
+            // POP reg16 — просто обновляем символическое значение (аналогично MOV, без SetOperation)
+            exprBlock.EndRegisters = exprBlock.EndRegisters.Set16(dst.Value, value);
+        }
+        else if (dst.Type == OperandType.SegmentRegister)
+        {
+            // POP ES / SS / DS (CS через POP невозможен на 8086)
+            exprBlock.EndRegisters = exprBlock.EndRegisters.SetSegment(dst.Value, value);
+        }
+        else if (dst.Type == OperandType.Memory)
+        {
+            // POP WORD PTR [addr] — создаём StoreOperation
+            var (addr, seg) = BuildMemoryReference(dst, exprBlock.EndRegisters, instr.Segment);
+            exprBlock.Operations.Add(new StoreOperation(addr, seg, value));
+        }
+        else
+        {
+            throw new NotImplementedException($"POP into {dst.Type} is not supported");
+        }
+    }
+
 }

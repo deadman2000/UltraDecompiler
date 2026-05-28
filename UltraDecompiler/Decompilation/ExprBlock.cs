@@ -41,4 +41,14 @@ public class ExprBlock(BasicBlock basicBlock)
     /// Конечное состояние регистров
     /// </summary>
     public RegisterExpressions EndRegisters { get; set; }
+
+    /// <summary>
+    /// Начальное состояние стека
+    /// </summary>
+    public required IReadOnlyList<Expr> InitStack { get; init; }
+
+    /// <summary>
+    /// Конеченое состояние стека
+    /// </summary>
+    public Stack<Expr> EndStack { get; set; } = [];
 }

@@ -26,7 +26,9 @@ public partial class Instruction
 			Mnemonic.XCHG => ModifyRegistersXchg(state),
 			Mnemonic.CBW => ModifyRegistersCbw(state),
 			Mnemonic.CWD => ModifyRegistersCwd(state),
-			// TODO: MUL, IMUL, DIV, IDIV, shifts (SAL, SHR, SAR, ROL, ROR, RCL, RCR), DAA, DAS, AAA, AAS, AAM, AAD, LEA, POP (into reg), etc.
+			Mnemonic.PUSH => ModifyRegistersPush(state),
+			Mnemonic.POP => ModifyRegistersPop(state),
+			// TODO: MUL, IMUL, DIV, IDIV, shifts (SAL, SHR, SAR, ROL, ROR, RCL, RCR), DAA, DAS, AAA, AAS, AAM, AAD, LEA, etc.
 			_ => state,
 		};
 
@@ -391,5 +393,62 @@ public partial class Instruction
 			return state with { DH = sign, DL = sign };
 		}
 		return state with { DH = null, DL = null };
+	}
+
+	/// <summary>
+	/// PUSH: уменьшаем SP на 2. Значение, уходящее в стек, мы не моделируем в RegisterState
+	/// (для этого нужен полноценный теневой стек во время дизассемблирования).
+	/// </summary>
+	private RegisterState ModifyRegistersPush(RegisterState state)
+	{
+		if (state.SP.HasValue)
+			return state with { SP = (ushort)(state.SP.Value - 2) };
+		return state with { SP = null };
+	}
+
+	/// <summary>
+	/// POP: увеличиваем SP на 2.
+	/// Если POP в регистр — сбрасываем его значение в null (мы не знаем, что лежало на стеке).
+	/// Для POP в память просто меняем SP.
+	/// </summary>
+	private RegisterState ModifyRegistersPop(RegisterState state)
+	{
+		// Сначала корректируем SP
+		if (state.SP.HasValue)
+			state = state with { SP = (ushort)(state.SP.Value + 2) };
+		else
+			state = state with { SP = null };
+
+		// Если POP в 16-битный регистр общего назначения — сбрасываем его (неизвестное значение со стека)
+		if (Operand1.Type == OperandType.Register16)
+		{
+			return Operand1.Value switch
+			{
+				0 => state with { AL = null, AH = null },
+				1 => state with { CL = null, CH = null },
+				2 => state with { DL = null, DH = null },
+				3 => state with { BL = null, BH = null },
+				4 => state with { SP = null }, // POP SP — особый случай, но всё равно сбрасываем
+				5 => state with { BP = null },
+				6 => state with { SI = null },
+				7 => state with { DI = null },
+				_ => state
+			};
+		}
+
+		// POP в сегментный регистр — тоже сбрасываем
+		if (Operand1.Type == OperandType.SegmentRegister)
+		{
+			return Operand1.Value switch
+			{
+				0 => state with { ES = null },
+				1 => state, // CS — POP CS на 8086 недопустим, но если встретился — не трогаем
+				2 => state with { SS = null },
+				3 => state with { DS = null },
+				_ => state
+			};
+		}
+
+		return state;
 	}
 }

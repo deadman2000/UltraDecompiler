@@ -136,4 +136,34 @@ public class PushPopTests : BaseTests
         Assert.Equal(3, instructions[0].Operand1.Value);
     }
 
+    [Fact]
+    public void DisassemblePopMemory()
+    {
+        var instructions = Disassemble("8F 06 34 12"); // POP WORD PTR [1234h]
+        Assert.Equal(Mnemonic.POP, instructions[0].Mnemonic);
+        Assert.Contains("1234", instructions[0].Operands);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
+        Assert.Equal(0x1234, instructions[0].Operand1.Value);
+        Assert.Equal(AddressRegister.None, instructions[0].Operand1.BaseReg);
+    }
+
+    [Fact]
+    public void DisassemblePopMemoryBx()
+    {
+        var instructions = Disassemble("8F 07"); // POP WORD PTR [BX]
+        Assert.Equal(Mnemonic.POP, instructions[0].Mnemonic);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
+        Assert.Equal(AddressRegister.BX, instructions[0].Operand1.BaseReg);
+    }
+
+    [Fact]
+    public void DisassemblePopRegVia8F()
+    {
+        // POP AX через 8F (не самый распространённый способ, но валиден)
+        var instructions = Disassemble("8F C0");
+        Assert.Equal(Mnemonic.POP, instructions[0].Mnemonic);
+        Assert.Equal(OperandType.Register16, instructions[0].Operand1.Type);
+        Assert.Equal(0, instructions[0].Operand1.Value); // AX
+    }
+
 }

@@ -226,4 +226,20 @@ public partial class ExpressionBuilder
 
         return new Math1Expr(op, operand);
     }
+
+    /// <summary>
+    /// Применяет обновление флагов после арифметической/логической операции.
+    /// Устанавливает только ZF = (resultExpr == 0).
+    ///
+    /// Для ADD/SUB CF устанавливается напрямую в HandleArithmetic (более точная информация).
+    /// Для INC/DEC CF намеренно не трогается (согласно x86).
+    /// </summary>
+    private static RegisterExpressions ApplyArithmeticFlags(RegisterExpressions regs, Expr resultExpr)
+    {
+        return regs with
+        {
+            ZF = new CmpExpr(CmpOperation.Eq, resultExpr, ConstExpr.Zero)
+            // CF, SF, OF оставляем как есть
+        };
+    }
 }
