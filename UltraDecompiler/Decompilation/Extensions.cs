@@ -1,6 +1,4 @@
-﻿using UltraDecompiler.Disassembler;
-
-namespace UltraDecompiler.Decompilation;
+﻿namespace UltraDecompiler.Decompilation;
 
 public static class Extensions
 {

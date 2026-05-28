@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using UltraDecompiler.Disassembler;
 
 namespace UltraDecompiler.Graph;
 

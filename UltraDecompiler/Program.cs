@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using UltraDecompiler.Decompilation;
-using UltraDecompiler.Disassembler;
 using UltraDecompiler.Graph;
 using UltraDecompiler.Parser;
 
