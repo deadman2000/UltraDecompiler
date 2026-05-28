@@ -127,6 +127,12 @@ public partial class Instruction
     public bool IsCall => Mnemonic is Mnemonic.CALL or Mnemonic.CALL_FAR or Mnemonic.INT;
 
     /// <summary>
+    /// Инструкция имеет REP/REPE/REPZ или REPNE/REPNZ префикс
+    /// </summary>
+    public bool HasRepPrefix => Prefix.HasFlag(InstructionPrefix.REPZ) ||
+                                Prefix.HasFlag(InstructionPrefix.REPNZ);
+
+    /// <summary>
     /// Инструкция является выходом из приложения
     /// </summary>
     public bool IsExit

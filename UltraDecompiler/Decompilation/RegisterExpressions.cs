@@ -39,6 +39,7 @@ public record struct RegisterExpressions(
 
     // ===== Хелперы для сокращения дублирования логики 4 групп (AX/AH/AL, CX/CH/CL и т.д.) =====
 
+    // TODO использовать enum вместо int
     private static int Reg8ToGroup(int reg8) => reg8 switch
     {
         0 or 4 => 0, // AL/AH -> AX
@@ -48,8 +49,10 @@ public record struct RegisterExpressions(
         _ => -1
     };
 
+    // TODO использовать enum вместо int
     private static int Reg16ToGroup(int reg16) => reg16 is >= 0 and <= 3 ? reg16 : -1;
 
+    // TODO использовать enum вместо int
     private static bool IsHighReg8(int reg8) => reg8 >= 4;
 
     private readonly (Expr? X, Expr? H, Expr? L) GetGroup(int group) => group switch
@@ -149,20 +152,6 @@ public record struct RegisterExpressions(
         };
     }
 
-    private static Expr LowByte(Expr e)
-    {
-        if (e is ConstExpr c)
-            return new ConstExpr(c.Value & 0xff);
-        return new Math2Expr(Math2Operation.And, e, new ConstExpr(0xff));
-    }
-
-    private static Expr HighByte(Expr e)
-    {
-        if (e is ConstExpr c)
-            return new ConstExpr(c.Value >> 8);
-        return new Math2Expr(Math2Operation.Shr, e, new ConstExpr(8));
-    }
-
     /// <summary>
     /// Установка 8-битного регистра.
     /// Точная логика (по ТЗ):
@@ -183,7 +172,7 @@ public record struct RegisterExpressions(
         if (x != null)
         {
             // Правило: при присвоении AH/AL, если есть X — вычисляем "другой" байт из X
-            Expr other = isHigh ? LowByte(x) : HighByte(x);
+            Expr other = isHigh ? x.LowByte() : x.HighByte();
             newH = isHigh ? expr : other;
             newL = !isHigh ? expr : other;
         }
@@ -204,6 +193,7 @@ public record struct RegisterExpressions(
     /// Если X == null — собираем (H << 8) | L (если оба байта установлены).
     /// При нарушении инварианта (все null) — assert + исключение.
     /// </summary>
+    // TODO использовать enum вместо int
     public readonly Expr Get16(int reg16)
     {
         int group = Reg16ToGroup(reg16);
@@ -259,7 +249,7 @@ public record struct RegisterExpressions(
 
         // Правило: "при получении AH/AL, если они null — вычисляем из AX"
         if (x != null)
-            return isHigh ? HighByte(x) : LowByte(x);
+            return isHigh ? x.HighByte() : x.LowByte();
 
         // Недопустимое состояние
         Debug.Assert(false, $"Group {group} is in invalid state in Get8 (no byte and no X)");
@@ -269,6 +259,7 @@ public record struct RegisterExpressions(
     /// <summary>
     /// Установка сегментного регистра (ES=0, CS=1, SS=2, DS=3)
     /// </summary>
+    // TODO использовать enum вместо int
     public RegisterExpressions SetSegment(int sreg, Expr expr)
     {
         return sreg switch
@@ -284,6 +275,7 @@ public record struct RegisterExpressions(
     /// <summary>
     /// Получение сегментного регистра
     /// </summary>
+    // TODO использовать enum вместо int
     public readonly Expr GetSegment(int sreg)
     {
         return sreg switch

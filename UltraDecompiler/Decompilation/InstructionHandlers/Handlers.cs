@@ -1,0 +1,90 @@
+﻿using UltraDecompiler.Disassembler;
+
+namespace UltraDecompiler.Decompilation.InstructionHandlers;
+
+public static class Handlers
+{
+    private static Dictionary<Mnemonic, IInstructionHandler> _dictionary = new()
+    {
+        [Mnemonic.MOV] = new MovHandler(),
+        [Mnemonic.LEA] = new LeaHandler(),
+        [Mnemonic.PUSH] = new PushHandler(),
+        [Mnemonic.POP] = new PopHandler(),
+        [Mnemonic.CBW] = new CbwHandler(),
+        [Mnemonic.LEAVE] = new LeaveHandler(),
+        [Mnemonic.XCHG] = new XchgHandler(),
+        [Mnemonic.CMP] = new CmpHandler(),
+        [Mnemonic.TEST] = new TestHandler(),
+        [Mnemonic.INC] = new IncDecHandler(isInc: true),
+        [Mnemonic.DEC] = new IncDecHandler(isInc: false),
+        [Mnemonic.NOT] = new UnaryHandler(Math1Operation.Not),
+        [Mnemonic.NEG] = new UnaryHandler(Math1Operation.Neg),
+        [Mnemonic.LDS] = new LdsLesHandler(),
+        [Mnemonic.LES] = new LdsLesHandler(),
+        [Mnemonic.ENTER] = new EnterHandler(),
+        [Mnemonic.IN] = new InOutHandler(),
+        [Mnemonic.OUT] = new InOutHandler(),
+        [Mnemonic.SAL] = new ShiftHandler(Math2Operation.Shl),
+        [Mnemonic.SHR] = new ShiftHandler(Math2Operation.Shr),
+        [Mnemonic.SAR] = new ShiftHandler(Math2Operation.Shr),
+        [Mnemonic.INT] = new InterruptHandler(),
+        [Mnemonic.CALL] = new CallHandler(),
+        [Mnemonic.CALL_FAR] = new CallHandler(),
+        [Mnemonic.LOOP] = new LoopHandler(),
+        [Mnemonic.LOOPE] = new LoopHandler(),
+        [Mnemonic.LOOPNE] = new LoopHandler(),
+
+        [Mnemonic.CLI] = new FlagHandler(),
+        [Mnemonic.STI] = new FlagHandler(),
+        [Mnemonic.CLD] = new FlagHandler(),
+        [Mnemonic.STD] = new FlagHandler(),
+        [Mnemonic.CLC] = new FlagHandler(),
+        [Mnemonic.STC] = new FlagHandler(),
+        [Mnemonic.CMC] = new FlagHandler(),
+        [Mnemonic.NOP] = new NopHandler(),
+
+        [Mnemonic.JO] = new JoHandler(),
+        [Mnemonic.JNO] = new JnoHandler(),
+        [Mnemonic.JB] = new JbHandler(),
+        [Mnemonic.JAE] = new JaeHandler(),
+        [Mnemonic.JE] = new JeHandler(),
+        [Mnemonic.JNE] = new JneHandler(),
+        [Mnemonic.JBE] = new JbeHandler(),
+        [Mnemonic.JA] = new JaHandler(),
+        [Mnemonic.JS] = new JsHandler(),
+        [Mnemonic.JNS] = new JnsHandler(),
+        [Mnemonic.JP] = new JpHandler(),
+        [Mnemonic.JNP] = new JnpHandler(),
+        [Mnemonic.JL] = new JlHandler(),
+        [Mnemonic.JGE] = new JgeHandler(),
+        [Mnemonic.JLE] = new JleHandler(),
+        [Mnemonic.JG] = new JgHandler(),
+        [Mnemonic.JCXZ] = new JcxzHandler(),
+
+        [Mnemonic.ADD] = new ArithmeticHandler(),
+        [Mnemonic.SUB] = new ArithmeticHandler(),
+        [Mnemonic.ADC] = new ArithmeticHandler(),
+        [Mnemonic.SBB] = new ArithmeticHandler(),
+
+        [Mnemonic.AND] = new LogicalHandler(),
+        [Mnemonic.OR] = new LogicalHandler(),
+        [Mnemonic.XOR] = new LogicalHandler(),
+
+        [Mnemonic.ROL] = new RotateHandler(isLeft: true),
+        [Mnemonic.ROR] = new RotateHandler(isLeft: false),
+
+        // Строковые операции
+        [Mnemonic.MOVSB] = new MovsHandler(),
+        [Mnemonic.MOVSW] = new MovsHandler(),
+        [Mnemonic.STOSB] = new StosHandler(),
+        [Mnemonic.STOSW] = new StosHandler(),
+        [Mnemonic.LODSB] = new LodsHandler(),
+        [Mnemonic.LODSW] = new LodsHandler(),
+        [Mnemonic.CMPSB] = new CmpsHandler(),
+        [Mnemonic.CMPSW] = new CmpsHandler(),
+        [Mnemonic.SCASB] = new ScasHandler(),
+        [Mnemonic.SCASW] = new ScasHandler(),
+    };
+
+    public static IInstructionHandler? Get(Mnemonic mnemonic) => _dictionary.GetValueOrDefault(mnemonic);
+}

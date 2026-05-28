@@ -186,7 +186,7 @@ public partial class Instruction
         return state;
     }
 
-    private byte? GetReg8(RegisterState state, int idx) => idx switch
+    private static byte? GetReg8(RegisterState state, int idx) => idx switch
     {
         0 => state.AL,
         1 => state.CL,
@@ -199,7 +199,7 @@ public partial class Instruction
         _ => null
     };
 
-    private ushort? GetReg16(RegisterState state, int idx) => idx switch
+    private static ushort? GetReg16(RegisterState state, int idx) => idx switch
     {
         0 => state.AX,
         1 => state.CX,
@@ -212,7 +212,7 @@ public partial class Instruction
         _ => null
     };
 
-    private RegisterState SetReg8(RegisterState state, int idx, byte? val) => idx switch
+    private static RegisterState SetReg8(RegisterState state, int idx, byte? val) => idx switch
     {
         0 => state with { AL = val },
         1 => state with { CL = val },
@@ -225,7 +225,7 @@ public partial class Instruction
         _ => state
     };
 
-    private RegisterState SetReg16(RegisterState state, int idx, ushort? val)
+    private static RegisterState SetReg16(RegisterState state, int idx, ushort? val)
     {
         if (!val.HasValue)
         {
@@ -258,7 +258,7 @@ public partial class Instruction
         };
     }
 
-    private ushort? GetSreg(RegisterState state, int idx) => idx switch
+    private static ushort? GetSreg(RegisterState state, int idx) => idx switch
     {
         0 => state.ES,
         1 => state.CS,
@@ -267,7 +267,7 @@ public partial class Instruction
         _ => null
     };
 
-    private RegisterState SetSreg(RegisterState state, int idx, ushort? val) => idx switch
+    private static RegisterState SetSreg(RegisterState state, int idx, ushort? val) => idx switch
     {
         0 => state with { ES = val },
         1 => state with { CS = val },
@@ -396,7 +396,7 @@ public partial class Instruction
         return state;
     }
 
-    private RegisterState ModifyRegistersCbw(RegisterState state)
+    private static RegisterState ModifyRegistersCbw(RegisterState state)
     {
         if (state.AL.HasValue)
         {
@@ -406,7 +406,7 @@ public partial class Instruction
         return state with { AH = null };
     }
 
-    private RegisterState ModifyRegistersCwd(RegisterState state)
+    private static RegisterState ModifyRegistersCwd(RegisterState state)
     {
         if (state.AX.HasValue)
         {
@@ -416,7 +416,7 @@ public partial class Instruction
         return state with { DH = null, DL = null };
     }
 
-    private RegisterState ModifyRegistersEnter(RegisterState state)
+    private static RegisterState ModifyRegistersEnter(RegisterState state)
     {
         // ENTER всегда меняет BP и SP. Делаем их неизвестными.
         return state with { BP = null, SP = null };
@@ -442,7 +442,7 @@ public partial class Instruction
     /// PUSH: уменьшаем SP на 2. Значение, уходящее в стек, мы не моделируем в RegisterState
     /// (для этого нужен полноценный теневой стек во время дизассемблирования).
     /// </summary>
-    private RegisterState ModifyRegistersPush(RegisterState state)
+    private static RegisterState ModifyRegistersPush(RegisterState state)
     {
         if (state.SP.HasValue)
             return state with { SP = (ushort)(state.SP.Value - 2) };

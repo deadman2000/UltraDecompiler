@@ -8,12 +8,17 @@ namespace UltraDecompiler.Decompilation;
 public class ExprBlock(BasicBlock basicBlock)
 {
     /// <summary>
+    /// Общее хранилище переменных
+    /// </summary>
+    public required VariableStorage Variables { get; init; }
+
+    /// <summary>
     /// Связанный ассемблерный блок
     /// </summary>
     public BasicBlock BasicBlock { get; } = basicBlock;
 
     /// <summary>
-    /// Операции в порядке выполнения.
+    /// Операции в порядке выполнения
     /// </summary>
     public List<Operation> Operations { get; } = [];
 
