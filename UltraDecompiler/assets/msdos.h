@@ -19,19 +19,6 @@
 extern "C" {
 #endif
 
-/* Forward declarations for structures used by some services */
-#ifndef _FIND_T_DEFINED
-struct find_t {
-    char reserved[21];
-    char attrib;
-    unsigned wr_time;
-    unsigned wr_date;
-    long size;
-    char name[13];
-};
-#define _FIND_T_DEFINED
-#endif
-
 /* Character I/O (AH = 01h..0Ch) */
 int  dos_char_input_echo(void);                    /* 01h */
 int  dos_char_output(int c);                       /* 02h */
@@ -61,10 +48,6 @@ int  dos_get_file_size(const char far *pathname, long *size);  /* via 42h+3Dh+3E
 int  dos_get_file_attribute(const char far *pathname, unsigned *attr); /* 43h */
 int  dos_set_file_attribute(const char far *pathname, unsigned attr);
 
-/* FindFirst / FindNext (AH=4Eh/4Fh) */
-int  dos_find_first(const char far *pathname, int attr, struct find_t far *result);
-int  dos_find_next(struct find_t far *result);
-
 /* Memory / program control */
 void dos_exit(int status);                         /* 4Ch */
 int  dos_get_dos_version(void);                    /* 30h */
@@ -86,14 +69,6 @@ void far *dos_get_dta(void);                       /* 2Fh */
 /* FCB-based (legacy, rarely used in modern decompilations) */
 int  dos_fcb_open(void far *fcb);
 int  dos_fcb_close(void far *fcb);
-
-/* Low-level CPU interrupt control (corresponds to CLI/STI) */
-void _disable(void);                               /* CLI - disable interrupts (QuickC/MSC style) */
-void _enable(void);                                /* STI - enable interrupts (QuickC/MSC style) */
-
-/* Low-level fallback (when AH value is not a compile-time constant) */
-int  intdos(void *inregs, void *outregs);          /* from original QuickC <dos.h> */
-int  int86(int intno, void *inregs, void *outregs);
 
 #ifdef __cplusplus
 }

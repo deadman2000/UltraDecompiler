@@ -6,9 +6,10 @@ namespace UltraDecompiler.Decompilation;
 /// и расширенного набора высокоуровневых обёрток над INT 21h (MS-DOS).
 ///
 /// Опирается на:
-///   - UltraDecompiler/assets/QuickC/ (оригинальные заголовки Microsoft QuickC 1.0, включённые в репозиторий)
+///   - UltraDecompiler/assets/QuickC/ (оригинальные заголовки Microsoft QuickC 1.0)
 ///   - UltraDecompiler/assets/msdos.h (собственный заголовок проекта с
-///     дружественными именами для распространённых сервисов INT 21h)
+///     дружественными именами для распространённых сервисов INT 21h;
+///     содержит только те обёртки, которых нет в оригинальном DOS.H)
 ///
 /// Для INT 21h выполняется диспетчеризация по значению AH (если оно
 /// известно на этапе декомпиляции как константа). Это позволяет
@@ -18,7 +19,7 @@ namespace UltraDecompiler.Decompilation;
 public static class DosInterruptHelper
 {
     /// <summary>
-    /// Имена функций из msdos.h, которые объявлены как void
+    /// Имена функций (из msdos.h или оригинального QuickC DOS.H), которые объявлены как void
     /// (не возвращают полезного значения в AX).
     /// Для таких прерываний мы порождаем CallOperation, а не SetOperation.
     /// </summary>
@@ -84,7 +85,7 @@ public static class DosInterruptHelper
     /// <summary>
     /// Основная логика расширенного распознавания INT 21h.
     /// Если AH — константа, выбираем специализированную функцию из msdos.h.
-    /// Иначе fallback на "intdos".
+    /// Иначе (или для сложных случаев, требующих структур типа find_t) — fallback на "intdos".
     /// </summary>
     private static (string Name, IReadOnlyList<Expr> Args) ResolveInt21hFunction(in RegisterExpressions regs)
     {
@@ -120,9 +121,12 @@ public static class DosInterruptHelper
             0x41 => ("dos_unlink", dsDx != null ? [dsDx] : FallbackDsDx(regs)),
             0x42 => ("dos_lseek", [regs.Get16(3), regs.Get8(0), regs.Get16(1), regs.Get16(2)]), // BX, AL, CX:DX
 
-            // === Find ===
-            0x4E => ("dos_find_first", [dsDx ?? FallbackDsDxSegmentOffset(regs), regs.Get16(1)]),
-            0x4F => ("dos_find_next", Array.Empty<Expr>()),
+            // === FindFirst / FindNext (AH=4Eh/4Fh) ===
+            // Используем оригинальные _dos_findfirst / _dos_findnext из QuickC <dos.h>.
+            // Третий аргумент (struct find_t *) пока заглушка (0) — компилируемость не важна.
+            // TODO: при поддержке структур генерировать реальный &local_find_t.
+            0x4E => ("_dos_findfirst", BuildDosFindFirstArgs(regs, dsDx)),
+            0x4F => ("_dos_findnext", BuildDosFindNextArgs(regs)),
 
             // === Misc useful services ===
             0x30 => ("dos_get_dos_version", Array.Empty<Expr>()),
@@ -184,6 +188,26 @@ public static class DosInterruptHelper
             return [bx, dsDx, cx];
 
         return [bx, regs.Get16(2), regs.GetSegment(3), cx];
+    }
+
+    private static Expr[] BuildDosFindFirstArgs(in RegisterExpressions regs, Expr? dsDx)
+    {
+        // _dos_findfirst(char *pathname, unsigned attrib, struct find_t *result)
+        // AH=4Eh: DS:DX=имя, CX=attr
+        var attr = regs.Get16(1);
+
+        if (dsDx != null)
+            return [dsDx, attr, new ConstExpr(0)]; // TODO: &find_t
+
+        // Fallback: используем тот же стиль, что и для других функций (имя + attr + заглушка)
+        return [FallbackDsDxSegmentOffset(regs), attr, new ConstExpr(0)];
+    }
+
+    private static Expr[] BuildDosFindNextArgs(in RegisterExpressions regs)
+    {
+        // _dos_findnext(struct find_t *result)
+        // Пока нет механизма передачи реального указателя на структуру
+        return [new ConstExpr(0)]; // TODO: &find_t
     }
 
     /// <summary>
