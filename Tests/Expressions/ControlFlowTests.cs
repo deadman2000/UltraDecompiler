@@ -61,7 +61,7 @@ public class ControlFlowTests : BaseTests
         var condBlock = expr.Blocks.FirstOrDefault(b => b.ConditionalBlock != null);
         Assert.NotNull(condBlock);
 
-        // Благодаря BoolNot(Eq) теперь сразу получаем Ne (более чистое представление)
+        // Благодаря !(Eq) через перегрузку BoolNot теперь сразу получаем Ne (более чистое представление)
         var cond = Assert.IsType<CmpExpr>(condBlock.Condition);
         Assert.Equal(CmpOperation.Ne, cond.Operation);
     }

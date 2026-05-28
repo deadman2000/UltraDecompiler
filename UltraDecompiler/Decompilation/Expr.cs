@@ -3,7 +3,7 @@
 /// <summary>
 /// Базовый класс выражений
 /// </summary>
-public abstract record Expr
+public abstract partial record Expr
 {
     /// <summary>
     /// Приоритет оператора выражения (по аналогии с C/C++).
@@ -299,4 +299,33 @@ public record CmpExpr(CmpOperation Operation, Expr Left, Expr Right) : Expr
 
         return result;
     }
+}
+
+// =============================================================================
+// Перегрузка операторов для булевой логики условий.
+// Используется при построении условий Jcc, LOOP* и т.д.
+//
+// Даёт очень читаемый код:
+//     !CF & !ZF
+//     ZF | (SF ^ OF)
+//     !(SF ^ OF)
+//     cxNotZero & !ZF
+//
+// Операторы делегируют на BoolAnd/BoolOr/BoolNot/BoolXor (extension-методы),
+// которые выполняют constant folding и специальные упрощения CmpExpr.
+// =============================================================================
+
+partial record Expr
+{
+    /// <summary>Булево И (с constant folding и упрощениями).</summary>
+    public static Expr operator &(Expr left, Expr right) => left.BoolAnd(right);
+
+    /// <summary>Булево ИЛИ (с constant folding и упрощениями).</summary>
+    public static Expr operator |(Expr left, Expr right) => left.BoolOr(right);
+
+    /// <summary>Булево НЕ (с инверсией CmpExpr и constant folding).</summary>
+    public static Expr operator !(Expr expr) => expr.BoolNot();
+
+    /// <summary>Булево XOR (полезно для моделирования SF ^ OF).</summary>
+    public static Expr operator ^(Expr left, Expr right) => left.BoolXor(right);
 }

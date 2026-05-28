@@ -66,8 +66,8 @@ public class FlagModelingTests : BaseTests
             """);
 
         var condBlock = expr.Blocks.First(b => b.ConditionalBlock != null);
-        // JA = !CF && !ZF. Поскольку после CMP у нас есть хорошая модель CF (Ult),
-        // BoolNot(Ult) превращается в Ugt, а общее выражение остаётся составным.
+        // JA = !CF & !ZF. Поскольку после CMP у нас есть хорошая модель CF (Ult),
+        // !Ult превращается в Ugt через BoolNot, а общее выражение остаётся составным.
         // Проверяем, что это Math2Expr с And.
         var cond = Assert.IsType<Math2Expr>(condBlock.Condition);
         Assert.Equal(Math2Operation.And, cond.Operation);
@@ -287,7 +287,7 @@ public class FlagModelingTests : BaseTests
             """);
 
         var condBlock = expr.Blocks.First(b => b.ConditionalBlock != null);
-        // Благодаря BoolNot теперь инверсия Eq сразу превращается в Ne (более чисто)
+        // Благодаря перегрузке ! (BoolNot) инверсия Eq сразу превращается в Ne (более чисто)
         var cond = Assert.IsType<CmpExpr>(condBlock.Condition);
         Assert.Equal(CmpOperation.Ne, cond.Operation);
     }
@@ -409,7 +409,7 @@ public class FlagModelingTests : BaseTests
             F5       ; cmc         ; инвертирует
             """);
         var cfAfterCmc = withCmp.Blocks[0].EndRegisters.CF;
-        // После CMC это должен быть BoolNot(...) — Math2Expr с Not? или инвертированный Cmp
+        // После CMC это должен быть !(...) — Math1Expr(Not) или инвертированный Cmp (через BoolNot)
         Assert.NotNull(cfAfterCmc);
         // Не должно быть Const, т.к. исходный CF был CmpExpr
         Assert.False(cfAfterCmc is ConstExpr);
