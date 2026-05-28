@@ -377,7 +377,7 @@ public partial class ExpressionBuilder
             Mnemonic.JNP => throw new NotImplementedException("JNP/JPO is not supported (PF flag not tracked)"),
 
             // Специальные (CX-based)
-            Mnemonic.JCXZ => throw new NotImplementedException("JCXZ is not supported"),
+            Mnemonic.JCXZ => new CmpExpr(CmpOperation.Eq, registers.Get16(1), ConstExpr.Zero),
 
             // Циклы
             Mnemonic.LOOP => throw new NotImplementedException("LOOP is not supported"),

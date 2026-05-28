@@ -126,4 +126,32 @@ public class ControlFlowTests : BaseTests
             }
         }
     }
+
+    [Fact]
+    public void ConditionalJump_Jcxz_ProducesCxEqualsZeroCondition()
+    {
+        // JCXZ не зависит от флагов — проверяет CX напрямую.
+        // Используем символическую переменную для CX, чтобы условие было осмысленным.
+        var expr = BuildExpressions("""
+            E3 01    ; jcxz +1
+            90       ; nop (fallthrough)
+            90       ; nop (target)
+            """,
+            vars => RegisterExpressions.InitCom(vars) with { CX = vars.CreateVariable("count") });
+
+        var condBlock = expr.Blocks.FirstOrDefault(b => b.ConditionalBlock != null);
+        Assert.NotNull(condBlock);
+        Assert.NotNull(condBlock.Condition);
+
+        var condition = Assert.IsType<CmpExpr>(condBlock.Condition);
+        Assert.Equal(CmpOperation.Eq, condition.Operation);
+
+        // Левая часть — наша переменная count (CX)
+        var leftVar = Assert.IsType<Variable>(condition.Left);
+        Assert.Equal("count", leftVar.Name);
+
+        // Правая часть — ноль
+        var zero = Assert.IsType<ConstExpr>(condition.Right);
+        Assert.Equal(0, zero.Value);
+    }
 }
