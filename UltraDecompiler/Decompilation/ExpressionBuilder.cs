@@ -190,10 +190,19 @@ public partial class ExpressionBuilder
                 case Mnemonic.LEA:
                     HandleLea(exprBlock, instr);
                     break;
+                case Mnemonic.LDS:
+                case Mnemonic.LES:
+                    HandleLdsLes(exprBlock, instr);
+                    break;
+                case Mnemonic.XCHG:
+                    HandleXchg(exprBlock, instr);
+                    break;
 
                 // Арифметика
                 case Mnemonic.ADD:
                 case Mnemonic.SUB:
+                case Mnemonic.ADC:
+                case Mnemonic.SBB:
                     HandleArithmetic(exprBlock, instr);
                     break;
                 case Mnemonic.INC:
@@ -216,6 +225,10 @@ public partial class ExpressionBuilder
                     break;
                 case Mnemonic.NEG:
                     HandleUnary(exprBlock, instr, Math1Operation.Neg);
+                    break;
+
+                case Mnemonic.CBW:
+                    HandleCbw(exprBlock, instr);
                     break;
 
                 // Сдвиги (SAR трактуем как SHR — упрощение)
@@ -289,6 +302,10 @@ public partial class ExpressionBuilder
                     HandlePop(exprBlock, instr);
                     break;
 
+                case Mnemonic.LEAVE:
+                    HandleLeave(exprBlock, instr);
+                    break;
+
                 // Одиночные строковые инструкции (без REP)
                 case Mnemonic.MOVSB:
                 case Mnemonic.MOVSW:
@@ -315,7 +332,7 @@ public partial class ExpressionBuilder
                     HandleStringScan(exprBlock, instr);
                     break;
 
-                // TODO: MUL/IMUL/DIV/IDIV, REP* строковые, LAHF/SAHF/PUSHF/POPF и др.
+                // TODO: MUL/IMUL/DIV/IDIV, ROL/RCR и др. ротации, PUSHF/POPF/LAHF/SAHF, IN/OUT, DAA/DAS/AAA/AAS, LOOP* и др.
                 default:
                     throw new NotImplementedException($"Instruction {instr} is not yet supported");
             }
@@ -405,6 +422,108 @@ public partial class ExpressionBuilder
         }
     }
 
+    /// <summary>
+    /// Обрабатывает LDS и LES — загрузку far-указателя (DWORD) из памяти.
+    /// Младшее слово (offset) загружается в gp-регистр (Operand1).
+    /// Старшее слово (segment) загружается в DS (для LDS) или ES (для LES).
+    /// Сегментный префикс инструкции (если есть) применяется к адресу самого указателя в памяти.
+    /// </summary>
+    private void HandleLdsLes(ExprBlock block, Instruction instr)
+    {
+        if (instr.Operand2.Type != OperandType.Memory)
+        {
+            throw new NotImplementedException("LDS/LES с регистром в качестве источника не поддерживается (недопустимая кодировка на 8086)");
+        }
+
+        // Адрес в памяти, по которому лежит far-указатель (DWORD: offset + segment)
+        var (ptrAddr, ptrSeg) = BuildMemoryReference(instr.Operand2, block.EndRegisters, instr.Segment);
+
+        // Младшее слово — offset, загружается в целевой gp-регистр
+        var knownOffset = Variables.TryGetKnownMemoryVariable(ptrAddr, ptrSeg);
+        Expr offsetExpr = knownOffset != null ? knownOffset : new MemExpr(ptrAddr, ptrSeg);
+
+        // Старшее слово (+2) — значение сегмента
+        Expr highAddr = Calculate(Math2Operation.Add, ptrAddr, new ConstExpr(2));
+        var knownSegVal = Variables.TryGetKnownMemoryVariable(highAddr, ptrSeg);
+        Expr segValue = knownSegVal != null ? knownSegVal : new MemExpr(highAddr, ptrSeg);
+
+        // Загружаем offset в gp-регистр (аналогично MOV/LEA — без создания SetOperation)
+        block.EndRegisters = block.EndRegisters.Set16(instr.Operand1.Value, offsetExpr);
+
+        // Выбираем целевой сегментный регистр
+        int segIndex = instr.Mnemonic == Mnemonic.LDS ? 3 /* DS */ : 0 /* ES */;
+        block.EndRegisters = block.EndRegisters.SetSegment(segIndex, segValue);
+    }
+
+    /// <summary>
+    /// Обрабатывает XCHG — обмен значений между двумя операндами.
+    /// Поддерживает reg/reg и reg/mem формы (самые распространённые).
+    /// Для памяти: читаем старое значение, пишем в память старое значение регистра,
+    /// а в регистр — старое значение из памяти.
+    /// </summary>
+    private void HandleXchg(ExprBlock block, Instruction instr)
+    {
+        var op1 = instr.Operand1;
+        var op2 = instr.Operand2;
+
+        Expr val1 = GetExpression(op1, block.EndRegisters, instr.Segment);
+        Expr val2 = GetExpression(op2, block.EndRegisters, instr.Segment);
+
+        // Обновляем первый операнд значением второго
+        if (op1.Type == OperandType.Register16)
+        {
+            block.EndRegisters = block.EndRegisters.Set16(op1.Value, val2);
+        }
+        else if (op1.Type == OperandType.Register8)
+        {
+            block.EndRegisters = block.EndRegisters.Set8(op1.Value, val2);
+        }
+        else if (op1.Type == OperandType.Memory)
+        {
+            var (addr, seg) = BuildMemoryReference(op1, block.EndRegisters, instr.Segment);
+            block.Operations.Add(new StoreOperation(addr, seg, val2));
+        }
+
+        // Обновляем второй операнд значением первого (симметрично)
+        if (op2.Type == OperandType.Register16)
+        {
+            block.EndRegisters = block.EndRegisters.Set16(op2.Value, val1);
+        }
+        else if (op2.Type == OperandType.Register8)
+        {
+            block.EndRegisters = block.EndRegisters.Set8(op2.Value, val1);
+        }
+        else if (op2.Type == OperandType.Memory)
+        {
+            var (addr, seg) = BuildMemoryReference(op2, block.EndRegisters, instr.Segment);
+            block.Operations.Add(new StoreOperation(addr, seg, val1));
+        }
+    }
+
+    /// <summary>
+    /// Обрабатывает CBW — знаковое расширение AL → AX.
+    /// Если старший бит AL = 1, то AH = 0xFF, иначе AH = 0.
+    /// </summary>
+    private void HandleCbw(ExprBlock block, Instruction instr)
+    {
+        var al = block.EndRegisters.Get8(0); // AL
+
+        // signBit = (AL >> 7) & 1   → 0 или 1
+        Expr signBit = Calculate(Math2Operation.Shr,
+            Calculate(Math2Operation.And, al, new ConstExpr(0x80)),
+            new ConstExpr(7));
+
+        // high = ((0 - signBit) & 0xFF) << 8   → 0x0000 или 0xFF00
+        // (0 - 1) даёт -1, -1 & 0xFF = 0xFF (благодаря constant folding)
+        Expr minusSign = Calculate(Math2Operation.Sub, ConstExpr.Zero, signBit);
+        Expr highByte = Calculate(Math2Operation.And, minusSign, new ConstExpr(0xFF));
+        Expr high = Calculate(Math2Operation.Shl, highByte, new ConstExpr(8));
+
+        Expr axValue = Calculate(Math2Operation.Or, high, Calculate(Math2Operation.And, al, new ConstExpr(0xFF)));
+
+        block.EndRegisters = block.EndRegisters.Set16(0, axValue); // AX
+    }
+
     private void HandleMov(ExprBlock block, Instruction instr)
     {
         var exprSrc = GetExpression(instr.Operand2, block.EndRegisters, instr.Segment);
@@ -436,13 +555,11 @@ public partial class ExpressionBuilder
     }
 
     /// <summary>
-    /// Обрабатывает ADD и SUB.
-    /// Создаёт выражение "dstCurrent + src" или "dstCurrent - src",
-    /// сохраняет его в новую Variable и записывает эту переменную в регистр-назначение.
+    /// Обрабатывает ADD, SUB, ADC, SBB.
+    /// Создаёт выражение с учётом операндов.
+    /// Для ADC/SBB при известном CF=1 добавляет/вычитает единицу (приближённая модель).
     /// 
-    /// Также обновляет флаги:
-    /// - ZF = (result == 0)
-    /// - CF для SUB = (dst u< src), для ADD — приближённая оценка
+    /// Также обновляет флаги ZF и CF (для ADC/SBB CF обновляется упрощённо).
     /// </summary>
     private void HandleArithmetic(ExprBlock block, Instruction instr)
     {
@@ -467,8 +584,26 @@ public partial class ExpressionBuilder
             return;
         }
 
-        var op = instr.Mnemonic == Mnemonic.ADD ? Math2Operation.Add : Math2Operation.Sub;
-        Expr result = Calculate(op, dstCurrent, srcExpr);
+        bool isAdcSbb = instr.Mnemonic == Mnemonic.ADC || instr.Mnemonic == Mnemonic.SBB;
+        bool isAddLike = instr.Mnemonic == Mnemonic.ADD || instr.Mnemonic == Mnemonic.ADC;
+
+        var baseOp = isAddLike ? Math2Operation.Add : Math2Operation.Sub;
+        Expr result = Calculate(baseOp, dstCurrent, srcExpr);
+
+        // Для ADC/SBB добавляем/вычитаем CF (только если CF — известная константа 0/1)
+        if (isAdcSbb)
+        {
+            Expr carry = ConstExpr.Zero;
+            if (block.EndRegisters.CF is ConstExpr cfC && cfC.Value != 0)
+                carry = ConstExpr.One;
+
+            if (carry is ConstExpr c && c.Value != 0)
+            {
+                result = Calculate(baseOp, result, carry);
+            }
+            // Если CF символический — игнорируем carry (приближённая модель).
+            // Полноценное моделирование carry требует более сложного IR.
+        }
 
         if (result is not ConstExpr)
         {
@@ -498,17 +633,14 @@ public partial class ExpressionBuilder
 
         block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, result);
 
-        // Дополнительно выставляем CF для ADD и SUB (важно для JAE/JB и т.п.)
-        if (instr.Mnemonic == Mnemonic.SUB)
+        // Обновление CF для ADD/SUB/ADC/SBB
+        if (instr.Mnemonic == Mnemonic.SUB || instr.Mnemonic == Mnemonic.SBB)
         {
-            // Для вычитания CF = 1, если было заимствование (dst < src unsigned)
             var cfExpr = new CmpExpr(CmpOperation.Ult, dstCurrent, srcExpr);
             block.EndRegisters = block.EndRegisters with { CF = cfExpr };
         }
-        else if (instr.Mnemonic == Mnemonic.ADD)
+        else if (instr.Mnemonic == Mnemonic.ADD || instr.Mnemonic == Mnemonic.ADC)
         {
-            // Для сложения — приближённая оценка carry: результат "меньше" исходного dst
-            // (хорошо работает в большинстве практических случаев)
             var cfExpr = new CmpExpr(CmpOperation.Ult, result, dstCurrent);
             block.EndRegisters = block.EndRegisters with { CF = cfExpr };
         }
@@ -855,6 +987,32 @@ public partial class ExpressionBuilder
         else
         {
             throw new NotImplementedException($"POP into {dst.Type} is not supported");
+        }
+    }
+
+    /// <summary>
+    /// Обрабатывает LEAVE — стандартный эпилог процедуры (mov sp, bp; pop bp).
+    /// Обновляет SP = BP, затем выполняет POP в BP (берёт значение со стека).
+    /// </summary>
+    private void HandleLeave(ExprBlock block, Instruction instr)
+    {
+        // SP ← BP
+        var bpValue = block.EndRegisters.Get16(5); // BP = 5
+        block.EndRegisters = block.EndRegisters.Set16(4, bpValue); // SP = 4
+
+        // POP BP: берём значение со стека (если есть)
+        if (block.EndStack.Count > 0)
+        {
+            var value = block.EndStack.Pop();
+            block.EndRegisters = block.EndRegisters.Set16(5, value); // BP
+        }
+        else
+        {
+            // Если стек символически пуст — создаём "неизвестное" значение из памяти
+            // (редко, но корректно для анализа)
+            var spAddr = block.EndRegisters.Get16(4);
+            var memVal = new MemExpr(spAddr, block.EndRegisters.GetSegment(2)); // SS
+            block.EndRegisters = block.EndRegisters.Set16(5, memVal);
         }
     }
 

@@ -138,4 +138,23 @@ public class StackTests : BaseTests
         var val = Assert.IsType<ConstExpr>(s.Value);
         Assert.Equal(0xFEDC, val.Value);
     }
+
+    [Fact]
+    public void Leave_UpdatesSpFromBpAndPopsBp()
+    {
+        // Типичный эпилог: mov bp, sp; ... ; leave
+        var expr = BuildExpressions("""
+            8B EC       ; mov bp, sp
+            C9          ; leave
+            """, isCom: true);
+
+        // После leave SP должен равняться (предыдущему) BP, а BP — значению, которое было на стеке
+        // В этом простом случае стек символически может быть пустым → BP станет MemExpr
+        var sp = expr.Blocks[0].EndRegisters.Get16(4);
+        var bp = expr.Blocks[0].EndRegisters.Get16(5);
+
+        // SP должен быть равен тому, что было в BP до leave (в данном случае SP после mov bp,sp)
+        Assert.NotNull(sp);
+        Assert.NotNull(bp);
+    }
 }

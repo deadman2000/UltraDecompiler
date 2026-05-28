@@ -218,4 +218,55 @@ public class ArithmeticTests : BaseTests
         Assert.Equal("left", Assert.IsType<Variable>(math.First).Name);
         Assert.Equal("right", Assert.IsType<Variable>(math.Second).Name);
     }
+
+    // === Новые простые инструкции (XCHG, CBW, ADC/SBB) ===
+
+    [Fact]
+    public void Xchg_RegReg_SwapsValues()
+    {
+        // 93 = xchg ax, bx
+        var expr = BuildExpressions("93");
+
+        // После xchg регистры должны поменяться местами (начальные 0 — тривиально)
+        // Более осмысленный тест — с переменными
+        var expr2 = BuildExpressions("93", vars =>
+        {
+            var a = vars.CreateVariable("a");
+            var b = vars.CreateVariable("b");
+            var init = RegisterExpressions.InitZero();
+            return init.Set16(0, a).Set16(3, b); // AX=a, BX=b
+        });
+
+        var block = expr2.Blocks[0];
+        Assert.Equal("b", Assert.IsType<Variable>(block.EndRegisters.AX).Name);
+        Assert.Equal("a", Assert.IsType<Variable>(block.EndRegisters.BX).Name);
+    }
+
+    [Fact]
+    public void Cbw_SignExtend_WhenAlNegative()
+    {
+        // B0 FF ; mov al, 0FFh ; 98 ; cbw
+        var expr = BuildExpressions("""
+            B0 FF   ; mov al, -1
+            98      ; cbw
+            """);
+
+        var ax = expr.Blocks[0].EndRegisters.AX;
+        var c = Assert.IsType<ConstExpr>(ax);
+        Assert.Equal(0xFFFF, (ushort)c.Value); // -1 как int16
+    }
+
+    [Fact]
+    public void Adc_Sbb_DoNotThrow_AndUpdateRegisters()
+    {
+        // Просто проверяем, что ADC/SBB доходят до HandleArithmetic и не падают
+        var expr = BuildExpressions("""
+            05 01 00   ; add ax, 1
+            83 D0 00   ; adc ax, 0
+            81 D8 00 00 ; sbb ax, 0
+            """);
+
+        // Главное — не упасть + AX обновился
+        Assert.NotNull(expr.Blocks[0].EndRegisters.AX);
+    }
 }

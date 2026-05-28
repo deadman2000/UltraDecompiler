@@ -150,4 +150,62 @@ public class MemoryTests : BaseTests
         Assert.True(s.Contains(":") || s.StartsWith("["), "MemExpr.ToString должен отражать сегмент");
     }
 
+    // === Тесты LDS / LES (far pointer load) ===
+
+    [Fact]
+    public void HandleLds_Basic_LoadsOffsetToRegAndSegmentToDs()
+    {
+        // LDS AX, [0260h]
+        var expr = BuildExpressions("C5 06 60 02");
+
+        // AX должен получить MemExpr по адресу 0260h
+        var ax = expr.Blocks[0].EndRegisters.AX;
+        var offsetMem = Assert.IsType<MemExpr>(ax);
+        var offsetAddr = Assert.IsType<ConstExpr>(offsetMem.Address);
+        Assert.Equal(0x0260, offsetAddr.Value);
+
+        // DS должен получить MemExpr по адресу 0262h (старшее слово)
+        var ds = expr.Blocks[0].EndRegisters.DS;
+        var segMem = Assert.IsType<MemExpr>(ds);
+        var segAddr = Assert.IsType<ConstExpr>(segMem.Address);
+        Assert.Equal(0x0262, segAddr.Value);
+    }
+
+    [Fact]
+    public void HandleLds_WithSsOverride_UsesSsForMemoryRead()
+    {
+        // SS: LDS AX, [0264h]
+        var expr = BuildExpressions("36 C5 06 64 02");
+
+        var ax = expr.Blocks[0].EndRegisters.AX;
+        var mem = Assert.IsType<MemExpr>(ax);
+        Assert.NotNull(mem.Segment); // Должен быть SS (или его символическое значение из Init)
+        Assert.Contains(":", mem.ToString()); // рендеринг должен показывать сегмент
+
+        // Проверяем, что и в DS тоже лежит MemExpr с тем же сегментом-источником
+        var ds = expr.Blocks[0].EndRegisters.DS;
+        var dsMem = Assert.IsType<MemExpr>(ds);
+        Assert.NotNull(dsMem.Segment);
+    }
+
+    [Fact]
+    public void HandleLes_Basic_LoadsOffsetToRegAndSegmentToEs()
+    {
+        // LES BX, [0010h]
+        var expr = BuildExpressions("C4 1E 10 00");
+
+        var bx = expr.Blocks[0].EndRegisters.BX;
+        var offsetMem = Assert.IsType<MemExpr>(bx);
+        var addr = Assert.IsType<ConstExpr>(offsetMem.Address);
+        Assert.Equal(0x0010, addr.Value);
+
+        // ES (а не DS!)
+        var es = expr.Blocks[0].EndRegisters.ES;
+        var esMem = Assert.IsType<MemExpr>(es);
+        var esAddr = Assert.IsType<ConstExpr>(esMem.Address);
+        Assert.Equal(0x0012, esAddr.Value);
+
+        // DS при этом не должен измениться от своего начального значения
+        // (мы не проверяем точное значение, просто что это не тот же MemExpr по 0012)
+    }
 }
