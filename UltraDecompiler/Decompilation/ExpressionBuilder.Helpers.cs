@@ -51,8 +51,8 @@ public partial class ExpressionBuilder
         {
             var invertedOp = cmp.Operation switch
             {
-                CmpOperation.Eq  => CmpOperation.Ne,
-                CmpOperation.Ne  => CmpOperation.Eq,
+                CmpOperation.Eq => CmpOperation.Ne,
+                CmpOperation.Ne => CmpOperation.Eq,
                 CmpOperation.Ult => CmpOperation.Uge,
                 CmpOperation.Uge => CmpOperation.Ult,
                 CmpOperation.Ule => CmpOperation.Ugt,
@@ -198,7 +198,7 @@ public partial class ExpressionBuilder
                 Math2Operation.Shl => c1.Value << c2.Value,
                 Math2Operation.Shr => c1.Value >> c2.Value,
                 Math2Operation.And => c1.Value & c2.Value,
-                Math2Operation.Or  => c1.Value | c2.Value,
+                Math2Operation.Or => c1.Value | c2.Value,
                 Math2Operation.Xor => c1.Value ^ c2.Value,
                 _ => throw new NotImplementedException($"Unsupported Math2Operation in folding: {op}")
             };

@@ -122,7 +122,7 @@ public partial class ExpressionBuilder
         var exprBlock = new ExprBlock(block)
         {
             InitRegisters = registers,
-            InitStack= stack.ToArray()
+            InitStack = stack.ToArray()
         };
         Blocks.Add(exprBlock);
         _blocksMap[block] = exprBlock;

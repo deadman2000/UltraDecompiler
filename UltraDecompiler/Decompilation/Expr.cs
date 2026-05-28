@@ -57,7 +57,7 @@ public record Variable(int Number = 0) : Expr
 public record ConstExpr(int Value) : Expr
 {
     public static readonly ConstExpr Zero = new(0);
-    public static readonly ConstExpr One  = new(1);
+    public static readonly ConstExpr One = new(1);
 
     public override string ToString() => Value.ToString();
 }

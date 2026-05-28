@@ -69,7 +69,7 @@ public partial class ExpressionBuilder
             return;
         }
 
-        Expr value = size == 1 
+        Expr value = size == 1
             ? block.EndRegisters.Get8(0)   // AL
             : block.EndRegisters.Get16(0); // AX
 
@@ -117,7 +117,7 @@ public partial class ExpressionBuilder
             return;
         }
 
-        Expr left  = BuildStringMemoryRead(block, instr, isSource: true, size);  // [DS:SI]
+        Expr left = BuildStringMemoryRead(block, instr, isSource: true, size);  // [DS:SI]
         Expr right = BuildStringMemoryRead(block, instr, isSource: false, size); // [ES:DI]
 
         // Обновляем флаги как при обычном CMP
@@ -140,8 +140,8 @@ public partial class ExpressionBuilder
             return;
         }
 
-        Expr left = size == 1 
-            ? block.EndRegisters.Get8(0) 
+        Expr left = size == 1
+            ? block.EndRegisters.Get8(0)
             : block.EndRegisters.Get16(0);
 
         Expr right = BuildStringMemoryRead(block, instr, isSource: false, size); // [ES:DI]
@@ -193,7 +193,7 @@ public partial class ExpressionBuilder
     /// </summary>
     private (Expr Address, Expr? Segment) BuildStringMemoryAddress(ExprBlock block, bool isDestination)
     {
-        Expr ptr = isDestination 
+        Expr ptr = isDestination
             ? block.EndRegisters.Get16(7)  // DI (reg 7)
             : block.EndRegisters.Get16(6); // SI (reg 6)
 
@@ -217,7 +217,7 @@ public partial class ExpressionBuilder
         Expr negative = new ConstExpr(-size);
 
         bool dfIsZero = df is ConstExpr c && c.Value == 0;
-        bool dfIsOne  = df is ConstExpr c2 && c2.Value != 0;
+        bool dfIsOne = df is ConstExpr c2 && c2.Value != 0;
 
         Expr deltaSi = dfIsZero ? positive : (dfIsOne ? negative : CreatePostLoopDeltaVariable("si_delta", size));
         Expr deltaDi = dfIsZero ? positive : (dfIsOne ? negative : CreatePostLoopDeltaVariable("di_delta", size));
@@ -225,7 +225,7 @@ public partial class ExpressionBuilder
         if (updateSi)
         {
             Expr currentSi = block.EndRegisters.Get16(6);
-            Expr newSi = (deltaSi is ConstExpr) 
+            Expr newSi = (deltaSi is ConstExpr)
                 ? Calculate(Math2Operation.Add, currentSi, deltaSi)
                 : Variables.CreateVariable("si_after_str");
             block.EndRegisters = block.EndRegisters.Set16(6, newSi);
@@ -283,8 +283,8 @@ public partial class ExpressionBuilder
         var iterationOps = kind switch
         {
             StringOpKind.Store => BuildOneStosIterationWithVars(block, instr, size, diLoop, cxLoop),
-            StringOpKind.Move  => BuildOneMovsIterationWithVars(block, instr, size, siLoop, diLoop),
-            StringOpKind.Load  => BuildOneLodsIterationWithVars(block, instr, size, siLoop),
+            StringOpKind.Move => BuildOneMovsIterationWithVars(block, instr, size, siLoop, diLoop),
+            StringOpKind.Load => BuildOneLodsIterationWithVars(block, instr, size, siLoop),
             _ => new List<Operation>()
         };
 
@@ -423,12 +423,12 @@ public partial class ExpressionBuilder
 
         if (isCompare)
         {
-            left  = BuildStringMemoryRead(block, instr, isSource: true, size);
+            left = BuildStringMemoryRead(block, instr, isSource: true, size);
             right = BuildStringMemoryRead(block, instr, isSource: false, size);
         }
         else
         {
-            left  = size == 1 ? block.EndRegisters.Get8(0) : block.EndRegisters.Get16(0);
+            left = size == 1 ? block.EndRegisters.Get8(0) : block.EndRegisters.Get16(0);
             right = BuildStringMemoryRead(block, instr, isSource: false, size);
         }
 
