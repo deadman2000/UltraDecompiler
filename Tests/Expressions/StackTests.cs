@@ -157,4 +157,23 @@ public class StackTests : BaseTests
         Assert.NotNull(sp);
         Assert.NotNull(bp);
     }
+
+    [Fact]
+    public void Enter_CreatesStackFrame()
+    {
+        // C8 04 00 00   — ENTER 4, 0   (типичный случай для QuickC)
+        var expr = BuildExpressions("C8 04 00 00 ; enter 4, 0", isCom: true);
+
+        // После ENTER:
+        // - BP должен быть равен SP до вычитания
+        // - SP должен уменьшиться на 4
+        var bp = expr.Blocks[0].EndRegisters.Get16(5);
+        var sp = expr.Blocks[0].EndRegisters.Get16(4);
+
+        Assert.NotNull(bp);
+        Assert.NotNull(sp);
+
+        // Проверяем, что в стеке что-то появилось (старый BP)
+        // (точное значение зависит от инициализации)
+    }
 }

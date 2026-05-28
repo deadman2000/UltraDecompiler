@@ -166,6 +166,14 @@ public partial class ExpressionBuilder
                 return exprBlock;
             }
 
+            // LOOP* имеют побочный эффект (декремент CX), поэтому обрабатываем их отдельно
+            // до общего пути условных переходов.
+            if (instr.Mnemonic is Mnemonic.LOOP or Mnemonic.LOOPE or Mnemonic.LOOPNE)
+            {
+                HandleLoop(exprBlock, instr);
+                return exprBlock;
+            }
+
             if (instr.IsConditionalJump)
             {
                 if (exprBlock.BasicBlock.ConditionalBlock == null)
@@ -240,6 +248,14 @@ public partial class ExpressionBuilder
                     HandleShift(exprBlock, instr, Math2Operation.Shr);
                     break;
 
+                // Простые ротации (без использования CF)
+                case Mnemonic.ROL:
+                    HandleRotate(exprBlock, instr, isLeft: true);
+                    break;
+                case Mnemonic.ROR:
+                    HandleRotate(exprBlock, instr, isLeft: false);
+                    break;
+
                 // Сравнения (обновляют флаги для последующих Jcc)
                 case Mnemonic.CMP:
                     HandleCmp(exprBlock, instr);
@@ -306,6 +322,15 @@ public partial class ExpressionBuilder
                     HandleLeave(exprBlock, instr);
                     break;
 
+                case Mnemonic.ENTER:
+                    HandleEnter(exprBlock, instr);
+                    break;
+
+                case Mnemonic.IN:
+                case Mnemonic.OUT:
+                    HandleInOut(exprBlock, instr);
+                    break;
+
                 // Одиночные строковые инструкции (без REP)
                 case Mnemonic.MOVSB:
                 case Mnemonic.MOVSW:
@@ -332,7 +357,7 @@ public partial class ExpressionBuilder
                     HandleStringScan(exprBlock, instr);
                     break;
 
-                // TODO: MUL/IMUL/DIV/IDIV, ROL/RCR и др. ротации, PUSHF/POPF/LAHF/SAHF, IN/OUT, DAA/DAS/AAA/AAS, LOOP* и др.
+                // TODO: MUL/IMUL/DIV/IDIV, RCL/RCR, PUSHF/POPF/LAHF/SAHF, DAA/DAS/AAA/AAS, ENTER (level>0) и др.
                 default:
                     throw new NotImplementedException($"Instruction {instr} is not yet supported");
             }
@@ -396,10 +421,9 @@ public partial class ExpressionBuilder
             // Специальные (CX-based)
             Mnemonic.JCXZ => new CmpExpr(CmpOperation.Eq, registers.Get16(1), ConstExpr.Zero),
 
-            // Циклы
-            Mnemonic.LOOP => throw new NotImplementedException("LOOP is not supported"),
-            Mnemonic.LOOPE => throw new NotImplementedException("LOOPE/LOOPZ is not supported"),
-            Mnemonic.LOOPNE => throw new NotImplementedException("LOOPNE/LOOPNZ is not supported"),
+            // LOOP* не должны сюда попадать — они обрабатываются в HandleLoop
+            Mnemonic.LOOP or Mnemonic.LOOPE or Mnemonic.LOOPNE =>
+                throw new InvalidOperationException("LOOP* должны обрабатываться в HandleLoop, а не в BuildJumpCondition"),
 
             _ => throw new NotImplementedException($"Instruction {jumpInstr.Mnemonic} is not yet supported")
         };
@@ -855,6 +879,93 @@ public partial class ExpressionBuilder
     }
 
     /// <summary>
+    /// Обрабатывает ROL и ROR (простые ротации без использования флага CF).
+    /// Реализуется через комбинацию сдвигов и побитовых операций.
+    /// </summary>
+    private void HandleRotate(ExprBlock block, Instruction instr, bool isLeft)
+    {
+        var dst = instr.Operand1;
+        var countExpr = GetExpression(instr.Operand2, block.EndRegisters, instr.Segment);
+        var dstCurrent = GetExpression(dst, block.EndRegisters, instr.Segment);
+
+        // Для простоты поддерживаем только константное количество бит (самый частый случай в сгенерированном коде)
+        if (countExpr is not ConstExpr countConst)
+        {
+            // Если количество сдвигов динамическое (CL) — пока создаём упрощённую модель
+            // Можно улучшить позже
+            throw new NotImplementedException("ROL/ROR с динамическим счётчиком (через CL) пока не поддерживается");
+        }
+
+        int count = countConst.Value & 0x1F; // x86 маскирует счётчик
+        if (count == 0)
+        {
+            // Ничего не делаем
+            return;
+        }
+
+        bool is16Bit = dst.Type == OperandType.Register16 ||
+                       (dst.Type == OperandType.Memory && instr.Operand1.Value == 16);
+        int bitWidth = is16Bit ? 16 : 8;
+
+        // Эмулируем ротацию через сдвиги + or
+        // ROL x, n  ==  (x << n) | (x >> (width - n))
+        // ROR x, n  ==  (x >> n) | (x << (width - n))
+
+        int shift1 = count;
+        int shift2 = bitWidth - count;
+
+        Expr part1, part2;
+
+        if (isLeft)
+        {
+            part1 = Calculate(Math2Operation.Shl, dstCurrent, new ConstExpr(shift1));
+            part2 = Calculate(Math2Operation.Shr, dstCurrent, new ConstExpr(shift2));
+        }
+        else
+        {
+            part1 = Calculate(Math2Operation.Shr, dstCurrent, new ConstExpr(shift1));
+            part2 = Calculate(Math2Operation.Shl, dstCurrent, new ConstExpr(shift2));
+        }
+
+        // Маскируем части, чтобы не вылезали лишние биты при constant folding
+        int mask = (1 << bitWidth) - 1;
+        Expr masked1 = Calculate(Math2Operation.And, part1, new ConstExpr(mask));
+        Expr masked2 = Calculate(Math2Operation.And, part2, new ConstExpr(mask));
+
+        Expr result = Calculate(Math2Operation.Or, masked1, masked2);
+
+        if (result is not ConstExpr)
+        {
+            var resultVar = Variables.CreateVariable();
+            block.Operations.Add(new SetOperation(resultVar, result));
+            result = resultVar;
+        }
+
+        // Записываем результат
+        if (dst.Type == OperandType.Register16)
+        {
+            block.EndRegisters = block.EndRegisters.Set16(dst.Value, result);
+        }
+        else if (dst.Type == OperandType.Register8)
+        {
+            block.EndRegisters = block.EndRegisters.Set8(dst.Value, result);
+        }
+        else if (dst.Type == OperandType.Memory)
+        {
+            var (addr, seg) = BuildMemoryReference(dst, block.EndRegisters, instr.Segment);
+            block.Operations.Add(new StoreOperation(addr, seg, result));
+        }
+        else
+        {
+            throw new NotImplementedException($"Rotate with destination {dst.Type} is not supported");
+        }
+
+        // Ротации обновляют флаги (ZF, CF, OF). Для простоты обновляем только ZF.
+        // CF для ротаций на 1 бит можно вычислить, но пока упрощаем.
+        block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, result);
+    }
+
+    /// <summary>
     /// Обрабатывает CMP (сравнение). Не создаёт SetOperation (результат не записывается),
     /// но обновляет символические значения флагов в RegisterExpressions.
     ///
@@ -1014,6 +1125,164 @@ public partial class ExpressionBuilder
             var memVal = new MemExpr(spAddr, block.EndRegisters.GetSegment(2)); // SS
             block.EndRegisters = block.EndRegisters.Set16(5, memVal);
         }
+    }
+
+    /// <summary>
+    /// Обрабатывает ENTER imm16, imm8 — создание стекового фрейма.
+    /// В большинстве случаев level=0 (генерируется QuickC).
+    /// Эквивалентно: push bp; mov bp, sp; sub sp, size
+    /// </summary>
+    private void HandleEnter(ExprBlock block, Instruction instr)
+    {
+        ushort allocSize = (ushort)instr.Operand1.Value;
+        byte level = (byte)instr.Operand2.Value;
+
+        // 1. PUSH BP
+        var bpValue = block.EndRegisters.Get16(5); // BP
+        block.EndStack.Push(bpValue);
+
+        // 2. MOV BP, SP
+        var currentSp = block.EndRegisters.Get16(4); // SP
+        block.EndRegisters = block.EndRegisters.Set16(5, currentSp); // BP = SP
+
+        // 3. SUB SP, allocSize
+        if (allocSize != 0)
+        {
+            Expr newSp = Calculate(Math2Operation.Sub, currentSp, new ConstExpr(allocSize));
+            block.EndRegisters = block.EndRegisters.Set16(4, newSp); // SP
+        }
+
+        // level > 0 почти никогда не используется в коде QuickC 1.0,
+        // поэтому пока игнорируем (можно доработать позже при необходимости).
+        if (level > 0)
+        {
+            // Для level > 0 нужно было бы копировать frame pointers,
+            // но это крайне редко встречается в реальном 16-битном коде.
+        }
+    }
+
+    /// <summary>
+    /// Обрабатывает инструкции IN и OUT (ввод/вывод через порты).
+    /// 
+    /// Моделируются как вызовы:
+    /// - IN  → inb(port) или inw(port)  (результат записывается в AL/AX)
+    /// - OUT → outb(port, value) или outw(port, value)
+    /// 
+    /// Это соответствует стилю, используемому для _disable/_enable и прерываний.
+    /// </summary>
+    private void HandleInOut(ExprBlock block, Instruction instr)
+    {
+        bool isIn = instr.Mnemonic == Mnemonic.IN;
+
+        // Определяем размер (8 или 16 бит)
+        bool isWord;
+
+        if (isIn)
+        {
+            // IN: результат идёт в AL или AX
+            var dest = instr.Operand1;
+            isWord = dest.Type == OperandType.Register16 && dest.Value == 0; // AX
+        }
+        else
+        {
+            // OUT: источник — AL или AX
+            var src = instr.Operand2;
+            isWord = src.Type == OperandType.Register16 && src.Value == 0; // AX
+        }
+
+        string funcName = isWord ? (isIn ? "inw" : "outw") : (isIn ? "inb" : "outb");
+
+        // Порт: либо Immediate8, либо значение DX
+        Expr portExpr;
+        if (instr.Operand1.Type == OperandType.Immediate8 || instr.Operand1.Type == OperandType.Immediate16)
+        {
+            portExpr = new ConstExpr(instr.Operand1.Value);
+        }
+        else if (instr.Operand2.Type == OperandType.Immediate8 || instr.Operand2.Type == OperandType.Immediate16)
+        {
+            portExpr = new ConstExpr(instr.Operand2.Value);
+        }
+        else
+        {
+            // Порт в DX
+            portExpr = block.EndRegisters.Get16(2); // DX = регистр 2
+        }
+
+        if (isIn)
+        {
+            // IN — читаем значение из порта
+            var callExpr = new CallExpr(new Procedure { Name = funcName }, new[] { portExpr });
+
+            // Создаём SetOperation и обновляем AL/AX
+            var resultVar = Variables.CreateVariable();
+            block.Operations.Add(new SetOperation(resultVar, callExpr));
+
+            if (isWord)
+                block.EndRegisters = block.EndRegisters.Set16(0, resultVar); // AX
+            else
+                block.EndRegisters = block.EndRegisters.Set8(0, resultVar);  // AL
+        }
+        else
+        {
+            // OUT — пишем значение в порт
+            Expr valueExpr = GetExpression(instr.Operand2, block.EndRegisters, instr.Segment);
+
+            var callExpr = new CallExpr(new Procedure { Name = funcName }, new[] { portExpr, valueExpr });
+            block.Operations.Add(new CallOperation(callExpr.Procedure, callExpr.Args));
+        }
+    }
+
+    /// <summary>
+    /// Обрабатывает инструкции LOOP, LOOPE/LOOPZ, LOOPNE/LOOPNZ.
+    /// 
+    /// Всегда выполняет CX = CX - 1, затем решает, брать ли ConditionalBlock:
+    /// - LOOP   : переход, если CX != 0
+    /// - LOOPE  : переход, если CX != 0 && ZF == 1
+    /// - LOOPNE : переход, если CX != 0 && ZF == 0
+    /// 
+    /// Декремент CX всегда эмитится как SetOperation (как и другие арифметические обновления CX).
+    /// </summary>
+    private void HandleLoop(ExprBlock block, Instruction instr)
+    {
+        if (block.BasicBlock.ConditionalBlock == null)
+        {
+            throw new InvalidOperationException(
+                $"LOOP instruction without ConditionalBlock at {block.BasicBlock.StartOffset:X6}");
+        }
+
+        // Получаем текущее значение CX
+        Expr cxCurrent = block.EndRegisters.Get16(1); // CX = регистр 1
+
+        // Вычисляем CX - 1
+        Expr cxNew = Calculate(Math2Operation.Sub, cxCurrent, ConstExpr.One);
+
+        // Создаём именованную переменную для нового значения CX (как для обычной арифметики)
+        if (cxNew is not ConstExpr)
+        {
+            var cxVar = Variables.CreateVariable();
+            block.Operations.Add(new SetOperation(cxVar, cxNew));
+            cxNew = cxVar;
+        }
+        // Для константного CX просто обновляем регистр (без лишней операции)
+
+        // Обновляем символическое состояние регистров
+        block.EndRegisters = block.EndRegisters.Set16(1, cxNew);
+
+        // Строим условие перехода
+        Expr cxNotZero = new CmpExpr(CmpOperation.Ne, cxNew, ConstExpr.Zero);
+
+        Expr condition = instr.Mnemonic switch
+        {
+            Mnemonic.LOOP => cxNotZero,
+
+            Mnemonic.LOOPE => BoolAnd(cxNotZero, block.EndRegisters.ZF),
+
+            Mnemonic.LOOPNE => BoolAnd(cxNotZero, BoolNot(block.EndRegisters.ZF)),
+
+            _ => cxNotZero
+        };
+
+        block.Condition = condition;
     }
 
     /// <summary>

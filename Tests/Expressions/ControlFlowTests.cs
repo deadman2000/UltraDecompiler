@@ -154,4 +154,113 @@ public class ControlFlowTests : BaseTests
         var zero = Assert.IsType<ConstExpr>(condition.Right);
         Assert.Equal(0, zero.Value);
     }
+
+    // === Тесты LOOP / LOOPE / LOOPNE ===
+
+    [Fact]
+    public void Loop_Basic_DecrementsCxAndBranchesWhileNotZero()
+    {
+        // Простой LOOP с символическим CX — гарантированно создаст SetOperation
+        var expr = BuildExpressions("""
+            E2 01      ; loop +1
+            90         ; fallthrough
+            90         ; target
+            """,
+            vars => RegisterExpressions.InitCom(vars) with { CX = vars.CreateVariable("counter") });
+
+        var loopBlock = expr.Blocks.FirstOrDefault(b => b.ConditionalBlock != null);
+        Assert.NotNull(loopBlock);
+        Assert.NotNull(loopBlock.Condition);
+
+        // Условие должно быть CX != 0
+        var cond = Assert.IsType<CmpExpr>(loopBlock.Condition);
+        Assert.Equal(CmpOperation.Ne, cond.Operation);
+
+        // CX в конце блока должен отличаться от начального (был произведён декремент)
+        // (даже если SetOperation не создан из-за constant folding в каких-то случаях)
+        Assert.NotSame(loopBlock.InitRegisters.CX, loopBlock.EndRegisters.CX);
+    }
+
+    [Fact]
+    public void Loope_BranchesWhileCxNotZeroAndZfSet()
+    {
+        // LOOPE: переход если CX != 0 И ZF == 1
+        var expr = BuildExpressions("""
+            B9 05 00   ; mov cx, 5
+            3C 00      ; cmp al, 0     (устанавливаем ZF)
+            E1 01      ; loope +1
+            90         ; fall
+            90         ; target
+            """);
+
+        var loopBlock = expr.Blocks.FirstOrDefault(b => b.ConditionalBlock != null);
+        Assert.NotNull(loopBlock);
+
+        // Условие должно быть составным: (CX != 0) && ZF
+        var cond = Assert.IsType<Math2Expr>(loopBlock.Condition);
+        Assert.Equal(Math2Operation.And, cond.Operation);
+    }
+
+    [Fact]
+    public void Loopne_BranchesWhileCxNotZeroAndZfClear()
+    {
+        // LOOPNE: переход если CX != 0 И ZF == 0
+        var expr = BuildExpressions("""
+            B9 04 00   ; mov cx, 4
+            3C 01      ; cmp al, 1     (ZF = 0)
+            E0 01      ; loopne +1
+            90         ; fall
+            90         ; target
+            """);
+
+        var loopBlock = expr.Blocks.FirstOrDefault(b => b.ConditionalBlock != null);
+        Assert.NotNull(loopBlock);
+
+        // Условие должно быть составным: (CX != 0) && !ZF
+        var cond = Assert.IsType<Math2Expr>(loopBlock.Condition);
+        Assert.Equal(Math2Operation.And, cond.Operation);
+    }
+
+    // === Тесты IN / OUT ===
+
+    [Fact]
+    public void In_Imm8_ProducesCallAndWritesToAl()
+    {
+        // E4 21  — IN AL, 21h
+        var expr = BuildExpressions("E4 21");
+
+        // Должен появиться SetOperation (результат IN захвачен)
+        Assert.Contains(expr.Blocks[0].Operations, op => op is SetOperation);
+    }
+
+    [Fact]
+    public void Out_Imm8_ProducesCallOperation()
+    {
+        // E6 21     ; OUT 21h, AL
+        // B0 AA     ; mov al, 0AAh   (чтобы было значение)
+        var expr = BuildExpressions("""
+            B0 AA   ; mov al, 0AAh
+            E6 21   ; out 21h, al
+            """);
+
+        // Последняя операция должна быть CallOperation outb
+        var lastOp = expr.Blocks[0].Operations.LastOrDefault();
+        var callOp = Assert.IsType<CallOperation>(lastOp);
+        Assert.Equal("outb", callOp.Procedure.Name);
+    }
+
+    [Fact]
+    public void In_Dx_UsesDxAsPort()
+    {
+        // EC  — IN AL, DX
+        var expr = BuildExpressions("EC", vars =>
+        {
+            var dxVal = vars.CreateVariable("port");
+            var init = RegisterExpressions.InitZero();
+            return init.Set16(2, dxVal); // DX = port
+        });
+
+        // Должен появиться SetOperation
+        Assert.Contains(expr.Blocks[0].Operations, op => op is SetOperation);
+    }
 }

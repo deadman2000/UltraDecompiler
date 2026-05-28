@@ -117,6 +117,8 @@ public static class Extensions
             Mnemonic.INT => "int",
             Mnemonic.ENTER => "enter",
             Mnemonic.LEAVE => "leave",
+            Mnemonic.IN => "in",
+            Mnemonic.OUT => "out",
 
             Mnemonic.DAA => "daa",
             Mnemonic.DAS => "das",

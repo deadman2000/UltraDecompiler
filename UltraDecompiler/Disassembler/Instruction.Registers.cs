@@ -45,7 +45,11 @@ public partial class Instruction
             Mnemonic.CLD => state with { DF = false },
             Mnemonic.STD => state with { DF = true },
 
-            // TODO: MUL, IMUL, DIV, IDIV, shifts (SAL, SHR, SAR, ROL, ROR, RCL, RCR), DAA, DAS, AAA, AAS, AAM, AAD, LEA, etc.
+            Mnemonic.ENTER => ModifyRegistersEnter(state),
+            Mnemonic.ROL => ModifyRegistersRotate(state),
+            Mnemonic.ROR => ModifyRegistersRotate(state),
+
+            // TODO: MUL, IMUL, DIV, IDIV, RCL/RCR, DAA, DAS, AAA, AAS, AAM, AAD, LEA, PUSHF/POPF и др.
             _ => state,
         };
 
@@ -410,6 +414,28 @@ public partial class Instruction
             return state with { DH = sign, DL = sign };
         }
         return state with { DH = null, DL = null };
+    }
+
+    private RegisterState ModifyRegistersEnter(RegisterState state)
+    {
+        // ENTER всегда меняет BP и SP. Делаем их неизвестными.
+        return state with { BP = null, SP = null };
+    }
+
+    private RegisterState ModifyRegistersRotate(RegisterState state)
+    {
+        // Ротация меняет целевой регистр. Делаем его неизвестным.
+        // (точное моделирование ротации возможно, но дорого)
+        if (Operand1.Type == OperandType.Register8)
+        {
+            return SetReg8(state, Operand1.Value, null);
+        }
+        if (Operand1.Type == OperandType.Register16)
+        {
+            return SetReg16(state, Operand1.Value, null);
+        }
+        // Для памяти — ничего не делаем с регистрами
+        return state;
     }
 
     /// <summary>
