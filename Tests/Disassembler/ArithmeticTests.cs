@@ -148,7 +148,7 @@ public class ArithmeticTests : BaseTests
     [Fact]
     public void DisassembleGroup81AddWordPtrImm()
     {
-        var instructions = Disassemble("81 07 34 12"); // ADD WORD PTR [BX], 1234h
+        var instructions = Disassemble("81 07 34 12"); // ADD [BX], 1234h
         Assert.Equal(Mnemonic.ADD, instructions[0].Mnemonic);
         Assert.Equal("[BX], 1234h", instructions[0].Operands);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
@@ -160,7 +160,7 @@ public class ArithmeticTests : BaseTests
     [Fact]
     public void DisassembleGroup83AddBytePtrImmSignExtend()
     {
-        var instructions = Disassemble("83 07 FF"); // ADD WORD PTR [BX], -1 (sign extend)
+        var instructions = Disassemble("83 07 FF"); // ADD [BX], -1 (sign extend)
         Assert.Equal(Mnemonic.ADD, instructions[0].Mnemonic);
         Assert.Equal("[BX], FFFFh", instructions[0].Operands);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);

@@ -22,7 +22,7 @@ public class PrefixesTests : BaseTests
     [Fact]
     public void DisassembleLockPrefix()
     {
-        // LOCK INC WORD PTR [BX]
+        // LOCK INC [BX]
         var instructions = Disassemble("F0 FF 07"); // LOCK INC WORD PTR [BX]
         Assert.Equal(InstructionPrefix.LOCK, instructions[0].Prefix);
         Assert.Equal(Mnemonic.INC, instructions[0].Mnemonic);
@@ -54,7 +54,7 @@ public class PrefixesTests : BaseTests
     [Fact]
     public void DisassembleLockWithSegmentOverride()
     {
-        // LOCK ES: INC WORD PTR [BX]
+        // LOCK ES: INC [BX]
         var instructions = Disassemble("F0 26 FF 07"); // LOCK ES: INC WORD PTR [BX]
         Assert.Equal(InstructionPrefix.LOCK, instructions[0].Prefix);
         Assert.Equal(Segment.ES, instructions[0].Segment);
@@ -86,8 +86,8 @@ public class PrefixesTests : BaseTests
     public void DisassembSegmentChange()
     {
         var instructions = Disassemble("""
-            36 FF 36 DA 00;  push word ptr ss:[0xda]
-            FF 36 DA 00;     push word ptr ds:[0xda]
+            36 FF 36 DA 00;  push ss:[00DAh]
+            FF 36 DA 00;     push [00DAh]
             """);
         Assert.Equal(2, instructions.Count);
 

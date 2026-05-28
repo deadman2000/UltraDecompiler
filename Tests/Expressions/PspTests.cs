@@ -7,8 +7,8 @@ public class PspTests : BaseTests
     [Fact]
     public void PspRecognition_DirectEnvironmentSegment()
     {
-        // MOV AX, [0x2C]  — при DS = PSP (типичная ситуация после входа в .EXE)
-        var expr = BuildExpressions("8B 06 2C 00");   // MOV AX, word ptr [002Ch]
+        // MOV AX, [002Ch]  — при DS = PSP
+        var expr = BuildExpressions("8B 06 2C 00");   // MOV AX, [002Ch]
 
         var ax = expr.Blocks[0].EndRegisters.AX;
 

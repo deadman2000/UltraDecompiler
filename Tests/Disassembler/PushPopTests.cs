@@ -7,7 +7,7 @@ public class PushPopTests : BaseTests
     [Fact]
     public void DisassemblePushMemory()
     {
-        var instructions = Disassemble("FF 36 34 12"); // PUSH WORD PTR [1234h]
+        var instructions = Disassemble("FF 36 34 12"); // PUSH [1234h]
         Assert.Equal(Mnemonic.PUSH, instructions[0].Mnemonic);
         Assert.Contains("1234", instructions[0].Operands);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
@@ -139,7 +139,7 @@ public class PushPopTests : BaseTests
     [Fact]
     public void DisassemblePopMemory()
     {
-        var instructions = Disassemble("8F 06 34 12"); // POP WORD PTR [1234h]
+        var instructions = Disassemble("8F 06 34 12"); // POP [1234h]
         Assert.Equal(Mnemonic.POP, instructions[0].Mnemonic);
         Assert.Contains("1234", instructions[0].Operands);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
@@ -150,7 +150,7 @@ public class PushPopTests : BaseTests
     [Fact]
     public void DisassemblePopMemoryBx()
     {
-        var instructions = Disassemble("8F 07"); // POP WORD PTR [BX]
+        var instructions = Disassemble("8F 07"); // POP [BX]
         Assert.Equal(Mnemonic.POP, instructions[0].Mnemonic);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
         Assert.Equal(AddressRegister.BX, instructions[0].Operand1.BaseReg);

@@ -11,7 +11,7 @@ public class JumpsCallsTests : BaseTests
     [Fact]
     public void DisassembleNearIndirectCall()
     {
-        var instructions = Disassemble("FF 16 46 00"); // CALL WORD PTR [0x46]
+        var instructions = Disassemble("FF 16 46 00"); // CALL [46h]
         Assert.Equal(Mnemonic.CALL, instructions[0].Mnemonic);
         Assert.Equal("[46h]", instructions[0].Operands);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
@@ -43,7 +43,7 @@ public class JumpsCallsTests : BaseTests
     [Fact]
     public void DisassembleIndirectJumpWithBaseIndex()
     {
-        var instructions = Disassemble("FF 27"); // JMP WORD PTR [BX]
+        var instructions = Disassemble("FF 27"); // JMP [BX]
         Assert.Equal(Mnemonic.JMP, instructions[0].Mnemonic);
         Assert.Contains("BX", instructions[0].Operands);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
@@ -53,8 +53,8 @@ public class JumpsCallsTests : BaseTests
     [Fact]
     public void DisassembleComplexIndirectCall()
     {
-        // CALL WORD PTR [BX+SI+1234]
-        var instructions = Disassemble("FF 90 34 12"); // CALL WORD PTR [BX+SI+1234h]
+        // CALL [BX+SI+1234h]
+        var instructions = Disassemble("FF 90 34 12"); // CALL [BX+SI+1234h]
         Assert.Equal(Mnemonic.CALL, instructions[0].Mnemonic);
         Assert.Contains("BX+SI", instructions[0].Operands);
         Assert.Contains("1234", instructions[0].Operands);
@@ -67,8 +67,8 @@ public class JumpsCallsTests : BaseTests
     [Fact]
     public void DisassembleFarIndirectJump()
     {
-        // JMP DWORD PTR [1234] (far jump through memory)
-        var instructions = Disassemble("FF 2E 34 12"); // JMP DWORD PTR [1234h] (far)
+        // JMP FAR [1234h] (far jump through memory)
+        var instructions = Disassemble("FF 2E 34 12"); // JMP FAR [1234h]
         Assert.Equal(Mnemonic.JMP_FAR, instructions[0].Mnemonic);
         Assert.Contains("1234", instructions[0].Operands);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
@@ -170,7 +170,7 @@ public class JumpsCallsTests : BaseTests
     [Fact]
     public void DisassembleCallNear()
     {
-        var instructions = Disassemble("E8 05 00"); // CALL near +5 (target = 3 + 5 = 8)
+        var instructions = Disassemble("E8 05 00"); // CALL 8 (displacement +5 → target 8)
         Assert.Equal(Mnemonic.CALL, instructions[0].Mnemonic);
         Assert.Equal("8", instructions[0].Operands);
         Assert.Equal(OperandType.Relative16, instructions[0].Operand1.Type);
@@ -188,7 +188,7 @@ public class JumpsCallsTests : BaseTests
     [Fact]
     public void DisassembleIndirectJumpMemoryTarget()
     {
-        // JMP WORD PTR [0004] where pointer at 0004 = 0005h (target offset 5), then RET to terminate cleanly
+        // JMP [0004] (косвенный, указатель в памяти = 0005h)
         var disassembler = new X86Disassembler("FF 26 04 00 05 00 C3".FromHex());
         disassembler.DataSegmentBase = 0;
         disassembler.Disassemble(0);

@@ -31,7 +31,7 @@ public class MovTests : BaseTests
     [Fact]
     public void DisassembleMovMemImmWord()
     {
-        var instructions = Disassemble("C7 06 34 12 78 56"); // MOV WORD PTR [1234h], 5678h
+        var instructions = Disassemble("C7 06 34 12 78 56"); // MOV [1234h], 5678h
         Assert.Equal(Mnemonic.MOV, instructions[0].Mnemonic);
         Assert.Equal("[1234h], 5678h", instructions[0].Operands);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
