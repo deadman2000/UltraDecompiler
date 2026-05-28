@@ -16,22 +16,22 @@ public class LeaveHandler : IInstructionHandler
     public void Handle(ExprBlock block, Instruction instr)
     {
         // SP ← BP
-        var bpValue = block.EndRegisters.Get16(5); // BP = 5
-        block.EndRegisters = block.EndRegisters.Set16(4, bpValue); // SP = 4
+        var bpValue = block.EndRegisters.Get16(GpRegister16.BP);
+        block.EndRegisters = block.EndRegisters.Set16(GpRegister16.SP, bpValue);
 
         // POP BP: берём значение со стека (если есть)
         if (block.EndStack.Count > 0)
         {
             var value = block.EndStack.Pop();
-            block.EndRegisters = block.EndRegisters.Set16(5, value); // BP
+            block.EndRegisters = block.EndRegisters.Set16(GpRegister16.BP, value);
         }
         else
         {
             // Если стек символически пуст — создаём "неизвестное" значение из памяти
             // (редко, но корректно для анализа)
-            var spAddr = block.EndRegisters.Get16(4);
-            var memVal = new MemExpr(spAddr, block.EndRegisters.GetSegment(2)); // SS
-            block.EndRegisters = block.EndRegisters.Set16(5, memVal);
+            var spAddr = block.EndRegisters.Get16(GpRegister16.SP);
+            var memVal = new MemExpr(spAddr, block.EndRegisters.GetSegment(CpuSegmentRegister.SS));
+            block.EndRegisters = block.EndRegisters.Set16(GpRegister16.BP, memVal);
         }
     }
 }

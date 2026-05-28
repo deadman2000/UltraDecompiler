@@ -25,15 +25,15 @@ public class MovHandler : IInstructionHandler
         // она просто "передаёт" выражение дальше.
         if (instr.Operand1.Type == OperandType.Register16)
         {
-            block.EndRegisters = block.EndRegisters.Set16(instr.Operand1.Value, exprSrc);
+            block.EndRegisters = block.EndRegisters.Set16(instr.Operand1.AsGpRegister16(), exprSrc);
         }
         else if (instr.Operand1.Type == OperandType.Register8)
         {
-            block.EndRegisters = block.EndRegisters.Set8(instr.Operand1.Value, exprSrc);
+            block.EndRegisters = block.EndRegisters.Set8(instr.Operand1.AsGpRegister8(), exprSrc);
         }
         else if (instr.Operand1.Type == OperandType.SegmentRegister)
         {
-            block.EndRegisters = block.EndRegisters.SetSegment(instr.Operand1.Value, exprSrc);
+            block.EndRegisters = block.EndRegisters.SetSegment(instr.Operand1.AsCpuSegmentRegister(), exprSrc);
         }
         else if (instr.Operand1.Type == OperandType.Memory)
         {

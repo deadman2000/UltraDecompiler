@@ -34,10 +34,10 @@ public class LdsLesHandler : IInstructionHandler
         Expr segValue = knownSegVal != null ? knownSegVal : new MemExpr(highAddr, ptrSeg);
 
         // Загружаем offset в gp-регистр (аналогично MOV/LEA — без создания SetOperation)
-        block.EndRegisters = block.EndRegisters.Set16(instr.Operand1.Value, offsetExpr);
+        block.EndRegisters = block.EndRegisters.Set16(instr.Operand1.AsGpRegister16(), offsetExpr);
 
         // Выбираем целевой сегментный регистр
-        int segIndex = instr.Mnemonic == Mnemonic.LDS ? 3 /* DS */ : 0 /* ES */;
-        block.EndRegisters = block.EndRegisters.SetSegment(segIndex, segValue);
+        var segReg = instr.Mnemonic == Mnemonic.LDS ? CpuSegmentRegister.DS : CpuSegmentRegister.ES;
+        block.EndRegisters = block.EndRegisters.SetSegment(segReg, segValue);
     }
 }

@@ -1,4 +1,5 @@
 using UltraDecompiler.Decompilation;
+using UltraDecompiler.Disassembler;
 
 namespace Tests.Expressions;
 
@@ -39,7 +40,7 @@ public class StringOperationTests : BaseTests
         Assert.Equal(0x780, ((ConstExpr)finalDi).Value);
 
         // 4. После цикла CX должен быть 0
-        var finalCx = block.EndRegisters.Get16(1); // CX
+        var finalCx = block.EndRegisters.Get16(GpRegister16.CX);
         Assert.Equal(ConstExpr.Zero, finalCx);
     }
 

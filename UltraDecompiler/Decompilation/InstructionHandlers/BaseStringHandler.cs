@@ -25,15 +25,7 @@ public abstract class BaseStringHandler : IInstructionHandler
 
         if (instr.Segment != Segment.None)
         {
-            int segIdx = instr.Segment switch
-            {
-                Segment.ES => 0,
-                Segment.CS => 1,
-                Segment.SS => 2,
-                Segment.DS => 3,
-                _ => 3
-            };
-            seg = block.EndRegisters.GetSegment(segIdx);
+            seg = block.EndRegisters.GetSegment(instr.Segment.ToCpuSegmentRegister());
         }
 
         return new MemExpr(addr, seg);
@@ -45,12 +37,12 @@ public abstract class BaseStringHandler : IInstructionHandler
     protected static (Expr Address, Expr? Segment) BuildStringMemoryAddress(ExprBlock block, bool isDestination)
     {
         Expr ptr = isDestination
-            ? block.EndRegisters.Get16(7)  // DI
-            : block.EndRegisters.Get16(6); // SI
+            ? block.EndRegisters.Get16(GpRegister16.DI)
+            : block.EndRegisters.Get16(GpRegister16.SI);
 
         Expr? seg = isDestination
-            ? block.EndRegisters.GetSegment(0) // ES
-            : block.EndRegisters.GetSegment(3); // DS
+            ? block.EndRegisters.GetSegment(CpuSegmentRegister.ES)
+            : block.EndRegisters.GetSegment(CpuSegmentRegister.DS);
 
         return (ptr, seg);
     }
@@ -73,20 +65,20 @@ public abstract class BaseStringHandler : IInstructionHandler
 
         if (updateSi)
         {
-            Expr currentSi = block.EndRegisters.Get16(6);
+            Expr currentSi = block.EndRegisters.Get16(GpRegister16.SI);
             Expr newSi = (deltaSi is ConstExpr)
                 ? currentSi.Calculate(Math2Operation.Add, deltaSi)
                 : block.Variables.CreateVariable("si_after_str");
-            block.EndRegisters = block.EndRegisters.Set16(6, newSi);
+            block.EndRegisters = block.EndRegisters.Set16(GpRegister16.SI, newSi);
         }
 
         if (updateDi)
         {
-            Expr currentDi = block.EndRegisters.Get16(7);
+            Expr currentDi = block.EndRegisters.Get16(GpRegister16.DI);
             Expr newDi = (deltaDi is ConstExpr)
                 ? currentDi.Calculate(Math2Operation.Add, deltaDi)
                 : block.Variables.CreateVariable("di_after_str");
-            block.EndRegisters = block.EndRegisters.Set16(7, newDi);
+            block.EndRegisters = block.EndRegisters.Set16(GpRegister16.DI, newDi);
         }
     }
 
@@ -103,7 +95,7 @@ public abstract class BaseStringHandler : IInstructionHandler
     /// </summary>
     protected static bool IsRepCxZero(ExprBlock block)
     {
-        var cx = block.EndRegisters.Get16(1);
+        var cx = block.EndRegisters.Get16(GpRegister16.CX);
         return cx is ConstExpr c && c.Value == 0;
     }
 
@@ -136,9 +128,9 @@ public abstract class BaseStringHandler : IInstructionHandler
         // === Инициализация ПЕРЕД циклом ===
         var initOps = new List<Operation>
         {
-            new SetOperation(siLoop, block.EndRegisters.Get16(6)), // текущий SI (для MOVS/LODS/CMPS)
-            new SetOperation(diLoop, block.EndRegisters.Get16(7)), // текущий DI
-            new SetOperation(cxLoop, block.EndRegisters.Get16(1))  // текущий CX
+            new SetOperation(siLoop, block.EndRegisters.Get16(GpRegister16.SI)),
+            new SetOperation(diLoop, block.EndRegisters.Get16(GpRegister16.DI)),
+            new SetOperation(cxLoop, block.EndRegisters.Get16(GpRegister16.CX))
         };
 
         // === Тело цикла (без инициализации) ===
@@ -182,8 +174,8 @@ public abstract class BaseStringHandler : IInstructionHandler
         var ops = new List<Operation>();
 
         Expr value = size == 1
-            ? block.EndRegisters.Get8(0)
-            : block.EndRegisters.Get16(0);
+            ? block.EndRegisters.Get8(GpRegister8.AL)
+            : block.EndRegisters.Get16(GpRegister16.AX);
 
         // Используем diVar как адрес для Store
         var (_, dstSeg) = BuildStringMemoryAddress(block, isDestination: true);
@@ -251,7 +243,7 @@ public abstract class BaseStringHandler : IInstructionHandler
 
     private static void ApplyRepLoopPostState(ExprBlock block, int size, StringOpKind kind)
     {
-        Expr cxBefore = block.EndRegisters.Get16(1); // CX до цикла
+        Expr cxBefore = block.EndRegisters.Get16(GpRegister16.CX);
 
         bool cxIsConst = cxBefore is ConstExpr;
         int? cxValue = cxIsConst ? ((ConstExpr)cxBefore).Value : null;
@@ -265,22 +257,22 @@ public abstract class BaseStringHandler : IInstructionHandler
         {
             int totalDelta = cxValue.Value * deltaPerIter;
 
-            Expr newSi = block.EndRegisters.Get16(6).Calculate(Math2Operation.Add, new ConstExpr(totalDelta));
-            Expr newDi = block.EndRegisters.Get16(7).Calculate(Math2Operation.Add, new ConstExpr(totalDelta));
+            Expr newSi = block.EndRegisters.Get16(GpRegister16.SI).Calculate(Math2Operation.Add, new ConstExpr(totalDelta));
+            Expr newDi = block.EndRegisters.Get16(GpRegister16.DI).Calculate(Math2Operation.Add, new ConstExpr(totalDelta));
             Expr finalCx = ConstExpr.Zero;
 
             block.EndRegisters = block.EndRegisters
-                .Set16(6, newSi)
-                .Set16(7, newDi)
-                .Set16(1, finalCx); // CX = 0
+                .Set16(GpRegister16.SI, newSi)
+                .Set16(GpRegister16.DI, newDi)
+                .Set16(GpRegister16.CX, finalCx);
         }
         else
         {
             // Неизвестное количество итераций → создаём post-loop переменные
             block.EndRegisters = block.EndRegisters
-                .Set16(6, block.Variables.CreateVariable("si_after_rep"))
-                .Set16(7, block.Variables.CreateVariable("di_after_rep"))
-                .Set16(1, block.Variables.CreateVariable("cx_after_rep"));
+                .Set16(GpRegister16.SI, block.Variables.CreateVariable("si_after_rep"))
+                .Set16(GpRegister16.DI, block.Variables.CreateVariable("di_after_rep"))
+                .Set16(GpRegister16.CX, block.Variables.CreateVariable("cx_after_rep"));
         }
     }
 
@@ -300,9 +292,9 @@ public abstract class BaseStringHandler : IInstructionHandler
 
         var initOps = new List<Operation>
         {
-            new SetOperation(siLoop, block.EndRegisters.Get16(6)),
-            new SetOperation(diLoop, block.EndRegisters.Get16(7)),
-            new SetOperation(cxLoop, block.EndRegisters.Get16(1))
+            new SetOperation(siLoop, block.EndRegisters.Get16(GpRegister16.SI)),
+            new SetOperation(diLoop, block.EndRegisters.Get16(GpRegister16.DI)),
+            new SetOperation(cxLoop, block.EndRegisters.Get16(GpRegister16.CX))
         };
 
         var loopBody = new List<Operation>();
@@ -316,7 +308,7 @@ public abstract class BaseStringHandler : IInstructionHandler
         }
         else
         {
-            left = size == 1 ? block.EndRegisters.Get8(0) : block.EndRegisters.Get16(0);
+            left = size == 1 ? block.EndRegisters.Get8(GpRegister8.AL) : block.EndRegisters.Get16(GpRegister16.AX);
             right = BuildStringMemoryRead(block, instr, isSource: false, size);
         }
 

@@ -211,17 +211,17 @@ public static class Extensions
             {
                 // Возвращает либо ранее сохранённое выражение (Variable/MathExpr),
                 // либо ConstExpr.Zero, если значение регистра ещё неизвестно.
-                return block.EndRegisters.Get16(operand.Value);
+                return block.EndRegisters.Get16(operand.AsGpRegister16());
             }
 
             if (operand.Type == OperandType.Register8)
             {
-                return block.EndRegisters.Get8(operand.Value);
+                return block.EndRegisters.Get8(operand.AsGpRegister8());
             }
 
             if (operand.Type == OperandType.SegmentRegister)
             {
-                return block.EndRegisters.GetSegment(operand.Value);
+                return block.EndRegisters.GetSegment(operand.AsCpuSegmentRegister());
             }
 
             if (operand.Type == OperandType.Memory)
@@ -248,11 +248,11 @@ public static class Extensions
             Expr? addr = null;
 
             if (operand.BaseReg != AddressRegister.None)
-                addr = registers.Get16((int)operand.BaseReg);
+                addr = registers.Get16((GpRegister16)operand.BaseReg);
 
             if (operand.IndexReg != AddressRegister.None)
             {
-                var idx = registers.Get16((int)operand.IndexReg);
+                var idx = registers.Get16((GpRegister16)operand.IndexReg);
                 addr = addr == null ? idx : addr.Calculate(Math2Operation.Add, idx);
             }
 
@@ -277,23 +277,14 @@ public static class Extensions
 
             if (segmentOverride != Segment.None)
             {
-                int segIdx = segmentOverride switch
-                {
-                    Segment.ES => 0,
-                    Segment.CS => 1,
-                    Segment.SS => 2,
-                    Segment.DS => 3,
-                    _ => throw new NotImplementedException($"Segment override {segmentOverride} is not supported")
-                };
-                segExpr = registers.GetSegment(segIdx);
+                segExpr = registers.GetSegment(segmentOverride.ToCpuSegmentRegister());
             }
             else
             {
                 bool usesStackSegment = operand.BaseReg == AddressRegister.BP ||
                                         operand.IndexReg == AddressRegister.BP;
 
-                int defaultSegIdx = usesStackSegment ? 2 : 3; // SS : DS
-                segExpr = registers.GetSegment(defaultSegIdx);
+                segExpr = registers.GetSegment(usesStackSegment ? CpuSegmentRegister.SS : CpuSegmentRegister.DS);
             }
 
             return (address, segExpr);
@@ -331,15 +322,7 @@ public static class Extensions
 
             if (instr.Segment != Segment.None)
             {
-                int segIdx = instr.Segment switch
-                {
-                    Segment.ES => 0,
-                    Segment.CS => 1,
-                    Segment.SS => 2,
-                    Segment.DS => 3,
-                    _ => 3
-                };
-                seg = block.EndRegisters.GetSegment(segIdx);
+                seg = block.EndRegisters.GetSegment(instr.Segment.ToCpuSegmentRegister());
             }
 
             return new MemExpr(addr, seg);
@@ -351,24 +334,14 @@ public static class Extensions
         public (Expr Address, Expr? Segment) BuildStringMemoryAddress(bool isDestination)
         {
             Expr ptr = isDestination
-                ? block.EndRegisters.Get16(7)  // DI
-                : block.EndRegisters.Get16(6); // SI
+                ? block.EndRegisters.Get16(GpRegister16.DI)
+                : block.EndRegisters.Get16(GpRegister16.SI);
 
             Expr? seg = isDestination
-                ? block.EndRegisters.GetSegment(0) // ES
-                : block.EndRegisters.GetSegment(3); // DS
+                ? block.EndRegisters.GetSegment(CpuSegmentRegister.ES)
+                : block.EndRegisters.GetSegment(CpuSegmentRegister.DS);
 
             return (ptr, seg);
-        }
-
-        /// <summary>
-        /// Обновляет SI и/или DI после строковой операции.
-        /// </summary>
-        public static void UpdateStringPointers(int size, bool updateSi = true, bool updateDi = true)
-        {
-            // Делегируем в существующую логику ExpressionBuilder
-            // (пока что, чтобы не дублировать)
-            // В будущем эта логика переедет сюда.
         }
     }
 }

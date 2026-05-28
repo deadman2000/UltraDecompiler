@@ -15,7 +15,7 @@ public class CbwHandler : IInstructionHandler
 {
     public void Handle(ExprBlock block, Instruction instr)
     {
-        var al = block.EndRegisters.Get8(0); // AL
+        var al = block.EndRegisters.Get8(GpRegister8.AL);
 
         // signBit = (AL >> 7) & 1   → 0 или 1
         Expr signBit = al.Calculate(Math2Operation.And, new ConstExpr(0x80))
@@ -30,6 +30,6 @@ public class CbwHandler : IInstructionHandler
         Expr axValue = high.Calculate(Math2Operation.Or,
             al.Calculate(Math2Operation.And, new ConstExpr(0xFF)));
 
-        block.EndRegisters = block.EndRegisters.Set16(0, axValue); // AX
+        block.EndRegisters = block.EndRegisters.Set16(GpRegister16.AX, axValue);
     }
 }

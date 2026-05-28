@@ -22,11 +22,11 @@ public class XchgHandler : IInstructionHandler
         // Обновляем первый операнд значением второго
         if (op1.Type == OperandType.Register16)
         {
-            block.EndRegisters = block.EndRegisters.Set16(op1.Value, val2);
+            block.EndRegisters = block.EndRegisters.Set16(op1.AsGpRegister16(), val2);
         }
         else if (op1.Type == OperandType.Register8)
         {
-            block.EndRegisters = block.EndRegisters.Set8(op1.Value, val2);
+            block.EndRegisters = block.EndRegisters.Set8(op1.AsGpRegister8(), val2);
         }
         else if (op1.Type == OperandType.Memory)
         {
@@ -37,11 +37,11 @@ public class XchgHandler : IInstructionHandler
         // Обновляем второй операнд значением первого (симметрично)
         if (op2.Type == OperandType.Register16)
         {
-            block.EndRegisters = block.EndRegisters.Set16(op2.Value, val1);
+            block.EndRegisters = block.EndRegisters.Set16(op2.AsGpRegister16(), val1);
         }
         else if (op2.Type == OperandType.Register8)
         {
-            block.EndRegisters = block.EndRegisters.Set8(op2.Value, val1);
+            block.EndRegisters = block.EndRegisters.Set8(op2.AsGpRegister8(), val1);
         }
         else if (op2.Type == OperandType.Memory)
         {

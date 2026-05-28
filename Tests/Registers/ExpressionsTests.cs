@@ -1,4 +1,5 @@
 using UltraDecompiler.Decompilation;
+using UltraDecompiler.Disassembler;
 
 namespace Tests.Registers;
 
@@ -15,24 +16,24 @@ public class ExpressionsTests : BaseTests
 
         // Установка 16-bit AX
         var axExpr = new ConstExpr(0x1234);
-        regs = regs.Set16(0, axExpr);
+        regs = regs.Set16(GpRegister16.AX, axExpr);
         Assert.Null(regs.AH);
         Assert.Null(regs.AL);
-        Assert.Equal(axExpr, regs.Get16(0));
+        Assert.Equal(axExpr, regs.Get16(GpRegister16.AX));
 
         // Установка AH - разбиваем X на AL = X & 0xff, X=null
         var ahExpr = new ConstExpr(0x12);
-        regs = regs.Set8(4, ahExpr); // AH=4
+        regs = regs.Set8(GpRegister8.AH, ahExpr);
         Assert.Equal(ahExpr, regs.AH);
         Assert.NotNull(regs.AL); // должна быть LowByte из прежнего X
         Assert.Null(regs.AX);
-        Assert.Equal(ahExpr, regs.Get8(4));
+        Assert.Equal(ahExpr, regs.Get8(GpRegister8.AH));
 
         // Установка AL - оба установлены, Get16 = (AH<<8)|AL
         var alExpr = new ConstExpr(0x34);
-        regs = regs.Set8(0, alExpr); // AL=0
+        regs = regs.Set8(GpRegister8.AL, alExpr);
         Assert.Equal(alExpr, regs.AL);
-        var combined = regs.Get16(0);
+        var combined = regs.Get16(GpRegister16.AX);
         Assert.NotNull(combined);
         // С folding'ом (Calculate в Get16) для констант получаем чистый ConstExpr
         var c = Assert.IsType<ConstExpr>(combined);
@@ -40,10 +41,10 @@ public class ExpressionsTests : BaseTests
 
         // Установка обратно AX - H/L в null
         var newAx = new ConstExpr(0x5678);
-        regs = regs.Set16(0, newAx);
+        regs = regs.Set16(GpRegister16.AX, newAx);
         Assert.Null(regs.AH);
         Assert.Null(regs.AL);
-        Assert.Equal(newAx, regs.Get16(0));
+        Assert.Equal(newAx, regs.Get16(GpRegister16.AX));
     }
 
     [Fact]
@@ -53,24 +54,24 @@ public class ExpressionsTests : BaseTests
         var regs = RegisterExpressions.InitZero();
 
         var spExpr = new ConstExpr(0x1234);
-        regs = regs.Set16(4, spExpr);
+        regs = regs.Set16(GpRegister16.SP, spExpr);
         Assert.Equal(spExpr, regs.SP);
-        Assert.Equal(spExpr, regs.Get16(4));
+        Assert.Equal(spExpr, regs.Get16(GpRegister16.SP));
 
         var bpExpr = new ConstExpr(0x5678);
-        regs = regs.Set16(5, bpExpr);
+        regs = regs.Set16(GpRegister16.BP, bpExpr);
         Assert.Equal(bpExpr, regs.BP);
-        Assert.Equal(bpExpr, regs.Get16(5));
+        Assert.Equal(bpExpr, regs.Get16(GpRegister16.BP));
 
         var siExpr = new ConstExpr(0x9ABC);
-        regs = regs.Set16(6, siExpr);
+        regs = regs.Set16(GpRegister16.SI, siExpr);
         Assert.Equal(siExpr, regs.SI);
-        Assert.Equal(siExpr, regs.Get16(6));
+        Assert.Equal(siExpr, regs.Get16(GpRegister16.SI));
 
         var diExpr = new ConstExpr(0xDEF0);
-        regs = regs.Set16(7, diExpr);
+        regs = regs.Set16(GpRegister16.DI, diExpr);
         Assert.Equal(diExpr, regs.DI);
-        Assert.Equal(diExpr, regs.Get16(7));
+        Assert.Equal(diExpr, regs.Get16(GpRegister16.DI));
     }
 
     [Fact]
@@ -80,19 +81,19 @@ public class ExpressionsTests : BaseTests
         var regs = RegisterExpressions.InitZero();
 
         var dsExpr = new ConstExpr(0x1000);
-        regs = regs.SetSegment(3, dsExpr);
+        regs = regs.SetSegment(CpuSegmentRegister.DS, dsExpr);
         Assert.Equal(dsExpr, regs.DS);
-        Assert.Equal(dsExpr, regs.GetSegment(3));
+        Assert.Equal(dsExpr, regs.GetSegment(CpuSegmentRegister.DS));
 
         var esExpr = new ConstExpr(0x2000);
-        regs = regs.SetSegment(0, esExpr);
+        regs = regs.SetSegment(CpuSegmentRegister.ES, esExpr);
         Assert.Equal(esExpr, regs.ES);
-        Assert.Equal(esExpr, regs.GetSegment(0));
+        Assert.Equal(esExpr, regs.GetSegment(CpuSegmentRegister.ES));
 
         var csExpr = new ConstExpr(0xF000);
-        regs = regs.SetSegment(1, csExpr);
+        regs = regs.SetSegment(CpuSegmentRegister.CS, csExpr);
         Assert.Equal(csExpr, regs.CS);
-        Assert.Equal(csExpr, regs.GetSegment(1));
+        Assert.Equal(csExpr, regs.GetSegment(CpuSegmentRegister.CS));
 
         // Проверка совместимости: общие регистры не сломаны
         Assert.Equal(ConstExpr.Zero, regs.AX); // init zero

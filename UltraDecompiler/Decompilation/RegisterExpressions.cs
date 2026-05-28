@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using UltraDecompiler.Disassembler;
 
 namespace UltraDecompiler.Decompilation;
 
@@ -39,42 +40,54 @@ public record struct RegisterExpressions(
 
     // ===== Хелперы для сокращения дублирования логики 4 групп (AX/AH/AL, CX/CH/CL и т.д.) =====
 
-    // TODO использовать enum вместо int
-    private static int Reg8ToGroup(int reg8) => reg8 switch
+    private enum GpRegisterGroup : byte
     {
-        0 or 4 => 0, // AL/AH -> AX
-        1 or 5 => 1, // CL/CH -> CX
-        2 or 6 => 2, // DL/DH -> DX
-        3 or 7 => 3, // BL/BH -> BX
-        _ => -1
+        Ax = 0,
+        Cx = 1,
+        Dx = 2,
+        Bx = 3,
+    }
+
+    private static GpRegisterGroup Reg8ToGroup(GpRegister8 reg8) => reg8 switch
+    {
+        GpRegister8.AL or GpRegister8.AH => GpRegisterGroup.Ax,
+        GpRegister8.CL or GpRegister8.CH => GpRegisterGroup.Cx,
+        GpRegister8.DL or GpRegister8.DH => GpRegisterGroup.Dx,
+        GpRegister8.BL or GpRegister8.BH => GpRegisterGroup.Bx,
+        _ => throw new ArgumentOutOfRangeException(nameof(reg8), reg8, null),
     };
 
-    // TODO использовать enum вместо int
-    private static int Reg16ToGroup(int reg16) => reg16 is >= 0 and <= 3 ? reg16 : -1;
-
-    // TODO использовать enum вместо int
-    private static bool IsHighReg8(int reg8) => reg8 >= 4;
-
-    private readonly (Expr? X, Expr? H, Expr? L) GetGroup(int group) => group switch
+    private static GpRegisterGroup? Reg16ToGroup(GpRegister16 reg16) => reg16 switch
     {
-        0 => (AX, AH, AL),
-        1 => (CX, CH, CL),
-        2 => (DX, DH, DL),
-        3 => (BX, BH, BL),
-        _ => (null, null, null)
+        GpRegister16.AX => GpRegisterGroup.Ax,
+        GpRegister16.CX => GpRegisterGroup.Cx,
+        GpRegister16.DX => GpRegisterGroup.Dx,
+        GpRegister16.BX => GpRegisterGroup.Bx,
+        _ => null,
     };
 
-    private RegisterExpressions WithGroup(int group, Expr? x, Expr? h, Expr? l)
+    private static bool IsHighReg8(GpRegister8 reg8) => reg8 >= GpRegister8.AH;
+
+    private readonly (Expr? X, Expr? H, Expr? L) GetGroup(GpRegisterGroup group) => group switch
+    {
+        GpRegisterGroup.Ax => (AX, AH, AL),
+        GpRegisterGroup.Cx => (CX, CH, CL),
+        GpRegisterGroup.Dx => (DX, DH, DL),
+        GpRegisterGroup.Bx => (BX, BH, BL),
+        _ => throw new ArgumentOutOfRangeException(nameof(group), group, null),
+    };
+
+    private RegisterExpressions WithGroup(GpRegisterGroup group, Expr? x, Expr? h, Expr? l)
     {
         Debug.Assert(IsValidGroupState(x, h, l),
             $"Invalid register group {group} state: X={x}, H={h}, L={l}");
         return group switch
         {
-            0 => this with { AX = x, AH = h, AL = l },
-            1 => this with { CX = x, CH = h, CL = l },
-            2 => this with { DX = x, DH = h, DL = l },
-            3 => this with { BX = x, BH = h, BL = l },
-            _ => this
+            GpRegisterGroup.Ax => this with { AX = x, AH = h, AL = l },
+            GpRegisterGroup.Cx => this with { CX = x, CH = h, CL = l },
+            GpRegisterGroup.Dx => this with { DX = x, DH = h, DL = l },
+            GpRegisterGroup.Bx => this with { BX = x, BH = h, BL = l },
+            _ => throw new ArgumentOutOfRangeException(nameof(group), group, null),
         };
     }
 
@@ -133,21 +146,21 @@ public record struct RegisterExpressions(
 
     /// <summary>
     /// Установка 16-битного регистра: сбрасывает H и L в null.
-    /// Для gp-регистров (0-3) переводит группу в состояние (X=expr, H=null, L=null).
+    /// Для gp-регистров (AX–BX) переводит группу в состояние (X=expr, H=null, L=null).
     /// </summary>
-    public RegisterExpressions Set16(int reg16, Expr expr)
+    public RegisterExpressions Set16(GpRegister16 reg16, Expr expr)
     {
-        int group = Reg16ToGroup(reg16);
-        if (group >= 0)
+        GpRegisterGroup? group = Reg16ToGroup(reg16);
+        if (group.HasValue)
         {
-            return WithGroup(group, expr, null, null);
+            return WithGroup(group.Value, expr, null, null);
         }
         return reg16 switch
         {
-            4 => this with { SP = expr },
-            5 => this with { BP = expr },
-            6 => this with { SI = expr },
-            7 => this with { DI = expr },
+            GpRegister16.SP => this with { SP = expr },
+            GpRegister16.BP => this with { BP = expr },
+            GpRegister16.SI => this with { SI = expr },
+            GpRegister16.DI => this with { DI = expr },
             _ => this
         };
     }
@@ -159,10 +172,9 @@ public record struct RegisterExpressions(
     /// - X всегда сбрасывается в null, устанавливаются оба байта (H и L).
     /// - Если X == null — просто обновляем нужный байт, второй оставляем как есть (предполагается, что он был).
     /// </summary>
-    public RegisterExpressions Set8(int reg8, Expr expr)
+    public RegisterExpressions Set8(GpRegister8 reg8, Expr expr)
     {
-        int group = Reg8ToGroup(reg8);
-        if (group < 0) return this;
+        GpRegisterGroup group = Reg8ToGroup(reg8);
 
         bool isHigh = IsHighReg8(reg8);
         var (x, oldH, oldL) = GetGroup(group);
@@ -193,13 +205,12 @@ public record struct RegisterExpressions(
     /// Если X == null — собираем (H << 8) | L (если оба байта установлены).
     /// При нарушении инварианта (все null) — assert + исключение.
     /// </summary>
-    // TODO использовать enum вместо int
-    public readonly Expr Get16(int reg16)
+    public readonly Expr Get16(GpRegister16 reg16)
     {
-        int group = Reg16ToGroup(reg16);
-        if (group >= 0)
+        GpRegisterGroup? group = Reg16ToGroup(reg16);
+        if (group.HasValue)
         {
-            var (x, h, l) = GetGroup(group);
+            var (x, h, l) = GetGroup(group.Value);
 
             if (h != null && l != null)
             {
@@ -222,10 +233,10 @@ public record struct RegisterExpressions(
         }
         return reg16 switch
         {
-            4 => SP,
-            5 => BP,
-            6 => SI,
-            7 => DI,
+            GpRegister16.SP => SP,
+            GpRegister16.BP => BP,
+            GpRegister16.SI => SI,
+            GpRegister16.DI => DI,
             _ => ConstExpr.Zero
         };
     }
@@ -236,10 +247,9 @@ public record struct RegisterExpressions(
     /// Если байт null, но есть X — вычисляем HighByte/LowByte(X).
     /// При нарушении инварианта — assert + исключение.
     /// </summary>
-    public readonly Expr Get8(int reg8)
+    public readonly Expr Get8(GpRegister8 reg8)
     {
-        int group = Reg8ToGroup(reg8);
-        if (group < 0) return ConstExpr.Zero;
+        GpRegisterGroup group = Reg8ToGroup(reg8);
 
         bool isHigh = IsHighReg8(reg8);
         var (x, h, l) = GetGroup(group);
@@ -257,33 +267,31 @@ public record struct RegisterExpressions(
     }
 
     /// <summary>
-    /// Установка сегментного регистра (ES=0, CS=1, SS=2, DS=3)
+    /// Установка сегментного регистра.
     /// </summary>
-    // TODO использовать enum вместо int
-    public RegisterExpressions SetSegment(int sreg, Expr expr)
+    public RegisterExpressions SetSegment(CpuSegmentRegister sreg, Expr expr)
     {
         return sreg switch
         {
-            0 => this with { ES = expr },
-            1 => this with { CS = expr },
-            2 => this with { SS = expr },
-            3 => this with { DS = expr },
+            CpuSegmentRegister.ES => this with { ES = expr },
+            CpuSegmentRegister.CS => this with { CS = expr },
+            CpuSegmentRegister.SS => this with { SS = expr },
+            CpuSegmentRegister.DS => this with { DS = expr },
             _ => this
         };
     }
 
     /// <summary>
-    /// Получение сегментного регистра
+    /// Получение сегментного регистра.
     /// </summary>
-    // TODO использовать enum вместо int
-    public readonly Expr GetSegment(int sreg)
+    public readonly Expr GetSegment(CpuSegmentRegister sreg)
     {
         return sreg switch
         {
-            0 => ES,
-            1 => CS,
-            2 => SS,
-            3 => DS,
+            CpuSegmentRegister.ES => ES,
+            CpuSegmentRegister.CS => CS,
+            CpuSegmentRegister.SS => SS,
+            CpuSegmentRegister.DS => DS,
             _ => ConstExpr.Zero
         };
     }

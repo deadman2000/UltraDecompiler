@@ -17,9 +17,9 @@ public class LodsHandler : BaseStringHandler
         Expr value = BuildStringMemoryRead(block, instr, isSource: true, size);
 
         if (size == 1)
-            block.EndRegisters = block.EndRegisters.Set8(0, value);
+            block.EndRegisters = block.EndRegisters.Set8(GpRegister8.AL, value);
         else
-            block.EndRegisters = block.EndRegisters.Set16(0, value);
+            block.EndRegisters = block.EndRegisters.Set16(GpRegister16.AX, value);
 
         UpdateStringPointers(block, size, updateSi: true, updateDi: false);
     }

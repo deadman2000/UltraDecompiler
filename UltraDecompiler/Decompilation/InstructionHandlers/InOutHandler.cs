@@ -24,13 +24,13 @@ public class InOutHandler : IInstructionHandler
         {
             // IN: результат идёт в AL или AX
             var dest = instr.Operand1;
-            isWord = dest.Type == OperandType.Register16 && dest.Value == 0; // AX
+            isWord = dest.Type == OperandType.Register16 && dest.AsGpRegister16() == GpRegister16.AX;
         }
         else
         {
             // OUT: источник — AL или AX
             var src = instr.Operand2;
-            isWord = src.Type == OperandType.Register16 && src.Value == 0; // AX
+            isWord = src.Type == OperandType.Register16 && src.AsGpRegister16() == GpRegister16.AX;
         }
 
         string funcName = isWord ? (isIn ? "inw" : "outw") : (isIn ? "inb" : "outb");
@@ -48,7 +48,7 @@ public class InOutHandler : IInstructionHandler
         else
         {
             // Порт в DX
-            portExpr = block.EndRegisters.Get16(2); // DX = регистр 2
+            portExpr = block.EndRegisters.Get16(GpRegister16.DX);
         }
 
         if (isIn)
@@ -61,9 +61,9 @@ public class InOutHandler : IInstructionHandler
             block.Operations.Add(new SetOperation(resultVar, callExpr));
 
             if (isWord)
-                block.EndRegisters = block.EndRegisters.Set16(0, resultVar); // AX
+                block.EndRegisters = block.EndRegisters.Set16(GpRegister16.AX, resultVar);
             else
-                block.EndRegisters = block.EndRegisters.Set8(0, resultVar);  // AL
+                block.EndRegisters = block.EndRegisters.Set8(GpRegister8.AL, resultVar);
         }
         else
         {

@@ -22,7 +22,7 @@ public class LeaHandler : IInstructionHandler
                 ? instr.Operand2.GetEffectiveAddress(block.EndRegisters, instr.Segment)
                 : instr.Operand2.GetExpression(block, instr.Segment);
 
-            block.EndRegisters = block.EndRegisters.Set16(instr.Operand1.Value, eaExpr);
+            block.EndRegisters = block.EndRegisters.Set16(instr.Operand1.AsGpRegister16(), eaExpr);
         }
         else
         {

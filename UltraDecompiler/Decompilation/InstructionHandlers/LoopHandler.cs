@@ -23,7 +23,7 @@ public class LoopHandler : IInstructionHandler
         }
 
         // Получаем текущее значение CX
-        Expr cxCurrent = block.EndRegisters.Get16(1); // CX = регистр 1
+        Expr cxCurrent = block.EndRegisters.Get16(GpRegister16.CX);
 
         // Вычисляем CX - 1
         Expr cxNew = cxCurrent.Calculate(Math2Operation.Sub, ConstExpr.One);
@@ -38,7 +38,7 @@ public class LoopHandler : IInstructionHandler
         // Для константного CX просто обновляем регистр (без лишней операции)
 
         // Обновляем символическое состояние регистров
-        block.EndRegisters = block.EndRegisters.Set16(1, cxNew);
+        block.EndRegisters = block.EndRegisters.Set16(GpRegister16.CX, cxNew);
 
         // Строим условие перехода
         Expr cxNotZero = new CmpExpr(CmpOperation.Ne, cxNew, ConstExpr.Zero);

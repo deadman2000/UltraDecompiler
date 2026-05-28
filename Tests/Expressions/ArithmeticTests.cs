@@ -1,4 +1,5 @@
 using UltraDecompiler.Decompilation;
+using UltraDecompiler.Disassembler;
 
 namespace Tests.Expressions;
 
@@ -107,8 +108,8 @@ public class ArithmeticTests : BaseTests
             var prev = vars.CreateVariable("prev");
             var init = RegisterExpressions.InitZero();
             return init
-                .Set16(3, prev)                    // BX = prev
-                .Set16(0, new ConstExpr(7));       // AX = 7
+                .Set16(GpRegister16.BX, prev)
+                .Set16(GpRegister16.AX, new ConstExpr(7));
         });
 
         var block = expr.Blocks[0];
@@ -136,8 +137,8 @@ public class ArithmeticTests : BaseTests
             var v = vars.CreateVariable("val");
             var init = RegisterExpressions.InitZero();
             return init
-                .Set16(0, new ConstExpr(10))   // AX
-                .Set16(3, v);                  // BX
+                .Set16(GpRegister16.AX, new ConstExpr(10))
+                .Set16(GpRegister16.BX, v);
         });
 
         var block = expr.Blocks[0];
@@ -160,8 +161,8 @@ public class ArithmeticTests : BaseTests
             var d = vars.CreateVariable("d");
             var init = RegisterExpressions.InitZero();
             return init
-                .Set16(0, a)
-                .Set16(2, d);
+                .Set16(GpRegister16.AX, a)
+                .Set16(GpRegister16.DX, d);
         });
 
         var block = expr.Blocks[0];
@@ -181,7 +182,7 @@ public class ArithmeticTests : BaseTests
         var expr = BuildExpressions("40", vars =>   // inc ax
         {
             var prev = vars.CreateVariable("x");
-            return RegisterExpressions.InitZero().Set16(0, prev);
+            return RegisterExpressions.InitZero().Set16(GpRegister16.AX, prev);
         });
 
         var block = expr.Blocks[0];
@@ -204,8 +205,8 @@ public class ArithmeticTests : BaseTests
             var right = vars.CreateVariable("right");
             var init = RegisterExpressions.InitZero();
             return init
-                .Set16(0, left)
-                .Set16(2, right);
+                .Set16(GpRegister16.AX, left)
+                .Set16(GpRegister16.DX, right);
         });
 
         var block = expr.Blocks[0];
@@ -234,7 +235,7 @@ public class ArithmeticTests : BaseTests
             var a = vars.CreateVariable("a");
             var b = vars.CreateVariable("b");
             var init = RegisterExpressions.InitZero();
-            return init.Set16(0, a).Set16(3, b); // AX=a, BX=b
+            return init.Set16(GpRegister16.AX, a).Set16(GpRegister16.BX, b);
         });
 
         var block = expr2.Blocks[0];

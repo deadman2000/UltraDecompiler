@@ -25,12 +25,12 @@ public class PopHandler : IInstructionHandler
         if (dst.Type == OperandType.Register16)
         {
             // POP reg16 — просто обновляем символическое значение (аналогично MOV, без SetOperation)
-            block.EndRegisters = block.EndRegisters.Set16(dst.Value, value);
+            block.EndRegisters = block.EndRegisters.Set16(dst.AsGpRegister16(), value);
         }
         else if (dst.Type == OperandType.SegmentRegister)
         {
             // POP ES / SS / DS (CS через POP невозможен на 8086)
-            block.EndRegisters = block.EndRegisters.SetSegment(dst.Value, value);
+            block.EndRegisters = block.EndRegisters.SetSegment(dst.AsCpuSegmentRegister(), value);
         }
         else if (dst.Type == OperandType.Memory)
         {

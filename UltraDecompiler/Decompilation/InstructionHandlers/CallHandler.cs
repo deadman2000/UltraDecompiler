@@ -55,6 +55,6 @@ public class CallHandler : IInstructionHandler
         // Моделируем возврат значения через AX (стандартная практика для DOS/QuickC).
         var resultVar = block.Variables.CreateVariable();
         block.Operations.Add(new SetOperation(resultVar, callExpr));
-        block.EndRegisters = block.EndRegisters.Set16(0, resultVar);
+        block.EndRegisters = block.EndRegisters.Set16(GpRegister16.AX, resultVar);
     }
 }

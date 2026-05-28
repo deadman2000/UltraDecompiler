@@ -32,9 +32,9 @@ public class LogicalHandler : IInstructionHandler
         if (instr.Mnemonic == Mnemonic.XOR && dst.ReferToSameLocation(instr.Operand2))
         {
             if (dst.Type == OperandType.Register16)
-                block.EndRegisters = block.EndRegisters.Set16(dst.Value, ConstExpr.Zero);
+                block.EndRegisters = block.EndRegisters.Set16(dst.AsGpRegister16(), ConstExpr.Zero);
             else if (dst.Type == OperandType.Register8)
-                block.EndRegisters = block.EndRegisters.Set8(dst.Value, ConstExpr.Zero);
+                block.EndRegisters = block.EndRegisters.Set8(dst.AsGpRegister8(), ConstExpr.Zero);
             else if (dst.Type == OperandType.Memory)
             {
                 var (addr, seg) = dst.BuildMemoryReference(block.EndRegisters, instr.Segment);
@@ -57,11 +57,11 @@ public class LogicalHandler : IInstructionHandler
 
         if (dst.Type == OperandType.Register16)
         {
-            block.EndRegisters = block.EndRegisters.Set16(dst.Value, result);
+            block.EndRegisters = block.EndRegisters.Set16(dst.AsGpRegister16(), result);
         }
         else if (dst.Type == OperandType.Register8)
         {
-            block.EndRegisters = block.EndRegisters.Set8(dst.Value, result);
+            block.EndRegisters = block.EndRegisters.Set8(dst.AsGpRegister8(), result);
         }
         else if (dst.Type == OperandType.Memory)
         {

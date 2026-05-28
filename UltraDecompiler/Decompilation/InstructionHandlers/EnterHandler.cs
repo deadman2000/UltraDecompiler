@@ -22,18 +22,18 @@ public class EnterHandler : IInstructionHandler
         byte level = (byte)instr.Operand2.Value;
 
         // 1. PUSH BP
-        var bpValue = block.EndRegisters.Get16(5); // BP
+        var bpValue = block.EndRegisters.Get16(GpRegister16.BP);
         block.EndStack.Push(bpValue);
 
         // 2. MOV BP, SP
-        var currentSp = block.EndRegisters.Get16(4); // SP
-        block.EndRegisters = block.EndRegisters.Set16(5, currentSp); // BP = SP
+        var currentSp = block.EndRegisters.Get16(GpRegister16.SP);
+        block.EndRegisters = block.EndRegisters.Set16(GpRegister16.BP, currentSp);
 
         // 3. SUB SP, allocSize
         if (allocSize != 0)
         {
             Expr newSp = currentSp.Calculate(Math2Operation.Sub, new ConstExpr(allocSize));
-            block.EndRegisters = block.EndRegisters.Set16(4, newSp); // SP
+            block.EndRegisters = block.EndRegisters.Set16(GpRegister16.SP, newSp);
         }
 
         // level > 0 почти никогда не используется в коде QuickC 1.0,

@@ -1,4 +1,5 @@
 using UltraDecompiler.Decompilation;
+using UltraDecompiler.Disassembler;
 
 namespace Tests.Expressions;
 
@@ -36,7 +37,7 @@ public class StackTests : BaseTests
         Assert.Empty(block.Operations);
 
         // После POP CX должен содержать то же значение, что было в BX
-        var cxVal = block.EndRegisters.Get16(1);
+        var cxVal = block.EndRegisters.Get16(GpRegister16.CX);
         var c = Assert.IsType<ConstExpr>(cxVal);
         Assert.Equal(0xABCD, c.Value);
     }
@@ -81,8 +82,8 @@ public class StackTests : BaseTests
         var block = expr.Blocks[0];
         Assert.Empty(block.Operations);
 
-        var bx = Assert.IsType<ConstExpr>(block.EndRegisters.Get16(3)); // BX
-        var cx = Assert.IsType<ConstExpr>(block.EndRegisters.Get16(1)); // CX
+        var bx = Assert.IsType<ConstExpr>(block.EndRegisters.Get16(GpRegister16.BX));
+        var cx = Assert.IsType<ConstExpr>(block.EndRegisters.Get16(GpRegister16.CX));
 
         Assert.Equal(0x0002, bx.Value); // значение из второго PUSH
         Assert.Equal(0x0001, cx.Value); // значение из первого PUSH
@@ -98,12 +99,12 @@ public class StackTests : BaseTests
         {
             var regs = RegisterExpressions.InitCom(vars);
             var stack = new Stack<Expr>();
-            stack.Push(regs.GetSegment(3)); // DS
+            stack.Push(regs.GetSegment(CpuSegmentRegister.DS));
             return (regs, stack);
         });
 
-        var esVal = expr.Blocks[0].EndRegisters.GetSegment(0);
-        var dsVal = expr.Blocks[0].EndRegisters.GetSegment(3);
+        var esVal = expr.Blocks[0].EndRegisters.GetSegment(CpuSegmentRegister.ES);
+        var dsVal = expr.Blocks[0].EndRegisters.GetSegment(CpuSegmentRegister.DS);
 
         // ES получает то же символическое значение, что было в DS
         Assert.Same(dsVal, esVal);
@@ -150,8 +151,8 @@ public class StackTests : BaseTests
 
         // После leave SP должен равняться (предыдущему) BP, а BP — значению, которое было на стеке
         // В этом простом случае стек символически может быть пустым → BP станет MemExpr
-        var sp = expr.Blocks[0].EndRegisters.Get16(4);
-        var bp = expr.Blocks[0].EndRegisters.Get16(5);
+        var sp = expr.Blocks[0].EndRegisters.Get16(GpRegister16.SP);
+        var bp = expr.Blocks[0].EndRegisters.Get16(GpRegister16.BP);
 
         // SP должен быть равен тому, что было в BP до leave (в данном случае SP после mov bp,sp)
         Assert.NotNull(sp);
@@ -167,8 +168,8 @@ public class StackTests : BaseTests
         // После ENTER:
         // - BP должен быть равен SP до вычитания
         // - SP должен уменьшиться на 4
-        var bp = expr.Blocks[0].EndRegisters.Get16(5);
-        var sp = expr.Blocks[0].EndRegisters.Get16(4);
+        var bp = expr.Blocks[0].EndRegisters.Get16(GpRegister16.BP);
+        var sp = expr.Blocks[0].EndRegisters.Get16(GpRegister16.SP);
 
         Assert.NotNull(bp);
         Assert.NotNull(sp);

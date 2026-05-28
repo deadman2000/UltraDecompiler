@@ -1,4 +1,5 @@
 using UltraDecompiler.Decompilation;
+using UltraDecompiler.Disassembler;
 
 namespace Tests.Expressions;
 
@@ -257,7 +258,7 @@ public class ControlFlowTests : BaseTests
         {
             var dxVal = vars.CreateVariable("port");
             var init = RegisterExpressions.InitZero();
-            return init.Set16(2, dxVal); // DX = port
+            return init.Set16(GpRegister16.DX, dxVal);
         });
 
         // Должен появиться SetOperation

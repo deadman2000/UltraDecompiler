@@ -164,6 +164,12 @@ public static class Extensions
 
     extension(in Operand operand)
     {
+        public GpRegister16 AsGpRegister16() => (GpRegister16)operand.Value;
+
+        public GpRegister8 AsGpRegister8() => (GpRegister8)operand.Value;
+
+        public CpuSegmentRegister AsCpuSegmentRegister() => (CpuSegmentRegister)operand.Value;
+
         public string ToAsm() => operand.Type switch
         {
             OperandType.Register8 or OperandType.Register16 => operand.GetRegName(),
@@ -254,6 +260,31 @@ public static class Extensions
                 return "[0]";
 
             return $"[{string.Join("+", parts)}]";
+        }
+    }
+
+    extension(Segment segment)
+    {
+        /// <summary>Индекс сегментного регистра (0=ES … 3=DS) для <see cref="RegisterExpressions.GetSegment"/>.</summary>
+        public CpuSegmentRegister ToCpuSegmentRegister() => segment switch
+        {
+            Segment.ES => CpuSegmentRegister.ES,
+            Segment.CS => CpuSegmentRegister.CS,
+            Segment.SS => CpuSegmentRegister.SS,
+            Segment.DS => CpuSegmentRegister.DS,
+            _ => throw new ArgumentOutOfRangeException(nameof(segment), segment, null)
+        };
+
+        public string ToPrefixString()
+        {
+            return segment switch
+            {
+                Segment.ES => "ES:",
+                Segment.CS => "CS:",
+                Segment.SS => "SS:",
+                Segment.DS => "DS:",
+                _ => ""
+            };
         }
     }
 }

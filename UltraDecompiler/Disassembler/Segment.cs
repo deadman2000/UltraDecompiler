@@ -11,18 +11,3 @@ public enum Segment
     SS = 0x36,
     DS = 0x3E
 }
-
-public static class SegmentExtensions
-{
-    public static string ToPrefixString(this Segment segment)
-    {
-        return segment switch
-        {
-            Segment.ES => "ES:",
-            Segment.CS => "CS:",
-            Segment.SS => "SS:",
-            Segment.DS => "DS:",
-            _ => ""
-        };
-    }
-}

@@ -1,3 +1,5 @@
+using UltraDecompiler.Disassembler;
+
 namespace UltraDecompiler.Decompilation;
 
 /// <summary>
@@ -89,7 +91,7 @@ public static class DosInterruptHelper
     /// </summary>
     private static (string Name, IReadOnlyList<Expr> Args) ResolveInt21hFunction(in RegisterExpressions regs)
     {
-        Expr ahExpr = regs.Get8(4); // AH
+        Expr ahExpr = regs.Get8(GpRegister8.AH);
         if (ahExpr is not ConstExpr c)
             return ("intdos", Array.Empty<Expr>());
 
@@ -101,25 +103,25 @@ public static class DosInterruptHelper
         return ah switch
         {
             // === Character I/O ===
-            0x02 => ("dos_char_output", [regs.Get8(2)]),           // DL
-            0x09 => ("dos_print_string", dsDx != null ? [dsDx] : [regs.Get16(2), regs.GetSegment(3)]),
+            0x02 => ("dos_char_output", [regs.Get8(GpRegister8.DL)]),
+            0x09 => ("dos_print_string", dsDx != null ? [dsDx] : [regs.Get16(GpRegister16.DX), regs.GetSegment(CpuSegmentRegister.DS)]),
 
             // === Drive / Directory ===
-            0x0E => ("dos_set_current_drive", [regs.Get8(0)]),
+            0x0E => ("dos_set_current_drive", [regs.Get8(GpRegister8.AL)]),
             0x19 => ("dos_get_current_drive", Array.Empty<Expr>()),
             0x39 => ("dos_make_directory", dsDx != null ? [dsDx] : FallbackDsDx(regs)),
             0x3A => ("dos_remove_directory", dsDx != null ? [dsDx] : FallbackDsDx(regs)),
             0x3B => ("dos_set_current_directory", dsDx != null ? [dsDx] : FallbackDsDx(regs)),
-            0x47 => ("dos_get_current_directory", [regs.Get8(0), dsDx ?? FallbackDsDxSegmentOffset(regs)]),
+            0x47 => ("dos_get_current_directory", [regs.Get8(GpRegister8.AL), dsDx ?? FallbackDsDxSegmentOffset(regs)]),
 
             // === File operations (High level) ===
             0x3C => ("dos_creat", BuildCreatOpenArgs(regs, dsDx)),
             0x3D => ("dos_open", BuildCreatOpenArgs(regs, dsDx)),
-            0x3E => ("dos_close", [regs.Get16(3)]),                // BX = handle
+            0x3E => ("dos_close", [regs.Get16(GpRegister16.BX)]),
             0x3F => ("dos_read", BuildReadWriteArgs(regs, dsDx)),
             0x40 => ("dos_write", BuildReadWriteArgs(regs, dsDx)),
             0x41 => ("dos_unlink", dsDx != null ? [dsDx] : FallbackDsDx(regs)),
-            0x42 => ("dos_lseek", [regs.Get16(3), regs.Get8(0), regs.Get16(1), regs.Get16(2)]), // BX, AL, CX:DX
+            0x42 => ("dos_lseek", [regs.Get16(GpRegister16.BX), regs.Get8(GpRegister8.AL), regs.Get16(GpRegister16.CX), regs.Get16(GpRegister16.DX)]),
 
             // === FindFirst / FindNext (AH=4Eh/4Fh) ===
             // Используем оригинальные _dos_findfirst / _dos_findnext из QuickC <dos.h>.
@@ -130,10 +132,10 @@ public static class DosInterruptHelper
 
             // === Misc useful services ===
             0x30 => ("dos_get_dos_version", Array.Empty<Expr>()),
-            0x36 => ("dos_get_free_disk_space", [regs.Get8(0)]),
+            0x36 => ("dos_get_free_disk_space", [regs.Get8(GpRegister8.AL)]),
 
             // Exit (обычно уже отфильтрован IsExit, но на всякий случай)
-            0x4C => ("dos_exit", [regs.Get8(0)]),
+            0x4C => ("dos_exit", [regs.Get8(GpRegister8.AL)]),
 
             // Fallback — оставляем низкоуровневый intdos (как в оригинальном QuickC <dos.h>)
             _ => ("intdos", Array.Empty<Expr>())
@@ -145,8 +147,8 @@ public static class DosInterruptHelper
     private static Expr? TryBuildDsDxFarPointer(in RegisterExpressions regs)
     {
         // DX (offset) + DS (segment) — самый частый случай для имён файлов и буферов
-        var dx = regs.Get16(2);
-        var ds = regs.GetSegment(3);
+        var dx = regs.Get16(GpRegister16.DX);
+        var ds = regs.GetSegment(CpuSegmentRegister.DS);
 
         // Если оба осмысленные — создаём MemExpr как представление far-указателя
         if (dx is not ConstExpr { Value: 0 } || ds is not ConstExpr { Value: 0 })
@@ -159,42 +161,42 @@ public static class DosInterruptHelper
     {
         // Когда не получилось красиво собрать MemExpr — передаём два отдельных значения
         return new Math2Expr(Math2Operation.Or,
-            new Math2Expr(Math2Operation.Shl, regs.GetSegment(3), new ConstExpr(16)),
-            regs.Get16(2));
+            new Math2Expr(Math2Operation.Shl, regs.GetSegment(CpuSegmentRegister.DS), new ConstExpr(16)),
+            regs.Get16(GpRegister16.DX));
     }
 
     private static Expr[] FallbackDsDx(in RegisterExpressions regs)
     {
-        return [regs.Get16(2), regs.GetSegment(3)];
+        return [regs.Get16(GpRegister16.DX), regs.GetSegment(CpuSegmentRegister.DS)];
     }
 
     private static Expr[] BuildCreatOpenArgs(in RegisterExpressions regs, Expr? dsDx)
     {
         // AH=3Ch/3Dh: DS:DX = имя, AL = access/attr
-        var al = regs.Get8(0);
+        var al = regs.Get8(GpRegister8.AL);
         if (dsDx != null)
             return [dsDx, al];
 
-        return [regs.Get16(2), regs.GetSegment(3), al];
+        return [regs.Get16(GpRegister16.DX), regs.GetSegment(CpuSegmentRegister.DS), al];
     }
 
     private static Expr[] BuildReadWriteArgs(in RegisterExpressions regs, Expr? dsDx)
     {
         // AH=3Fh/40h: BX=handle, DS:DX=буфер, CX=count
-        var bx = regs.Get16(3);
-        var cx = regs.Get16(1);
+        var bx = regs.Get16(GpRegister16.BX);
+        var cx = regs.Get16(GpRegister16.CX);
 
         if (dsDx != null)
             return [bx, dsDx, cx];
 
-        return [bx, regs.Get16(2), regs.GetSegment(3), cx];
+        return [bx, regs.Get16(GpRegister16.DX), regs.GetSegment(CpuSegmentRegister.DS), cx];
     }
 
     private static Expr[] BuildDosFindFirstArgs(in RegisterExpressions regs, Expr? dsDx)
     {
         // _dos_findfirst(char *pathname, unsigned attrib, struct find_t *result)
         // AH=4Eh: DS:DX=имя, CX=attr
-        var attr = regs.Get16(1);
+        var attr = regs.Get16(GpRegister16.CX);
 
         if (dsDx != null)
             return [dsDx, attr, new ConstExpr(0)]; // TODO: &find_t

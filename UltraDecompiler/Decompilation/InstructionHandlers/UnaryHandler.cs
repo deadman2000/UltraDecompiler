@@ -27,11 +27,11 @@ public class UnaryHandler(Math1Operation operation) : IInstructionHandler
 
         if (dst.Type == OperandType.Register16)
         {
-            block.EndRegisters = block.EndRegisters.Set16(dst.Value, result);
+            block.EndRegisters = block.EndRegisters.Set16(dst.AsGpRegister16(), result);
         }
         else if (dst.Type == OperandType.Register8)
         {
-            block.EndRegisters = block.EndRegisters.Set8(dst.Value, result);
+            block.EndRegisters = block.EndRegisters.Set8(dst.AsGpRegister8(), result);
         }
         else if (dst.Type == OperandType.Memory)
         {

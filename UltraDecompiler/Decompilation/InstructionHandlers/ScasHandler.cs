@@ -15,8 +15,8 @@ public class ScasHandler : BaseStringHandler
         }
 
         Expr left = size == 1
-            ? block.EndRegisters.Get8(0)
-            : block.EndRegisters.Get16(0);
+            ? block.EndRegisters.Get8(GpRegister8.AL)
+            : block.EndRegisters.Get16(GpRegister16.AX);
 
         Expr right = BuildStringMemoryRead(block, instr, isSource: false, size);
 

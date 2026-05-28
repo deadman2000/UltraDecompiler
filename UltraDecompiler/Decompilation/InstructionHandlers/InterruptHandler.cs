@@ -46,7 +46,7 @@ public class InterruptHandler : IInstructionHandler
             block.Operations.Add(new SetOperation(resultVar, callExpr));
 
             // Символическое значение AX после INT — это результат вызова
-            block.EndRegisters = block.EndRegisters.Set16(0, resultVar);
+            block.EndRegisters = block.EndRegisters.Set16(GpRegister16.AX, resultVar);
         }
 
         // Дополнительные эффекты (clobber регистров, CF и т.д.) — через хелпер

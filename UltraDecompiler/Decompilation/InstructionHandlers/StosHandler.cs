@@ -15,8 +15,8 @@ public class StosHandler : BaseStringHandler
         }
 
         Expr value = size == 1
-            ? block.EndRegisters.Get8(0)
-            : block.EndRegisters.Get16(0);
+            ? block.EndRegisters.Get8(GpRegister8.AL)
+            : block.EndRegisters.Get16(GpRegister16.AX);
 
         var (dstAddr, dstSeg) = BuildStringMemoryAddress(block, isDestination: true);
 
