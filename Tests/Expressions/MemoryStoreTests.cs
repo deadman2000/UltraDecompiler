@@ -1,4 +1,5 @@
 using UltraDecompiler.Decompilation;
+using UltraDecompiler.Decompilation.Operations;
 
 namespace Tests.Expressions;
 

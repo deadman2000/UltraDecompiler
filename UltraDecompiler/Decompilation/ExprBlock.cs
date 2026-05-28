@@ -1,4 +1,5 @@
-﻿using UltraDecompiler.Graph;
+﻿using UltraDecompiler.Decompilation.Operations;
+using UltraDecompiler.Graph;
 
 namespace UltraDecompiler.Decompilation;
 

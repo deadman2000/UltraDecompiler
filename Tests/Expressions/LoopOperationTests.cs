@@ -1,12 +1,55 @@
 using UltraDecompiler.Decompilation;
+using UltraDecompiler.Decompilation.Operations;
 
 namespace Tests.Expressions;
 
 /// <summary>
-/// Тесты на строковое представление WhileOperation и ForOperation.
+/// Тесты на строковое представление IfOperation, WhileOperation и ForOperation.
 /// </summary>
 public class LoopOperationTests
 {
+    [Fact]
+    public void IfOperation_ThenOnly_ProducesCorrectC()
+    {
+        var cond = new CmpExpr(CmpOperation.Eq, new Variable(1), ConstExpr.Zero);
+        var thenBody = new List<Operation>
+        {
+            new SetOperation(new Variable(2), new Variable(3))
+        };
+
+        var ifOp = new IfOperation(cond, thenBody);
+        string result = ifOp.ToString();
+
+        Assert.Contains("if (var1 == 0)", result);
+        Assert.Contains("var2 = var3;", result);
+        Assert.DoesNotContain("else", result);
+    }
+
+    [Fact]
+    public void IfOperation_WithElse_ProducesCorrectC()
+    {
+        var cond = new CmpExpr(CmpOperation.Ne, new Variable(0) { Name = "x" }, ConstExpr.Zero);
+        var thenBody = new List<Operation> { new SetOperation(new Variable(1), ConstExpr.One) };
+        var elseBody = new List<Operation> { new SetOperation(new Variable(1), ConstExpr.Zero) };
+
+        var ifOp = new IfOperation(cond, thenBody, elseBody);
+        string result = ifOp.ToString();
+
+        Assert.Contains("if (x != 0)", result);
+        Assert.Contains("else", result);
+        Assert.Contains("var1 = 1;", result);
+        Assert.Contains("var1 = 0;", result);
+    }
+
+    [Fact]
+    public void IfOperation_EmptyThen_ProducesSemicolon()
+    {
+        var ifOp = new IfOperation(ConstExpr.One, Array.Empty<Operation>());
+        string result = ifOp.ToString();
+
+        Assert.Contains("; // пустое тело", result);
+    }
+
     [Fact]
     public void WhileOperation_SimpleBody_ProducesCorrectC()
     {
@@ -54,6 +97,20 @@ public class LoopOperationTests
         string result = loop.ToString();
 
         Assert.Contains("; // пустое тело", result);
+    }
+
+    [Fact]
+    public void NestedIfInWhile_ProducesCorrectIndentation()
+    {
+        var innerIf = new IfOperation(
+            ConstExpr.One,
+            [new SetOperation(new Variable(5), new Variable(6))]);
+
+        var loop = new WhileOperation(ConstExpr.One, [innerIf]);
+        string result = loop.ToString(0);
+
+        Assert.Contains("    if (1)", result);
+        Assert.Contains("        var5 = var6;", result);
     }
 
     [Fact]

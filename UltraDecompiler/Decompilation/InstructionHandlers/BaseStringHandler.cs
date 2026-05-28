@@ -1,3 +1,4 @@
+using UltraDecompiler.Decompilation.Operations;
 using UltraDecompiler.Disassembler;
 
 namespace UltraDecompiler.Decompilation.InstructionHandlers;
