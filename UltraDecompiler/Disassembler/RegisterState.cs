@@ -9,13 +9,14 @@ public record struct RegisterState(
     byte? CH, byte? CL,
     byte? DH, byte? DL,
     ushort? SP, ushort? BP, ushort? SI, ushort? DI,
-    ushort? ES, ushort? CS, ushort? SS, ushort? DS)
+    ushort? ES, ushort? CS, ushort? SS, ushort? DS,
+    bool? DF)   // Direction Flag: false = вперёд (CLD), true = назад (STD), null = неизвестно
 {
-    public static readonly RegisterState Zeros = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    public static readonly RegisterState Zeros = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false);
 
-    public static readonly RegisterState InitExe = Zeros with { SP = null, CS = null, DS = null, SS = null };
+    public static readonly RegisterState InitExe = Zeros with { SP = null, CS = null, DS = null, SS = null, DF = false };
 
-    public static readonly RegisterState InitCom = Zeros with { SP = 0xfffe, CS = null, DS = null, ES = null, SS = null };
+    public static readonly RegisterState InitCom = Zeros with { SP = 0xfffe, CS = null, DS = null, ES = null, SS = null, DF = false };
 
     public static readonly RegisterState Unknown = new();
 

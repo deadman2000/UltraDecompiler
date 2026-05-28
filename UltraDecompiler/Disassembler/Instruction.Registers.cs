@@ -28,6 +28,23 @@ public partial class Instruction
 			Mnemonic.CWD => ModifyRegistersCwd(state),
 			Mnemonic.PUSH => ModifyRegistersPush(state),
 			Mnemonic.POP => ModifyRegistersPop(state),
+
+			// Строковые инструкции
+			Mnemonic.MOVSB => ModifyRegistersString(state, size: 1, updatesCx: false),
+			Mnemonic.MOVSW => ModifyRegistersString(state, size: 2, updatesCx: false),
+			Mnemonic.CMPSB => ModifyRegistersString(state, size: 1, updatesCx: false),
+			Mnemonic.CMPSW => ModifyRegistersString(state, size: 2, updatesCx: false),
+			Mnemonic.SCASB => ModifyRegistersString(state, size: 1, updatesCx: false),
+			Mnemonic.SCASW => ModifyRegistersString(state, size: 2, updatesCx: false),
+			Mnemonic.LODSB => ModifyRegistersString(state, size: 1, updatesCx: false),
+			Mnemonic.LODSW => ModifyRegistersString(state, size: 2, updatesCx: false),
+			Mnemonic.STOSB => ModifyRegistersString(state, size: 1, updatesCx: false),
+			Mnemonic.STOSW => ModifyRegistersString(state, size: 2, updatesCx: false),
+
+			// Флаги направления (влияют на последующие строковые инструкции)
+			Mnemonic.CLD => state with { DF = false },
+			Mnemonic.STD => state with { DF = true },
+
 			// TODO: MUL, IMUL, DIV, IDIV, shifts (SAL, SHR, SAR, ROL, ROR, RCL, RCR), DAA, DAS, AAA, AAS, AAM, AAD, LEA, etc.
 			_ => state,
 		};
@@ -447,6 +464,59 @@ public partial class Instruction
 				3 => state with { DS = null },
 				_ => state
 			};
+		}
+
+		return state;
+	}
+
+	/// <summary>
+	/// Обработка строковых инструкций (MOVS, CMPS, SCAS, LODS, STOS).
+	/// 
+	/// Правила:
+	/// - SI и DI обновляются в зависимости от DF (+/- size).
+	/// - Если есть REP/REPZ/REPNZ префикс — CX сбрасывается в null (мы не знаем точное количество итераций,
+	///   особенно для CMPS/SCAS с досрочным выходом).
+	/// - Для MOVS/LODS/STOS без REP CX не трогаем.
+	/// </summary>
+	private RegisterState ModifyRegistersString(RegisterState state, int size, bool updatesCx)
+	{
+		// Определяем направление
+		int delta = 0;
+		if (state.DF.HasValue)
+		{
+			delta = state.DF.Value ? -size : +size;
+		}
+
+		// Обновляем SI (источник)
+		bool updatesSi = Mnemonic is Mnemonic.MOVSB or Mnemonic.MOVSW or Mnemonic.CMPSB or Mnemonic.CMPSW or Mnemonic.LODSB or Mnemonic.LODSW;
+
+		if (updatesSi)
+		{
+			if (state.SI.HasValue && delta != 0)
+				state = state with { SI = (ushort)(state.SI.Value + delta) };
+			else if (delta != 0)
+				state = state with { SI = null };
+		}
+
+		// Обновляем DI (приёмник)
+		bool updatesDi = Mnemonic is Mnemonic.MOVSB or Mnemonic.MOVSW or Mnemonic.CMPSB or Mnemonic.CMPSW or Mnemonic.SCASB or Mnemonic.SCASW or Mnemonic.STOSB or Mnemonic.STOSW;
+
+		if (updatesDi)
+		{
+			if (state.DI.HasValue && delta != 0)
+				state = state with { DI = (ushort)(state.DI.Value + delta) };
+			else if (delta != 0)
+				state = state with { DI = null };
+		}
+
+		// Обработка REP-префиксов
+		bool hasRepPrefix = Prefix.HasFlag(InstructionPrefix.REPZ) || Prefix.HasFlag(InstructionPrefix.REPNZ);
+
+		if (hasRepPrefix || updatesCx)
+		{
+			// При REP* CX почти всегда становится неизвестным (особенно для CMPS/SCAS).
+			// Даже для MOVS/LODS/STOS с REP, если мы не знаем начальное CX — результат неизвестен.
+			state = state with { CH = null, CL = null };
 		}
 
 		return state;

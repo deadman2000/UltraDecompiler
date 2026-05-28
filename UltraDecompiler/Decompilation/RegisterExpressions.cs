@@ -35,6 +35,7 @@ public record struct RegisterExpressions(
     public Expr CF { get; init; } = ConstExpr.Zero;
     public Expr SF { get; init; } = ConstExpr.Zero;
     public Expr OF { get; init; } = ConstExpr.Zero;
+    public Expr DF { get; init; } = ConstExpr.Zero;   // Direction Flag: 0 = вперёд, 1 = назад
 
     // ===== Хелперы для сокращения дублирования логики 4 групп (AX/AH/AL, CX/CH/CL и т.д.) =====
 

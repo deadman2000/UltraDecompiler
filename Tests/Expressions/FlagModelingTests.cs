@@ -99,6 +99,68 @@ public class FlagModelingTests : BaseTests
         Assert.IsType<CmpExpr>(block.EndRegisters.CF);
     }
 
+    // ============================================================
+    // Тесты Direction Flag (DF) — CLD / STD
+    // ============================================================
+
+    [Fact]
+    public void Cld_SetsDfToZero()
+    {
+        var expr = BuildExpressions("""
+            FC    ; cld
+            """);
+
+        var block = expr.Blocks[0];
+        Assert.Equal(ConstExpr.Zero, block.EndRegisters.DF);
+    }
+
+    [Fact]
+    public void Std_SetsDfToOne()
+    {
+        var expr = BuildExpressions("""
+            FD    ; std
+            """);
+
+        var block = expr.Blocks[0];
+        Assert.Equal(ConstExpr.One, block.EndRegisters.DF);
+    }
+
+    [Fact]
+    public void Cld_Std_Cld_Sequence()
+    {
+        var expr = BuildExpressions("""
+            FC    ; cld
+            FD    ; std
+            FC    ; cld
+            """);
+
+        // Все инструкции без переходов попадают в один блок
+        var block = expr.Blocks[0];
+        Assert.Equal(ConstExpr.Zero, block.EndRegisters.DF);
+    }
+
+    [Fact]
+    public void Df_Persists_Across_Blocks()
+    {
+        // DF должен передаваться между базовыми блоками
+        var expr = BuildExpressions("""
+            FD          ; std
+            75 01       ; jne +1
+            90          ; nop (fallthrough)
+            90          ; nop (target of jne)
+            """);
+
+        // Блок с STD
+        var firstBlock = expr.Blocks.First(b => b.BasicBlock.Instructions.Any(i => i.Mnemonic == UltraDecompiler.Disassembler.Mnemonic.STD));
+        Assert.Equal(ConstExpr.One, firstBlock.EndRegisters.DF);
+
+        // Следующий блок должен унаследовать DF = 1
+        if (firstBlock.Next != null)
+        {
+            Assert.Equal(ConstExpr.One, firstBlock.Next.InitRegisters.DF);
+        }
+    }
+
     [Fact]
     public void LogicalOps_ClearCfAndOf()
     {

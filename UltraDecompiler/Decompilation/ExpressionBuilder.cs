@@ -250,8 +250,13 @@ public partial class ExpressionBuilder
                     break;
 
                 case Mnemonic.CLD:
+                    // DF = 0 → инкремент SI/DI при строковых операциях
+                    exprBlock.EndRegisters = exprBlock.EndRegisters with { DF = ConstExpr.Zero };
+                    break;
+
                 case Mnemonic.STD:
-                    // DF (direction flag) для строковых операций. Строковые опкоды пока TODO.
+                    // DF = 1 → декремент SI/DI при строковых операциях
+                    exprBlock.EndRegisters = exprBlock.EndRegisters with { DF = ConstExpr.One };
                     break;
 
                 case Mnemonic.CLC:
@@ -284,7 +289,33 @@ public partial class ExpressionBuilder
                     HandlePop(exprBlock, instr);
                     break;
 
-                // TODO: MUL/IMUL/DIV/IDIV, строковые операции, LAHF/SAHF/PUSHF/POPF, CLD/STD и др.
+                // Одиночные строковые инструкции (без REP)
+                case Mnemonic.MOVSB:
+                case Mnemonic.MOVSW:
+                    HandleStringMove(exprBlock, instr);
+                    break;
+
+                case Mnemonic.STOSB:
+                case Mnemonic.STOSW:
+                    HandleStringStore(exprBlock, instr);
+                    break;
+
+                case Mnemonic.LODSB:
+                case Mnemonic.LODSW:
+                    HandleStringLoad(exprBlock, instr);
+                    break;
+
+                case Mnemonic.CMPSB:
+                case Mnemonic.CMPSW:
+                    HandleStringCompare(exprBlock, instr);
+                    break;
+
+                case Mnemonic.SCASB:
+                case Mnemonic.SCASW:
+                    HandleStringScan(exprBlock, instr);
+                    break;
+
+                // TODO: MUL/IMUL/DIV/IDIV, REP* строковые, LAHF/SAHF/PUSHF/POPF и др.
                 default:
                     throw new NotImplementedException($"Instruction {instr} is not yet supported");
             }
@@ -419,6 +450,23 @@ public partial class ExpressionBuilder
         var srcExpr = GetExpression(instr.Operand2, block.EndRegisters, instr.Segment);
         var dstCurrent = GetExpression(dst, block.EndRegisters, instr.Segment);
 
+        // Специальная обработка: SUB reg, reg → результат всегда 0
+        if (instr.Mnemonic == Mnemonic.SUB && OperandsReferToSameLocation(dst, instr.Operand2))
+        {
+            if (dst.Type == OperandType.Register16)
+                block.EndRegisters = block.EndRegisters.Set16(dst.Value, ConstExpr.Zero);
+            else if (dst.Type == OperandType.Register8)
+                block.EndRegisters = block.EndRegisters.Set8(dst.Value, ConstExpr.Zero);
+            else if (dst.Type == OperandType.Memory)
+            {
+                var (addr, seg) = BuildMemoryReference(dst, block.EndRegisters, instr.Segment);
+                block.Operations.Add(new StoreOperation(addr, seg, ConstExpr.Zero));
+            }
+
+            block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, ConstExpr.Zero);
+            return;
+        }
+
         var op = instr.Mnemonic == Mnemonic.ADD ? Math2Operation.Add : Math2Operation.Sub;
         Expr result = Calculate(op, dstCurrent, srcExpr);
 
@@ -528,6 +576,25 @@ public partial class ExpressionBuilder
             Mnemonic.XOR => Math2Operation.Xor,
             _ => throw new InvalidOperationException($"Unexpected logical mnemonic: {instr.Mnemonic}")
         };
+
+        // Специальная обработка: XOR reg, reg  →  результат всегда 0
+        // (даже если reg содержал Variable или сложное выражение)
+        if (instr.Mnemonic == Mnemonic.XOR && OperandsReferToSameLocation(dst, instr.Operand2))
+        {
+            if (dst.Type == OperandType.Register16)
+                block.EndRegisters = block.EndRegisters.Set16(dst.Value, ConstExpr.Zero);
+            else if (dst.Type == OperandType.Register8)
+                block.EndRegisters = block.EndRegisters.Set8(dst.Value, ConstExpr.Zero);
+            else if (dst.Type == OperandType.Memory)
+            {
+                var (addr, seg) = BuildMemoryReference(dst, block.EndRegisters, instr.Segment);
+                block.Operations.Add(new StoreOperation(addr, seg, ConstExpr.Zero));
+            }
+
+            block.EndRegisters = block.EndRegisters with { CF = ConstExpr.Zero, OF = ConstExpr.Zero };
+            block.EndRegisters = ApplyArithmeticFlags(block.EndRegisters, ConstExpr.Zero);
+            return;
+        }
 
         Expr result = Calculate(op, dstCurrent, srcExpr);
 
@@ -843,6 +910,26 @@ public partial class ExpressionBuilder
         var resultVar = Variables.CreateVariable();
         block.Operations.Add(new SetOperation(resultVar, callExpr));
         block.EndRegisters = block.EndRegisters.Set16(0, resultVar);
+    }
+
+    /// <summary>
+    /// Проверяет, указывают ли два операнда на одно и то же место
+    /// (один и тот же регистр или одна и та же ячейка памяти).
+    /// Используется для оптимизации XOR reg,reg → 0 и SUB reg,reg → 0.
+    /// </summary>
+    private static bool OperandsReferToSameLocation(Operand op1, Operand op2)
+    {
+        if (op1.Type != op2.Type)
+            return false;
+
+        return op1.Type switch
+        {
+            OperandType.Register8 or OperandType.Register16 => op1.Value == op2.Value,
+            OperandType.Memory => op1.BaseReg == op2.BaseReg &&
+                                  op1.IndexReg == op2.IndexReg &&
+                                  op1.Value == op2.Value,
+            _ => false
+        };
     }
 
 }
