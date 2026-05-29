@@ -68,7 +68,7 @@ DosExeParser → X86Disassembler → ControlFlowGraph → ExpressionBuilder → 
 - `Operation.cs` — side-effect операции: `SetOperation`, `CallOperation`, `StoreOperation`.
 - `ExprBlock.cs` — результат для одного BasicBlock (Operations + Condition + ссылки на следующие блоки).
 - `VariableStorage.cs` + `PspKnownFields` — отслеживание переменных + распознавание обращений к PSP (Program Segment Prefix).
-- `DosInterruptHelper.cs` — преобразование INT 21h в красивые вызовы (`dos_open`, `dos_print_string` и т.д.) на основе `assets/msdos.h`. При генерации кода ориентируется на оригинальные заголовки из `assets/QuickC/`.
+- `DosInterruptHelper.cs` — преобразование INT 21h в красивые вызовы (`dos_open`, `dos_print_string` и т.д.) на основе `msdos.h`. При генерации кода ориентируется на оригинальные заголовки из `assets/QuickC/`.
 
 **Ключевой принцип ExpressionBuilder:**
 > MOV/LEA просто обновляют символическое состояние регистров.  
@@ -86,11 +86,11 @@ DosExeParser → X86Disassembler → ControlFlowGraph → ExpressionBuilder → 
 | `UltraDecompiler/Disassembler/X86Disassembler.cs` | Главный дизассемблер (самый сложный файл) |
 | `UltraDecompiler/Decompilation/ExpressionBuilder.cs` | Основная логика декомпиляции (символическое выполнение) |
 | `UltraDecompiler/Decompilation/RegisterExpressions.cs` | Моделирование регистров + флагов |
-| `UltraDecompiler/assets/msdos.h` | Целевой стиль API для сгенерированного кода (QuickC-совместимый) |
 | `UltraDecompiler/assets/QuickC/` | Оригинальные заголовочные файлы Microsoft QuickC 1.0 (DOS.H, CONIO.H, STDIO.H, BIOS.H и др.). Используются как эталон для генерации совместимого кода |
 | `TODO.md` | Актуальный список ограничений, нереализованных инструкций и задач проекта |
 | `Tests/BaseTests.cs` | Удобные хелперы для тестов (hex DSL) |
 | `Tests/Tools/HexConverter.cs` | Парсер hex-строк с комментариями `;` |
+| `QuickC/INCLUDE/msdos.h` | Целевой стиль API для сгенерированного кода (QuickC-совместимый) |
 
 ### Заголовочные файлы QuickC
 
