@@ -38,7 +38,7 @@ public partial class ExpressionBuilder
             {
                 foreach (var op in block.Operations)
                 {
-                    lines.Add(op.ToString() ?? string.Empty);
+                    lines.Add(op.ToCString() ?? string.Empty);
                 }
             }
 

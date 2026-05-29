@@ -161,5 +161,12 @@ public class DosExeParser
         Console.WriteLine($"Размер образа   : {Image.Length} байт");
         Console.WriteLine($"Мин. память     : {DosHeader.MinAlloc * 16} байт");
         Console.WriteLine($"Макс. память    : {DosHeader.MaxAlloc * 16} байт");
+
+        Console.WriteLine("Релокации:");
+        for (int i = 0; i < Relocations.Length; i++)
+        {
+            var rel = Relocations[i];
+            Console.WriteLine($"  {rel.Offset:X4} {rel.Segment:X4}");
+        }
     }
 }

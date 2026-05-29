@@ -19,16 +19,14 @@ public readonly struct Operand
     public readonly int Value;        // immediate, displacement, or register index
     public readonly AddressRegister BaseReg;     // for memory: BX, BP, SI, DI
     public readonly AddressRegister IndexReg;    // for memory: SI, DI
-    public readonly byte Scale;       // usually 1
 
-    public Operand(OperandType type, int value = 0, AddressRegister baseReg = AddressRegister.None, AddressRegister indexReg = AddressRegister.None, byte scale = 1)
+    public Operand(OperandType type, int value = 0, AddressRegister baseReg = AddressRegister.None, AddressRegister indexReg = AddressRegister.None)
     {
         Debug.Assert(value >= short.MinValue && value <= ushort.MaxValue);
         Type = type;
         Value = value;
         BaseReg = baseReg;
         IndexReg = indexReg;
-        Scale = scale;
     }
 
     public bool IsSet => Type != OperandType.None;
