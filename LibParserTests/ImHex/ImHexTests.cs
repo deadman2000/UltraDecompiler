@@ -1,0 +1,50 @@
+﻿using System.Text.Json;
+using LibParser.Omf;
+using LibParserTests.ImHex;
+
+namespace LibParserTests;
+
+/// <summary>
+/// Прогон эталонных QuickC .LIB через ImHex CLI (<c>imhex --pl format</c>) и шаблон <c>omf_lib.hexpat</c>.
+/// </summary>
+[Trait("TOOL", "IMHEX")]
+public sealed partial class ImHexTests
+{
+    public static IEnumerable<object[]> QuickCLibraryMemberData()
+    {
+        if (!ImHexTestAssets.IsImHexAvailable || !ImHexTestAssets.IsPatternAvailable)
+        {
+            yield break;
+        }
+
+        foreach (var fileName in QuickCLibAssets.EnumerateLibFileNames())
+        {
+            yield return [fileName];
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(QuickCLibraryMemberData))]
+    public void OmfLibHexpat_ValidatesQuickCLibrary(string libFileName)
+    {
+        if (!QuickCLibAssets.Exists(libFileName))
+        {
+            return;
+        }
+
+        var libPath = QuickCLibAssets.PathOf(libFileName);
+        var result = ImHexPatternRunner.Run(
+            ImHexTestAssets.ImHexExecutable,
+            libPath,
+            ImHexTestAssets.OmfLibPatternPath);
+
+        Assert.True(
+            result.Success,
+            $"ImHex: ошибка паттерна для {libFileName}.{Environment.NewLine}{result.Details}");
+
+        Assert.False(string.IsNullOrWhiteSpace(result.Json));
+        using var document = JsonDocument.Parse(result.Json!);
+        var expected = OmfLibraryParser.ParseFile(libPath);
+        ImHexJsonValidator.Validate(document.RootElement, expected, libFileName);
+    }
+}

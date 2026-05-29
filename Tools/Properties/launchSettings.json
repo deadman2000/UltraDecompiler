@@ -1,0 +1,24 @@
+{
+    "profiles": {
+        "Neuromancer": {
+            "commandName": "Project",
+            "commandLineArgs": "decompile D:\\Projects\\TranslateWeb\\Neuromancer\\Neuromancer_re\\NEURO.EXE"
+        },
+        "HELLO.EXE": {
+            "commandName": "Project",
+            "commandLineArgs": "decompile D:\\Dos\\PROGRAMS\\QuickC\\MY\\HELLO.EXE"
+        },
+        "HELLO.EXE printf": {
+            "commandName": "Project",
+            "commandLineArgs": "decompile D:\\Dos\\PROGRAMS\\QuickC\\MY\\HELLO.EXE -o 5C4h"
+        },
+        "SLIBCE.LIB modules": {
+            "commandName": "Project",
+            "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\SLIBCE.LIB -l"
+        },
+        "SLIBCE.LIB printf": {
+            "commandName": "Project",
+            "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\SLIBCE.LIB -s _printf"
+        }
+    }
+}

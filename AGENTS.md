@@ -84,7 +84,8 @@ DosExeParser → X86Disassembler → ControlFlowGraph → ExpressionBuilder → 
 
 | Путь | Назначение |
 |------|------------|
-| `UltraDecompiler/Program.cs` | CLI: парсинг → дизассемблирование → CFG → ExpressionBuilder |
+| `Tools/Commands/DecompileCommand.cs` | CLI `decompile`: парсинг → дизассемблирование → CFG → ExpressionBuilder |
+| `Tools/Commands/LibCommand.cs` | CLI `lib`: разбор OMF .LIB |
 | `UltraDecompiler/Disassembler/X86Disassembler.cs` | Главный дизассемблер (самый сложный файл) |
 | `UltraDecompiler/Decompilation/ExpressionBuilder.cs` | Основная логика декомпиляции (символическое выполнение) |
 | `UltraDecompiler/Decompilation/RegisterExpressions.cs` | Моделирование регистров + флагов |

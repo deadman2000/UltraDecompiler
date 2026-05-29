@@ -365,3 +365,9 @@ FodyWeavers.xsd
 report/
 *.dot
 *.svg
+
+# IDA
+*.i64
+*.id*
+*.nam
+*.til
