@@ -63,6 +63,14 @@ public record ConstExpr(int Value) : Expr
 }
 
 /// <summary>
+/// Смещение внутри загруженного образа программы (слова из таблицы релокаций MZ).
+/// </summary>
+public record ImageOffsetExpr(int Value) : Expr
+{
+    public override string ToString() => $"offset({Value:X4}h)";
+}
+
+/// <summary>
 /// Доступ к памяти по вычисленному адресу (dereference / load).
 /// Представляет значение по адресу, например ES:[BX+SI+5] или [BP-2].
 /// Segment — символическое выражение сегментного регистра (если известно).

@@ -1,16 +1,36 @@
+using UltraDecompiler.Parser;
+
 namespace UltraDecompiler.Disassembler;
 
 public class X86Disassembler
 {
     private int _pos;
 
-    public int DataSegmentBase { get; set; }
+    /// <summary>
+    /// Таблица релокаций MZ EXE (пустая для .COM и сырого бинарника).
+    /// </summary>
+    public RelocationTable Relocations { get; }
 
     public byte[] Image { get; }
 
     public X86Disassembler(byte[] image)
+        : this(image, RelocationTable.Empty)
     {
-        Image = image ?? throw new ArgumentNullException(nameof(image));
+    }
+
+    public X86Disassembler(byte[] image, RelocationEntry[] relocations)
+        : this(image, new RelocationTable(relocations))
+    {
+    }
+
+    public X86Disassembler(byte[] image, RelocationTable relocations)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        ArgumentNullException.ThrowIfNull(relocations);
+
+        Relocations = relocations;
+
+        Image = image;
     }
 
     public List<Instruction> Instructions { get; private set; } = [];
@@ -64,7 +84,7 @@ public class X86Disassembler
 
             if (instr.IsConditionalJump || instr.IsUnconditionalJump)
             {
-                int target = GetEffectiveJumpTarget(instr);
+                int target = instr.GetEffectiveJumpTarget(Image);
                 if (target != -1)
                     queue.Enqueue((target, registers));
             }
@@ -100,25 +120,6 @@ public class X86Disassembler
             if (instr.IsConditionalJump || instr.IsUnconditionalJump || instr.IsReturn || instr.IsExit)
                 break;
         }
-    }
-
-    private int GetEffectiveJumpTarget(Instruction instr)
-    {
-        int direct = instr.GetJumpTarget();
-        if (direct != -1)
-            return direct;
-
-        var op = instr.Operand1.IsSet ? instr.Operand1 : instr.Operand2;
-        if ((instr.Mnemonic == Mnemonic.CALL || instr.Mnemonic == Mnemonic.JMP) && op.Type == OperandType.Memory)
-        {
-            int realAddr = DataSegmentBase + op.Value;
-            if (realAddr >= 0 && realAddr + 2 <= Image.Length)
-            {
-                return (ushort)(Image[realAddr] | (Image[realAddr + 1] << 8));
-            }
-        }
-
-        return -1;
     }
 
     private Instruction DecodeOneInstruction()
@@ -340,7 +341,7 @@ public class X86Disassembler
             case 0xE9: return DecodeNearJump();
 
             case 0xE8:
-                short rel = (short)ReadUInt16();
+                short rel = (short)ReadUInt16Core();
                 return new Instruction
                 {
                     Mnemonic = Mnemonic.CALL,
@@ -609,13 +610,11 @@ public class X86Disassembler
 
     private Instruction DecodeEnter()
     {
-        ushort alloc = ReadUInt16();
-        byte level = ReadByte();
         return new Instruction
         {
             Mnemonic = Mnemonic.ENTER,
-            Operand1 = new Operand(OperandType.Immediate16, alloc),
-            Operand2 = new Operand(OperandType.Immediate8, level)
+            Operand1 = Imm16(ReadUInt16()),
+            Operand2 = Imm8(ReadByte())
         };
     }
 
@@ -654,12 +653,11 @@ public class X86Disassembler
     {
         Mnemonic mnem = GetAluMnemonicEnum(opcode);
         bool word = (opcode & 1) == 1;
-        ushort imm = word ? ReadUInt16() : ReadByte();
         var instr = new Instruction
         {
             Mnemonic = mnem,
             Operand1 = word ? Operand.AX : Operand.AL,
-            Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm)
+            Operand2 = word ? Imm16(ReadUInt16()) : Imm8(ReadByte())
         };
         return instr;
     }
@@ -691,7 +689,12 @@ public class X86Disassembler
             instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, modrm & 7);
         else
             instr.Operand1 = ParseMemoryOperand(modrm & 7, mod);
-        instr.Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, signExtend ? (ushort)(sbyte)ReadByte() : (word ? ReadUInt16() : ReadByte()));
+        if (signExtend)
+            instr.Operand2 = Imm16((ushort)(sbyte)ReadByte());
+        else if (word)
+            instr.Operand2 = Imm16(ReadUInt16());
+        else
+            instr.Operand2 = Imm8(ReadByte());
 
         return instr;
     }
@@ -725,8 +728,7 @@ public class X86Disassembler
 
         if (regField == 0)
         {
-            ushort imm = word ? ReadUInt16() : ReadByte();
-            instr.Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm);
+            instr.Operand2 = word ? Imm16(ReadUInt16()) : Imm8(ReadByte());
         }
 
         return instr;
@@ -818,12 +820,11 @@ public class X86Disassembler
     {
         bool word = opcode >= 0xB8;
         int regIndex = opcode - (word ? 0xB8 : 0xB0);
-        ushort imm = word ? ReadUInt16() : ReadByte();
         return new Instruction
         {
             Mnemonic = Mnemonic.MOV,
             Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, regIndex),
-            Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm)
+            Operand2 = word ? Imm16(ReadUInt16()) : Imm8(ReadByte())
         };
     }
 
@@ -839,33 +840,31 @@ public class X86Disassembler
             instr.Operand1 = new Operand(word ? OperandType.Register16 : OperandType.Register8, rm);
         else
             instr.Operand1 = ParseMemoryOperand(rm, mod);
-        instr.Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, word ? ReadUInt16() : ReadByte());
+        instr.Operand2 = word ? Imm16(ReadUInt16()) : Imm8(ReadByte());
         return instr;
     }
 
     private Instruction DecodeMovAxMem(byte opcode)
     {
-        ushort disp = ReadUInt16();
-
         var instr = new Instruction { Mnemonic = Mnemonic.MOV };
         if (opcode == 0xA0)
         {
             instr.Operand1 = Operand.AL;
-            instr.Operand2 = new Operand(OperandType.Memory, disp);
+            instr.Operand2 = Memory(ReadUInt16());
         }
         if (opcode == 0xA1)
         {
             instr.Operand1 = Operand.AX;
-            instr.Operand2 = new Operand(OperandType.Memory, disp);
+            instr.Operand2 = Memory(ReadUInt16());
         }
         if (opcode == 0xA2)
         {
-            instr.Operand1 = new Operand(OperandType.Memory, disp);
+            instr.Operand1 = Memory(ReadUInt16());
             instr.Operand2 = Operand.AL;
         }
         if (opcode == 0xA3)
         {
-            instr.Operand1 = new Operand(OperandType.Memory, disp);
+            instr.Operand1 = Memory(ReadUInt16());
             instr.Operand2 = Operand.AX;
         }
         return instr;
@@ -936,7 +935,7 @@ public class X86Disassembler
 
     private Instruction DecodeNearJump()
     {
-        short rel = (short)ReadUInt16();
+        short rel = (short)ReadUInt16Core();
         int target = _pos + rel;
 
         var instr = new Instruction
@@ -1003,14 +1002,12 @@ public class X86Disassembler
     private Instruction DecodeTestAxImm(byte opcode)
     {
         bool word = (opcode & 1) == 1;
-        ushort imm = word ? ReadUInt16() : ReadByte();
-        var instr = new Instruction
+        return new Instruction
         {
             Mnemonic = Mnemonic.TEST,
             Operand1 = word ? Operand.AX : Operand.AL,
-            Operand2 = new Operand(word ? OperandType.Immediate16 : OperandType.Immediate8, imm)
+            Operand2 = word ? Imm16(ReadUInt16()) : Imm8(ReadByte())
         };
-        return instr;
     }
 
     private Instruction DecodeShift(byte opcode)
@@ -1096,7 +1093,7 @@ public class X86Disassembler
             case 7: baseReg = AddressRegister.BX; break; // [BX]
         }
 
-        return new Operand(OperandType.Memory, disp, baseReg, indexReg);
+        return Memory(disp, baseReg, indexReg);
     }
 
     private static Mnemonic GetAluMnemonicEnum(byte opcode)
@@ -1115,12 +1112,33 @@ public class X86Disassembler
         };
     }
 
-    private byte ReadByte() => Image[_pos++];
+    private bool _operandRelocated;
 
-    private ushort ReadUInt16()
+    private byte ReadByte()
+    {
+        _operandRelocated = false;
+        return Image[_pos++];
+    }
+
+    private ushort ReadUInt16Core()
     {
         ushort val = (ushort)(Image[_pos] | (Image[_pos + 1] << 8));
         _pos += 2;
         return val;
     }
+
+    private ushort ReadUInt16()
+    {
+        _operandRelocated = Relocations.ContainsLinearAddress(_pos);
+        return ReadUInt16Core();
+    }
+
+    private Operand Imm16(int value) =>
+        new(OperandType.Immediate16, value, isRelocated: _operandRelocated);
+
+    private Operand Imm8(int value) =>
+        new(OperandType.Immediate8, value);
+
+    private Operand Memory(int disp, AddressRegister baseReg = AddressRegister.None, AddressRegister indexReg = AddressRegister.None) =>
+        new(OperandType.Memory, disp, baseReg, indexReg, isRelocated: _operandRelocated);
 }

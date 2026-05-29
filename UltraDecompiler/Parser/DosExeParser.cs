@@ -8,7 +8,8 @@ public class DosExeParser
 
     public ImageDosHeader DosHeader { get; private set; }
     public RelocationEntry[] Relocations { get; private set; }
-    public byte[] Image { get; private set; }          // Полный загруженный образ программы
+    public RelocationTable RelocationTable { get; private set; } = RelocationTable.Empty;
+    public byte[] Image { get; private set; }          // Образ программы из файла
     public long ImageBase { get; private set; }        // Линейный адрес начала программы
     public uint EntryPointOffset { get; private set; } // Смещение точки входа относительно ImageBase
     public bool IsCom { get; private set; }            // true для .COM файлов (без MZ заголовка)
@@ -31,6 +32,7 @@ public class DosExeParser
                 // Это .COM файл (или сырой бинарник)
                 IsCom = true;
                 Relocations = [];
+                RelocationTable = RelocationTable.Empty;
                 DosHeader = default; // нет заголовка
 
                 // Для .COM: загружаем весь файл как есть. Точка входа = 0
@@ -51,8 +53,9 @@ public class DosExeParser
         if (DosHeader.Magic != 0x5A4D)
             throw new InvalidDataException("Не MZ-файл");
 
-        // Читаем таблицу релокаций
+        // Читаем таблицу релокаций (fixup выполняет дизассемблер при парсинге операций)
         Relocations = ReadRelocationTable(br);
+        RelocationTable = new RelocationTable(Relocations);
 
         // Вычисляем размер заголовка и образа
         long headerSize = (long)DosHeader.HeaderSizeInParagraphs * 16;
@@ -68,9 +71,6 @@ public class DosExeParser
 
         // Вычисляем точку входа
         EntryPointOffset = (uint)(DosHeader.InitCS * 16 + DosHeader.InitIP);
-
-        // Применяем релокации
-        ApplyRelocations();
     }
 
     private RelocationEntry[] ReadRelocationTable(BinaryReader br)
@@ -91,27 +91,6 @@ public class DosExeParser
         }
 
         return relocations;
-    }
-
-    private void ApplyRelocations()
-    {
-        foreach (var rel in Relocations)
-        {
-            long linearAddr = (long)rel.Segment * 16 + rel.Offset;
-
-            if (linearAddr + 2 > Image.Length) continue;
-
-            // Читаем текущее значение (16-битный указатель)
-            ushort value = BitConverter.ToUInt16(Image, (int)linearAddr);
-
-            // DOS добавляет к сегменту базовый адрес загрузки (обычно PSP:0x10)
-            // Для простоты считаем, что базовый адрес загрузки = 0
-            value += (ushort)(ImageBase >> 4); // + параграф загрузки
-
-            // Записываем обратно
-            byte[] bytes = BitConverter.GetBytes(value);
-            Array.Copy(bytes, 0, Image, (int)linearAddr, 2);
-        }
     }
 
     private long CalculateImageSize()
@@ -166,7 +145,7 @@ public class DosExeParser
         for (int i = 0; i < Relocations.Length; i++)
         {
             var rel = Relocations[i];
-            Console.WriteLine($"  {rel.Offset:X4} {rel.Segment:X4}");
+            Console.WriteLine($"  {rel.LinearAddress:X4}");
         }
     }
 }

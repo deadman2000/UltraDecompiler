@@ -20,13 +20,25 @@ public readonly struct Operand
     public readonly AddressRegister BaseReg;     // for memory: BX, BP, SI, DI
     public readonly AddressRegister IndexReg;    // for memory: SI, DI
 
-    public Operand(OperandType type, int value = 0, AddressRegister baseReg = AddressRegister.None, AddressRegister indexReg = AddressRegister.None)
+    /// <summary>
+    /// Слово в коде/данных образа входит в таблицу релокаций MZ:
+    /// значение — смещение относительно загруженного образа, а не произвольная константа.
+    /// </summary>
+    public readonly bool IsRelocated;
+
+    public Operand(
+        OperandType type,
+        int value = 0,
+        AddressRegister baseReg = AddressRegister.None,
+        AddressRegister indexReg = AddressRegister.None,
+        bool isRelocated = false)
     {
         Debug.Assert(value >= short.MinValue && value <= ushort.MaxValue);
         Type = type;
         Value = value;
         BaseReg = baseReg;
         IndexReg = indexReg;
+        IsRelocated = isRelocated;
     }
 
     public bool IsSet => Type != OperandType.None;

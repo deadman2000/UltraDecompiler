@@ -190,7 +190,6 @@ public class JumpsCallsTests : BaseTests
     {
         // JMP [0004] (косвенный, указатель в памяти = 0005h)
         var disassembler = new X86Disassembler("FF 26 04 00 05 00 C3".FromHex());
-        disassembler.DataSegmentBase = 0;
         disassembler.Disassemble(0);
         Assert.Equal(Mnemonic.JMP, disassembler.Instructions[0].Mnemonic);
         // Covers the memory indirect jump target resolution in GetEffectiveJumpTarget (realAddr + read ushort)

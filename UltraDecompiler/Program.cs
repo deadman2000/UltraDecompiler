@@ -30,7 +30,7 @@ try
 
     Console.WriteLine("\n=== Disassembly from entry point ===");
 
-    var disassembler = new X86Disassembler(parser.Image);
+    var disassembler = new X86Disassembler(parser.Image, parser.RelocationTable);
     disassembler.Disassemble((int)parser.EntryPointOffset, initRegisterState);
 
     int next = 0;

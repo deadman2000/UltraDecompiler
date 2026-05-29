@@ -194,7 +194,7 @@ public static class Extensions
         /// в наше высокоуровневое представление.
         /// 
         /// Поддерживаемые типы:
-        /// - Immediate → ConstExpr
+        /// - Immediate → ConstExpr (или ImageOffsetExpr, если операнд релоцирован)
         /// - Регистры (8/16, сегментные) → текущее символическое значение из RegisterExpressions
         /// - Memory → MemExpr(адрес, сегмент). 
         ///   Сегмент заполняется либо из явного префикса (ES:/CS:/SS:/DS:), либо по умолчанию
@@ -203,7 +203,11 @@ public static class Extensions
         public Expr GetExpression(ExprBlock block, Segment segmentOverride = Segment.None)
         {
             if (operand.Type == OperandType.Immediate8 || operand.Type == OperandType.Immediate16)
+            {
+                if (operand.IsRelocated)
+                    return new ImageOffsetExpr(operand.Value);
                 return new ConstExpr(operand.Value);
+            }
 
             if (operand.Type == OperandType.Register16)
             {
@@ -256,7 +260,9 @@ public static class Extensions
 
             if (operand.Value != 0 || addr == null)
             {
-                var disp = new ConstExpr(operand.Value);
+                Expr disp = operand.IsRelocated
+                    ? new ImageOffsetExpr(operand.Value)
+                    : new ConstExpr(operand.Value);
                 addr = addr == null ? disp : addr.Calculate(Math2Operation.Add, disp);
             }
 

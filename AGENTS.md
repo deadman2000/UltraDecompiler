@@ -34,11 +34,13 @@ DosExeParser → X86Disassembler → ControlFlowGraph → ExpressionBuilder → 
 
 ### 1. Parser (`UltraDecompiler/Parser/`)
 - `DosExeParser.cs` — загрузка и парсинг MZ .EXE и plain .COM файлов.
-- Применяет релокации, определяет точку входа.
+- Читает таблицу релокаций и отдаёт сырой образ; fixup выполняет дизассемблер.
+- Определяет точку входа.
 - Различает `IsCom` (разная инициализация регистров на входе).
 
 ### 2. Disassembler (`UltraDecompiler/Disassembler/`)
-- `X86Disassembler.cs` — рекурсивный дизассемблер с отслеживанием регистров (`RegisterState`).
+- `X86Disassembler.cs` — рекурсивный дизассемблер с отслеживанием регистров (`RegisterState`). При загрузке MZ EXE применяет `RelocationTable` к копии образа (параграф базы загрузки = `ImageBase >> 4`).
+- `Parser/RelocationTable.cs` — применение fixup к 16-битным словам по таблице релокаций.
 - Использует BFS + `DisassembleBranch` для корректного разбора переходов.
 - `DecodeOneInstruction()` — огромный свитч (высокая цикломатическая сложность ~257). Здесь вся логика декодирования опкодов 8086.
 - `Instruction.cs` + `Instruction.Registers.cs` — модель инструкции + применение эффектов на регистры.

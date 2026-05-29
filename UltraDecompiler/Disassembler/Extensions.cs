@@ -173,12 +173,16 @@ public static class Extensions
         public string ToAsm() => operand.Type switch
         {
             OperandType.Register8 or OperandType.Register16 => operand.GetRegName(),
-            OperandType.Immediate8 or OperandType.Immediate16 => operand.Value.ToHex(),
+            OperandType.Immediate8 => operand.Value.ToHex(),
+            OperandType.Immediate16 => operand.FormatImageOffset(operand.Value),
             OperandType.Memory => operand.GetMemoryString(),
             OperandType.Relative8 or OperandType.Relative16 => operand.Value.ToHex(),
             OperandType.SegmentRegister => operand.GetSegRegName(),
             _ => "?"
         };
+
+        private string FormatImageOffset(int value) =>
+            operand.IsRelocated ? $"offset {value.ToHex()}" : value.ToHex();
 
         private string GetRegName() => operand.Type switch
         {
@@ -253,7 +257,7 @@ public static class Extensions
             // Displacement
             if (operand.Value != 0)
             {
-                parts.Add(operand.Value.ToHex());
+                parts.Add(operand.FormatImageOffset(operand.Value));
             }
 
             if (parts.Count == 0)
