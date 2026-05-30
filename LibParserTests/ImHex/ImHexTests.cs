@@ -12,11 +12,6 @@ public sealed partial class ImHexTests
 {
     public static IEnumerable<object[]> QuickCLibraryMemberData()
     {
-        if (!ImHexTestAssets.IsImHexAvailable || !ImHexTestAssets.IsPatternAvailable)
-        {
-            yield break;
-        }
-
         foreach (var fileName in QuickCLibAssets.EnumerateLibFileNames())
         {
             yield return [fileName];
@@ -27,10 +22,8 @@ public sealed partial class ImHexTests
     [MemberData(nameof(QuickCLibraryMemberData))]
     public void OmfLibHexpat_ValidatesQuickCLibrary(string libFileName)
     {
-        if (!QuickCLibAssets.Exists(libFileName))
-        {
+        if (!ImHexTestAssets.IsImHexAvailable || !ImHexTestAssets.IsPatternAvailable || !QuickCLibAssets.Exists(libFileName))
             return;
-        }
 
         var libPath = QuickCLibAssets.PathOf(libFileName);
         var result = ImHexPatternRunner.Run(

@@ -45,6 +45,14 @@
 #*.gif   binary
 
 ###############################################################################
+# QuickC и прочие бинарные артефакты (OMF .LIB, DOS .EXE)
+###############################################################################
+*.LIB binary
+*.lib binary
+*.EXE binary
+*.exe binary
+
+###############################################################################
 # diff behavior for common document formats
 # 
 # Convert binary document formats to text before diffing them. This feature
