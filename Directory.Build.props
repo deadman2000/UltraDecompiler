@@ -1,0 +1,5 @@
+<Project>
+	<PropertyGroup>
+		<RunSettingsFilePath>$(MSBuildThisFileDirectory)default.runsettings</RunSettingsFilePath>
+	</PropertyGroup>
+</Project>

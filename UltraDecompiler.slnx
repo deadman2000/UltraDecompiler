@@ -2,13 +2,14 @@
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
     <File Path="AGENTS.md" />
+    <File Path="default.runsettings" />
     <File Path="Readme.md" />
   </Folder>
-  <Project Path="LibParser/LibParser.csproj" Id="1ada3799-6cfa-4b93-aa72-1f2f479a47cf" />
-  <Project Path="Tools/Tools.csproj" />
   <Folder Name="/Tests/">
     <Project Path="DecompilerTests/DecompilerTests.csproj" Id="9700c479-480f-47ae-b52c-2342582cadc3" />
     <Project Path="LibParserTests/LibParserTests.csproj" Id="3801ede4-44db-4ae1-a2eb-cc1219f2891f" />
   </Folder>
+  <Project Path="LibParser/LibParser.csproj" Id="1ada3799-6cfa-4b93-aa72-1f2f479a47cf" />
+  <Project Path="Tools/Tools.csproj" />
   <Project Path="UltraDecompiler/UltraDecompiler.csproj" />
 </Solution>

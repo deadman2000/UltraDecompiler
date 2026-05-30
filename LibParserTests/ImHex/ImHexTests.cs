@@ -6,7 +6,7 @@ namespace LibParserTests.ImHex;
 /// <summary>
 /// Прогон эталонных QuickC .LIB через ImHex CLI (<c>imhex --pl format</c>) и шаблон <c>omf_lib.hexpat</c>.
 /// </summary>
-[Trait("TOOL", "IMHEX")]
+[Trait("Tool", "ImHex")]
 public sealed partial class ImHexTests
 {
     public static IEnumerable<object[]> QuickCLibraryMemberData()

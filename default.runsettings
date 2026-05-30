@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+	<RunConfiguration>
+		<!-- 0 = все доступные ядра для параллельного запуска сборок тестов -->
+		<MaxCpuCount>0</MaxCpuCount>
+		<ResultsDirectory>.\TestResults</ResultsDirectory>
+		<TestCaseFilter>Tool != ImHex</TestCaseFilter>
+	</RunConfiguration>
+
+	<!-- Параллелизм xUnit: сборки и коллекции тестов -->
+	<xUnit>
+		<ParallelizeAssembly>true</ParallelizeAssembly>
+		<ParallelizeTestCollections>true</ParallelizeTestCollections>
+		<!-- 0 = число логических процессоров -->
+		<MaxParallelThreads>0</MaxParallelThreads>
+	</xUnit>
+
+	<!-- Coverlet: отчёты покрытия для UltraDecompiler и LibParser -->
+	<DataCollectionRunSettings>
+		<DataCollectors>
+			<DataCollector friendlyName="XPlat Code Coverage">
+				<Configuration>
+					<Format>cobertura,opencover,json</Format>
+					<Include>[UltraDecompiler]*,[LibParser]*</Include>
+					<Exclude>[*Tests]*</Exclude>
+					<ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
+					<IncludeTestAssembly>false</IncludeTestAssembly>
+					<SingleHit>false</SingleHit>
+					<UseSourceLink>true</UseSourceLink>
+				</Configuration>
+			</DataCollector>
+		</DataCollectors>
+	</DataCollectionRunSettings>
+</RunSettings>

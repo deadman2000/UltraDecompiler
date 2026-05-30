@@ -1,3 +1,4 @@
+using LibParser.Models;
 using LibParser.Omf;
 using McMaster.Extensions.CommandLineUtils;
 using UltraDecompiler.Disassembler;
@@ -87,6 +88,8 @@ internal static class LibCommand
                         $"  Сегмент [{seg.SegmentIndex}] {seg.SegmentName} ({seg.ClassName}): {seg.Data.Length} байт");
                 }
 
+                WriteFixupsTable(module.Fixups);
+
                 var code = module.CodeSegments.FirstOrDefault();
                 if (code is not null)
                 {
@@ -95,17 +98,9 @@ internal static class LibCommand
                     var disassembler = new X86Disassembler(code.Data);
                     disassembler.Disassemble(0);
 
-                    var next = 0;
                     foreach (var instr in disassembler.Instructions)
                     {
-                        if (instr.Offset < next)
-                        {
-                            Console.WriteLine($"Wrong instruction: {instr}");
-                            return 1;
-                        }
-
                         Console.WriteLine(instr.ToColoredString());
-                        next = instr.Offset + instr.Bytes.Length;
                     }
                 }
             }
@@ -117,5 +112,59 @@ internal static class LibCommand
             Console.WriteLine($"Error: {ex.Message}");
             return 1;
         }
+    }
+
+    private static void WriteFixupsTable(IReadOnlyList<OmfFixup> fixups)
+    {
+        Console.WriteLine();
+        Console.WriteLine($"  FIXUPP: {fixups.Count}");
+
+        if (fixups.Count == 0)
+        {
+            return;
+        }
+
+        Console.WriteLine(
+            $"  {"Offset",6} {"Seg",3} {"Type",12} {"Rel",3} {"Frame",-22} Target");
+
+        foreach (var fixup in fixups.OrderBy(f => f.SegmentOffset))
+        {
+            var rel = fixup.IsSegmentRelative ? "seg" : "pc";
+            Console.WriteLine(
+                $"  {fixup.SegmentOffset:X4} {fixup.SegmentIndex,3} " +
+                $"{fixup.LocationType,-12}{rel,3} " +
+                $"{FormatFixupReference(fixup.Frame),-22}{FormatFixupReference(fixup.Target)}");
+        }
+    }
+
+    private static string FormatFixupReference(OmfFixupReference reference)
+    {
+        var text = reference.Kind switch
+        {
+            OmfFixupDatumKind.Segdef => FormatIndexedReference("SEG", reference),
+            OmfFixupDatumKind.Grpdef => FormatIndexedReference("GRP", reference),
+            OmfFixupDatumKind.Extdef => FormatIndexedReference("EXT", reference),
+            OmfFixupDatumKind.LedataSegment => "LEDATA",
+            OmfFixupDatumKind.TargetFrame => "TFRAME",
+            _ => "?",
+        };
+
+        if (reference.FromThread)
+        {
+            return $"T{reference.ThreadNumber}:{text}";
+        }
+
+        return text;
+    }
+
+    private static string FormatIndexedReference(string prefix, OmfFixupReference reference)
+    {
+        var name = reference.Name ?? $"#{reference.Index}";
+        if (reference.Displacement == 0)
+        {
+            return $"{prefix} {name}";
+        }
+
+        return $"{prefix} {name}+0x{reference.Displacement:X}";
     }
 }
