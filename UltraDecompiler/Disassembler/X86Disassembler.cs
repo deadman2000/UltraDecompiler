@@ -33,6 +33,16 @@ public class X86Disassembler
         Image = image;
     }
 
+    public static List<Instruction> Disassemble(byte[] image,
+        RelocationTable relocations,
+        int startOffset,
+        RegisterState initRegisters)
+    {
+        var disassembler = new X86Disassembler(image, relocations);
+        disassembler.Disassemble(startOffset, initRegisters);
+        return disassembler.Instructions;
+    }
+
     public List<Instruction> Instructions { get; private set; } = [];
 
     public void Disassemble(int startOffset)

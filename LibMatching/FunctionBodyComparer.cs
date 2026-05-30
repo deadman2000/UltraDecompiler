@@ -24,13 +24,14 @@ internal static class FunctionBodyComparer
         IReadOnlyList<Instruction> libraryBody,
         RelocationTable libraryRelocations)
     {
-        // Разная длина — разные функции (или смещение попало в середину инструкции).
-        if (imageBody.Count != libraryBody.Count)
+        // Тело функции может быть больше, т.к. дизассемблер пока что не умеет находить четкие границы при CALL без retn
+        // TODO imageBody.Count != libraryBody.Count
+        if (imageBody.Count < libraryBody.Count)
         {
             return false;
         }
 
-        for (var i = 0; i < imageBody.Count; i++)
+        for (var i = 0; i < libraryBody.Count; i++)
         {
             if (!AreEquivalentInstruction(imageBody[i], libraryBody[i], libraryRelocations))
             {

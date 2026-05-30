@@ -265,6 +265,9 @@ public static class Extensions
                 return Ansi.Wrap(Ansi.Green, value.ToHex());
             }
 
+            if (value == 0)
+                return Ansi.Wrap(Ansi.Pink, operand.Relocation);
+
             return Ansi.Wrap(Ansi.Pink, operand.Relocation) + "+" + Ansi.Wrap(Ansi.Green, value.ToHex());
         }
 

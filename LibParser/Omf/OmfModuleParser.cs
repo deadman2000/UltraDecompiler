@@ -21,6 +21,7 @@ internal static class OmfModuleParser
     {
         var names = new List<string> { string.Empty };
         var segmentNames = new List<string>();
+        var groupNames = new List<string>();
         var externals = new Dictionary<int, string>();
         var externalList = new List<OmfExternalSymbol>();
         var segments = new Dictionary<int, SegmentInfo>();
@@ -70,6 +71,10 @@ internal static class OmfModuleParser
                     ParseSegdef(content, recordType, names, segments, segmentNames);
                     break;
 
+                case OmfRecordTypes.Grpdef:
+                    ParseGrpdef(content, names, groupNames);
+                    break;
+
                 case OmfRecordTypes.Ledata:
                 case OmfRecordTypes.Ledata32:
                     (lastDataSegmentIndex, lastDataSegmentOffset) =
@@ -99,6 +104,7 @@ internal static class OmfModuleParser
                                 fixups.Add(OmfFixupNameResolver.WithResolvedNames(
                                     fixup,
                                     segmentNames,
+                                    groupNames,
                                     externals));
                             }
                         }
@@ -193,6 +199,31 @@ internal static class OmfModuleParser
         while (!reader.End)
         {
             names.Add(reader.ReadCountedAscii());
+        }
+    }
+
+    private static void ParseGrpdef(
+        ReadOnlySpan<byte> content,
+        List<string> names,
+        List<string> groupNames)
+    {
+        var reader = new OmfBinaryReader(content);
+        if (!reader.TryReadIndex(out var groupNameIndex))
+        {
+            return;
+        }
+
+        groupNames.Add(GetName(names, groupNameIndex));
+
+        while (!reader.End)
+        {
+            var descriptor = reader.ReadByte();
+            if (descriptor != 0xFF)
+            {
+                break;
+            }
+
+            _ = reader.ReadIndex();
         }
     }
 

@@ -42,7 +42,7 @@ public static class LibraryFunctionMatcher
         ArgumentNullException.ThrowIfNull(imageRelocations);
         ArgumentNullException.ThrowIfNull(library);
 
-        var targetBody = FunctionBodyExtractor.Extract(image, imageRelocations, imageOffset, initRegisters);
+        var targetBody = X86Disassembler.Disassemble(image, imageRelocations, imageOffset, initRegisters);
         if (targetBody.Count == 0)
         {
             return [];
@@ -92,7 +92,7 @@ public static class LibraryFunctionMatcher
         return results;
     }
 
-    private static bool TryMatchModule(
+    public static bool TryMatchModule(
         IReadOnlyList<Instruction> targetBody,
         OmfModule module,
         OmfSegmentData codeSegment,
@@ -107,7 +107,7 @@ public static class LibraryFunctionMatcher
         {
             // FIXUPP модуля описывают, какие 16-битные слова в .LIB ещё «символические».
             var libraryRelocations = OmfRelocationTableBuilder.Build(codeSegment, module.Fixups);
-            var libraryBody = FunctionBodyExtractor.Extract(
+            var libraryBody = X86Disassembler.Disassemble(
                 codeSegment.Data,
                 libraryRelocations,
                 moduleCodeOffset,

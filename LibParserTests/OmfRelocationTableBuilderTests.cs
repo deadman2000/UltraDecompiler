@@ -53,5 +53,6 @@ public sealed class OmfRelocationTableBuilderTests
 
         Assert.Contains(table.Entries, e => e.Offset == 0xA1 && e.OffsetName == "_main");
         Assert.Contains(table.Entries, e => e.Offset == 0x7A && e.OffsetName == "__cinit");
+        Assert.Contains(table.Entries, e => e.Offset == 0xAC && e.OffsetName == "DGROUP");
     }
 }

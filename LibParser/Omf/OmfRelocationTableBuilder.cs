@@ -23,8 +23,12 @@ public static class OmfRelocationTableBuilder
             }
 
             // Offset16: смещения, rel16 у CALL/JMP (pc-rel), PUSH [sym] и т.п.
+            // SegmentBase: 16-битная база сегмента (MOV AX, DGROUP перед MOV DS, AX в crt0).
             // Pointer32: far ptr16:16 (CALL/JMP FAR, указатели на функции в crt0).
-            if (fixup.LocationType is not (OmfFixupLocationType.Offset16 or OmfFixupLocationType.Pointer32))
+            if (fixup.LocationType is not (
+                OmfFixupLocationType.Offset16
+                or OmfFixupLocationType.SegmentBase
+                or OmfFixupLocationType.Pointer32))
             {
                 continue;
             }

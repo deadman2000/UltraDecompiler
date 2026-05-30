@@ -2,7 +2,7 @@
     "profiles": {
         "Neuromancer": {
             "commandName": "Project",
-            "commandLineArgs": "decompile D:\\Projects\\TranslateWeb\\Neuromancer\\Neuromancer_re\\NEURO.EXE"
+            "commandLineArgs": "decompile-match D:\\Projects\\TranslateWeb\\Neuromancer\\Neuromancer_re\\NEURO.EXE"
         },
         "HELLO_L.EXE": {
             "commandName": "Project",
@@ -12,9 +12,9 @@
             "commandName": "Project",
             "commandLineArgs": "decompile ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_S.EXE -o 5C4h"
         },
-        "HELLO_S.EXE decompile-match": {
+        "HELLO_L.EXE decompile-match": {
             "commandName": "Project",
-            "commandLineArgs": "decompile-match ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_S.EXE"
+            "commandLineArgs": "decompile-match ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_L.EXE"
         },
         "SLIBCE.LIB modules": {
             "commandName": "Project",

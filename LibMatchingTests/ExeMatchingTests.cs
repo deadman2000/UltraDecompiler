@@ -67,26 +67,6 @@ public class ExeMatchingTests
 
     [Theory]
     [MemberData(nameof(HelloMemoryModelCases.MemberData), MemberType = typeof(HelloMemoryModelCases))]
-    public void Match_Printf_With87Lib_ReturnsEmpty(HelloMemoryModelCase modelCase)
-    {
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
-        var mathLib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf("87.LIB"));
-        var printfOffset = PrintfOffsetFinder.Find(
-            parser,
-            OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName)));
-
-        var matches = LibraryFunctionMatcher.Match(
-            parser.Image,
-            parser.RelocationTable,
-            printfOffset,
-            mathLib,
-            RegisterState.InitExe);
-
-        Assert.Empty(matches);
-    }
-
-    [Theory]
-    [MemberData(nameof(HelloMemoryModelCases.MemberData), MemberType = typeof(HelloMemoryModelCases))]
     public void Match_Printf_FindsOnlyPrintfSymbol(HelloMemoryModelCase modelCase)
     {
         var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));

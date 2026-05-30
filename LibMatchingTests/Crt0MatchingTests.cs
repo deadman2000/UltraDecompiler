@@ -16,6 +16,7 @@ public class Crt0MatchingTests
     [InlineData("LLIBC.LIB")]
     public void Match_Crt0ModuleAgainstItself_FindsRuntimeSymbols(string libFileName)
     {
+        // Проверяет, что тело соответствует самому себе
         var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(libFileName));
         var crt0 = Crt0TestHelpers.GetCrt0Module(library);
         var code = crt0.CodeSegments.First(static s => s.IsCode);
@@ -47,6 +48,20 @@ public class Crt0MatchingTests
         Assert.Equal(crt0Page, match.ModulePage);
         Assert.Equal("crt0", match.ModuleName);
         Assert.Equal(0, match.ModuleCodeOffset);
+    }
+
+    [Fact]
+    public void Match_HelloEntryPoint_Matches_Astart()
+    {
+        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf("HELLO_L.EXE"));
+        var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf("LLIBCE.LIB"));
+        var crt0 = Crt0TestHelpers.GetCrt0Module(library);
+
+        var disasm = new X86Disassembler(parser.Image, parser.RelocationTable);
+        disasm.Disassemble((int)parser.EntryPointOffset, RegisterState.InitExe);
+
+        var isMatch = LibraryFunctionMatcher.TryMatchModule(disasm.Instructions, crt0, crt0.CodeSegments.First(), 0);
+        Assert.True(isMatch);
     }
 
     [Theory]

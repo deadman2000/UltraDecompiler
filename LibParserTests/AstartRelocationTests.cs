@@ -60,4 +60,28 @@ public sealed class AstartRelocationTests
         Assert.Equal("_main", mainCall.Operand1.Relocation);
         Assert.Equal("_main", mainCall.Operands);
     }
+
+    [Fact]
+    public void Disassemble_Astart_MovAxDsSetupHasSegmentBaseFixup()
+    {
+        if (!QuickCLibAssets.Exists("LLIBCE.LIB"))
+        {
+            return;
+        }
+
+        var lib = OmfLibraryParser.ParseFile(QuickCLibAssets.PathOf("LLIBCE.LIB"));
+        var module = lib.FindModuleBySymbol("__astart");
+        Assert.NotNull(module);
+
+        var code = module.CodeSegments.First();
+        var table = OmfRelocationTableBuilder.Build(code, module.Fixups);
+        var disassembler = new X86Disassembler(code.Data, table);
+        disassembler.Disassemble(0);
+
+        var loadDs = disassembler.Instructions
+            .FirstOrDefault(static i => i.Mnemonic == Mnemonic.MOV && i.Offset == 0xAB);
+        Assert.NotNull(loadDs);
+        Assert.Equal("DGROUP", loadDs.Operand2.Relocation);
+        Assert.Equal("AX, DGROUP+0", loadDs.Operands);
+    }
 }
