@@ -1,7 +1,7 @@
 ﻿using UltraDecompiler.Decompilation;
 using UltraDecompiler.Decompilation.Operations;
 
-namespace Tests.Expressions;
+namespace DecompilerTests.Expressions;
 
 public class GetAllOperationsTests : BaseTests
 {

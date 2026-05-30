@@ -1,8 +1,7 @@
 ﻿using System.Text.Json;
 using LibParser.Omf;
-using LibParserTests.ImHex;
 
-namespace LibParserTests;
+namespace LibParserTests.ImHex;
 
 /// <summary>
 /// Прогон эталонных QuickC .LIB через ImHex CLI (<c>imhex --pl format</c>) и шаблон <c>omf_lib.hexpat</c>.

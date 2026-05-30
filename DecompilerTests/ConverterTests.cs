@@ -1,6 +1,6 @@
-﻿using Tests.Tools;
+﻿using DecompilerTests.Tools;
 
-namespace Tests;
+namespace DecompilerTests;
 
 public class ConverterTests
 {

@@ -1,6 +1,6 @@
 using UltraDecompiler.Decompilation;
 
-namespace Tests.Expressions;
+namespace DecompilerTests.Expressions;
 
 /// <summary>
 /// Тесты ExpressionBuilder для сравнений (CMP/TEST) и работы с флагами.

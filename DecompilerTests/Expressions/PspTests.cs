@@ -1,6 +1,6 @@
 ﻿using UltraDecompiler.Decompilation;
 
-namespace Tests.Expressions;
+namespace DecompilerTests.Expressions;
 
 public class PspTests : BaseTests
 {

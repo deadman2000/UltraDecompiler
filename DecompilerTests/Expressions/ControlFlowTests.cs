@@ -2,7 +2,7 @@ using UltraDecompiler.Decompilation;
 using UltraDecompiler.Decompilation.Operations;
 using UltraDecompiler.Disassembler;
 
-namespace Tests.Expressions;
+namespace DecompilerTests.Expressions;
 
 /// <summary>
 /// Тесты ExpressionBuilder для управления потоком и построения условий на прыжках.

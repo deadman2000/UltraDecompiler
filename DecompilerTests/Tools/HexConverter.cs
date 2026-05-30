@@ -1,4 +1,4 @@
-﻿namespace Tests.Tools;
+﻿namespace DecompilerTests.Tools;
 
 public static class HexConverter
 {

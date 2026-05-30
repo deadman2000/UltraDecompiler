@@ -2,7 +2,7 @@ using UltraDecompiler.Decompilation;
 using UltraDecompiler.Decompilation.Operations;
 using UltraDecompiler.Disassembler;
 
-namespace Tests.Expressions;
+namespace DecompilerTests.Expressions;
 
 /// <summary>
 /// Тесты поддержки строковых инструкций (MOVS/CMPS/SCAS/LODS/STOS + REP*).

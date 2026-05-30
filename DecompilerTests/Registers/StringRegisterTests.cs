@@ -1,4 +1,4 @@
-namespace Tests.Registers;
+namespace DecompilerTests.Registers;
 
 /// <summary>
 /// Тесты поведения строковых инструкций на уровне RegisterState

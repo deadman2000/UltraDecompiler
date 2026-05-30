@@ -1,4 +1,4 @@
-namespace Tests.Registers;
+namespace DecompilerTests.Registers;
 
 /// <summary>
 /// Тесты регистров — специальные инструкции (CBW, CWD, работа с сегментными регистрами).

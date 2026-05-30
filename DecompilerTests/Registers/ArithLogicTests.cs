@@ -1,4 +1,4 @@
-namespace Tests.Registers;
+namespace DecompilerTests.Registers;
 
 /// <summary>
 /// Тесты регистров — арифметика, логика и унарные операции.

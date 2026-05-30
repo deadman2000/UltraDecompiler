@@ -1,6 +1,6 @@
 ﻿using UltraDecompiler.Disassembler;
 
-namespace Tests.Disassembler;
+namespace DecompilerTests.Disassembler;
 
 public class MovTests : BaseTests
 {

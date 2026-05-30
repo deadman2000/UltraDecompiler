@@ -2,7 +2,7 @@
 using LibParser.Models;
 using LibParser.Omf;
 
-namespace LibParserTests;
+namespace LibParserTests.ImHex;
 
 public sealed partial class ImHexTests
 {

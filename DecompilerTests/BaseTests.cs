@@ -2,7 +2,7 @@
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.Graph;
 
-namespace Tests;
+namespace DecompilerTests;
 
 public abstract class BaseTests
 {

@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Text;
 
-namespace LibParserTests;
+namespace LibParserTests.ImHex;
 
 public sealed partial class ImHexTests
 {

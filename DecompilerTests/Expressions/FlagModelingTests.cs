@@ -1,7 +1,8 @@
+using DecompilerTests;
 using UltraDecompiler.Decompilation;
 using UltraDecompiler.Decompilation.Operations;
 
-namespace Tests.Expressions;
+namespace DecompilerTests.Expressions;
 
 /// <summary>
 /// Тесты новой логики моделирования флагов (CF после CMP/ADD/SUB,

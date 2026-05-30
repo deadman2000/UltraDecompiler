@@ -1,4 +1,4 @@
-﻿namespace Tests;
+﻿namespace DecompilerTests;
 
 public class InstructionIsExitTests : BaseTests
 {

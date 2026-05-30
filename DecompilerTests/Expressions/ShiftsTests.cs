@@ -1,6 +1,6 @@
 using UltraDecompiler.Decompilation;
 
-namespace Tests.Expressions;
+namespace DecompilerTests.Expressions;
 
 /// <summary>
 /// Тесты ExpressionBuilder для операций сдвига.

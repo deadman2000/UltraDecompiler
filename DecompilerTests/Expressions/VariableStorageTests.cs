@@ -1,6 +1,6 @@
 using UltraDecompiler.Decompilation;
 
-namespace Tests.Expressions;
+namespace DecompilerTests.Expressions;
 
 /// <summary>
 /// Прямые тесты на новый API VariableStorage для поддержки PSP и известных областей памяти.

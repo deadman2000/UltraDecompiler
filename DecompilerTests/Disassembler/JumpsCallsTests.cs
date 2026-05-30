@@ -1,6 +1,6 @@
 ﻿using UltraDecompiler.Disassembler;
 
-namespace Tests.Disassembler;
+namespace DecompilerTests.Disassembler;
 
 /// <summary>
 /// Тесты дизассемблера для инструкций переходов и вызовов (JMP, CALL, RET, LOOP, условные переходы).

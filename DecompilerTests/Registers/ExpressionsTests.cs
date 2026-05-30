@@ -1,7 +1,7 @@
 using UltraDecompiler.Decompilation;
 using UltraDecompiler.Disassembler;
 
-namespace Tests.Registers;
+namespace DecompilerTests.Registers;
 
 /// <summary>
 /// Тесты внутренней логики RegisterExpressions (Decompilation).

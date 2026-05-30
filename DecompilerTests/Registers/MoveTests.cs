@@ -1,4 +1,4 @@
-namespace Tests.Registers;
+namespace DecompilerTests.Registers;
 
 /// <summary>
 /// Тесты регистров — перемещения значений (MOV в 8/16-битные и сегментные регистры).

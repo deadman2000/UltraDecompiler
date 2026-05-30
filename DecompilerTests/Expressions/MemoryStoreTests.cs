@@ -1,7 +1,7 @@
 using UltraDecompiler.Decompilation;
 using UltraDecompiler.Decompilation.Operations;
 
-namespace Tests.Expressions;
+namespace DecompilerTests.Expressions;
 
 /// <summary>
 /// Тесты поддержки операций записи в память (StoreOperation).

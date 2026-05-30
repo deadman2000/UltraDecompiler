@@ -1,7 +1,8 @@
+using DecompilerTests;
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.Parser;
 
-namespace Tests.Disassembler;
+namespace DecompilerTests.Disassembler;
 
 public class RelocationTests : BaseTests
 {
