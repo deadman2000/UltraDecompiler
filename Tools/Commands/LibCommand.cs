@@ -95,7 +95,8 @@ internal static class LibCommand
                 {
                     Console.WriteLine($"  Код (CODE): {code.Data.Length} байт");
 
-                    var disassembler = new X86Disassembler(code.Data);
+                    var relocationTable = OmfRelocationTableBuilder.Build(code, module.Fixups);
+                    var disassembler = new X86Disassembler(code.Data, relocationTable);
                     disassembler.Disassemble(0);
 
                     foreach (var instr in disassembler.Instructions)

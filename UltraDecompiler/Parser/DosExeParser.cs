@@ -55,7 +55,7 @@ public class DosExeParser
 
         // Читаем таблицу релокаций (fixup выполняет дизассемблер при парсинге операций)
         Relocations = ReadRelocationTable(br);
-        RelocationTable = new RelocationTable(Relocations);
+        RelocationTable = new RelocationTable("__image", Relocations);
 
         // Вычисляем размер заголовка и образа
         long headerSize = (long)DosHeader.HeaderSizeInParagraphs * 16;

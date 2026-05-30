@@ -63,11 +63,12 @@ public record ConstExpr(int Value) : Expr
 }
 
 /// <summary>
-/// Смещение внутри загруженного образа программы (слова из таблицы релокаций MZ).
+/// Смещение внутри загруженного образа программы (слова из таблицы релокаций MZ):
+/// <c>baseName + constant</c>, где <paramref name="BaseName"/> — символическая база (image, data, …).
 /// </summary>
-public record ImageOffsetExpr(int Value) : Expr
+public record ImageOffsetExpr(string BaseName, int Value) : Expr
 {
-    public override string ToString() => $"offset({Value:X4}h)";
+    public override string ToString() => $"{BaseName} + 0x{Value:X4}";
 }
 
 /// <summary>

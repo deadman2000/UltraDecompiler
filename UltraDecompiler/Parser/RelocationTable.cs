@@ -1,23 +1,27 @@
 namespace UltraDecompiler.Parser;
 
 /// <summary>
-/// Таблица релокаций MZ EXE и применение fixup к загруженному образу.
+/// Таблица релокаций MZ EXE: помечает слова образа как смещения относительно именованных баз.
 /// </summary>
 public sealed class RelocationTable
 {
-    private readonly RelocationEntry[] _entries;
-    private HashSet<int>? _linearAddresses;
+    public static RelocationTable Empty { get; } = new("", []);
 
-    public RelocationTable(RelocationEntry[] entries)
+    private HashSet<int>? _linearAddresses;
+    private Dictionary<int, string>? _offsetNamesByAddress;
+
+    public RelocationTable(string defaultOffsetName, RelocationEntry[] entries)
     {
-        _entries = entries ?? [];
+        DefaultOffsetName = defaultOffsetName ?? "";
+        Entries = entries ?? [];
     }
 
-    public static RelocationTable Empty { get; } = new([]);
+    /// <summary>
+    /// Имя переменной смещения по умолчанию для записей без собственного <see cref="RelocationEntry.OffsetName"/>.
+    /// </summary>
+    public string DefaultOffsetName { get; }
 
-    public int Count => _entries.Length;
-
-    public IReadOnlyList<RelocationEntry> Entries => _entries;
+    public IReadOnlyList<RelocationEntry> Entries { get; }
 
     /// <summary>
     /// Линейные адреса (относительно начала загруженного образа) слов, подлежащих релокации.
@@ -26,11 +30,43 @@ public sealed class RelocationTable
 
     public bool ContainsLinearAddress(int linearAddress) => LinearAddresses.Contains(linearAddress);
 
+    /// <summary>
+    /// Возвращает имя переменной смещения для слова по линейному адресу в образе.
+    /// </summary>
+    public bool TryGetOffsetName(int linearAddress, out string offsetName)
+    {
+        if (!ContainsLinearAddress(linearAddress))
+        {
+            offsetName = "";
+            return false;
+        }
+
+        if (!OffsetNamesByAddress.TryGetValue(linearAddress, out offsetName!))
+            offsetName = DefaultOffsetName;
+        return !string.IsNullOrEmpty(offsetName);
+    }
+
+    private IReadOnlyDictionary<int, string> OffsetNamesByAddress =>
+        _offsetNamesByAddress ??= BuildOffsetNamesByAddress();
+
     private HashSet<int> BuildLinearAddresses()
     {
-        var set = new HashSet<int>(_entries.Length);
-        foreach (var rel in _entries)
+        var set = new HashSet<int>(Entries.Count);
+        foreach (var rel in Entries)
             set.Add(rel.LinearAddress);
         return set;
+    }
+
+    private Dictionary<int, string> BuildOffsetNamesByAddress()
+    {
+        var dict = new Dictionary<int, string>(Entries.Count);
+        foreach (var rel in Entries)
+        {
+            var name = string.IsNullOrEmpty(rel.OffsetName) ? DefaultOffsetName : rel.OffsetName;
+            if (string.IsNullOrEmpty(name))
+                continue;
+            dict[rel.LinearAddress] = name;
+        }
+        return dict;
     }
 }

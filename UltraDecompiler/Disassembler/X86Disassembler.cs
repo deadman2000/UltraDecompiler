@@ -19,7 +19,7 @@ public class X86Disassembler
     }
 
     public X86Disassembler(byte[] image, RelocationEntry[] relocations)
-        : this(image, new RelocationTable(relocations))
+        : this(image, new RelocationTable("offset", relocations))
     {
     }
 
@@ -1112,11 +1112,11 @@ public class X86Disassembler
         };
     }
 
-    private bool _operandRelocated;
+    private string? _relocation;
 
     private byte ReadByte()
     {
-        _operandRelocated = false;
+        _relocation = null;
         return Image[_pos++];
     }
 
@@ -1129,16 +1129,16 @@ public class X86Disassembler
 
     private ushort ReadUInt16()
     {
-        _operandRelocated = Relocations.ContainsLinearAddress(_pos);
+        _relocation = Relocations.TryGetOffsetName(_pos, out var name) ? name : null;
         return ReadUInt16Core();
     }
 
     private Operand Imm16(int value) =>
-        new(OperandType.Immediate16, value, isRelocated: _operandRelocated);
+        new(OperandType.Immediate16, value, relocation: _relocation);
 
     private Operand Imm8(int value) =>
         new(OperandType.Immediate8, value);
 
     private Operand Memory(int disp, AddressRegister baseReg = AddressRegister.None, AddressRegister indexReg = AddressRegister.None) =>
-        new(OperandType.Memory, disp, baseReg, indexReg, isRelocated: _operandRelocated);
+        new(OperandType.Memory, disp, baseReg, indexReg, relocation: _relocation);
 }

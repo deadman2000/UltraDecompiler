@@ -146,6 +146,7 @@ public static class Extensions
             const string YELLOW = "\u001b[93m";
 
             var instructionColor = YELLOW;
+            // TODO instruction.GetColoredOperands()
             var operands = instruction.Operands;
 
             if (operands == Instruction.UnknownOperand)
@@ -182,7 +183,7 @@ public static class Extensions
         };
 
         private string FormatImageOffset(int value) =>
-            operand.IsRelocated ? $"offset {value.ToHex()}" : value.ToHex();
+            operand.Relocation is not null ? $"{operand.Relocation}+{value.ToHex()}" : value.ToHex();
 
         private string GetRegName() => operand.Type switch
         {
