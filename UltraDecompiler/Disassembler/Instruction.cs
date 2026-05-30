@@ -62,6 +62,20 @@ public partial class Instruction
         && Operand2.Type == OperandType.Immediate16;
 
     /// <summary>
+    /// Far ptr из .LIB (Pointer32 FIXUPP): нулевой seg:off, имя на IP-половине указателя.
+    /// </summary>
+    internal static bool IsSymbolicFarPointer(in Operand segment, in Operand offset) =>
+        offset.Relocation is not null
+        && offset.Value == 0
+        && segment.Relocation is null
+        && segment.Value == 0;
+
+    internal static string FormatDirectFarPointerOperands(in Operand segment, in Operand offset) =>
+        IsSymbolicFarPointer(segment, offset)
+            ? offset.Relocation!
+            : $"{segment}:{offset}";
+
+    /// <summary>
     /// Строковое представление параметров (вычисляемое)
     /// </summary>
     public string Operands
@@ -69,7 +83,7 @@ public partial class Instruction
         get
         {
             if (IsDirectFarPointer)
-                return $"{Operand2}:{Operand1}";
+                return FormatDirectFarPointerOperands(Operand2, Operand1);
 
             var ops = new List<string>();
             if (Operand1.Type != OperandType.None) ops.Add(Operand1.ToString() ?? UnknownOperand);

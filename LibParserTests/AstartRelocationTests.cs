@@ -35,4 +35,29 @@ public sealed class AstartRelocationTests
         Assert.Contains(pushes, static p => p.Operand1.Relocation == "___argv");
         Assert.Contains(pushes, static p => p.Operand1.Relocation == "___argc");
     }
+
+    [Fact]
+    public void Disassemble_Astart_MainCallHasFixupName()
+    {
+        if (!QuickCLibAssets.Exists("LLIBCE.LIB"))
+        {
+            return;
+        }
+
+        var lib = OmfLibraryParser.ParseFile(QuickCLibAssets.PathOf("LLIBCE.LIB"));
+        var module = lib.FindModuleBySymbol("__astart");
+        Assert.NotNull(module);
+
+        var code = module.CodeSegments.First();
+        var table = OmfRelocationTableBuilder.Build(code, module.Fixups);
+        var disassembler = new X86Disassembler(code.Data, table);
+        disassembler.Disassemble(0);
+
+        var mainCall = disassembler.Instructions
+            .FirstOrDefault(static i =>
+                i.Mnemonic == Mnemonic.CALL_FAR && i.Offset == 0xA0);
+        Assert.NotNull(mainCall);
+        Assert.Equal("_main", mainCall.Operand1.Relocation);
+        Assert.Equal("_main", mainCall.Operands);
+    }
 }

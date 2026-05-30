@@ -35,4 +35,23 @@ public sealed class OmfRelocationTableBuilderTests
         Assert.Contains(calls, static c => c.Operand1.Relocation == "__output");
         Assert.Contains(calls, static c => c.Operand1.Relocation == "__ftbuf");
     }
+
+    [Fact]
+    public void Build_Astart_IncludesPointer32Fixups()
+    {
+        if (!QuickCLibAssets.Exists("LLIBCE.LIB"))
+        {
+            return;
+        }
+
+        var lib = OmfLibraryParser.ParseFile(QuickCLibAssets.PathOf("LLIBCE.LIB"));
+        var module = lib.FindModuleBySymbol("__astart");
+        Assert.NotNull(module);
+
+        var code = module.CodeSegments.First();
+        var table = OmfRelocationTableBuilder.Build(code, module.Fixups);
+
+        Assert.Contains(table.Entries, e => e.Offset == 0xA1 && e.OffsetName == "_main");
+        Assert.Contains(table.Entries, e => e.Offset == 0x7A && e.OffsetName == "__cinit");
+    }
 }

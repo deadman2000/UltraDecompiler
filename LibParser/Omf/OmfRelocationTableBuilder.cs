@@ -22,8 +22,9 @@ public static class OmfRelocationTableBuilder
                 continue;
             }
 
-            // Offset16: смещения в памяти/непосредственных операндах (seg-rel) и rel16 у CALL/JMP (pc-rel).
-            if (fixup.LocationType != OmfFixupLocationType.Offset16)
+            // Offset16: смещения, rel16 у CALL/JMP (pc-rel), PUSH [sym] и т.п.
+            // Pointer32: far ptr16:16 (CALL/JMP FAR, указатели на функции в crt0).
+            if (fixup.LocationType is not (OmfFixupLocationType.Offset16 or OmfFixupLocationType.Pointer32))
             {
                 continue;
             }

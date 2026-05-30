@@ -200,8 +200,15 @@ public static class Extensions
             return result;
         }
 
-        private static string FormatDirectFarPointerColored(in Operand segment, in Operand offset) =>
-            $"{segment.ToColoredAsm()}:{offset.ToColoredAsm()}";
+        private static string FormatDirectFarPointerColored(in Operand segment, in Operand offset)
+        {
+            if (Instruction.IsSymbolicFarPointer(segment, offset))
+            {
+                return Ansi.Wrap(Ansi.Pink, offset.Relocation!);
+            }
+
+            return $"{segment.ToColoredAsm()}:{offset.ToColoredAsm()}";
+        }
     }
 
     extension(in Operand operand)
@@ -395,21 +402,6 @@ public static class Extensions
 
             return $"[{string.Join("+", parts)}]";
         }
-    }
-
-    /// <summary>ANSI escape-коды для раскраски вывода дизассемблера в терминале.</summary>
-    private static class Ansi
-    {
-        public const string Reset = "\u001b[0m";
-        public const string Gray = "\u001b[90m";
-        public const string Red = "\u001b[91m";
-        public const string Green = "\u001b[92m";
-        public const string Yellow = "\u001b[93m";
-        public const string Blue = "\u001b[94m";
-        public const string Pink = "\u001b[95m";
-        public const string Cyan = "\u001b[96m";
-
-        public static string Wrap(string color, string text) => color + text + Reset;
     }
 
     extension(Segment segment)

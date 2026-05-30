@@ -359,12 +359,13 @@ public class X86Disassembler
                 {
                     // CALL FAR ptr16:16 — сначала IP, затем CS (little-endian).
                     ushort offset = ReadUInt16();
+                    var offsetRelocation = _relocation;
                     ushort segment = ReadUInt16();
                     return new Instruction
                     {
                         Mnemonic = Mnemonic.CALL_FAR,
-                        Operand1 = Imm16(offset),
-                        Operand2 = Imm16(segment),
+                        Operand1 = new Operand(OperandType.Immediate16, offset, relocation: offsetRelocation),
+                        Operand2 = new Operand(OperandType.Immediate16, segment, relocation: _relocation),
                     };
                 }
 
