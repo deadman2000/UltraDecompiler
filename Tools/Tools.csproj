@@ -18,4 +18,8 @@
     <ProjectReference Include="..\UltraDecompiler\UltraDecompiler.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="LibParserTests" />
+  </ItemGroup>
+
 </Project>

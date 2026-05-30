@@ -1,12 +1,12 @@
+using Common;
 using LibParser.Models;
-using UltraDecompiler.Parser;
 
-namespace Tools;
+namespace LibParser.Omf;
 
 /// <summary>
 /// Построение <see cref="RelocationTable"/> для дизассемблера по FIXUPP модуля OMF .LIB.
 /// </summary>
-internal static class OmfRelocationTableBuilder
+public static class OmfRelocationTableBuilder
 {
     /// <summary>
     /// Таблица 16-битных segment-relative релокаций внутри одного сегмента (обычно CODE).
@@ -22,7 +22,8 @@ internal static class OmfRelocationTableBuilder
                 continue;
             }
 
-            if (!fixup.IsSegmentRelative || fixup.LocationType != OmfFixupLocationType.Offset16)
+            // Offset16: смещения в памяти/непосредственных операндах (seg-rel) и rel16 у CALL/JMP (pc-rel).
+            if (fixup.LocationType != OmfFixupLocationType.Offset16)
             {
                 continue;
             }
@@ -55,20 +56,24 @@ internal static class OmfRelocationTableBuilder
     }
 
     /// <summary>
-    /// Имя символической базы смещения: внешний/сегментный символ TARGET, иначе FRAME.
+    /// Имя символической цели: внешний/сегментный символ TARGET (+ смещение), иначе FRAME.
     /// </summary>
     private static string GetOffsetName(OmfFixup fixup)
     {
-        if (!string.IsNullOrEmpty(fixup.Target.Name))
+        var name = !string.IsNullOrEmpty(fixup.Target.Name)
+            ? fixup.Target.Name
+            : fixup.Frame.Name;
+
+        if (string.IsNullOrEmpty(name))
         {
-            return fixup.Target.Name;
+            return "offset";
         }
 
-        if (!string.IsNullOrEmpty(fixup.Frame.Name))
+        if (fixup.Target.Displacement == 0)
         {
-            return fixup.Frame.Name;
+            return name;
         }
 
-        return "offset";
+        return $"{name}+0x{fixup.Target.Displacement:X}";
     }
 }

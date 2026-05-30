@@ -210,7 +210,7 @@ public static class Extensions
             OperandType.Immediate8 => operand.Value.ToHex(),
             OperandType.Immediate16 => operand.FormatImageOffset(operand.Value),
             OperandType.Memory => operand.GetMemoryString(),
-            OperandType.Relative8 or OperandType.Relative16 => operand.Value.ToHex(),
+            OperandType.Relative8 or OperandType.Relative16 => operand.FormatRelativeTarget(operand.Value),
             OperandType.SegmentRegister => operand.GetSegRegName(),
             _ => "?"
         };
@@ -222,13 +222,26 @@ public static class Extensions
             OperandType.Immediate8 => Ansi.Wrap(Ansi.Green, operand.Value.ToHex()),
             OperandType.Immediate16 => operand.FormatImageOffsetColored(operand.Value),
             OperandType.Memory => operand.GetMemoryStringColored(),
-            OperandType.Relative8 or OperandType.Relative16 => Ansi.Wrap(Ansi.Green, operand.Value.ToHex()),
+            OperandType.Relative8 or OperandType.Relative16 => operand.FormatRelativeTargetColored(operand.Value),
             OperandType.SegmentRegister => Ansi.Wrap(Ansi.Blue, operand.GetSegRegName()),
             _ => "?"
         };
 
         private string FormatImageOffset(int value) =>
             operand.Relocation is not null ? $"{operand.Relocation}+{value.ToHex()}" : value.ToHex();
+
+        private string FormatRelativeTarget(int value) =>
+            operand.Relocation ?? value.ToHex();
+
+        private string FormatRelativeTargetColored(int value)
+        {
+            if (operand.Relocation is null)
+            {
+                return Ansi.Wrap(Ansi.Green, value.ToHex());
+            }
+
+            return Ansi.Wrap(Ansi.Pink, operand.Relocation);
+        }
 
         private string FormatImageOffsetColored(int value)
         {

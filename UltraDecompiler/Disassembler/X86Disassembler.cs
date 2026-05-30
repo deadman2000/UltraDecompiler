@@ -1,4 +1,4 @@
-using UltraDecompiler.Parser;
+using Common;
 
 namespace UltraDecompiler.Disassembler;
 
@@ -341,11 +341,11 @@ public class X86Disassembler
             case 0xE9: return DecodeNearJump();
 
             case 0xE8:
-                short rel = (short)ReadUInt16Core();
+                short rel = (short)ReadUInt16();
                 return new Instruction
                 {
                     Mnemonic = Mnemonic.CALL,
-                    Operand1 = new Operand(OperandType.Relative16, _pos + rel)
+                    Operand1 = new Operand(OperandType.Relative16, _pos + rel, relocation: _relocation)
                 };
 
             case 0xC3: return new Instruction { Mnemonic = Mnemonic.RET };

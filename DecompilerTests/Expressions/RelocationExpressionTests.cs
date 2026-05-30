@@ -1,8 +1,7 @@
-using DecompilerTests;
+using Common;
 using UltraDecompiler.Decompilation;
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.Graph;
-using UltraDecompiler.Parser;
 
 namespace DecompilerTests.Expressions;
 

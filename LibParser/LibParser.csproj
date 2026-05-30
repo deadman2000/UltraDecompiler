@@ -8,4 +8,8 @@
 		<WarningsAsErrors>true</WarningsAsErrors>
 	</PropertyGroup>
 
+	<ItemGroup>
+	  <ProjectReference Include="..\Common\Common.csproj" />
+	</ItemGroup>
+
 </Project>

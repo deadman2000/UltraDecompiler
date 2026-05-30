@@ -1,6 +1,5 @@
-using DecompilerTests;
+using Common;
 using UltraDecompiler.Disassembler;
-using UltraDecompiler.Parser;
 
 namespace DecompilerTests.Disassembler;
 
@@ -62,5 +61,30 @@ public class RelocationTests : BaseTests
         Assert.Equal("DI, code+0166h", disassembler.Instructions[0].Operands);
         Assert.Equal("data", disassembler.Instructions[1].Operand1.Relocation);
         Assert.Equal("[data+1234h], 5678h", disassembler.Instructions[1].Operands);
+    }
+
+    [Fact]
+    public void Disassembler_MarksRelocatedNearCall()
+    {
+        // E8 rel16 — слово смещения на offset 1 помечено pc-relative релокацией
+        byte[] raw = [0xE8, 0x00, 0x00];
+        var relocs = new RelocationEntry[] { new() { Offset = 1, Segment = 0, OffsetName = "__output" } };
+
+        var disassembler = new X86Disassembler(raw, new RelocationTable("", relocs));
+        disassembler.Disassemble(0);
+
+        var instr = disassembler.Instructions[0];
+        Assert.Equal(Mnemonic.CALL, instr.Mnemonic);
+        Assert.Equal("__output", instr.Operand1.Relocation);
+        Assert.Equal("__output", instr.Operands);
+    }
+
+    [Fact]
+    public void Disassembler_DoesNotMarkNonRelocatedNearCall()
+    {
+        var disassembler = Disassemble("E8 05 00"); // CALL +5 → target 8
+        Assert.Equal(Mnemonic.CALL, disassembler[0].Mnemonic);
+        Assert.Null(disassembler[0].Operand1.Relocation);
+        Assert.Equal("8", disassembler[0].Operands);
     }
 }

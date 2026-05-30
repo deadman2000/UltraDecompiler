@@ -17,6 +17,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\LibParser\LibParser.csproj" />
+		<ProjectReference Include="..\UltraDecompiler\UltraDecompiler.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
