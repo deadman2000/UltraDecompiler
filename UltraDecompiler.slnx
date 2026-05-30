@@ -4,6 +4,7 @@
     <File Path="AGENTS.md" />
     <File Path="default.runsettings" />
     <File Path="Readme.md" />
+    <File Path="TODO.md" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="DecompilerTests/DecompilerTests.csproj" Id="9700c479-480f-47ae-b52c-2342582cadc3" />

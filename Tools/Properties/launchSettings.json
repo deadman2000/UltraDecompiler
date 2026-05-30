@@ -2,6 +2,10 @@
     "profiles": {
         "Neuromancer": {
             "commandName": "Project",
+            "commandLineArgs": "decompile D:\\Projects\\TranslateWeb\\Neuromancer\\Neuromancer_re\\NEURO.EXE"
+        },
+        "Neuromancer match": {
+            "commandName": "Project",
             "commandLineArgs": "decompile-match D:\\Projects\\TranslateWeb\\Neuromancer\\Neuromancer_re\\NEURO.EXE"
         },
         "HELLO_L.EXE": {

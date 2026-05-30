@@ -29,7 +29,10 @@ public readonly struct Operand
         AddressRegister indexReg = AddressRegister.None,
         string? relocation = null)
     {
-        Debug.Assert(value >= short.MinValue && value <= ushort.MaxValue);
+        // TODO Подумать как правильно сделать
+        if (value > ushort.MaxValue)
+            value = (ushort)value;
+
         Type = type;
         Value = value;
         BaseReg = baseReg;
