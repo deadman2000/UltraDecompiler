@@ -139,25 +139,58 @@ public static class Extensions
         {
             string bytesStr = string.Join(" ", instruction.Bytes.Select(b => $"{b:X2}"));
 
-            const string RESET = "\u001b[0m";
-            const string GRAY = "\u001b[90m";
-            const string RED = "\u001b[91m";
-            const string GREEN = "\u001b[92m";
-            const string YELLOW = "\u001b[93m";
+            var mnemonicColor = Ansi.Yellow;
+            if (instruction.Operands == Instruction.UnknownOperand)
+            {
+                mnemonicColor = Ansi.Red;
+            }
 
-            var instructionColor = YELLOW;
-            // TODO instruction.GetColoredOperands()
-            var operands = instruction.Operands;
+            var operands = instruction.GetColoredOperands();
 
-            if (operands == Instruction.UnknownOperand)
-                instructionColor = RED;
-            else if (operands.Contains("ES") || operands.Contains("CS") || operands.Contains("SS") || operands.Contains("DS"))
-                operands = GREEN + operands + RESET;
-
-            var result = $"{GRAY}{instruction.Offset:X6}:{RESET} {GRAY}{bytesStr,-20}{RESET} {instructionColor}{instruction.MnemonicString,-5}{RESET} {operands}";
+            var result =
+                $"{Ansi.Gray}{instruction.Offset:X6}:{Ansi.Reset} " +
+                $"{Ansi.Gray}{bytesStr,-20}{Ansi.Reset} " +
+                $"{mnemonicColor}{instruction.MnemonicString,-5}{Ansi.Reset} " +
+                operands;
 
             if (!string.IsNullOrEmpty(instruction.Commentary))
-                result = result + GRAY + "; " + instruction.Commentary + RESET;
+            {
+                result += $"{Ansi.Gray}; {instruction.Commentary}{Ansi.Reset}";
+            }
+
+            return result;
+        }
+
+        /// <summary>Операнды с ANSI-раскраской для консольного вывода.</summary>
+        public string GetColoredOperands()
+        {
+            if (instruction.Operands == Instruction.UnknownOperand)
+            {
+                return Ansi.Wrap(Ansi.Red, Instruction.UnknownOperand);
+            }
+
+            var ops = new List<string>(2);
+            if (instruction.Operand1.IsSet)
+            {
+                ops.Add(instruction.Operand1.ToColoredAsm());
+            }
+
+            if (instruction.Operand2.IsSet)
+            {
+                ops.Add(instruction.Operand2.ToColoredAsm());
+            }
+
+            if (ops.Count == 0)
+            {
+                return "";
+            }
+
+            var result = string.Join(", ", ops);
+
+            if (instruction.Segment != Segment.None)
+            {
+                result = Ansi.Wrap(Ansi.Blue, instruction.Segment.ToPrefixString()) + result;
+            }
 
             return result;
         }
@@ -182,8 +215,30 @@ public static class Extensions
             _ => "?"
         };
 
+        /// <summary>Текст операнда с ANSI-раскраской (см. <see cref="Ansi"/>).</summary>
+        public string ToColoredAsm() => operand.Type switch
+        {
+            OperandType.Register8 or OperandType.Register16 => Ansi.Wrap(Ansi.Cyan, operand.GetRegName()),
+            OperandType.Immediate8 => Ansi.Wrap(Ansi.Green, operand.Value.ToHex()),
+            OperandType.Immediate16 => operand.FormatImageOffsetColored(operand.Value),
+            OperandType.Memory => operand.GetMemoryStringColored(),
+            OperandType.Relative8 or OperandType.Relative16 => Ansi.Wrap(Ansi.Green, operand.Value.ToHex()),
+            OperandType.SegmentRegister => Ansi.Wrap(Ansi.Blue, operand.GetSegRegName()),
+            _ => "?"
+        };
+
         private string FormatImageOffset(int value) =>
             operand.Relocation is not null ? $"{operand.Relocation}+{value.ToHex()}" : value.ToHex();
+
+        private string FormatImageOffsetColored(int value)
+        {
+            if (operand.Relocation is null)
+            {
+                return Ansi.Wrap(Ansi.Green, value.ToHex());
+            }
+
+            return Ansi.Wrap(Ansi.Pink, operand.Relocation) + "+" + Ansi.Wrap(Ansi.Green, value.ToHex());
+        }
 
         private string GetRegName() => operand.Type switch
         {
@@ -266,6 +321,62 @@ public static class Extensions
 
             return $"[{string.Join("+", parts)}]";
         }
+
+        private string GetMemoryStringColored()
+        {
+            var parts = new List<string>();
+
+            if (operand.BaseReg != AddressRegister.None)
+            {
+                parts.Add(Ansi.Wrap(Ansi.Cyan, operand.BaseReg switch
+                {
+                    AddressRegister.BX => "BX",
+                    AddressRegister.BP => "BP",
+                    AddressRegister.SI => "SI",
+                    AddressRegister.DI => "DI",
+                    _ => "?",
+                }));
+            }
+
+            if (operand.IndexReg != AddressRegister.None && operand.IndexReg != operand.BaseReg)
+            {
+                parts.Add(Ansi.Wrap(Ansi.Cyan, operand.IndexReg switch
+                {
+                    AddressRegister.BX => "BX",
+                    AddressRegister.BP => "BP",
+                    AddressRegister.SI => "SI",
+                    AddressRegister.DI => "DI",
+                    _ => "?",
+                }));
+            }
+
+            if (operand.Value != 0)
+            {
+                parts.Add(operand.FormatImageOffsetColored(operand.Value));
+            }
+
+            if (parts.Count == 0)
+            {
+                return "[" + Ansi.Wrap(Ansi.Green, "0") + "]";
+            }
+
+            return $"[{string.Join("+", parts)}]";
+        }
+    }
+
+    /// <summary>ANSI escape-коды для раскраски вывода дизассемблера в терминале.</summary>
+    private static class Ansi
+    {
+        public const string Reset = "\u001b[0m";
+        public const string Gray = "\u001b[90m";
+        public const string Red = "\u001b[91m";
+        public const string Green = "\u001b[92m";
+        public const string Yellow = "\u001b[93m";
+        public const string Blue = "\u001b[94m";
+        public const string Pink = "\u001b[95m";
+        public const string Cyan = "\u001b[96m";
+
+        public static string Wrap(string color, string text) => color + text + Reset;
     }
 
     extension(Segment segment)
