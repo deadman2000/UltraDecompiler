@@ -166,4 +166,14 @@ public class PushPopTests : BaseTests
         Assert.Equal(0, instructions[0].Operand1.Value); // AX
     }
 
+    [Fact]
+    public void DisassemblePushImm16()
+    {
+        var instructions = Disassemble("68 34 12"); // PUSH 1234h
+        Assert.Equal(Mnemonic.PUSH, instructions[0].Mnemonic);
+        Assert.Equal(OperandType.Immediate16, instructions[0].Operand1.Type);
+        Assert.Equal(0x1234, instructions[0].Operand1.Value);
+        Assert.Equal("1234h", instructions[0].Operands);
+    }
+
 }

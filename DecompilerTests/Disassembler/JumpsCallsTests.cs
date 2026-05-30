@@ -178,6 +178,20 @@ public class JumpsCallsTests : BaseTests
     }
 
     [Fact]
+    public void DisassembleDirectFarCall()
+    {
+        var instructions = Disassemble("9A 08 00 02 00"); // CALL FAR 0002h:0008h
+        Assert.Single(instructions);
+        Assert.Equal(Mnemonic.CALL_FAR, instructions[0].Mnemonic);
+        Assert.Equal("2:8", instructions[0].Operands);
+        Assert.Equal(OperandType.Immediate16, instructions[0].Operand1.Type);
+        Assert.Equal(0x0008, instructions[0].Operand1.Value);
+        Assert.Equal(OperandType.Immediate16, instructions[0].Operand2.Type);
+        Assert.Equal(0x0002, instructions[0].Operand2.Value);
+        Assert.Equal(5, instructions[0].Bytes.Length);
+    }
+
+    [Fact]
     public void DisassembleRetfFar()
     {
         var instructions = Disassemble("CA"); // RETF_FAR (CA)

@@ -277,6 +277,13 @@ public class X86Disassembler
             case 0xC7:
                 return DecodeMovMemImm(opcode);
 
+            case 0x68:
+                return new Instruction
+                {
+                    Mnemonic = Mnemonic.PUSH,
+                    Operand1 = Imm16(ReadUInt16()),
+                };
+
             case 0x50:
             case 0x51:
             case 0x52:
@@ -347,6 +354,19 @@ public class X86Disassembler
                     Mnemonic = Mnemonic.CALL,
                     Operand1 = new Operand(OperandType.Relative16, _pos + rel, relocation: _relocation)
                 };
+
+            case 0x9A:
+                {
+                    // CALL FAR ptr16:16 — сначала IP, затем CS (little-endian).
+                    ushort offset = ReadUInt16();
+                    ushort segment = ReadUInt16();
+                    return new Instruction
+                    {
+                        Mnemonic = Mnemonic.CALL_FAR,
+                        Operand1 = Imm16(offset),
+                        Operand2 = Imm16(segment),
+                    };
+                }
 
             case 0xC3: return new Instruction { Mnemonic = Mnemonic.RET };
             case 0xCA: return new Instruction { Mnemonic = Mnemonic.RETF_FAR };

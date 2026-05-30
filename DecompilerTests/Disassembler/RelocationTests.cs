@@ -87,4 +87,36 @@ public class RelocationTests : BaseTests
         Assert.Null(disassembler[0].Operand1.Relocation);
         Assert.Equal("8", disassembler[0].Operands);
     }
+
+    [Fact]
+    public void Disassembler_MarksRelocatedPushMemory()
+    {
+        // PUSH [disp16] — FF /6 mod=00 rm=110; disp на смещении 2
+        byte[] raw = [0xFF, 0x36, 0x00, 0x00];
+        var relocs = new RelocationEntry[] { new() { Offset = 2, Segment = 0, OffsetName = "_environ" } };
+
+        var disassembler = new X86Disassembler(raw, new RelocationTable("", relocs));
+        disassembler.Disassemble(0);
+
+        var instr = disassembler.Instructions[0];
+        Assert.Equal(Mnemonic.PUSH, instr.Mnemonic);
+        Assert.Equal("_environ", instr.Operand1.Relocation);
+        Assert.Equal("[_environ]", instr.Operands);
+    }
+
+    [Fact]
+    public void Disassembler_MarksRelocatedPushImm16()
+    {
+        // PUSH imm16 — 68 imm16 lo hi
+        byte[] raw = [0x68, 0x00, 0x00];
+        var relocs = new RelocationEntry[] { new() { Offset = 1, Segment = 0, OffsetName = "__psp" } };
+
+        var disassembler = new X86Disassembler(raw, new RelocationTable("", relocs));
+        disassembler.Disassemble(0);
+
+        var instr = disassembler.Instructions[0];
+        Assert.Equal(Mnemonic.PUSH, instr.Mnemonic);
+        Assert.Equal("__psp", instr.Operand1.Relocation);
+        Assert.Equal("__psp+0", instr.Operands);
+    }
 }

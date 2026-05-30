@@ -251,6 +251,22 @@ internal static class FunctionBodyComparer
             return instruction.Offset + 1;
         }
 
+        // PUSH imm16: 68 lo hi
+        if (bytes[0] == 0x68)
+        {
+            return instruction.Offset + 1;
+        }
+
+        // PUSH [disp16]: FF /6 mod=00 rm=110 (FF 36 disp16) или mod=10 (FF B6 disp16)
+        if (bytes[0] == 0xFF && bytes.Length >= 2 && ((bytes[1] >> 3) & 7) == 6)
+        {
+            var mod = (bytes[1] >> 6) & 3;
+            if (mod is 0 or 2)
+            {
+                return instruction.Offset + 2;
+            }
+        }
+
         // Последние два байта — наиболее вероятное расположение immediate в сложных формах.
         return instruction.Offset + bytes.Length - 2;
     }

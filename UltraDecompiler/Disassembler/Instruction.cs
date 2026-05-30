@@ -54,12 +54,23 @@ public partial class Instruction
     public Operand Operand2 { get; set; }
 
     /// <summary>
+    /// Прямой far-переход/вызов с непосредственным указателем seg:off (9Ah/EAh).
+    /// </summary>
+    public bool IsDirectFarPointer =>
+        Mnemonic is Mnemonic.CALL_FAR or Mnemonic.JMP_FAR
+        && Operand1.Type == OperandType.Immediate16
+        && Operand2.Type == OperandType.Immediate16;
+
+    /// <summary>
     /// Строковое представление параметров (вычисляемое)
     /// </summary>
     public string Operands
     {
         get
         {
+            if (IsDirectFarPointer)
+                return $"{Operand2}:{Operand1}";
+
             var ops = new List<string>();
             if (Operand1.Type != OperandType.None) ops.Add(Operand1.ToString() ?? UnknownOperand);
             if (Operand2.Type != OperandType.None) ops.Add(Operand2.ToString() ?? UnknownOperand);

@@ -169,6 +169,11 @@ public static class Extensions
                 return Ansi.Wrap(Ansi.Red, Instruction.UnknownOperand);
             }
 
+            if (instruction.IsDirectFarPointer)
+            {
+                return FormatDirectFarPointerColored(instruction.Operand2, instruction.Operand1);
+            }
+
             var ops = new List<string>(2);
             if (instruction.Operand1.IsSet)
             {
@@ -194,6 +199,9 @@ public static class Extensions
 
             return result;
         }
+
+        private static string FormatDirectFarPointerColored(in Operand segment, in Operand offset) =>
+            $"{segment.ToColoredAsm()}:{offset.ToColoredAsm()}";
     }
 
     extension(in Operand operand)
@@ -323,8 +331,14 @@ public static class Extensions
                 parts.Add(idxName);
             }
 
-            // Displacement
-            if (operand.Value != 0)
+            // Displacement (в т.ч. FIXUP при disp=0 — типично для PUSH [sym] в crt0)
+            if (operand.Relocation is not null)
+            {
+                parts.Add(operand.Value != 0
+                    ? operand.FormatImageOffset(operand.Value)
+                    : operand.Relocation);
+            }
+            else if (operand.Value != 0)
             {
                 parts.Add(operand.FormatImageOffset(operand.Value));
             }
@@ -363,7 +377,13 @@ public static class Extensions
                 }));
             }
 
-            if (operand.Value != 0)
+            if (operand.Relocation is not null)
+            {
+                parts.Add(operand.Value != 0
+                    ? operand.FormatImageOffsetColored(operand.Value)
+                    : Ansi.Wrap(Ansi.Pink, operand.Relocation));
+            }
+            else if (operand.Value != 0)
             {
                 parts.Add(operand.FormatImageOffsetColored(operand.Value));
             }
