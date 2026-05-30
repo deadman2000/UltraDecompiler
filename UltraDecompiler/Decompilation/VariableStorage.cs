@@ -8,12 +8,18 @@ public class VariableStorage
     private readonly List<Variable> _variables = [];
     private Variable? _pspBase;
     private readonly Dictionary<int, Variable> _pspFields = new();
+    private readonly Dictionary<int, Variable> _stackParameters = new();
+
+    /// <summary>true, если для функции активирован стандартный стековый кадр (BP-based).</summary>
+    public bool StackFrameActive { get; private set; }
 
     public void Clear()
     {
         _variables.Clear();
         _pspBase = null;
         _pspFields.Clear();
+        _stackParameters.Clear();
+        StackFrameActive = false;
     }
 
     /// <summary>
@@ -34,6 +40,42 @@ public class VariableStorage
     /// Возвращает (или создаёт) каноническую переменную — базу PSP.
     /// </summary>
     public Variable PspBase => _pspBase ??= CreateVariable("_psp");
+
+    /// <summary>
+    /// Активирует стековый кадр и создаёт переменные параметров для указанных смещений [BP+offset].
+    /// </summary>
+    public IReadOnlyList<FunctionParameter> ActivateStackFrame(IEnumerable<int> stackOffsets)
+    {
+        StackFrameActive = true;
+        _stackParameters.Clear();
+
+        var result = new List<FunctionParameter>();
+        int index = 0;
+
+        foreach (var offset in stackOffsets.OrderBy(o => o))
+        {
+            if (_stackParameters.ContainsKey(offset))
+                continue;
+
+            var variable = CreateVariable($"arg{index}");
+            _stackParameters[offset] = variable;
+            result.Add(new FunctionParameter(offset, variable));
+            index++;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Возвращает переменную параметра для обращения [BP+disp], если кадр активен.
+    /// </summary>
+    public Variable? TryGetStackParameter(int bpDisplacement)
+    {
+        if (!StackFrameActive || bpDisplacement < 4)
+            return null;
+
+        return _stackParameters.GetValueOrDefault(bpDisplacement);
+    }
 
     /// <summary>
     /// Пытается распознать доступ к известной структуре в памяти (например, поля PSP).

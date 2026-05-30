@@ -228,6 +228,14 @@ public static class Extensions
 
             if (operand.Type == OperandType.Memory)
             {
+                if (operand.BaseReg == AddressRegister.BP &&
+                    operand.IndexReg == AddressRegister.None)
+                {
+                    var param = block.Variables.TryGetStackParameter(operand.Value);
+                    if (param != null)
+                        return param;
+                }
+
                 var (address, segExpr) = operand.BuildMemoryReference(block.EndRegisters, segmentOverride);
 
                 // Пытаемся распознать доступ к известной структуре в памяти (PSP и т.п.)

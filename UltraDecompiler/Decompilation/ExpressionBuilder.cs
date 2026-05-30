@@ -72,6 +72,8 @@ public partial class ExpressionBuilder
         _queue.Clear();
         _entryBlock = null;
 
+        AnalyzeFunctionParameters(graph);
+
         // Формируем первый блок и добавляем его в очередь на обработку
         CreateExprBlock(graph.EntryBlock, initialRegisters, initialStack);
 

@@ -91,6 +91,7 @@ DosExeParser → Crt0EntryPointMatcher → MainOffsetFinder → DecompilePipelin
 - `Operation.cs` — side-effect операции: `SetOperation`, `CallOperation`, `StoreOperation`.
 - `ExprBlock.cs` — результат для одного BasicBlock (Operations + Condition + ссылки на следующие блоки).
 - `VariableStorage.cs` + `PspKnownFields` — отслеживание переменных + распознавание обращений к PSP (Program Segment Prefix).
+- `ExpressionBuilder.Parameters.cs` — восстановление входных параметров функции: пролог `push bp; mov bp, sp` / `ENTER`, смещения `[BP+4]`, `[BP+6]`, … → `arg0`, `arg1`; чтения подменяются на `Variable` в IR.
 - `DosInterruptHelper.cs` — преобразование INT 21h в красивые вызовы (`dos_open`, `dos_print_string` и т.д.) на основе `msdos.h`. При генерации кода ориентируется на оригинальные заголовки из `assets/QuickC/`.
 
 **Ключевой принцип ExpressionBuilder:**

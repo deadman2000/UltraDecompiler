@@ -97,6 +97,9 @@ public class X86Disassembler
                 int target = instr.GetEffectiveJumpTarget(Image);
                 if (target != -1)
                     queue.Enqueue((target, registers));
+
+                if (instr.IsUnconditionalJump)
+                    break;
             }
         }
     }

@@ -10,5 +10,10 @@ public class Procedure
     /// </summary>
     public required string Name { get; set; }
 
-    // TODO возвращаемый тип и аргуементы?
+    /// <summary>
+    /// Параметры (для декомпилируемой функции или известной сигнатуры).
+    /// </summary>
+    public IReadOnlyList<FunctionParameter> Parameters { get; init; } = [];
+
+    // TODO возвращаемый тип
 }
