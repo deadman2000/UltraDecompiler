@@ -24,23 +24,44 @@
 
 ---
 
+## Структура решения
+
+| Проект | Назначение |
+|--------|------------|
+| `UltraDecompiler` | Ядро: парсер EXE/COM, дизассемблер, CFG, ExpressionBuilder |
+| `Common` | Общие типы: `RelocationTable`, `RelocationEntry` (используются ядром, LibParser и LibMatching) |
+| `LibParser` | Разбор OMF `.LIB` Microsoft QuickC (модули, сегменты, FIXUPP, словарь символов) |
+| `LibMatching` | Сопоставление кода EXE/COM с функциями из `.LIB` (crt0, `_main`, runtime) |
+| `Tools` | CLI: `decompile`, `decompile-match`, `lib` |
+| `DecompilerTests` | Тесты ядра (дизассемблер, IR, регистры, CFG) |
+| `LibParserTests` / `LibMatchingTests` | Тесты парсера библиотек и сопоставления (эталонные `.LIB` из `QuickC/`) |
+
+---
+
 ## Архитектура и пайплайн декомпиляции
 
-Процесс декомпиляции строго разделён на этапы:
+Базовый пайплайн:
 
 ```
 DosExeParser → X86Disassembler → ControlFlowGraph → ExpressionBuilder → (будущий CodeGen)
 ```
 
+Расширенный пайплайн (CLI `decompile-match`):
+
+```
+DosExeParser → Crt0EntryPointMatcher → MainOffsetFinder → DecompilePipeline (от _main)
+                     ↑ LibParser (.LIB)        ↑ LibMatching
+```
+
 ### 1. Parser (`UltraDecompiler/Parser/`)
 - `DosExeParser.cs` — загрузка и парсинг MZ .EXE и plain .COM файлов.
-- Читает таблицу релокаций и отдаёт сырой образ; fixup выполняет дизассемблер.
+- Читает таблицу релокаций MZ и строит `RelocationTable`; образ **не патчится** — релокации помечаются символически при декодировании операндов.
 - Определяет точку входа.
 - Различает `IsCom` (разная инициализация регистров на входе).
 
 ### 2. Disassembler (`UltraDecompiler/Disassembler/`)
-- `X86Disassembler.cs` — рекурсивный дизассемблер с отслеживанием регистров (`RegisterState`). При загрузке MZ EXE применяет `RelocationTable` к копии образа (параграф базы загрузки = `ImageBase >> 4`).
-- `Parser/RelocationTable.cs` — применение fixup к 16-битным словам по таблице релокаций.
+- `X86Disassembler.cs` — рекурсивный дизассемблер с отслеживанием регистров (`RegisterState`). Статический `Disassemble()` — линейное извлечение тела функции для LibMatching.
+- `Common/RelocationTable.cs` — помечает 16-битные слова образа как символические смещения (`TryGetOffsetName`); имена попадают в операнды инструкций и далее в IR.
 - Использует BFS + `DisassembleBranch` для корректного разбора переходов.
 - `DecodeOneInstruction()` — огромный свитч (высокая цикломатическая сложность ~257). Здесь вся логика декодирования опкодов 8086.
 - `Instruction.cs` + `Instruction.Registers.cs` — модель инструкции + применение эффектов на регистры.
@@ -76,7 +97,23 @@ DosExeParser → X86Disassembler → ControlFlowGraph → ExpressionBuilder → 
 > MOV/LEA просто обновляют символическое состояние регистров.  
 > Настоящие `SetOperation`/`StoreOperation` создаются **только** для арифметики, логики, сдвигов, записи в память и вызовов.
 
-Флаги (ZF, CF, SF, OF) тоже хранятся как символические выражения (`CmpExpr` и булевы комбинации).
+Флаги (ZF, CF, SF, OF, DF) тоже хранятся как символические выражения (`CmpExpr` и булевы комбинации). `CLD`/`STD` обновляют DF; `CLI`/`STI` порождают `_disable()` / `_enable()`.
+
+### 5. LibParser (`LibParser/`)
+- `Omf/OmfLibraryParser.cs` — чтение `.LIB` (записи F0h/F1h, TIS OMF Appendix 2).
+- `Omf/OmfModuleParser.cs` — разбор объектного модуля: LEDATA/LIDATA, EXTDEF, FIXUPP.
+- `Omf/OmfRelocationTableBuilder.cs` — `RelocationTable` для дизассемблирования кода модуля (Offset16, SegmentBase, Pointer32).
+- `Omf/OmfFixupNameResolver.cs` — имена целей FIXUPP (EXTDEF, SEGDEF).
+- Подробности формата: `LibParser/OMF.md`, API: `LibParser/Readme.md`.
+
+### 6. LibMatching (`LibMatching/`)
+- `LibraryFunctionMatcher.cs` — сопоставление тела функции в образе EXE с публичными символами `.LIB`.
+- `FunctionBodyComparer.cs` — сравнение инструкций с маскированием rel16/seg16 и near CALL/JMP (до/после линковки).
+- `Crt0EntryPointMatcher.cs` — определение библиотеки по совпадению crt0/`__astart` на точке входа.
+- `MainOffsetFinder.cs` — поиск `_main` по FIXUPP вызова из crt0.
+- `LibrarySymbolFinder.cs` — линейный перебор образа для поиска символа (fallback, если не на точке входа).
+
+**Ограничение:** пока символ в модуле предполагается с offset 0 в CODE (нет разбора PUBDEF). См. [TODO.md](./TODO.md).
 
 ---
 
@@ -85,14 +122,20 @@ DosExeParser → X86Disassembler → ControlFlowGraph → ExpressionBuilder → 
 | Путь | Назначение |
 |------|------------|
 | `Tools/Commands/DecompileCommand.cs` | CLI `decompile`: парсинг → дизассемблирование → CFG → ExpressionBuilder |
-| `Tools/Commands/LibCommand.cs` | CLI `lib`: разбор OMF .LIB |
+| `Tools/Commands/DecompileMatchCommand.cs` | CLI `decompile-match`: crt0 + `_main` через `.LIB`, затем `DecompilePipeline` |
+| `Tools/DecompilePipeline.cs` | Общий пайплайн декомпиляции (используется обеими командами) |
+| `Tools/Commands/LibCommand.cs` | CLI `lib`: разбор OMF `.LIB`, дизассемблирование символа |
+| `LibParser/Omf/OmfLibraryParser.cs` | Парсер QuickC `.LIB` |
+| `LibMatching/LibraryFunctionMatcher.cs` | Сопоставление EXE с функциями библиотеки |
+| `Common/RelocationTable.cs` | Таблица релокаций (EXE и OMF-модули) |
 | `UltraDecompiler/Disassembler/X86Disassembler.cs` | Главный дизассемблер (самый сложный файл) |
 | `UltraDecompiler/Decompilation/ExpressionBuilder.cs` | Основная логика декомпиляции (символическое выполнение) |
 | `UltraDecompiler/Decompilation/RegisterExpressions.cs` | Моделирование регистров + флагов |
 | `UltraDecompiler/assets/QuickC/` | Оригинальные заголовочные файлы Microsoft QuickC 1.0 (DOS.H, CONIO.H, STDIO.H, BIOS.H и др.). Используются как эталон для генерации совместимого кода |
+| `QuickC/` (корень репозитория) | Эталонные `.LIB` и заголовки QuickC для тестов и `decompile-match` |
 | `TODO.md` | Актуальный список ограничений, нереализованных инструкций и задач проекта |
-| `Tests/BaseTests.cs` | Удобные хелперы для тестов (hex DSL) |
-| `Tests/Tools/HexConverter.cs` | Парсер hex-строк с комментариями `;` |
+| `DecompilerTests/BaseTests.cs` | Удобные хелперы для тестов ядра (hex DSL) |
+| `DecompilerTests/Tools/HexConverter.cs` | Парсер hex-строк с комментариями `;` |
 | `QuickC/INCLUDE/msdos.h` | Целевой стиль API для сгенерированного кода (QuickC-совместимый) |
 
 ### Заголовочные файлы QuickC
@@ -127,16 +170,21 @@ DosExeParser → X86Disassembler → ControlFlowGraph → ExpressionBuilder → 
 
 ### Тестирование
 - xUnit + Coverlet.
-- Тесты разделены по уровням:
+- `DecompilerTests/` — ядро:
   - `Disassembler/*Tests.cs`
   - `Expressions/*Tests.cs` (самые важные)
   - `Registers/*Tests.cs` (тестируют `RegisterExpressions`)
   - `GraphTests.cs`, `InstructionIsExitTests.cs` и др.
-- Базовые хелперы: `Disassemble(hex)`, `GetGraph(hex)`, `BuildExpressions(hex)`.
+- `LibParserTests/` — OMF, FIXUPP, `OmfRelocationTableBuilder`.
+- `LibMatchingTests/` — crt0, `_main`, сопоставление с эталонными `.LIB` и `.EXE`.
+- Базовые хелперы ядра: `Disassemble(hex)`, `GetGraph(hex)`, `BuildExpressions(hex)`.
 
 Запуск тестов:
 ```powershell
-dotnet test
+dotnet test                              # все проекты
+dotnet test DecompilerTests              # только ядро
+dotnet test LibParserTests
+dotnet test LibMatchingTests
 ```
 
 Сборка:
@@ -176,6 +224,12 @@ dotnet build -c Release
 
 - При отладке ExpressionBuilder очень полезно смотреть `block.InitRegisters` → `block.EndRegisters` и `block.Operations`.
 
+- **При работе с `.LIB` и сопоставлением**:
+  1. Проверь разбор модуля через `dotnet run --project Tools -- lib QuickC\CLIBC.LIB -s _printf`.
+  2. FIXUPP → `OmfRelocationTableBuilder.Build` перед дизассемблированием кода модуля.
+  3. Сравнение тел — `FunctionBodyComparer` (rel16 маскируются, near CALL/JMP игнорируют абсолютный target).
+  4. Полный сценарий: `dotnet run --project Tools -- decompile-match path\to\hello.exe`.
+
 ---
 
 ## Что НЕ нужно делать
@@ -185,7 +239,3 @@ dotnet build -c Release
 - Не ослабляй `WarningsAsErrors` и правила .editorconfig.
 
 ---
-
-**Дата последнего обновления этого файла:** 2026-04 (CLI/STI теперь эмитят CallOperation _disable/_enable)
-
-Проект активно развивается. Основной фокус — точность symbolic execution и соответствие стилю QuickC.
