@@ -1,0 +1,14 @@
+namespace LibMatchingTests;
+
+/// <summary>Пути к эталонным артефактам QuickC (EXE, LIB).</summary>
+internal static class QuickCTestAssets
+{
+    private static readonly string QuickCRoot = Path.GetFullPath(
+        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "QuickC"));
+
+    public static string ProgramsPathOf(string fileName) =>
+        Path.Combine(QuickCRoot, "PROGRAMS", fileName);
+
+    public static string LibPathOf(string fileName) =>
+        Path.Combine(QuickCRoot, fileName);
+}

@@ -1,4 +1,3 @@
-using DecompilerTests;
 using UltraDecompiler.Decompilation;
 using UltraDecompiler.Decompilation.Operations;
 

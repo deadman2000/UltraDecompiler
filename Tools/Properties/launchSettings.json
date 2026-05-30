@@ -4,13 +4,13 @@
             "commandName": "Project",
             "commandLineArgs": "decompile D:\\Projects\\TranslateWeb\\Neuromancer\\Neuromancer_re\\NEURO.EXE"
         },
-        "HELLO.EXE": {
+        "HELLO_S.EXE": {
             "commandName": "Project",
-            "commandLineArgs": "decompile D:\\Dos\\PROGRAMS\\QuickC\\MY\\HELLO.EXE"
+            "commandLineArgs": "decompile ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_S.EXE"
         },
-        "HELLO.EXE printf": {
+        "HELLO_S.EXE printf": {
             "commandName": "Project",
-            "commandLineArgs": "decompile D:\\Dos\\PROGRAMS\\QuickC\\MY\\HELLO.EXE -o 5C4h"
+            "commandLineArgs": "decompile ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_S.EXE -o 5C4h"
         },
         "SLIBCE.LIB modules": {
             "commandName": "Project",
