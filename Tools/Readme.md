@@ -26,6 +26,19 @@ dotnet run --project Tools -- decompile game.exe --offset 200h
 
 Парсинг MZ/COM, дизассемблирование, CFG (`asm.dot` / `asm.svg`), ExpressionBuilder (`expr.dot` / `expr.svg`), вывод операций в консоль. Для SVG нужен Graphviz `dot` в PATH.
 
+### `decompile-match` — декомпиляция с сопоставлением crt0
+
+```powershell
+dotnet run --project Tools -- decompile-match game.exe
+dotnet run --project Tools -- decompile-match game.exe -l C:\QuickC
+```
+
+| Опция | Описание |
+|-------|----------|
+| `-l`, `--lib-dir <DIR>` | Каталог с OMF `.LIB` (по умолчанию — `QuickC/` в корне репозитория) |
+
+Сопоставляет точку входа EXE со всеми `.LIB` каталога, выводит таблицу совпадений crt0/`__astart`, находит адрес `__astart` в образе и прогоняет дизасsemblирование + ExpressionBuilder (как `decompile`).
+
 ### `lib` — разбор OMF .LIB (QuickC)
 
 ```powershell
@@ -39,4 +52,4 @@ dotnet run --project Tools -- lib C:\QuickC\CLIBC.LIB -s _printf
 | `-l`, `--list-modules` | Список всех модулей |
 | `-s`, `--symbol <NAME>` | Поиск символа и сведения о модуле |
 
-Справка: `dotnet run --project Tools -- --help` или `decompile --help`, `lib --help`.
+Справка: `dotnet run --project Tools -- --help` или `decompile --help`, `decompile-match --help`, `lib --help`.

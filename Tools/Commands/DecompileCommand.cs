@@ -1,9 +1,5 @@
-using System.Diagnostics;
 using McMaster.Extensions.CommandLineUtils;
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Decompilation.Operations;
 using UltraDecompiler.Disassembler;
-using UltraDecompiler.Graph;
 using UltraDecompiler.Parser;
 
 namespace Tools.Commands;
@@ -41,82 +37,25 @@ internal static class DecompileCommand
             var parser = new DosExeParser(exePath);
             parser.PrintInfo();
 
-            var initRegisterState = parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe;
-
             var startOffset = ParseStartOffset(offsetText, parser);
 
             if (offsetText is not null)
             {
                 Console.WriteLine($"\nСтартовое смещение: 0x{startOffset:X} (точка входа: 0x{parser.EntryPointOffset:X})");
             }
-
-            Console.WriteLine(
-                offsetText is null
-                    ? "\n=== Disassembly from entry point ==="
-                    : $"\n=== Disassembly from offset 0x{startOffset:X} ===");
-
-            var disassembler = new X86Disassembler(parser.Image, parser.RelocationTable);
-            disassembler.Disassemble(startOffset, initRegisterState);
-
-            var next = 0;
-            foreach (var instr in disassembler.Instructions)
+            else
             {
-                if (instr.Offset < next)
-                {
-                    Console.WriteLine($"Wrong instruction: {instr}");
-                    return 1;
-                }
-
-                Console.WriteLine(instr.ToColoredString());
-                next = instr.Offset + instr.Bytes.Length;
+                Console.WriteLine("\n=== Disassembly from entry point ===");
             }
-
-            Console.WriteLine("\n=== Control Flow Graph ===");
-            var cfg = new ControlFlowGraph();
-            cfg.Build(disassembler, startOffset, initRegisterState);
 
             var outputDir = Path.GetDirectoryName(exePath) ?? ".";
-
-            var cfgDotPath = Path.Combine(outputDir, "asm.dot");
-            var cfgSvgPath = Path.Combine(outputDir, "asm.svg");
-            cfg.SaveDot(cfgDotPath);
-            ConvertDotToSvg(cfgDotPath, cfgSvgPath);
-            Console.WriteLine($"CFG: {cfgDotPath}, {cfgSvgPath}");
-
-            var expressions = new ExpressionBuilder();
-            expressions.Build(cfg, parser.IsCom);
-
-            var exprDotPath = Path.Combine(outputDir, "expr.dot");
-            var exprSvgPath = Path.Combine(outputDir, "expr.svg");
-            expressions.SaveDot(exprDotPath);
-            ConvertDotToSvg(exprDotPath, exprSvgPath);
-            Console.WriteLine($"Expressions: {exprDotPath}, {exprSvgPath}");
-
-            var operations = expressions.GetAllOperations();
-            Console.WriteLine();
-            foreach (var op in operations)
-            {
-                Console.WriteLine(op.ToCString(asStatement: true));
-            }
-
-            return 0;
+            return DecompilePipeline.Run(parser, startOffset, outputDir);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error: {ex.Message}");
             return 1;
         }
-    }
-
-    private static void ConvertDotToSvg(string dotPath, string svgPath)
-    {
-        var proc = new Process();
-        proc.StartInfo = new ProcessStartInfo("dot", $"-Tsvg \"{dotPath}\" -o \"{svgPath}\"")
-        {
-            UseShellExecute = false,
-        };
-        proc.Start();
-        proc.WaitForExit();
     }
 
     /// <summary>Разбор смещения: десятичное, 0x… или …h.</summary>

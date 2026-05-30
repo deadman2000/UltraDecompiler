@@ -11,4 +11,6 @@ internal static class QuickCTestAssets
 
     public static string LibPathOf(string fileName) =>
         Path.Combine(QuickCRoot, fileName);
+
+    public static string LibDirectory => QuickCRoot;
 }

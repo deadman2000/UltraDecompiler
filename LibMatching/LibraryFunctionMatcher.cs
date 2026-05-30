@@ -103,14 +103,23 @@ public static class LibraryFunctionMatcher
             return false;
         }
 
-        // FIXUPP модуля описывают, какие 16-битные слова в .LIB ещё «символические».
-        var libraryRelocations = OmfRelocationTableBuilder.Build(codeSegment, module.Fixups);
-        var libraryBody = FunctionBodyExtractor.Extract(
-            codeSegment.Data,
-            libraryRelocations,
-            moduleCodeOffset,
-            RegisterState.Unknown);
+        try
+        {
+            // FIXUPP модуля описывают, какие 16-битные слова в .LIB ещё «символические».
+            var libraryRelocations = OmfRelocationTableBuilder.Build(codeSegment, module.Fixups);
+            var libraryBody = FunctionBodyExtractor.Extract(
+                codeSegment.Data,
+                libraryRelocations,
+                moduleCodeOffset,
+                RegisterState.Unknown);
 
-        return FunctionBodyComparer.AreEquivalent(targetBody, libraryBody, libraryRelocations);
+            return FunctionBodyComparer.AreEquivalent(targetBody, libraryBody, libraryRelocations);
+        }
+        catch (IndexOutOfRangeException)
+        {
+            // Некоторые модули .LIB (напр. CLIBFP) содержат CODE, который дизасsemblер не может
+            // полностью разобрать — такой модуль просто не совпадает.
+            return false;
+        }
     }
 }

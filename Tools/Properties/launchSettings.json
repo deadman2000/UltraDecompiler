@@ -12,6 +12,10 @@
             "commandName": "Project",
             "commandLineArgs": "decompile ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_S.EXE -o 5C4h"
         },
+        "HELLO_S.EXE decompile-match": {
+            "commandName": "Project",
+            "commandLineArgs": "decompile-match ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_S.EXE"
+        },
         "SLIBCE.LIB modules": {
             "commandName": "Project",
             "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\SLIBCE.LIB -l"
@@ -19,6 +23,10 @@
         "SLIBCE.LIB printf": {
             "commandName": "Project",
             "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\SLIBCE.LIB -s _printf"
+        },
+        "SLIBCE.LIB __astart": {
+            "commandName": "Project",
+            "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\SLIBCE.LIB -s __astart"
         }
     }
 }
