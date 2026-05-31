@@ -55,7 +55,6 @@ internal static class DecompileCCommand
             }
 
             Console.WriteLine($"библиотека: {result.SelectedLibraryFileName}");
-            Console.WriteLine($"_main: 0x{result.MainOffset:X}");
             Console.WriteLine();
 
             WriteProcedureTable(result.Procedures);
@@ -68,12 +67,6 @@ internal static class DecompileCCommand
             foreach (var filePath in result.OutputFiles)
             {
                 Console.WriteLine($"  {filePath}");
-            }
-
-            if (result.OutputFiles.Count > 0)
-            {
-                Console.WriteLine();
-                Console.WriteLine(File.ReadAllText(result.OutputFiles[0]));
             }
 
             return 0;

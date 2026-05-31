@@ -124,7 +124,7 @@ public class Decompiler
         {
             try
             {
-                var astartOffset = ResolveAstartOffset(parser, match, initRegisters, entryPoint);
+                var astartOffset = ResolveAstartOffset(match, entryPoint);
                 var mainOffset = _libraryMatcher.FindMainOffset(
                     parser.Image,
                     parser.RelocationTable,
@@ -331,9 +331,7 @@ public class Decompiler
     }
 
     private static int ResolveAstartOffset(
-        DosExeParser parser,
         EntryPointLibraryMatchInfo match,
-        RegisterState initRegisters,
         int entryPoint)
     {
         if (match.Matches.Any(static m => m.SymbolName == AstartSymbol))
