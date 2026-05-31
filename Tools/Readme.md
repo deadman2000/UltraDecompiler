@@ -37,7 +37,7 @@ dotnet run --project Tools -- decompile-match game.exe -l C:\QuickC
 |-------|----------|
 | `-l`, `--lib-dir <DIR>` | Каталог с OMF `.LIB` (по умолчанию — `QuickC/` в корне репозитория) |
 
-Сопоставляет точку входа EXE со всеми `.LIB` каталога, выводит таблицу совпадений crt0/`__astart`, находит адрес `__astart` в образе и прогоняет дизасsemblирование + ExpressionBuilder (как `decompile`).
+Сопоставляет точку входа EXE со всеми `.LIB` каталога, выводит таблицу совпадений crt0/`__astart`, находит адрес `__astart` в образе и прогоняет дизассемблирование + ExpressionBuilder (как `decompile`).
 
 ### `lib` — разбор OMF .LIB (QuickC)
 

@@ -1,7 +1,6 @@
 using Common;
-using UltraDecompiler.Disassembler;
 
-namespace LibMatching;
+namespace UltraDecompiler.LibMatching;
 
 /// <summary>
 /// Сравнивает тела функций с учётом неразрешённых релокаций библиотеки и линковки EXE.
@@ -13,7 +12,7 @@ namespace LibMatching;
 /// FIXUPP модуля библиотеки помечает их как rel16/seg16. Короткие Jcc/JMP сравниваются
 /// по disp8 из байтов инструкции, т.к. Operand хранит абсолютную цель.
 /// </remarks>
-internal static class FunctionBodyComparer
+public static class FunctionBodyComparer
 {
     /// <summary>
     /// Сравнивает линейные тела функций: совпадают мнемоники, типы операндов и значения,

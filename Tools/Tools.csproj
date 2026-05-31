@@ -14,7 +14,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\LibMatching\LibMatching.csproj" />
     <ProjectReference Include="..\LibParser\LibParser.csproj" />
     <ProjectReference Include="..\UltraDecompiler\UltraDecompiler.csproj" />
   </ItemGroup>

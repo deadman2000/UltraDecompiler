@@ -36,6 +36,17 @@ public abstract class BaseTests
         return decompiler;
     }
 
+    protected static ExpressionBuilder BuildExpressions(
+        string hex,
+        IReadOnlyDictionary<int, string> knownProcedures,
+        bool isCom = false)
+    {
+        var graph = GetGraph(hex);
+        var decompiler = new ExpressionBuilder();
+        decompiler.Build(graph, isCom, knownProcedures);
+        return decompiler;
+    }
+
     /// <summary>
     /// Строит выражения с явно заданным начальным состоянием регистров.
     /// Удобно для тестов, где нужно проверить работу с символическими переменными.

@@ -1,7 +1,7 @@
-using LibMatching;
 using LibParser.Models;
 using McMaster.Extensions.CommandLineUtils;
 using UltraDecompiler.Disassembler;
+using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
 
 namespace Tools.Commands;
@@ -38,7 +38,7 @@ internal static class DecompileMatchCommand
         });
     }
 
-    private static int Execute(string exePath, string? libDirText)
+    private static int Execute(string exePath, string? libDir)
     {
         try
         {
@@ -47,7 +47,7 @@ internal static class DecompileMatchCommand
 
             var initRegisterState = parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe;
             var entryPoint = (int)parser.EntryPointOffset;
-            var libDirectory = ResolveLibraryDirectory(libDirText);
+            var libDirectory = ResolveLibraryDirectory(libDir);
 
             var entryMatches = Crt0EntryPointMatcher.MatchDirectory(
                 parser.Image,
@@ -80,11 +80,11 @@ internal static class DecompileMatchCommand
         }
     }
 
-    private static string ResolveLibraryDirectory(string? libDirText)
+    private static string ResolveLibraryDirectory(string? libDir)
     {
-        if (!string.IsNullOrWhiteSpace(libDirText))
+        if (!string.IsNullOrWhiteSpace(libDir))
         {
-            return Path.GetFullPath(libDirText);
+            return Path.GetFullPath(libDir);
         }
 
         return Path.GetFullPath(

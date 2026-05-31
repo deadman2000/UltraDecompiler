@@ -107,6 +107,118 @@ public class ControlFlowGraph
     }
 
     /// <summary>
+    /// Строит CFG по заранее извлечённому телу одной функции.
+    /// </summary>
+    public void BuildFromInstructions(
+        IReadOnlyList<Instruction> functionInstructions,
+        int startOffset,
+        byte[] image,
+        RegisterState initRegisters)
+    {
+        ArgumentNullException.ThrowIfNull(functionInstructions);
+        ArgumentNullException.ThrowIfNull(image);
+
+        if (functionInstructions.Count == 0)
+        {
+            throw new ArgumentException("Пустое тело функции.", nameof(functionInstructions));
+        }
+
+        var byOffset = functionInstructions.ToDictionary(static i => i.Offset);
+        var allowed = byOffset.Keys.ToHashSet();
+
+        Queue<(int Offset, RegisterState Registers)> queue = [];
+        queue.Enqueue((startOffset, initRegisters));
+
+        HashSet<int> visited = [];
+
+        while (queue.Count > 0)
+        {
+            var (offset, registers) = queue.Dequeue();
+            if (visited.Contains(offset) || !allowed.Contains(offset))
+            {
+                continue;
+            }
+
+            var block = new BasicBlock
+            {
+                StartOffset = offset,
+            };
+
+            Blocks.Add(block);
+            EntryBlock ??= block;
+
+            var isBreak = false;
+            var current = offset;
+
+            while (allowed.Contains(current))
+            {
+                if (visited.Contains(current))
+                {
+                    var nextBlock = Blocks.FirstOrDefault(b => b.StartOffset == current)
+                        ?? throw new InvalidOperationException($"CFG: блок 0x{current:X} не найден.");
+
+                    block.NextBlock = nextBlock;
+                    isBreak = true;
+                    break;
+                }
+
+                var instr = byOffset[current];
+                block.Instructions.Add(instr);
+                visited.Add(current);
+                registers = instr.Registers;
+
+                if (instr.IsReturn || instr.IsExit)
+                {
+                    break;
+                }
+
+                if (instr.IsConditionalJump || instr.IsUnconditionalJump)
+                {
+                    var jumpAddr = instr.GetEffectiveJumpTarget(image);
+                    if (jumpAddr != -1 && allowed.Contains(jumpAddr) && !visited.Contains(jumpAddr))
+                    {
+                        queue.Enqueue((jumpAddr, registers));
+                    }
+
+                    if (instr.IsConditionalJump)
+                    {
+                        var next = instr.Offset + instr.Size;
+                        block.NextOffset = next;
+                        block.ConditionalOffset = jumpAddr;
+
+                        if (allowed.Contains(next) && !visited.Contains(next))
+                        {
+                            queue.Enqueue((next, registers));
+                        }
+                    }
+                    else
+                    {
+                        block.NextOffset = jumpAddr;
+                    }
+
+                    break;
+                }
+
+                current = instr.Offset + instr.Size;
+            }
+
+            if (isBreak)
+            {
+                continue;
+            }
+
+            if (block.Instructions.Count == 0)
+            {
+                continue;
+            }
+
+            block.EndOffset = block.Instructions[^1].Offset;
+        }
+
+        BuildEdges();
+    }
+
+    /// <summary>
     /// Устанавливает взаимосвязи между блоками (NextBlock / ConditionalBlock).
     /// 
     /// Важно: внутри этого метода может происходить разбиение существующих блоков

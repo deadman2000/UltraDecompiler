@@ -1,6 +1,6 @@
 using Common;
-using LibMatching;
 using UltraDecompiler.Disassembler;
+using UltraDecompiler.LibMatching;
 
 namespace LibMatchingTests;
 

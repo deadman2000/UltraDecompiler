@@ -12,5 +12,6 @@
 	</Target>
 	<ItemGroup>
 	  <ProjectReference Include="..\Common\Common.csproj" />
+	  <ProjectReference Include="..\LibParser\LibParser.csproj" />
 	</ItemGroup>
 </Project>

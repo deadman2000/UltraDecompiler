@@ -1,8 +1,7 @@
 using Common;
 using LibParser.Models;
-using UltraDecompiler.Disassembler;
 
-namespace LibMatching;
+namespace UltraDecompiler.LibMatching;
 
 /// <summary>Определяет смещение <c>_main</c> в образе EXE по вызову из crt0 <c>__astart</c>.</summary>
 public static class MainOffsetFinder
@@ -103,7 +102,7 @@ public static class MainOffsetFinder
 
         var callInstruction = disassembler.Instructions.FirstOrDefault(i => i.Offset == callOffset)
             ?? throw new InvalidOperationException(
-                $"Не удалось дизасsemblировать CALL {MainSymbol} по 0x{callOffset:X}.");
+                $"Не удалось дизассемблировать CALL {MainSymbol} по 0x{callOffset:X}.");
 
         var target = callInstruction.GetJumpTarget();
         if (target < 0 || target >= image.Length)

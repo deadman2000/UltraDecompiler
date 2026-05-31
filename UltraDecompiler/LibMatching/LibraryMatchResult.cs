@@ -1,4 +1,4 @@
-namespace LibMatching;
+namespace UltraDecompiler.LibMatching;
 
 /// <summary>Результат сопоставления участка EXE с публичным символом OMF-библиотеки.</summary>
 /// <remarks>

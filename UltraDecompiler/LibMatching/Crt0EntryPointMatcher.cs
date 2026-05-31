@@ -1,9 +1,8 @@
 using Common;
 using LibParser.Models;
 using LibParser.Omf;
-using UltraDecompiler.Disassembler;
 
-namespace LibMatching;
+namespace UltraDecompiler.LibMatching;
 
 /// <summary>Результат сопоставления точки входа EXE с одной OMF-библиотекой.</summary>
 public sealed record EntryPointLibraryMatch

@@ -79,7 +79,7 @@ DosExeParser → Crt0EntryPointMatcher → MainOffsetFinder → DecompilePipelin
 ### 4. Decompilation (`UltraDecompiler/Decompilation/`)
 Это сердце проекта — **символическое выполнение**.
 
-- `ExpressionBuilder.cs` (основной класс, раньше назывался Decompiler) — BFS по блокам CFG + symbolic execution.
+- `ExpressionBuilder.cs` — BFS по блокам CFG + symbolic execution.
 - `RegisterExpressions.cs` — ключевая структура. Моделирует состояние всех регистров (включая 8/16-битное алиасинг AX/AH/AL и т.д.) как **символические выражения**.
   - Поддерживает две формы хранения для групп регистров.
   - Автоматический split/merge при работе с 8-битными половинками.

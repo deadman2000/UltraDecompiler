@@ -11,7 +11,7 @@ namespace Tools;
 internal static class DecompilePipeline
 {
     /// <summary>
-    /// Дизасsemblирует образ от <paramref name="startOffset"/>, строит CFG и IR,
+    /// Дизассемблирует образ от <paramref name="startOffset"/>, строит CFG и IR,
     /// сохраняет DOT/SVG и выводит операции в консоль.
     /// </summary>
     public static int Run(DosExeParser parser, int startOffset, string? outputDir = null)

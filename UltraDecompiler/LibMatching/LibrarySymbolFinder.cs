@@ -1,8 +1,7 @@
 using Common;
 using LibParser.Models;
-using UltraDecompiler.Disassembler;
 
-namespace LibMatching;
+namespace UltraDecompiler.LibMatching;
 
 /// <summary>Поиск смещения публичного символа в образе EXE/COM по сопоставлению с OMF-библиотекой.</summary>
 public static class LibrarySymbolFinder

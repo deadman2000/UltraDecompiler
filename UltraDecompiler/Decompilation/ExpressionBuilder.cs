@@ -15,6 +15,7 @@ public partial class ExpressionBuilder
     private readonly Dictionary<BasicBlock, ExprBlock> _blocksMap = [];
     private readonly Queue<ExprBlock> _queue = new();
     private ExprBlock? _entryBlock;
+    private IReadOnlyDictionary<int, string>? _knownProcedures;
 
     public List<ExprBlock> Blocks { get; } = [];
 
@@ -36,9 +37,20 @@ public partial class ExpressionBuilder
     /// </summary>
     /// <param name="graph">Построенный граф потока управления</param>
     /// <param name="isCom">true для .COM файлов (другая инициализация регистров)</param>
-    public void Build(ControlFlowGraph graph, bool isCom = false)
+    public void Build(ControlFlowGraph graph, bool isCom = false) =>
+        Build(graph, isCom, knownProcedures: null);
+
+    /// <summary>
+    /// Выполняет декомпиляцию с подстановкой имён известных процедур в CALL/JMP.
+    /// </summary>
+    /// <param name="knownProcedures">Смещение в образе → имя функции (например <c>_printf</c>).</param>
+    public void Build(
+        ControlFlowGraph graph,
+        bool isCom,
+        IReadOnlyDictionary<int, string>? knownProcedures)
     {
         Variables.Clear();
+        _knownProcedures = knownProcedures;
 
         var initialRegisters = isCom
             ? RegisterExpressions.InitCom(Variables)
@@ -128,7 +140,8 @@ public partial class ExpressionBuilder
         {
             Variables = Variables,
             InitRegisters = registers,
-            InitStack = stack.ToArray()
+            InitStack = stack.ToArray(),
+            KnownProcedures = _knownProcedures,
         };
         Blocks.Add(exprBlock);
         _blocksMap[block] = exprBlock;

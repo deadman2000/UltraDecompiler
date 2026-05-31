@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace UltraDecompiler.Disassembler;
 
 public readonly struct Operand

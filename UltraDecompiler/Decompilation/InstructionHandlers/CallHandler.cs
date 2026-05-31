@@ -24,7 +24,10 @@ public class CallHandler : IInstructionHandler
         if (op.Type == OperandType.Relative16)
         {
             // Прямой near call. Target — уже вычисленный абсолютный адрес в образе.
-            name = $"sub_{op.Value:X4}";
+            var target = op.Value;
+            name = block.KnownProcedures?.TryGetValue(target, out var knownName) == true
+                ? knownName
+                : $"sub_{target:X4}";
         }
         else if (instr.Mnemonic == Mnemonic.CALL_FAR)
         {

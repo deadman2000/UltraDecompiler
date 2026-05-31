@@ -1,7 +1,7 @@
 using Common;
-using LibMatching;
 using LibParser.Omf;
 using UltraDecompiler.Disassembler;
+using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
 
 namespace LibMatchingTests;

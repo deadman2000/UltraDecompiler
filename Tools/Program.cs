@@ -18,6 +18,7 @@ public static class Program
 
         DecompileCommand.Configure(app);
         DecompileMatchCommand.Configure(app);
+        DecompileCCommand.Configure(app);
         LibCommand.Configure(app);
 
         app.OnExecute(() =>

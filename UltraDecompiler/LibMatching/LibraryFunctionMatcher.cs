@@ -1,9 +1,8 @@
 using Common;
 using LibParser.Models;
 using LibParser.Omf;
-using UltraDecompiler.Disassembler;
 
-namespace LibMatching;
+namespace UltraDecompiler.LibMatching;
 
 /// <summary>
 /// Сопоставляет участок дизассемблированного EXE/COM с публичными символами OMF-библиотеки QuickC.
@@ -117,7 +116,7 @@ public static class LibraryFunctionMatcher
         }
         catch (IndexOutOfRangeException)
         {
-            // Некоторые модули .LIB (напр. CLIBFP) содержат CODE, который дизасsemblер не может
+            // Некоторые модули .LIB (напр. CLIBFP) содержат CODE, который дизассемблер не может
             // полностью разобрать — такой модуль просто не совпадает.
             return false;
         }

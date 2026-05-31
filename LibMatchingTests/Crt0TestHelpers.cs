@@ -1,5 +1,4 @@
 using LibParser.Models;
-using LibParser.Omf;
 
 namespace LibMatchingTests;
 

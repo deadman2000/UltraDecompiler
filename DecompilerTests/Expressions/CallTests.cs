@@ -16,6 +16,20 @@ namespace DecompilerTests.Expressions;
 public class CallTests : BaseTests
 {
     [Fact]
+    public void DirectNearCall_UsesKnownProcedureName()
+    {
+        var knownProcedures = new Dictionary<int, string> { [0x8] = "_printf" };
+        var expr = BuildExpressions("""
+            E8 05 00    ; call 8   (displacement → target 8)
+            90          ; nop
+            """, knownProcedures);
+
+        var setOp = Assert.IsType<SetOperation>(expr.Blocks[0].Operations[0]);
+        var callExpr = Assert.IsType<CallExpr>(setOp.Src);
+        Assert.Equal("_printf", callExpr.Procedure.Name);
+    }
+
+    [Fact]
     public void DirectNearCall_ProducesSubNamedCallExpr_AndSetsAX()
     {
         // E8 05 00 — near call, displacement +5 от следующей инструкции.
