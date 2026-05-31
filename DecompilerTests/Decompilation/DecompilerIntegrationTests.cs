@@ -14,6 +14,7 @@ public class DecompilerIntegrationTests
             var result = decompiler.Decompile(
                 QuickCTestAssets.ProgramsPathOf("HELLO_S.EXE"),
                 QuickCTestAssets.LibDirectory,
+                QuickCTestAssets.IncludeDirectory,
                 outputDirectory);
 
             Assert.True(result.Success);
@@ -34,7 +35,8 @@ public class DecompilerIntegrationTests
             Assert.Contains(result.OutputFiles, path => path.EndsWith("main.c", StringComparison.Ordinal));
             var mainSource = File.ReadAllText(result.OutputFiles.First(path => path.EndsWith("main.c", StringComparison.Ordinal)));
             Assert.Contains("printf(", mainSource);
-            Assert.Contains("void main(void)", mainSource);
+            Assert.Contains("int main(void)", mainSource);
+            Assert.True(printfProcedure.Signature.Parameters.Count >= 1);
         }
         finally
         {
@@ -57,6 +59,7 @@ public class DecompilerIntegrationTests
             Assert.Throws<DirectoryNotFoundException>(() => decompiler.Decompile(
                 QuickCTestAssets.ProgramsPathOf("HELLO_S.EXE"),
                 Path.Combine(outputDirectory, "missing-libs"),
+                QuickCTestAssets.IncludeDirectory,
                 outputDirectory));
         }
         finally

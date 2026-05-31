@@ -32,7 +32,7 @@ public class InterruptHandler : IInstructionHandler
         if (instr.IsExit)
         {
             var exitCall = DosInterruptHelper.CreateForExit(vector, block.EndRegisters);
-            block.Operations.Add(new CallOperation(exitCall.Procedure, exitCall.Args));
+            block.Operations.Add(new CallOperation(exitCall.Name, exitCall.Args));
             return;
         }
 
@@ -42,7 +42,7 @@ public class InterruptHandler : IInstructionHandler
         {
             // Функция объявлена как void в msdos.h (например dos_print_string, dos_set_current_drive и т.д.)
             // Порождаем чистый CallOperation без захвата результата.
-            block.Operations.Add(new CallOperation(callExpr.Procedure, callExpr.Args));
+            block.Operations.Add(new CallOperation(callExpr.Name, callExpr.Args));
         }
         else
         {

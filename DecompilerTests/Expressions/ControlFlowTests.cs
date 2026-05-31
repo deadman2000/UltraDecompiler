@@ -248,7 +248,7 @@ public class ControlFlowTests : BaseTests
         // Последняя операция должна быть CallOperation outb
         var lastOp = expr.Blocks[0].Operations.LastOrDefault();
         var callOp = Assert.IsType<CallOperation>(lastOp);
-        Assert.Equal("outb", callOp.Procedure.Name);
+        Assert.Equal("outb", callOp.Name);
     }
 
     [Fact]

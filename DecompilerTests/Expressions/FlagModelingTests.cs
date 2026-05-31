@@ -367,11 +367,11 @@ public class FlagModelingTests : BaseTests
         Assert.Equal(2, block.Operations.Count);
 
         var op0 = Assert.IsType<CallOperation>(block.Operations[0]);
-        Assert.Equal("_disable", op0.Procedure.Name);
+        Assert.Equal("_disable", op0.Name);
         Assert.Empty(op0.Args);
 
         var op1 = Assert.IsType<CallOperation>(block.Operations[1]);
-        Assert.Equal("_enable", op1.Procedure.Name);
+        Assert.Equal("_enable", op1.Name);
         Assert.Empty(op1.Args);
 
         // Регистр AX должен обновиться от MOV

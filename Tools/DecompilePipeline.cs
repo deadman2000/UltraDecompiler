@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using UltraDecompiler.Decompilation;
 using UltraDecompiler.Decompilation.Operations;
 using UltraDecompiler.Disassembler;
@@ -47,7 +48,9 @@ internal static class DecompilePipeline
         Console.WriteLine();
         foreach (var op in operations)
         {
-            Console.WriteLine(op.ToCString(asStatement: true));
+            var line = new StringBuilder();
+            op.AppendToCString(line, asStatement: true);
+            Console.Write(line);
         }
 
         if (outputDir != null)

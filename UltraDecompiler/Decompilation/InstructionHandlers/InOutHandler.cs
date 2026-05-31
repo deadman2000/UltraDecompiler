@@ -52,7 +52,7 @@ public class InOutHandler : IInstructionHandler
         if (isIn)
         {
             // IN — читаем значение из порта
-            var callExpr = new CallExpr(new Procedure { Name = funcName }, new[] { portExpr });
+            var callExpr = new CallExpr(funcName, new[] { portExpr });
 
             // Создаём SetOperation и обновляем AL/AX
             var resultVar = block.Variables.CreateVariable();
@@ -68,8 +68,8 @@ public class InOutHandler : IInstructionHandler
             // OUT — пишем значение в порт
             Expr valueExpr = instr.Operand2.GetExpression(block, instr.Segment);
 
-            var callExpr = new CallExpr(new Procedure { Name = funcName }, new[] { portExpr, valueExpr });
-            block.Operations.Add(new CallOperation(callExpr.Procedure, callExpr.Args));
+            var callExpr = new CallExpr(funcName, new[] { portExpr, valueExpr });
+            block.Operations.Add(new CallOperation(callExpr.Name, callExpr.Args));
         }
     }
 }

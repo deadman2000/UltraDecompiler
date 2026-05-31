@@ -1,6 +1,6 @@
 ﻿namespace UltraDecompiler.Decompilation.Operations;
 
 /// <summary>
-/// Вызов метода
+/// Вызов функции (без использования возвращаемого значения).
 /// </summary>
-public record CallOperation(Procedure Procedure, IReadOnlyList<Expr> Args) : Operation;
+public record CallOperation(string Name, IReadOnlyList<Expr> Args) : Operation;

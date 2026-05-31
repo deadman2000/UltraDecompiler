@@ -27,7 +27,7 @@ public class InterruptTests : BaseTests
         Assert.Single(block.Operations);
 
         var callOp = Assert.IsType<CallOperation>(block.Operations[0]);
-        Assert.Equal("dos_print_string", callOp.Procedure.Name);
+        Assert.Equal("dos_print_string", callOp.Name);
 
         // Поскольку функция void — мы не перезаписываем AX искусственным результатом
         // (AX может быть испорчен, но мы не создаём для него новую Variable от этого вызова)
@@ -49,7 +49,7 @@ public class InterruptTests : BaseTests
         Assert.Single(block.Operations);
 
         var callOp = Assert.IsType<CallOperation>(block.Operations[0]);
-        Assert.Equal("int86", callOp.Procedure.Name);
+        Assert.Equal("int86", callOp.Name);
         Assert.Single(callOp.Args);
         Assert.IsType<ConstExpr>(callOp.Args[0]);
 
@@ -97,7 +97,7 @@ public class InterruptTests : BaseTests
         var setOp = Assert.IsType<SetOperation>(block.Operations[0]);
         var callExpr = Assert.IsType<CallExpr>(setOp.Src);
 
-        Assert.Equal("dos_open", callExpr.Procedure.Name);
+        Assert.Equal("dos_open", callExpr.Name);
         Assert.NotEmpty(callExpr.Args);   // должно содержать хотя бы имя файла + режим
 
         // Результат должен попасть в AX
@@ -116,7 +116,7 @@ public class InterruptTests : BaseTests
         Assert.Single(block.Operations);
 
         var callOp = Assert.IsType<CallOperation>(block.Operations[0]);
-        Assert.Equal("__exit", callOp.Procedure.Name);
+        Assert.Equal("__exit", callOp.Name);
         Assert.Single(callOp.Args);
         Assert.IsType<ConstExpr>(callOp.Args[0]);
         Assert.Equal(0, ((ConstExpr)callOp.Args[0]).Value);
@@ -135,7 +135,7 @@ public class InterruptTests : BaseTests
         Assert.Single(block.Operations);
 
         var callOp = Assert.IsType<CallOperation>(block.Operations[0]);
-        Assert.Equal("__exit", callOp.Procedure.Name);
+        Assert.Equal("__exit", callOp.Name);
         Assert.Single(callOp.Args);
         Assert.IsType<ConstExpr>(callOp.Args[0]);
         Assert.Equal(1, ((ConstExpr)callOp.Args[0]).Value);
@@ -160,7 +160,7 @@ public class InterruptTests : BaseTests
         var setOp = Assert.IsType<SetOperation>(block.Operations[0]);
         var callExpr = Assert.IsType<CallExpr>(setOp.Src);
 
-        Assert.Equal("dos_read", callExpr.Procedure.Name);
+        Assert.Equal("dos_read", callExpr.Name);
         Assert.True(callExpr.Args.Count >= 3, "dos_read должен получать handle + buffer + count");
 
         var ax = Assert.IsType<Variable>(block.EndRegisters.AX);

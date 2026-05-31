@@ -239,14 +239,14 @@ public record Math2Expr(Math2Operation Operation, Expr First, Expr Second) : Exp
 }
 
 /// <summary>
-/// Вызов метода
+/// Вызов функции
 /// </summary>
-public record CallExpr(Procedure Procedure, IReadOnlyList<Expr> Args) : Expr
+public record CallExpr(string Name, IReadOnlyList<Expr> Args) : Expr
 {
     public override string ToString()
     {
         var args = string.Join(", ", Args);
-        return $"{Procedure.Name}({args})";
+        return $"{Name}({args})";
     }
 }
 

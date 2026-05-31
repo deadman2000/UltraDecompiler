@@ -15,7 +15,7 @@ public partial class ExpressionBuilder
     private readonly Dictionary<BasicBlock, ExprBlock> _blocksMap = [];
     private readonly Queue<ExprBlock> _queue = new();
     private ExprBlock? _entryBlock;
-    private IReadOnlyDictionary<int, string>? _knownProcedures;
+    private ProcedureStorage? _procedures;
 
     public List<ExprBlock> Blocks { get; } = [];
 
@@ -38,25 +38,48 @@ public partial class ExpressionBuilder
     /// <param name="graph">Построенный граф потока управления</param>
     /// <param name="isCom">true для .COM файлов (другая инициализация регистров)</param>
     public void Build(ControlFlowGraph graph, bool isCom = false) =>
-        Build(graph, isCom, knownProcedures: null);
+        Build(graph, isCom, procedures: null);
 
     /// <summary>
-    /// Выполняет декомпиляцию с подстановкой имён известных процедур в CALL/JMP.
+    /// Выполняет декомпиляцию с подстановкой имён и сигнатур известных процедур в CALL.
     /// </summary>
-    /// <param name="knownProcedures">Смещение в образе → имя функции (например <c>printf</c>).</param>
-    public void Build(
-        ControlFlowGraph graph,
-        bool isCom,
-        IReadOnlyDictionary<int, string>? knownProcedures)
+    public void Build(ControlFlowGraph graph, bool isCom, ProcedureStorage? procedures)
     {
         Variables.Clear();
-        _knownProcedures = knownProcedures;
+        _procedures = procedures;
 
         var initialRegisters = isCom
             ? RegisterExpressions.InitCom(Variables)
             : RegisterExpressions.InitExe(Variables);
 
         RunBuild(graph, initialRegisters, []);
+    }
+
+    /// <summary>
+    /// Устаревшая перегрузка: строит минимальное <see cref="ProcedureStorage"/> только с именами.
+    /// </summary>
+    public void Build(
+        ControlFlowGraph graph,
+        bool isCom,
+        IReadOnlyDictionary<int, string>? knownProcedureNames)
+    {
+        ProcedureStorage? storage = null;
+        if (knownProcedureNames is not null)
+        {
+            storage = new ProcedureStorage();
+            foreach (var (offset, name) in knownProcedureNames)
+            {
+                storage.Add(new DisassembledProcedure
+                {
+                    Offset = offset,
+                    Instructions = [],
+                    Name = name,
+                    IsLibrary = false,
+                });
+            }
+        }
+
+        Build(graph, isCom, storage);
     }
 
     /// <summary>
@@ -141,7 +164,7 @@ public partial class ExpressionBuilder
             Variables = Variables,
             InitRegisters = registers,
             InitStack = stack.ToArray(),
-            KnownProcedures = _knownProcedures,
+            Procedures = _procedures,
         };
         Blocks.Add(exprBlock);
         _blocksMap[block] = exprBlock;

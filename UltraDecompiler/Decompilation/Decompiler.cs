@@ -1,6 +1,8 @@
 ﻿using System.Text;
 using LibParser.Models;
 using LibParser.Omf;
+using UltraDecompiler.Decompilation.Headers;
+using UltraDecompiler.Decompilation.Operations;
 using UltraDecompiler.Graph;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
@@ -23,7 +25,11 @@ public class Decompiler
     /// Декомпилирует EXE/COM: находит <c>_main</c>, рекурсивно собирает функции,
     /// сопоставляет runtime с .LIB и сохраняет пользовательский код в <paramref name="outputDirectory"/>.
     /// </summary>
-    public DecompileResult Decompile(string exePath, string libraryDirectory, string outputDirectory)
+    public DecompileResult Decompile(
+        string exePath,
+        string libraryDirectory,
+        string includeDirectory,
+        string outputDirectory)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(exePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryDirectory);
@@ -74,15 +80,17 @@ public class Decompiler
             initRegisters,
             mainOffset);
 
+        var headerCatalog = QuickCHeaderCatalog.Load(includeDirectory);
+        ProcedureSignatureResolver.ResolveAll(storage, headerCatalog);
+
         Directory.CreateDirectory(outputDirectory);
-        var knownProcedures = storage.All.ToDictionary(static p => p.Offset, static p => p.Name);
         var outputFiles = new List<string>();
 
         foreach (var procedure in storage.All
                      .Where(static p => !p.IsLibrary)
                      .OrderBy(static p => p.Offset))
         {
-            var source = DecompileProcedureToC(parser, procedure, initRegisters, knownProcedures);
+            var source = DecompileProcedureToC(parser, procedure, initRegisters, storage);
             var fileName = FormatOutputFileName(procedure.Name, procedure.Offset);
             var filePath = Path.Combine(outputDirectory, fileName);
             File.WriteAllText(filePath, source, Encoding.UTF8);
@@ -347,22 +355,24 @@ public class Decompiler
         DosExeParser parser,
         DisassembledProcedure procedure,
         RegisterState initRegisters,
-        IReadOnlyDictionary<int, string> knownProcedures)
+        ProcedureStorage procedures)
     {
         var cfg = new ControlFlowGraph();
         cfg.BuildFromInstructions(procedure.Instructions, procedure.Offset, parser.Image, initRegisters);
 
         var expressions = new ExpressionBuilder();
-        expressions.Build(cfg, parser.IsCom, knownProcedures);
+        expressions.Build(cfg, parser.IsCom, procedures);
 
         var operations = expressions.GetAllOperations();
-        return FormatCFunction(procedure.Name, operations);
+        return FormatCFunction(procedure, operations);
     }
 
-    private static string FormatCFunction(string name, IReadOnlyList<Operation> operations)
+    private static string FormatCFunction(DisassembledProcedure procedure, IReadOnlyList<Operation> operations)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"void {name}(void)");
+        var returnType = procedure.Signature.ReturnType.ToString();
+        var parameters = FormatParameterList(procedure.Signature);
+        sb.AppendLine($"{returnType} {procedure.Name}({parameters})");
         sb.AppendLine("{");
 
         if (operations.Count == 0)
@@ -373,12 +383,22 @@ public class Decompiler
         {
             foreach (var operation in operations)
             {
-                sb.AppendLine($"    {operation.ToCString(asStatement: true)}");
+                operation.AppendToCString(sb, indent: 1, asStatement: true);
             }
         }
 
         sb.AppendLine("}");
         return sb.ToString();
+    }
+
+    private static string FormatParameterList(ProcedureSignature signature)
+    {
+        if (signature.Parameters.Count == 0)
+        {
+            return "void";
+        }
+
+        return string.Join(", ", signature.Parameters.Select(static (p, i) => $"{p.Type} arg{i}"));
     }
 
     private static string FormatOutputFileName(string name, int offset)

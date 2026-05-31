@@ -23,6 +23,11 @@ internal static class DecompileCCommand
                 "Каталог с OMF .LIB (по умолчанию — QuickC в корне репозитория)",
                 CommandOptionType.SingleValue);
 
+            var incDirOpt = cmd.Option(
+                "-i|--inc-dir <DIR>",
+                "Каталог с заголовками",
+                CommandOptionType.SingleValue);
+
             var outputDirOpt = cmd.Option(
                 "-o|--output-dir <DIR>",
                 "Каталог для *.c (по умолчанию — каталог EXE)",
@@ -33,20 +38,21 @@ internal static class DecompileCCommand
                 var exePath = exePathArg.Value
                     ?? throw new InvalidOperationException("Не указан путь к файлу.");
 
-                return Execute(exePath, libDirOpt.Value(), outputDirOpt.Value());
+                return Execute(exePath, libDirOpt.Value(), incDirOpt.Value(), outputDirOpt.Value());
             });
         });
     }
 
-    private static int Execute(string exePath, string? libDir, string? outputDir)
+    private static int Execute(string exePath, string? libDir, string? incDir, string? outputDir)
     {
         try
         {
             var libDirectory = ResolveLibraryDirectory(libDir);
+            var incDirectory = ResolveIncludeDirectory(incDir);
             var outputDirectory = ResolveOutputDirectory(exePath, outputDir);
 
             var decompiler = new Decompiler();
-            var result = decompiler.Decompile(exePath, libDirectory, outputDirectory);
+            var result = decompiler.Decompile(exePath, libDirectory, incDirectory, outputDirectory);
 
             if (!result.Success)
             {
@@ -80,6 +86,17 @@ internal static class DecompileCCommand
             Console.WriteLine($"Error: {ex.Message}");
             return 1;
         }
+    }
+
+    private static string ResolveIncludeDirectory(string? incDir)
+    {
+        if (!string.IsNullOrWhiteSpace(incDir))
+        {
+            return Path.GetFullPath(incDir);
+        }
+
+        return Path.GetFullPath(
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "QuickC", "INCLUDE"));
     }
 
     private static string ResolveLibraryDirectory(string? libDir)

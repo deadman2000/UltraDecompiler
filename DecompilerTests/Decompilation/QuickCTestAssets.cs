@@ -10,4 +10,6 @@ internal static class QuickCTestAssets
         Path.Combine(QuickCRoot, "PROGRAMS", fileName);
 
     public static string LibDirectory => QuickCRoot;
+
+    public static string IncludeDirectory => Path.Combine(QuickCRoot, "INCLUDE");
 }

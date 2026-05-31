@@ -18,13 +18,13 @@ public static class OperationExtensions
         {
             string text = op switch
             {
-                SetOperation s => $"{s.Dst} = {s.Src}",
-                CallOperation c => FormatCall(c),
-                StoreOperation st => FormatStore(st),
+                SetOperation s => FormatSet(s, indent),
+                CallOperation c => FormatCall(c, indent),
+                StoreOperation st => FormatStore(st, indent),
                 WhileOperation w => FormatWhile(w, indent),
                 ForOperation f => FormatFor(f, indent),
                 IfOperation i => FormatIf(i, indent),
-                _ => op.ToString(),
+                _ => Indent(indent) + op.ToString(),
             };
 
             if (asStatement && op is not (WhileOperation or ForOperation or IfOperation))
@@ -34,64 +34,79 @@ public static class OperationExtensions
 
             return text;
         }
+
+        /// <summary>
+        /// Добавляет строковое представление операции в <see cref="StringBuilder"/> с учётом многострочности.
+        /// </summary>
+        public void AppendToCString(StringBuilder sb, int indent = 0, bool asStatement = false)
+        {
+            string text = op.ToCString(indent, asStatement);
+            if (op is WhileOperation or ForOperation or IfOperation)
+            {
+                sb.Append(text);
+            }
+            else
+            {
+                sb.AppendLine(text);
+            }
+        }
     }
 
-    static string FormatCall(CallOperation call)
+    static string Indent(int level) => new(' ', level * 4);
+
+    static string FormatSet(SetOperation set, int indent) =>
+        $"{Indent(indent)}{set.Dst} = {set.Src}";
+
+    static string FormatCall(CallOperation call, int indent)
     {
         var args = string.Join(", ", call.Args);
-        return $"{call.Procedure.Name}({args})";
+        return $"{Indent(indent)}{call.Name}({args})";
     }
 
-    static string FormatStore(StoreOperation store)
+    static string FormatStore(StoreOperation store, int indent)
     {
         var segPrefix = store.Segment != null ? $"{store.Segment}:" : "";
-        return $"{segPrefix}[{store.Address}] = {store.Value}";
+        return $"{Indent(indent)}{segPrefix}[{store.Address}] = {store.Value}";
     }
 
     static string FormatWhile(WhileOperation loop, int indent)
     {
-        string indentStr = new(' ', indent * 4);
-
         var sb = new StringBuilder();
-        sb.AppendLine($"{indentStr}while ({loop.Condition})");
-        sb.AppendLine($"{indentStr}{{");
+        sb.AppendLine($"{Indent(indent)}while ({loop.Condition})");
+        sb.AppendLine($"{Indent(indent)}{{");
         AppendBody(sb, loop.Body, indent);
-        sb.AppendLine($"{indentStr}}}");
+        sb.AppendLine($"{Indent(indent)}}}");
         return sb.ToString();
     }
 
     static string FormatFor(ForOperation loop, int indent)
     {
-        string indentStr = new(' ', indent * 4);
-
         string initStr = loop.Init?.ToCString() ?? "";
         string condStr = loop.Condition?.ToString() ?? "";
         string iterStr = loop.Iteration?.ToCString() ?? "";
 
         var sb = new StringBuilder();
-        sb.AppendLine($"{indentStr}for ({initStr}; {condStr}; {iterStr})");
-        sb.AppendLine($"{indentStr}{{");
+        sb.AppendLine($"{Indent(indent)}for ({initStr}; {condStr}; {iterStr})");
+        sb.AppendLine($"{Indent(indent)}{{");
         AppendBody(sb, loop.Body, indent);
-        sb.AppendLine($"{indentStr}}}");
+        sb.AppendLine($"{Indent(indent)}}}");
         return sb.ToString();
     }
 
     static string FormatIf(IfOperation branch, int indent)
     {
-        string indentStr = new(' ', indent * 4);
-
         var sb = new StringBuilder();
-        sb.AppendLine($"{indentStr}if ({branch.Condition})");
-        sb.AppendLine($"{indentStr}{{");
+        sb.AppendLine($"{Indent(indent)}if ({branch.Condition})");
+        sb.AppendLine($"{Indent(indent)}{{");
         AppendBody(sb, branch.ThenBody, indent);
-        sb.AppendLine($"{indentStr}}}");
+        sb.AppendLine($"{Indent(indent)}}}");
 
         if (branch.ElseBody != null)
         {
-            sb.AppendLine($"{indentStr}else");
-            sb.AppendLine($"{indentStr}{{");
+            sb.AppendLine($"{Indent(indent)}else");
+            sb.AppendLine($"{Indent(indent)}{{");
             AppendBody(sb, branch.ElseBody, indent);
-            sb.AppendLine($"{indentStr}}}");
+            sb.AppendLine($"{Indent(indent)}}}");
         }
 
         return sb.ToString();
@@ -99,31 +114,15 @@ public static class OperationExtensions
 
     static void AppendBody(StringBuilder sb, IReadOnlyList<Operation> body, int indent)
     {
-        string innerIndent = new(' ', (indent + 1) * 4);
-
         if (body.Count == 0)
         {
-            sb.AppendLine($"{innerIndent}; // пустое тело");
+            sb.AppendLine($"{Indent(indent + 1)}; // пустое тело");
             return;
         }
 
         foreach (var bodyOp in body)
         {
-            switch (bodyOp)
-            {
-                case WhileOperation wo:
-                    sb.Append(wo.ToCString(indent + 1));
-                    break;
-                case ForOperation fo:
-                    sb.Append(fo.ToCString(indent + 1));
-                    break;
-                case IfOperation io:
-                    sb.Append(io.ToCString(indent + 1));
-                    break;
-                default:
-                    sb.AppendLine($"{innerIndent}{bodyOp.ToCString(asStatement: true)}");
-                    break;
-            }
+            bodyOp.AppendToCString(sb, indent + 1, asStatement: true);
         }
     }
 }

@@ -1,62 +1,119 @@
+using UltraDecompiler.Decompilation.Operations;
+
 namespace UltraDecompiler.Decompilation.InstructionHandlers;
 
 /// <summary>
 /// Обрабатывает CALL и CALL_FAR.
 ///
-/// Прямые near-вызовы (E8) получают имя вида "sub_XXXX" по целевому адресу в образе.
-/// Косвенные вызовы (FF/2, FF/3) представляются как indirect_call/far_sub с выражением адреса в аргументах.
-///
-/// Все вызовы по умолчанию моделируются как возвращающие значение (в AX):
-/// создаём SetOperation(resultVar, CallExpr) и обновляем AX = resultVar.
-/// Это позволяет продолжать symbolic execution кода, который использует результат вызова.
-///
-/// Аргументы функций пока не анализируются (требуется восстановление соглашений о вызовах и анализ стека).
+/// Прямые near-вызовы: имя и сигнатура из <see cref="ProcedureStorage"/>.
+/// Аргументы подставляются из символического стека (cdecl) по сигнатуре callee.
 /// </summary>
 public class CallHandler : IInstructionHandler
 {
     public void Handle(ExprBlock block, Instruction instr)
     {
-        string name;
-        var args = new List<Expr>();
-
         var op = instr.Operand1.IsSet ? instr.Operand1 : instr.Operand2;
+        string name;
+        ProcedureSignature signature = ProcedureSignature.Unknown;
+        IReadOnlyList<Expr> args;
 
         if (op.Type == OperandType.Relative16)
         {
-            // Прямой near call. Target — уже вычисленный абсолютный адрес в образе.
             var target = op.Value;
-            name = block.KnownProcedures?.TryGetValue(target, out var knownName) == true
-                ? knownName
-                : $"sub_{target:X4}";
+            if (block.Procedures?.TryGet(target, out var procedure) == true && procedure is not null)
+            {
+                name = procedure.Name;
+                signature = procedure.Signature;
+            }
+            else
+            {
+                name = block.Procedures?.GetName(target) ?? $"sub_{target:X4}";
+            }
+
+            args = ResolveArguments(block, instr, signature);
         }
         else if (instr.Mnemonic == Mnemonic.CALL_FAR)
         {
-            // TODO поддержка KnownProcedures
             name = "far_sub";
-            if (op.Type == OperandType.Memory)
-            {
-                var targetExpr = op.GetExpression(block, instr.Segment);
-                args.Add(targetExpr);
-            }
+            args = BuildIndirectTargetArgs(block, op, instr);
         }
         else if (op.Type == OperandType.Memory || op.Type == OperandType.Register16)
         {
-            // Косвенный near call (обычно FF /2)
             name = "indirect_call";
-            var targetExpr = op.GetExpression(block, instr.Segment);
-            args.Add(targetExpr);
+            args = BuildIndirectTargetArgs(block, op, instr);
         }
         else
         {
             name = "unknown_call";
+            args = [];
         }
 
-        var proc = new Procedure { Name = name };
-        var callExpr = new CallExpr(proc, args);
+        var callExpr = new CallExpr(name, args);
 
-        // Моделируем возврат значения через AX (стандартная практика для DOS/QuickC).
+        if (signature.ReturnType.IsVoid)
+        {
+            block.Operations.Add(new CallOperation(callExpr.Name, callExpr.Args));
+            return;
+        }
+
         var resultVar = block.Variables.CreateVariable();
         block.Operations.Add(new SetOperation(resultVar, callExpr));
         block.EndRegisters = block.EndRegisters.Set16(GpRegister16.AX, resultVar);
+    }
+
+    private static IReadOnlyList<Expr> ResolveArguments(
+        ExprBlock block,
+        Instruction callInstruction,
+        ProcedureSignature signature)
+    {
+        if (signature.IsVariadic)
+        {
+            var fromStack = CallSiteArgumentResolver.ResolveAllFromStack(block.EndStack);
+            if (fromStack.Count > 0)
+            {
+                return fromStack;
+            }
+
+            var fromPush = CallSiteArgumentResolver.ResolveFromPushSequence(
+                block,
+                block.BasicBlock.Instructions,
+                callInstruction);
+
+            if (fromPush.Count > 0)
+            {
+                return fromPush;
+            }
+        }
+
+        if (signature.Parameters.Count == 0)
+        {
+            var fromPush = CallSiteArgumentResolver.ResolveFromPushSequence(
+                block,
+                block.BasicBlock.Instructions,
+                callInstruction);
+
+            if (fromPush.Count > 0)
+            {
+                return fromPush;
+            }
+        }
+
+        if (signature.Parameters.Count > 0)
+        {
+            return CallSiteArgumentResolver.Resolve(block, signature);
+        }
+
+        return [];
+    }
+
+    private static List<Expr> BuildIndirectTargetArgs(ExprBlock block, Operand op, Instruction instr)
+    {
+        var args = new List<Expr>();
+        if (op.Type == OperandType.Memory || op.Type == OperandType.Register16)
+        {
+            args.Add(op.GetExpression(block, instr.Segment));
+        }
+
+        return args;
     }
 }

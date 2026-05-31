@@ -57,6 +57,6 @@ public class ExprBlock(BasicBlock basicBlock)
     /// </summary>
     public Stack<Expr> EndStack { get; set; } = [];
 
-    /// <summary>Известные имена процедур по смещению в образе (библиотечные и пользовательские).</summary>
-    public IReadOnlyDictionary<int, string>? KnownProcedures { get; set; }
+    /// <summary>Дизассемблированные процедуры образа (имена и сигнатуры для CALL).</summary>
+    public ProcedureStorage? Procedures { get; set; }
 }

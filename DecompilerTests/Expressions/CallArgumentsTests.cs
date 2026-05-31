@@ -1,0 +1,88 @@
+using UltraDecompiler.Decompilation;
+using UltraDecompiler.Decompilation.Headers;
+using UltraDecompiler.Decompilation.Operations;
+
+namespace DecompilerTests.Expressions;
+
+/// <summary>Тесты подстановки аргументов CALL по сигнатуре из ProcedureStorage.</summary>
+public class CallArgumentsTests : BaseTests
+{
+    [Fact]
+    public void DirectCall_WithPrintfSignature_PassesStackArguments()
+    {
+        var includeDir = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..", "..", "..", "..", "QuickC", "INCLUDE"));
+        var catalog = QuickCHeaderCatalog.Load(includeDir);
+        Assert.True(catalog.TryGetSignature("printf", out var printfSig));
+        Assert.NotNull(printfSig);
+        Assert.True(printfSig!.IsVariadic);
+
+        var storage = new ProcedureStorage();
+        storage.Add(new DisassembledProcedure
+        {
+            Offset = 0xE,
+            Instructions = [],
+            Name = "printf",
+            IsLibrary = true,
+            Signature = printfSig!,
+        });
+
+        var expr = BuildExpressions("""
+            68 34 12    ; push 1234h
+            68 00 10    ; push 1000h
+            E8 05 00    ; call 8
+            90
+            """, storage);
+
+        var setOp = Assert.IsType<SetOperation>(expr.Blocks[0].Operations[0]);
+        var callExpr = Assert.IsType<CallExpr>(setOp.Src);
+        Assert.Equal("printf", callExpr.Name);
+        Assert.Equal(2, callExpr.Args.Count);
+
+        var fmt = Assert.IsType<ConstExpr>(callExpr.Args[0]);
+        Assert.Equal(0x1000, fmt.Value);
+        var value = Assert.IsType<ConstExpr>(callExpr.Args[1]);
+        Assert.Equal(0x1234, value.Value);
+    }
+
+    [Fact]
+    public void DirectCall_VoidPerror_EmitsCallOperationWithoutSet()
+    {
+        var includeDir = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..", "..", "..", "..", "QuickC", "INCLUDE"));
+        var catalog = QuickCHeaderCatalog.Load(includeDir);
+        Assert.True(catalog.TryGetSignature("perror", out var perrorSig));
+        Assert.NotNull(perrorSig);
+        Assert.True(perrorSig!.ReturnType.IsVoid);
+
+        var storage = new ProcedureStorage();
+        storage.Add(new DisassembledProcedure
+        {
+            Offset = 0x9,
+            Instructions = [],
+            Name = "perror",
+            IsLibrary = true,
+            Signature = perrorSig,
+        });
+
+        var expr = BuildExpressions("""
+            68 00 20    ; push string
+            E8 03 00    ; call 9
+            90
+            """, storage);
+
+        var callOp = Assert.IsType<CallOperation>(expr.Blocks[0].Operations[0]);
+        Assert.Equal("perror", callOp.Name);
+        Assert.Single(callOp.Args);
+    }
+
+    protected static ExpressionBuilder BuildExpressions(string hex, ProcedureStorage procedures, bool isCom = false)
+    {
+        var graph = GetGraph(hex);
+        var decompiler = new ExpressionBuilder();
+        decompiler.Build(graph, isCom, procedures);
+        return decompiler;
+    }
+}

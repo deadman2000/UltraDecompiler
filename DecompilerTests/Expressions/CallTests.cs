@@ -26,7 +26,7 @@ public class CallTests : BaseTests
 
         var setOp = Assert.IsType<SetOperation>(expr.Blocks[0].Operations[0]);
         var callExpr = Assert.IsType<CallExpr>(setOp.Src);
-        Assert.Equal("_printf", callExpr.Procedure.Name);
+        Assert.Equal("_printf", callExpr.Name);
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public class CallTests : BaseTests
         var setOp = Assert.IsType<SetOperation>(block.Operations[0]);
         var callExpr = Assert.IsType<CallExpr>(setOp.Src);
 
-        Assert.Equal("sub_0008", callExpr.Procedure.Name);
+        Assert.Equal("sub_0008", callExpr.Name);
         Assert.Empty(callExpr.Args); // пока не восстанавливаем аргументы
 
         // Результат вызова должен находиться в AX
@@ -88,7 +88,7 @@ public class CallTests : BaseTests
         var setOp = Assert.IsType<SetOperation>(block.Operations[0]);
         var callExpr = Assert.IsType<CallExpr>(setOp.Src);
 
-        Assert.Equal("indirect_call", callExpr.Procedure.Name);
+        Assert.Equal("indirect_call", callExpr.Name);
         Assert.Single(callExpr.Args);
 
         // Аргумент должен быть MemExpr (адрес 0x100)
@@ -119,7 +119,7 @@ public class CallTests : BaseTests
         var callSet = Assert.IsType<SetOperation>(block.Operations[0]);
         var callExpr = Assert.IsType<CallExpr>(callSet.Src);
 
-        Assert.Equal("indirect_call", callExpr.Procedure.Name);
+        Assert.Equal("indirect_call", callExpr.Name);
         Assert.Single(callExpr.Args);
 
         // Аргумент должен быть именно нашей переменной (а не константой)
@@ -141,7 +141,7 @@ public class CallTests : BaseTests
         var setOp = Assert.IsType<SetOperation>(block.Operations[0]);
         var callExpr = Assert.IsType<CallExpr>(setOp.Src);
 
-        Assert.Equal("far_sub", callExpr.Procedure.Name);
+        Assert.Equal("far_sub", callExpr.Name);
         Assert.Single(callExpr.Args);
         Assert.IsType<MemExpr>(callExpr.Args[0]);
     }
@@ -161,11 +161,11 @@ public class CallTests : BaseTests
 
         var first = Assert.IsType<SetOperation>(block.Operations[0]);
         var firstCall = Assert.IsType<CallExpr>(first.Src);
-        Assert.StartsWith("sub_", firstCall.Procedure.Name);
+        Assert.StartsWith("sub_", firstCall.Name);
 
         var second = Assert.IsType<SetOperation>(block.Operations[1]);
         var secondCall = Assert.IsType<CallExpr>(second.Src);
-        Assert.StartsWith("sub_", secondCall.Procedure.Name);
+        Assert.StartsWith("sub_", secondCall.Name);
     }
 
     [Fact]

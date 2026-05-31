@@ -15,12 +15,12 @@ public class FlagHandler : IInstructionHandler
         {
             case Mnemonic.CLI:
                 // CLI → _disable() (отключение аппаратных прерываний)
-                block.Operations.Add(new CallOperation(new Procedure { Name = "_disable" }, []));
+                block.Operations.Add(new CallOperation("_disable", []));
                 break;
 
             case Mnemonic.STI:
                 // STI → _enable() (включение аппаратных прерываний)
-                block.Operations.Add(new CallOperation(new Procedure { Name = "_enable" }, []));
+                block.Operations.Add(new CallOperation("_enable", []));
                 break;
 
             case Mnemonic.CLD:

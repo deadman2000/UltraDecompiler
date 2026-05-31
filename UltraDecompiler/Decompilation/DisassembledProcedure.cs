@@ -13,6 +13,9 @@ public sealed class DisassembledProcedure
     public bool IsLibrary { get; init; }
 
     public LibraryMatchInfo? LibraryMatch { get; init; }
+
+    /// <summary>Сигнатура (тип возврата и параметры) для подстановки в CALL.</summary>
+    public ProcedureSignature Signature { get; set; } = ProcedureSignature.Unknown;
 }
 
 /// <summary>Хранилище дизассемблированных процедур по смещению в образе.</summary>

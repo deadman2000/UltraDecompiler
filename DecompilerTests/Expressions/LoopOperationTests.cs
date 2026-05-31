@@ -114,22 +114,32 @@ public class LoopOperationTests
     }
 
     [Fact]
-    public void NestedForWhile_ProducesCorrectIndentation()
+    public void IfOperation_WithIndent_AllLinesIndented()
     {
-        // Внешний for, внутри while
+        var ifOp = new IfOperation(
+            ConstExpr.One,
+            [new SetOperation(new Variable(1), ConstExpr.Zero)]);
+
+        string result = ifOp.ToCString(indent: 1);
+        var lines = result.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.All(lines, line => Assert.StartsWith("    ", line));
+    }
+
+    [Fact]
+    public void NestedForWhile_InnerBodyHasCorrectIndentation()
+    {
         var innerCond = ConstExpr.One;
         var innerBody = new List<Operation>
         {
             new SetOperation(new Variable(5), new Variable(6))
         };
         var innerWhile = new WhileOperation(innerCond, innerBody);
+        var outer = new ForOperation(null, null, null, [innerWhile]);
 
-        var outerBody = new List<Operation> { innerWhile };
-
-        var outer = new ForOperation(null, null, null, outerBody);
         string result = outer.ToCString(0);
 
-        // Проверяем, что вложенный while имеет отступ 4 пробела
         Assert.Contains("    while (1)", result);
+        Assert.Contains("        var5 = var6;", result);
     }
 }

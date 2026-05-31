@@ -41,7 +41,7 @@ public static class DosInterruptHelper
     public static CallExpr CreateForExit(int vector, in RegisterExpressions regs)
     {
         Expr status = vector == 0x21 ? regs.Get8(GpRegister8.AL) : new ConstExpr(0);
-        return new CallExpr(new Procedure { Name = "__exit" }, [status]);
+        return new CallExpr("__exit", [status]);
     }
 
     /// <summary>
@@ -65,8 +65,7 @@ public static class DosInterruptHelper
             args.Add(new ConstExpr(vector));
         }
 
-        var proc = new Procedure { Name = name };
-        return new CallExpr(proc, args);
+        return new CallExpr(name, args);
     }
 
     /// <summary>
@@ -79,7 +78,7 @@ public static class DosInterruptHelper
     /// </summary>
     public static bool ShouldEmitAsCallOperation(int vector, in RegisterExpressions regs, CallExpr callExpr)
     {
-        if (VoidInterruptFunctions.Contains(callExpr.Procedure.Name))
+        if (VoidInterruptFunctions.Contains(callExpr.Name))
             return true;
 
         // Для не-21h прерываний (INT 10h, 16h и т.д.) по умолчанию считаем void,
