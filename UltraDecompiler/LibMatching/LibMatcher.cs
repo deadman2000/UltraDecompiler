@@ -6,12 +6,19 @@ namespace UltraDecompiler.LibMatching;
 
 public sealed class LibMatcher
 {
+    /// <summary>
+    /// Сопоставляет точку входа с символами OMF-библиотек.
+    /// </summary>
+    /// <param name="symbolName">Если задано — проверяется только этот символ.</param>
+    /// <param name="moduleName">Если задано — проверяются только символы указанного модуля.</param>
     public IReadOnlyList<EntryPointLibraryMatchInfo> MatchEntryPoint(
         byte[] image,
         RelocationTable imageRelocations,
         int entryPointOffset,
         IReadOnlyList<(string FileName, OmfLibrary Library)> libraries,
-        RegisterState initRegisters)
+        RegisterState initRegisters,
+        string? symbolName = null,
+        string? moduleName = null)
     {
         ArgumentNullException.ThrowIfNull(image);
         ArgumentNullException.ThrowIfNull(imageRelocations);
@@ -26,7 +33,9 @@ public sealed class LibMatcher
                 imageRelocations,
                 entryPointOffset,
                 library,
-                initRegisters);
+                initRegisters,
+                symbolName,
+                moduleName);
 
             if (matches.Count == 0)
             {
@@ -49,17 +58,30 @@ public sealed class LibMatcher
         RelocationTable imageRelocations,
         int imageOffset,
         OmfLibrary library,
-        RegisterState initRegisters)
-    {
-        return LibraryFunctionMatcher.Match(
+        RegisterState initRegisters) =>
+        MatchFunction(image, imageRelocations, imageOffset, library, initRegisters, symbolName: null, moduleName: null);
+
+    /// <summary>
+    /// Сопоставляет участок образа с символами одной OMF-библиотеки.
+    /// </summary>
+    public IReadOnlyList<LibraryMatchInfo> MatchFunction(
+        byte[] image,
+        RelocationTable imageRelocations,
+        int imageOffset,
+        OmfLibrary library,
+        RegisterState initRegisters,
+        string? symbolName,
+        string? moduleName) =>
+        LibraryFunctionMatcher.Match(
                 image,
                 imageRelocations,
                 imageOffset,
                 library,
-                initRegisters)
+                initRegisters,
+                symbolName,
+                moduleName)
             .Select(ToMatchInfo)
             .ToList();
-    }
 
     public int FindMainOffset(
         byte[] image,

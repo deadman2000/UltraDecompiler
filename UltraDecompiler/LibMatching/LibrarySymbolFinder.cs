@@ -56,9 +56,11 @@ public static class LibrarySymbolFinder
                 imageRelocations,
                 offset,
                 library,
-                initRegisters);
+                initRegisters,
+                symbolName,
+                moduleName: null);
 
-            if (matches.Any(m => m.SymbolName == symbolName))
+            if (matches.Count > 0)
             {
                 return true;
             }

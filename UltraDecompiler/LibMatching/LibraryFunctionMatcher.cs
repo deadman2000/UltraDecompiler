@@ -35,7 +35,27 @@ public static class LibraryFunctionMatcher
         RelocationTable imageRelocations,
         int imageOffset,
         OmfLibrary library,
-        RegisterState initRegisters)
+        RegisterState initRegisters) =>
+        Match(image, imageRelocations, imageOffset, library, initRegisters, symbolName: null, moduleName: null);
+
+    /// <summary>
+    /// Ищет в <paramref name="library"/> символы, чьё тело функции совпадает с кодом по смещению
+    /// <paramref name="imageOffset"/> в образе программы.
+    /// </summary>
+    /// <param name="symbolName">
+    /// Если задано — проверяется только этот символ словаря (например <c>__astart</c>).
+    /// </param>
+    /// <param name="moduleName">
+    /// Если задано — проверяются только символы указанного модуля (например <c>crt0</c>).
+    /// </param>
+    public static IReadOnlyList<LibraryMatchResult> Match(
+        byte[] image,
+        RelocationTable imageRelocations,
+        int imageOffset,
+        OmfLibrary library,
+        RegisterState initRegisters,
+        string? symbolName,
+        string? moduleName)
     {
         ArgumentNullException.ThrowIfNull(image);
         ArgumentNullException.ThrowIfNull(imageRelocations);
@@ -53,10 +73,22 @@ public static class LibraryFunctionMatcher
         // Сравнение тела функции для страницы выполняем один раз.
         var checkedModules = new Dictionary<(ushort Page, int CodeOffset), bool>();
 
-        foreach (var (symbolName, symbol) in library.Symbols)
+        foreach (var (currentSymbolName, symbol) in library.Symbols)
         {
+            if (symbolName is not null
+                && !string.Equals(currentSymbolName, symbolName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
             var module = library.GetModuleByPage(symbol.ModulePage);
             if (module is null)
+            {
+                continue;
+            }
+
+            if (moduleName is not null
+                && !module.DisplayName.Equals(moduleName, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -80,7 +112,7 @@ public static class LibraryFunctionMatcher
             {
                 results.Add(new LibraryMatchResult
                 {
-                    SymbolName = symbolName,
+                    SymbolName = currentSymbolName,
                     ModulePage = symbol.ModulePage,
                     ModuleName = module.DisplayName,
                     ModuleCodeOffset = moduleCodeOffset,

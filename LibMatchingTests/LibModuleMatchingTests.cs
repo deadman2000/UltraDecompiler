@@ -1,5 +1,6 @@
 using Common;
 using LibParser.Omf;
+using UltraDecompiler.Disassembler;
 using UltraDecompiler.LibMatching;
 
 namespace LibMatchingTests;
@@ -52,6 +53,65 @@ public class LibModuleMatchingTests
         var (_, code) = LibMatchingTestHelpers.RequireModule(library, "_printf");
 
         var matches = LibraryFunctionMatcher.Match(code.Data, RelocationTable.Empty, code.Data.Length, library);
+
+        Assert.Empty(matches);
+    }
+
+    [Fact]
+    public void Match_WithSymbolFilter_ChecksOnlyRequestedSymbol()
+    {
+        var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf("SLIBCE.LIB"));
+        var crt0 = Crt0TestHelpers.GetCrt0Module(library);
+        var code = crt0.CodeSegments.First(static s => s.IsCode);
+
+        var matches = LibraryFunctionMatcher.Match(
+            code.Data,
+            RelocationTable.Empty,
+            0,
+            library,
+            RegisterState.Unknown,
+            symbolName: "__astart",
+            moduleName: null);
+
+        Assert.Single(matches);
+        Assert.Equal("__astart", matches[0].SymbolName);
+    }
+
+    [Fact]
+    public void Match_WithModuleFilter_ChecksOnlyRequestedModule()
+    {
+        var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf("SLIBCE.LIB"));
+        var crt0 = Crt0TestHelpers.GetCrt0Module(library);
+        var code = crt0.CodeSegments.First(static s => s.IsCode);
+
+        var matches = LibraryFunctionMatcher.Match(
+            code.Data,
+            RelocationTable.Empty,
+            0,
+            library,
+            RegisterState.Unknown,
+            symbolName: null,
+            moduleName: "crt0");
+
+        Assert.Contains(matches, static m => m.SymbolName == "__astart");
+        Assert.All(matches, static m => Assert.Equal("crt0", m.ModuleName, StringComparer.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Match_WithSymbolAndModuleFilter_ReturnsEmptyForWrongSymbol()
+    {
+        var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf("SLIBCE.LIB"));
+        var crt0 = Crt0TestHelpers.GetCrt0Module(library);
+        var code = crt0.CodeSegments.First(static s => s.IsCode);
+
+        var matches = LibraryFunctionMatcher.Match(
+            code.Data,
+            RelocationTable.Empty,
+            0,
+            library,
+            RegisterState.Unknown,
+            symbolName: "_printf",
+            moduleName: "crt0");
 
         Assert.Empty(matches);
     }

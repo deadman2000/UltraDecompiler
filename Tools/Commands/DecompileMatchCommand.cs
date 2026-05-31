@@ -1,5 +1,8 @@
+using Common;
 using LibParser.Models;
+using LibParser.Omf;
 using McMaster.Extensions.CommandLineUtils;
+using UltraDecompiler.Decompilation;
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
@@ -12,6 +15,7 @@ namespace Tools.Commands;
 internal static class DecompileMatchCommand
 {
     private const string AstartSymbol = "__astart";
+    private const string Crt0ModuleName = "crt0";
     private const string MainSymbol = "_main";
 
     public static void Configure(CommandLineApplication root)
@@ -49,7 +53,7 @@ internal static class DecompileMatchCommand
             var entryPoint = (int)parser.EntryPointOffset;
             var libDirectory = ResolveLibraryDirectory(libDir);
 
-            var entryMatches = Crt0EntryPointMatcher.MatchDirectory(
+            var entryMatches = MatchEntryPointDirectory(
                 parser.Image,
                 parser.RelocationTable,
                 entryPoint,
@@ -91,9 +95,57 @@ internal static class DecompileMatchCommand
             Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "QuickC"));
     }
 
+    private static IReadOnlyList<EntryPointLibraryMatchInfo> MatchEntryPointDirectory(
+        byte[] image,
+        RelocationTable imageRelocations,
+        int entryPointOffset,
+        string libraryDirectory,
+        RegisterState initRegisters)
+    {
+        if (!Directory.Exists(libraryDirectory))
+        {
+            throw new DirectoryNotFoundException($"Каталог библиотек не найден: {libraryDirectory}");
+        }
+
+        var results = new List<EntryPointLibraryMatchInfo>();
+
+        foreach (var libraryPath in Directory.EnumerateFiles(libraryDirectory, "*.LIB").OrderBy(static p => p))
+        {
+            var library = OmfLibraryParser.ParseFile(libraryPath);
+            var matches = LibraryFunctionMatcher.Match(
+                image,
+                imageRelocations,
+                entryPointOffset,
+                library,
+                initRegisters,
+                symbolName: null,
+                moduleName: Crt0ModuleName);
+
+            if (matches.Count == 0)
+            {
+                continue;
+            }
+
+            results.Add(new EntryPointLibraryMatchInfo
+            {
+                LibraryFileName = Path.GetFileName(libraryPath),
+                Library = library,
+                Matches = matches.Select(static m => new LibraryMatchInfo
+                {
+                    SymbolName = m.SymbolName,
+                    ModulePage = m.ModulePage,
+                    ModuleName = m.ModuleName,
+                    ModuleCodeOffset = m.ModuleCodeOffset,
+                }).ToList(),
+            });
+        }
+
+        return results;
+    }
+
     private static void WriteEntryPointMatchTable(
         int entryPoint,
-        IReadOnlyList<EntryPointLibraryMatch> entryMatches)
+        IReadOnlyList<EntryPointLibraryMatchInfo> entryMatches)
     {
         Console.WriteLine();
         Console.WriteLine($"{"Библиотека",-16} {"Match",7} {"__astart",9} {"Модуль",-10} CRT0-символы");
@@ -142,9 +194,9 @@ internal static class DecompileMatchCommand
         return string.Join(", ", symbols.Take(maxShown)) + $", … (+{symbols.Count - maxShown})";
     }
 
-    private static (EntryPointLibraryMatch Match, int AstartOffset, int MainOffset)? ResolveLibraryAndMain(
+    private static (EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset)? ResolveLibraryAndMain(
         DosExeParser parser,
-        IReadOnlyList<EntryPointLibraryMatch> entryMatches,
+        IReadOnlyList<EntryPointLibraryMatchInfo> entryMatches,
         RegisterState initRegisters,
         int entryPoint)
     {
@@ -171,8 +223,8 @@ internal static class DecompileMatchCommand
         return null;
     }
 
-    private static IEnumerable<EntryPointLibraryMatch> OrderLibraryCandidates(
-        IReadOnlyList<EntryPointLibraryMatch> entryMatches) =>
+    private static IEnumerable<EntryPointLibraryMatchInfo> OrderLibraryCandidates(
+        IReadOnlyList<EntryPointLibraryMatchInfo> entryMatches) =>
         entryMatches
             .Where(static m => m.AstartMatch is not null)
             .OrderBy(static m => LibraryPriority(m.LibraryFileName))
@@ -238,9 +290,11 @@ internal static class DecompileMatchCommand
             parser.RelocationTable,
             entryPoint,
             library,
-            initRegisters);
+            initRegisters,
+            AstartSymbol,
+            Crt0ModuleName);
 
-        if (epMatches.Any(static m => m.SymbolName == AstartSymbol))
+        if (epMatches.Count > 0)
         {
             return entryPoint;
         }

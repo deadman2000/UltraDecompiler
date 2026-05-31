@@ -14,6 +14,7 @@ namespace UltraDecompiler.Decompilation;
 public class Decompiler
 {
     private const string AstartSymbol = "__astart";
+    private const string Crt0ModuleName = "crt0";
     private const string MainSymbol = "_main";
 
     private readonly LibMatcher _libraryMatcher = new();
@@ -44,7 +45,9 @@ public class Decompiler
             parser.RelocationTable,
             entryPoint,
             libraries,
-            initRegisters);
+            initRegisters,
+            symbolName: null,
+            moduleName: Crt0ModuleName);
 
         var resolved = ResolveLibraryAndMain(parser, entryMatches, initRegisters, entryPoint);
         if (resolved is null)
