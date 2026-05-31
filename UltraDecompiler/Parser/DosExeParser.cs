@@ -125,7 +125,7 @@ public class DosExeParser
     {
         if (IsCom)
         {
-            Console.WriteLine("=== 16-bit MS-DOS .COM для декомпилятора ===");
+            Console.WriteLine("=== 16-bit MS-DOS .COM ===");
             Console.WriteLine($"Файл: {_filePath}");
             Console.WriteLine($"Тип:  .COM (нет MZ заголовка)");
             Console.WriteLine($"Точка входа     : 0000:0000 (линейно: 0x{EntryPointOffset:X6})");
@@ -133,7 +133,7 @@ public class DosExeParser
             return;
         }
 
-        Console.WriteLine("=== 16-bit MS-DOS EXE для декомпилятора ===");
+        Console.WriteLine("=== 16-bit MS-DOS EXE ===");
         Console.WriteLine($"Файл: {_filePath}");
         Console.WriteLine($"Размер заголовка: {DosHeader.HeaderSizeInParagraphs * 16} байт");
         Console.WriteLine($"Точка входа     : {DosHeader.InitCS:X4}:{DosHeader.InitIP:X4} (линейно: 0x{EntryPointOffset:X6})");
@@ -142,11 +142,11 @@ public class DosExeParser
         Console.WriteLine($"Мин. память     : {DosHeader.MinAlloc * 16} байт");
         Console.WriteLine($"Макс. память    : {DosHeader.MaxAlloc * 16} байт");
 
-        Console.WriteLine("Релокации:");
+        /*Console.WriteLine("Релокации:");
         for (int i = 0; i < Relocations.Length; i++)
         {
             var rel = Relocations[i];
             Console.WriteLine($"  {rel.LinearAddress:X4}");
-        }
+        }*/
     }
 }

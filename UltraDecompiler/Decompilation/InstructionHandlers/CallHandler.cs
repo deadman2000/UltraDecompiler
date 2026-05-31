@@ -31,6 +31,7 @@ public class CallHandler : IInstructionHandler
         }
         else if (instr.Mnemonic == Mnemonic.CALL_FAR)
         {
+            // TODO поддержка KnownProcedures
             name = "far_sub";
             if (op.Type == OperandType.Memory)
             {

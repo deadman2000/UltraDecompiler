@@ -129,12 +129,13 @@ internal static class DecompileMainCommand
             results.Add(new EntryPointLibraryMatchInfo
             {
                 Library = library,
-                Matches = matches.Select(static m => new LibraryMatchInfo
+                Matches = matches.Select(m => new LibraryMatchInfo
                 {
                     SymbolName = m.SymbolName,
                     ModulePage = m.ModulePage,
                     ModuleName = m.ModuleName,
                     ModuleCodeOffset = m.ModuleCodeOffset,
+                    LibraryFileName = library.FileName,
                 }).ToList(),
             });
         }

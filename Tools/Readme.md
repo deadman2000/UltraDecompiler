@@ -49,7 +49,7 @@ dotnet run --project Tools -- lib C:\QuickC\CLIBC.LIB -s _printf
 
 | Опция | Описание |
 |-------|----------|
-| `-l`, `--list-modules` | Список всех модулей |
+| `-l`, `--list-modules` | Список всех модулей и публичных символов словаря по каждому модулю |
 | `-s`, `--symbol <NAME>` | Поиск символа и сведения о модуле |
 
 Справка: `dotnet run --project Tools -- --help` или `decompile --help`, `decompile-main --help`, `lib --help`.

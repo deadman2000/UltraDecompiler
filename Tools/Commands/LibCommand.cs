@@ -18,7 +18,7 @@ internal static class LibCommand
 
             var listModulesOpt = cmd.Option(
                 "-l|--list-modules",
-                "Вывести список всех модулей",
+                "Вывести список всех модулей и их публичных символов из словаря",
                 CommandOptionType.NoValue);
 
             var symbolOpt = cmd.Option(
@@ -51,12 +51,23 @@ internal static class LibCommand
 
             if (listModules)
             {
+                var symbolsByPage = BuildSymbolsByPage(lib.Symbols);
                 Console.WriteLine();
-                Console.WriteLine($"{"Header",-24} {"LIBMOD",-20} {"Page",6} {"Offset",8}");
+                Console.WriteLine($"{"Header",-24} {"LIBMOD",-20} {"Page",6} {"Offset",8} {"Symbols",7}");
                 foreach (var module in lib.Modules)
                 {
+                    symbolsByPage.TryGetValue(module.PageNumber, out var moduleSymbols);
+                    var symbolCount = moduleSymbols?.Count ?? 0;
                     Console.WriteLine(
-                        $"{module.HeaderName,-24}{module.DisplayName,-20}{module.PageNumber,6}{module.FileOffset,8:X}");
+                        $"{module.HeaderName,-24}{module.DisplayName,-20}{module.PageNumber,6}{module.FileOffset,8:X}{symbolCount,7}");
+
+                    if (moduleSymbols is { Count: > 0 })
+                    {
+                        foreach (var name in moduleSymbols)
+                        {
+                            Console.WriteLine($"    {name}");
+                        }
+                    }
                 }
             }
 
@@ -113,6 +124,30 @@ internal static class LibCommand
             Console.WriteLine($"Error: {ex.Message}");
             return 1;
         }
+    }
+
+    /// <summary>Группирует публичные символы словаря по номеру страницы модуля.</summary>
+    private static Dictionary<ushort, List<string>> BuildSymbolsByPage(
+        IReadOnlyDictionary<string, OmfPublicSymbol> symbols)
+    {
+        var byPage = new Dictionary<ushort, List<string>>();
+        foreach (var entry in symbols.Values)
+        {
+            if (!byPage.TryGetValue(entry.ModulePage, out var names))
+            {
+                names = [];
+                byPage[entry.ModulePage] = names;
+            }
+
+            names.Add(entry.Name);
+        }
+
+        foreach (var names in byPage.Values)
+        {
+            names.Sort(StringComparer.Ordinal);
+        }
+
+        return byPage;
     }
 
     private static void WriteFixupsTable(IReadOnlyList<OmfFixup> fixups)

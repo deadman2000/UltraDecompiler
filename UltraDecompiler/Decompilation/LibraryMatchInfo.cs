@@ -12,6 +12,9 @@ public sealed record LibraryMatchInfo
     public required string ModuleName { get; init; }
 
     public required int ModuleCodeOffset { get; init; }
+
+    /// <summary>Файл OMF-библиотеки, из которой взят символ.</summary>
+    public required string LibraryFileName { get; init; }
 }
 
 /// <summary>Результат сопоставления точки входа EXE с одной OMF-библиотекой.</summary>

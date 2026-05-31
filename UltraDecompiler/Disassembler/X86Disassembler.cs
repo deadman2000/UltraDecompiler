@@ -36,10 +36,25 @@ public class X86Disassembler
     public static List<Instruction> Disassemble(byte[] image,
         RelocationTable relocations,
         int startOffset,
-        RegisterState initRegisters)
+        RegisterState initRegisters) =>
+        Disassemble(image, relocations, startOffset, initRegisters, minJumpTarget: null);
+
+    /// <summary>
+    /// Линейное извлечение тела функции с обходом веток переходов.
+    /// </summary>
+    /// <param name="minJumpTarget">
+    /// Смещение входа в функцию: безусловные JMP/JMP FAR на адреса ниже не обходятся
+    /// (хвостовой переход в crt0/runtime). Условные переходы (циклы) по-прежнему обходятся.
+    /// По умолчанию — <paramref name="startOffset"/>.
+    /// </param>
+    public static List<Instruction> Disassemble(byte[] image,
+        RelocationTable relocations,
+        int startOffset,
+        RegisterState initRegisters,
+        int? minJumpTarget)
     {
         var disassembler = new X86Disassembler(image, relocations);
-        disassembler.Disassemble(startOffset, initRegisters);
+        disassembler.Disassemble(startOffset, initRegisters, minJumpTarget);
         return disassembler.Instructions;
     }
 
@@ -50,8 +65,13 @@ public class X86Disassembler
         Disassemble(startOffset, RegisterState.Unknown);
     }
 
-    public void Disassemble(int startOffset, RegisterState initRegisters)
+    public void Disassemble(int startOffset, RegisterState initRegisters) =>
+        Disassemble(startOffset, initRegisters, minJumpTarget: null);
+
+    /// <inheritdoc cref="Disassemble(byte[], RelocationTable, int, RegisterState, int?)"/>
+    public void Disassemble(int startOffset, RegisterState initRegisters, int? minJumpTarget)
     {
+        var jumpFloor = minJumpTarget ?? startOffset;
         HashSet<int> visited = [];
         Instructions.Clear();
 
@@ -65,13 +85,18 @@ public class X86Disassembler
             if (visited.Contains(offset) || offset >= Image.Length)
                 continue;
 
-            DisassembleBlock(offset, queue, visited, registers);
+            DisassembleBlock(offset, queue, visited, registers, jumpFloor);
         }
 
         Instructions = Instructions.OrderBy(i => i.Offset).ToList();
     }
 
-    private void DisassembleBlock(int startOffset, Queue<(int, RegisterState)> queue, HashSet<int> visited, RegisterState registers)
+    private void DisassembleBlock(
+        int startOffset,
+        Queue<(int, RegisterState)> queue,
+        HashSet<int> visited,
+        RegisterState registers,
+        int minJumpTarget)
     {
         _pos = startOffset;
 
@@ -95,14 +120,22 @@ public class X86Disassembler
             if (instr.IsConditionalJump || instr.IsUnconditionalJump)
             {
                 int target = instr.GetEffectiveJumpTarget(Image);
-                if (target != -1)
+                if (target != -1 && ShouldFollowJump(instr, target, minJumpTarget))
+                {
                     queue.Enqueue((target, registers));
+                }
 
                 if (instr.IsUnconditionalJump)
                     break;
             }
         }
     }
+
+    /// <summary>
+    /// Решает, нужно ли обходить цель перехода при извлечении тела функции.
+    /// </summary>
+    private static bool ShouldFollowJump(Instruction instr, int target, int functionEntryOffset) =>
+        target >= functionEntryOffset || instr.IsConditionalJump;
 
     /// <summary>
     /// Дизассемблирует инструкции до первого перехода.

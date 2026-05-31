@@ -4,7 +4,7 @@
             "commandName": "Project",
             "commandLineArgs": "decompile D:\\Projects\\TranslateWeb\\Neuromancer\\Neuromancer_re\\NEURO.EXE"
         },
-        "Neuromancer match": {
+        "Neuromancer main": {
             "commandName": "Project",
             "commandLineArgs": "decompile-main D:\\Projects\\TranslateWeb\\Neuromancer\\Neuromancer_re\\NEURO.EXE"
         },
@@ -32,9 +32,9 @@
             "commandName": "Project",
             "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\SLIBCE.LIB -l"
         },
-        "SLIBCE.LIB printf": {
+        "SLIBCE.LIB chkstk": {
             "commandName": "Project",
-            "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\SLIBCE.LIB -s _printf"
+            "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\SLIBCE.LIB -s __chkstk"
         },
         "LLIBCE.LIB __astart": {
             "commandName": "Project",

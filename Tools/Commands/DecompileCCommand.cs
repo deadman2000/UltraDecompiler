@@ -54,9 +54,13 @@ internal static class DecompileCCommand
                 return 1;
             }
 
-            Console.WriteLine($"библиотека: {result.SelectedLibraryFileName}");
-            Console.WriteLine();
+            Console.WriteLine("подключаемые .LIB:");
+            foreach (var libName in result.LinkedLibraryFileNames)
+            {
+                Console.WriteLine($"  {libName}");
+            }
 
+            Console.WriteLine();
             WriteProcedureTable(result.Procedures);
 
             var userCount = result.Procedures.All.Count(static p => !p.IsLibrary);

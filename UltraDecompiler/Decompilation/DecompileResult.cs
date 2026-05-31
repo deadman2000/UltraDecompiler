@@ -7,7 +7,8 @@ public sealed class DecompileResult
 
     public int MainOffset { get; init; }
 
-    public string? SelectedLibraryFileName { get; init; }
+    /// <summary>Подключаемые .LIB: сопоставленные символы по мере декомпиляции.</summary>
+    public IReadOnlyList<string> LinkedLibraryFileNames { get; init; } = [];
 
     public required ProcedureStorage Procedures { get; init; }
 

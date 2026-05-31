@@ -43,7 +43,7 @@ public partial class ExpressionBuilder
     /// <summary>
     /// Выполняет декомпиляцию с подстановкой имён известных процедур в CALL/JMP.
     /// </summary>
-    /// <param name="knownProcedures">Смещение в образе → имя функции (например <c>_printf</c>).</param>
+    /// <param name="knownProcedures">Смещение в образе → имя функции (например <c>printf</c>).</param>
     public void Build(
         ControlFlowGraph graph,
         bool isCom,

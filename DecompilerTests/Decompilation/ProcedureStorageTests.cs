@@ -20,7 +20,7 @@ public class ProcedureStorageTests
         {
             Offset = 0x10,
             Instructions = [],
-            Name = "_main",
+            Name = "main",
             IsLibrary = false,
         };
 
@@ -28,6 +28,6 @@ public class ProcedureStorageTests
 
         Assert.True(storage.TryGet(0x10, out var found));
         Assert.Same(procedure, found);
-        Assert.Equal("_main", storage.GetName(0x10));
+        Assert.Equal("main", storage.GetName(0x10));
     }
 }

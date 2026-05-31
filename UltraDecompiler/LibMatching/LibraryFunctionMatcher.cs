@@ -61,7 +61,13 @@ public static class LibraryFunctionMatcher
         ArgumentNullException.ThrowIfNull(imageRelocations);
         ArgumentNullException.ThrowIfNull(library);
 
-        var targetBody = X86Disassembler.Disassemble(image, imageRelocations, imageOffset, initRegisters);
+        // Безусловные JMP ниже imageOffset не обходятся (напр. __chkstk → crt0).
+        var targetBody = X86Disassembler.Disassemble(
+            image,
+            imageRelocations,
+            imageOffset,
+            initRegisters,
+            minJumpTarget: imageOffset);
         if (targetBody.Count == 0)
         {
             return [];
@@ -142,7 +148,8 @@ public static class LibraryFunctionMatcher
                 codeSegment.Data,
                 libraryRelocations,
                 moduleCodeOffset,
-                RegisterState.Unknown);
+                RegisterState.Unknown,
+                minJumpTarget: moduleCodeOffset);
 
             return FunctionBodyComparer.AreEquivalent(targetBody, libraryBody, libraryRelocations);
         }

@@ -83,6 +83,25 @@ public class FunctionBodyTests
     }
 
     [Fact]
+    public void Extract_DoesNotFollowJumpBelowStartOffset()
+    {
+        // push bp; ret; pop cx; xor ax, ax; jmp 0 — не уходим на push bp
+        byte[] code =
+        [
+            0x55, 0xC3,
+            0x59, 0x33, 0xC0, 0xEB, 0xF9,
+        ];
+
+        var body = X86Disassembler.Disassemble(code, RelocationTable.Empty, 2, RegisterState.Unknown, minJumpTarget: 2);
+
+        Assert.Equal(3, body.Count);
+        Assert.All(body, instr => Assert.True(instr.Offset >= 2));
+        Assert.Equal(Mnemonic.POP, body[0].Mnemonic);
+        Assert.Equal(Mnemonic.XOR, body[1].Mnemonic);
+        Assert.Equal(Mnemonic.JMP, body[2].Mnemonic);
+    }
+
+    [Fact]
     public void Comparer_ShortJumpSameDisplacement_DifferentTargetAddress_StillEquivalent()
     {
         byte[] libraryCode = [0x3C, 0x02, 0x73, 0x02, 0xC3];

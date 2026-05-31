@@ -45,7 +45,7 @@ public sealed class LibMatcher
             results.Add(new EntryPointLibraryMatchInfo
             {
                 Library = library,
-                Matches = matches.Select(ToMatchInfo).ToList(),
+                Matches = matches.Select(m => ToMatchInfo(m, library)).ToList(),
             });
         }
 
@@ -79,7 +79,7 @@ public sealed class LibMatcher
                 initRegisters,
                 symbolName,
                 moduleName)
-            .Select(ToMatchInfo)
+            .Select(m => ToMatchInfo(m, library))
             .ToList();
 
     public int FindMainOffset(
@@ -97,12 +97,13 @@ public sealed class LibMatcher
             initRegisters,
             astartModuleCodeOffset);
 
-    private static LibraryMatchInfo ToMatchInfo(LibraryMatchResult match) =>
+    private static LibraryMatchInfo ToMatchInfo(LibraryMatchResult match, OmfLibrary library) =>
         new()
         {
             SymbolName = match.SymbolName,
             ModulePage = match.ModulePage,
             ModuleName = match.ModuleName,
             ModuleCodeOffset = match.ModuleCodeOffset,
+            LibraryFileName = library.FileName,
         };
 }

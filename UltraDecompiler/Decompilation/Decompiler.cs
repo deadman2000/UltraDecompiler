@@ -29,8 +29,8 @@ public class Decompiler
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
 
-        var libraries = LoadLibraries(libraryDirectory);
-        if (libraries.Count == 0)
+        var allLibraries = LoadLibraries(libraryDirectory);
+        if (allLibraries.Count == 0)
         {
             throw new DirectoryNotFoundException(
                 $"В каталоге {libraryDirectory} не найдено файлов *.LIB.");
@@ -40,25 +40,37 @@ public class Decompiler
         var initRegisters = parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe;
         var entryPoint = (int)parser.EntryPointOffset;
 
+        var libraryCandidates = new LibraryCandidateSet(allLibraries);
+
         var entryMatches = _libraryMatcher.MatchEntryPoint(
             parser.Image,
             parser.RelocationTable,
             entryPoint,
-            libraries,
+            allLibraries,
             initRegisters,
             symbolName: null,
             moduleName: Crt0ModuleName);
 
-        var resolved = ResolveLibraryAndMain(parser, entryMatches, initRegisters, entryPoint);
+        libraryCandidates.NarrowByEntryPointMatches(entryMatches);
+
+        var resolved = ResolveLibraryAndMain(
+            parser,
+            entryMatches,
+            libraryCandidates.Candidates,
+            initRegisters,
+            entryPoint);
         if (resolved is null)
         {
             return DecompileResult.Failed;
         }
 
-        var (selectedLibrary, mainOffset, astartMatch) = resolved.Value;
+        var (primaryLibrary, mainOffset, astartMatch) = resolved.Value;
+        libraryCandidates.NarrowBySymbol(primaryLibrary, AstartSymbol);
+
         var storage = CollectProcedures(
             parser,
-            libraries,
+            libraryCandidates,
+            primaryLibrary,
             initRegisters,
             mainOffset);
 
@@ -70,27 +82,18 @@ public class Decompiler
                      .Where(static p => !p.IsLibrary)
                      .OrderBy(static p => p.Offset))
         {
-            try
-            {
-                var source = DecompileProcedureToC(parser, procedure, initRegisters, knownProcedures);
-                var fileName = FormatOutputFileName(procedure.Name, procedure.Offset);
-                var filePath = Path.Combine(outputDirectory, fileName);
-                File.WriteAllText(filePath, source, Encoding.UTF8);
-                outputFiles.Add(filePath);
-            }
-            catch (InvalidOperationException)
-            {
-            }
-            catch (NotImplementedException)
-            {
-            }
+            var source = DecompileProcedureToC(parser, procedure, initRegisters, knownProcedures);
+            var fileName = FormatOutputFileName(procedure.Name, procedure.Offset);
+            var filePath = Path.Combine(outputDirectory, fileName);
+            File.WriteAllText(filePath, source, Encoding.UTF8);
+            outputFiles.Add(filePath);
         }
 
         return new DecompileResult
         {
             Success = true,
             MainOffset = mainOffset,
-            SelectedLibraryFileName = selectedLibrary.FileName,
+            LinkedLibraryFileNames = libraryCandidates.LinkedFileNames,
             Procedures = storage,
             OutputFiles = outputFiles,
         };
@@ -115,27 +118,29 @@ public class Decompiler
     private (OmfLibrary Library, int MainOffset, LibraryMatchInfo AstartMatch)? ResolveLibraryAndMain(
         DosExeParser parser,
         IReadOnlyList<EntryPointLibraryMatchInfo> entryMatches,
+        IReadOnlyList<OmfLibrary> candidateLibraries,
         RegisterState initRegisters,
         int entryPoint)
     {
+        var candidateSet = candidateLibraries.ToHashSet();
+
         foreach (var match in OrderLibraryCandidates(entryMatches))
         {
-            try
+            if (!candidateSet.Contains(match.Library))
             {
-                var astartOffset = ResolveAstartOffset(match, entryPoint);
-                var mainOffset = _libraryMatcher.FindMainOffset(
-                    parser.Image,
-                    parser.RelocationTable,
-                    match.Library,
-                    astartOffset,
-                    initRegisters,
-                    match.AstartMatch!.ModuleCodeOffset);
+                continue;
+            }
 
-                return (match.Library, mainOffset, match.AstartMatch);
-            }
-            catch (InvalidOperationException)
-            {
-            }
+            var astartOffset = ResolveAstartOffset(match, entryPoint);
+            var mainOffset = _libraryMatcher.FindMainOffset(
+                parser.Image,
+                parser.RelocationTable,
+                match.Library,
+                astartOffset,
+                initRegisters,
+                match.AstartMatch!.ModuleCodeOffset);
+
+            return (match.Library, mainOffset, match.AstartMatch);
         }
 
         return null;
@@ -152,7 +157,8 @@ public class Decompiler
 
     private ProcedureStorage CollectProcedures(
         DosExeParser parser,
-        List<OmfLibrary> libraries,
+        LibraryCandidateSet libraryCandidates,
+        OmfLibrary primaryLibrary,
         RegisterState initRegisters,
         int mainOffset)
     {
@@ -182,7 +188,8 @@ public class Decompiler
             var libraryMatch = TryMatchLibrary(
                 parser,
                 offset,
-                libraries,
+                libraryCandidates,
+                primaryLibrary,
                 initRegisters);
 
             if (libraryMatch is not null)
@@ -191,19 +198,16 @@ public class Decompiler
                 {
                     Offset = offset,
                     Instructions = instructions,
-                    Name = libraryMatch.Value.Match.SymbolName,
+                    Name = LinkerSymbolNames.ToCName(libraryMatch.SymbolName),
                     IsLibrary = true,
-                    LibraryMatch = libraryMatch.Value.Match,
+                    LibraryMatch = libraryMatch,
                 });
-
-                RejectLibrariesWithDuplicateSymbol(
-                    libraryMatch.Value.Library,
-                    libraryMatch.Value.Match.SymbolName,
-                    libraries);
                 continue;
             }
 
-            var name = offset == mainOffset ? MainSymbol : $"sub_{offset:X4}";
+            var name = offset == mainOffset
+                ? LinkerSymbolNames.ToCName(MainSymbol)
+                : $"sub_{offset:X4}";
             storage.Add(new DisassembledProcedure
             {
                 Offset = offset,
@@ -218,15 +222,19 @@ public class Decompiler
         return storage;
     }
 
-    private LibraryProcedureMatch? TryMatchLibrary(
+    /// <summary>
+    /// Ищет совпадение среди кандидатов; при однозначном символе сужает набор библиотек.
+    /// </summary>
+    private LibraryMatchInfo? TryMatchLibrary(
         DosExeParser parser,
         int offset,
-        IReadOnlyList<OmfLibrary> libraries,
+        LibraryCandidateSet libraryCandidates,
+        OmfLibrary primaryLibrary,
         RegisterState initRegisters)
     {
-        var candidates = new List<LibraryProcedureMatch>();
+        var hits = new List<(OmfLibrary Library, LibraryMatchInfo Match)>();
 
-        foreach (var library in libraries)
+        foreach (var library in libraryCandidates.Candidates)
         {
             var matches = _libraryMatcher.MatchFunction(
                 parser.Image,
@@ -235,46 +243,73 @@ public class Decompiler
                 library,
                 initRegisters);
 
-            if (matches.Count == 0)
+            if (matches.Count > 0)
             {
-                continue;
+                hits.Add((library, matches[0]));
             }
-
-            candidates.Add(new LibraryProcedureMatch(library, matches[0]));
         }
 
-        if (candidates.Count == 0)
+        if (hits.Count == 0)
         {
             return null;
         }
 
-        return candidates[0];
-    }
+        var (chosenLibrary, chosenMatch) = ChooseBestHit(hits, libraryCandidates.Linked, primaryLibrary);
 
-    /// <summary>
-    /// Исключает библиотеки с тем же именем символа: после совпадения в одной .LIB
-    /// остальные кандидаты с дубликатом символа в словаре больше не участвуют в поиске.
-    /// </summary>
-    private static void RejectLibrariesWithDuplicateSymbol(
-        OmfLibrary matchedLibrary,
-        string symbolName,
-        List<OmfLibrary> libraries)
-    {
-        for (int i = 0; i < libraries.Count; i++)
+        var librariesWithSameSymbol = hits
+            .Where(h => h.Match.SymbolName == chosenMatch.SymbolName)
+            .Select(static h => h.Library)
+            .ToList();
+
+        if (librariesWithSameSymbol.Count == 1)
         {
-            var library = libraries[i];
-            if (ReferenceEquals(library, matchedLibrary))
-            {
-                continue;
-            }
-
-            if (library.Symbols.ContainsKey(symbolName))
-            {
-                libraries.RemoveAt(i);
-                i--;
-            }
+            libraryCandidates.NarrowBySymbol(chosenLibrary, chosenMatch.SymbolName);
         }
+        else
+        {
+            libraryCandidates.ConfirmLibrary(chosenLibrary);
+        }
+
+        return chosenMatch;
     }
+
+    private static (OmfLibrary Library, LibraryMatchInfo Match) ChooseBestHit(
+        IReadOnlyList<(OmfLibrary Library, LibraryMatchInfo Match)> hits,
+        IReadOnlyList<OmfLibrary> linkedLibraries,
+        OmfLibrary primaryLibrary)
+    {
+        var linked = hits.Where(h => linkedLibraries.Contains(h.Library)).ToList();
+        if (linked.Count == 1)
+        {
+            return linked[0];
+        }
+
+        if (linked.Count > 1)
+        {
+            return OrderHits(linked).First();
+        }
+
+        var primaryHits = hits.Where(h => ReferenceEquals(h.Library, primaryLibrary)).ToList();
+        if (primaryHits.Count == 1)
+        {
+            return primaryHits[0];
+        }
+
+        if (primaryHits.Count > 1)
+        {
+            return OrderHits(primaryHits).First();
+        }
+
+        return OrderHits(hits).First();
+    }
+
+    private static IEnumerable<(OmfLibrary Library, LibraryMatchInfo Match)> OrderHits(
+        IEnumerable<(OmfLibrary Library, LibraryMatchInfo Match)> hits) =>
+        hits
+            .OrderBy(static h => LibraryPriority(h.Library.FileName))
+            .ThenBy(static h => PreferEmulatorLibrary(h.Library.FileName))
+            .ThenBy(static h => MemoryModelLibraryPriority(h.Library.FileName))
+            .ThenBy(static h => h.Library.FileName, StringComparer.OrdinalIgnoreCase);
 
     private static void EnqueueExternalTargets(byte[] image, IReadOnlyList<Instruction> instructions, Queue<int> pending)
     {
@@ -399,6 +434,4 @@ public class Decompiler
 
         return 2;
     }
-
-    private readonly record struct LibraryProcedureMatch(OmfLibrary Library, LibraryMatchInfo Match);
 }
