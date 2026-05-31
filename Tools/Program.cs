@@ -17,7 +17,7 @@ public static class Program
         app.HelpOption(inherited: true);
 
         DecompileCommand.Configure(app);
-        DecompileMatchCommand.Configure(app);
+        DecompileMainCommand.Configure(app);
         DecompileCCommand.Configure(app);
         LibCommand.Configure(app);
 

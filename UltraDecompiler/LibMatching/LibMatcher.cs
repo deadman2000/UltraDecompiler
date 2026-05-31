@@ -15,7 +15,7 @@ public sealed class LibMatcher
         byte[] image,
         RelocationTable imageRelocations,
         int entryPointOffset,
-        IReadOnlyList<(string FileName, OmfLibrary Library)> libraries,
+        IReadOnlyList<OmfLibrary> libraries,
         RegisterState initRegisters,
         string? symbolName = null,
         string? moduleName = null)
@@ -26,7 +26,7 @@ public sealed class LibMatcher
 
         var results = new List<EntryPointLibraryMatchInfo>();
 
-        foreach (var (fileName, library) in libraries)
+        foreach (var library in libraries)
         {
             var matches = LibraryFunctionMatcher.Match(
                 image,
@@ -44,7 +44,6 @@ public sealed class LibMatcher
 
             results.Add(new EntryPointLibraryMatchInfo
             {
-                LibraryFileName = fileName,
                 Library = library,
                 Matches = matches.Select(ToMatchInfo).ToList(),
             });

@@ -6,23 +6,23 @@
         },
         "Neuromancer match": {
             "commandName": "Project",
-            "commandLineArgs": "decompile-match D:\\Projects\\TranslateWeb\\Neuromancer\\Neuromancer_re\\NEURO.EXE"
+            "commandLineArgs": "decompile-main D:\\Projects\\TranslateWeb\\Neuromancer\\Neuromancer_re\\NEURO.EXE"
         },
         "Neuromancer decompile-c": {
             "commandName": "Project",
             "commandLineArgs": "decompile-c D:\\Projects\\TranslateWeb\\Neuromancer\\Neuromancer_re\\NEURO.EXE -o ..\\..\\..\\..\\QuickC\\PROGRAMS\\decompiled"
         },
-        "HELLO_L.EXE": {
+        "HELLO_S.EXE": {
             "commandName": "Project",
-            "commandLineArgs": "decompile ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_L.EXE"
+            "commandLineArgs": "decompile ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_S.EXE"
         },
         "HELLO_S.EXE printf": {
             "commandName": "Project",
             "commandLineArgs": "decompile ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_S.EXE -o 5C4h"
         },
-        "HELLO_L.EXE decompile-match": {
+        "HELLO_S.EXE decompile-main": {
             "commandName": "Project",
-            "commandLineArgs": "decompile-match ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_L.EXE"
+            "commandLineArgs": "decompile-main ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_S.EXE"
         },
         "HELLO_S.EXE decompile-c": {
             "commandName": "Project",

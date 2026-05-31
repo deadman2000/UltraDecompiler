@@ -12,7 +12,7 @@ namespace Tools.Commands;
 /// <summary>
 /// Декомпиляция с сопоставлением точки входа crt0 по OMF-библиотекам и поиском <c>_main</c>.
 /// </summary>
-internal static class DecompileMatchCommand
+internal static class DecompileMainCommand
 {
     private const string AstartSymbol = "__astart";
     private const string Crt0ModuleName = "crt0";
@@ -20,7 +20,7 @@ internal static class DecompileMatchCommand
 
     public static void Configure(CommandLineApplication root)
     {
-        root.Command("decompile-match", cmd =>
+        root.Command("decompile-main", cmd =>
         {
             cmd.Description =
                 "Сопоставление точки входа с crt0 (.LIB), поиск _main и декомпиляция через ExpressionBuilder";
@@ -71,7 +71,7 @@ internal static class DecompileMatchCommand
 
             var (selected, astartOffset, mainOffset) = resolved.Value;
 
-            Console.WriteLine($"библиотека: {selected.LibraryFileName}");
+            Console.WriteLine($"библиотека: {selected.Library.FileName}");
             Console.WriteLine($"Адрес {AstartSymbol}: 0x{astartOffset:X} (линейно в образе)");
             Console.WriteLine($"Адрес {MainSymbol}: 0x{mainOffset:X} (линейно в образе)");
 
@@ -128,7 +128,6 @@ internal static class DecompileMatchCommand
 
             results.Add(new EntryPointLibraryMatchInfo
             {
-                LibraryFileName = Path.GetFileName(libraryPath),
                 Library = library,
                 Matches = matches.Select(static m => new LibraryMatchInfo
                 {
@@ -171,7 +170,7 @@ internal static class DecompileMatchCommand
                 ?? (crt0Symbols.Count > 0 ? "crt0" : "—");
 
             Console.WriteLine(
-                $"{match.LibraryFileName,-16} {match.Matches.Count,5} {astart,3} {moduleName,-8} {FormatSymbolList(crt0Symbols)}");
+                $"{match.Library.FileName,-16} {match.Matches.Count,5} {astart,3} {moduleName,-8} {FormatSymbolList(crt0Symbols)}");
         }
 
         Console.WriteLine();
@@ -227,10 +226,10 @@ internal static class DecompileMatchCommand
         IReadOnlyList<EntryPointLibraryMatchInfo> entryMatches) =>
         entryMatches
             .Where(static m => m.AstartMatch is not null)
-            .OrderBy(static m => LibraryPriority(m.LibraryFileName))
-            .ThenBy(static m => PreferEmulatorLibrary(m.LibraryFileName))
-            .ThenBy(static m => MemoryModelLibraryPriority(m.LibraryFileName))
-            .ThenBy(static m => m.LibraryFileName, StringComparer.OrdinalIgnoreCase);
+            .OrderBy(static m => LibraryPriority(m.Library.FileName))
+            .ThenBy(static m => PreferEmulatorLibrary(m.Library.FileName))
+            .ThenBy(static m => MemoryModelLibraryPriority(m.Library.FileName))
+            .ThenBy(static m => m.Library.FileName, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>S → C → M → L: при нескольких совпадениях предпочитаем small-модель.</summary>
     private static int MemoryModelLibraryPriority(string fileName)

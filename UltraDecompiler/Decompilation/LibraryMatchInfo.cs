@@ -17,8 +17,6 @@ public sealed record LibraryMatchInfo
 /// <summary>Результат сопоставления точки входа EXE с одной OMF-библиотекой.</summary>
 public sealed record EntryPointLibraryMatchInfo
 {
-    public required string LibraryFileName { get; init; }
-
     public required OmfLibrary Library { get; init; }
 
     public required IReadOnlyList<LibraryMatchInfo> Matches { get; init; }

@@ -3,6 +3,8 @@ namespace LibParser.Models;
 /// <summary>Разобранная OMF-библиотека Microsoft QuickC.</summary>
 public sealed class OmfLibrary
 {
+    public required string FileName { get; init; }
+
     public required OmfLibraryHeader Header { get; init; }
 
     public required IReadOnlyList<OmfModule> Modules { get; init; }

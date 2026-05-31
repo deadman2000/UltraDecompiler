@@ -9,11 +9,12 @@ public static class OmfLibraryParser
     public static OmfLibrary ParseFile(string path)
     {
         var data = File.ReadAllBytes(path);
-        return Parse(data);
+        return Parse(data, Path.GetFileName(path));
     }
 
     /// <summary>Разобрать библиотеку из памяти.</summary>
-    public static OmfLibrary Parse(ReadOnlySpan<byte> data)
+    /// <param name="fileName">Имя файла для идентификации (если не задано — пустая строка).</param>
+    public static OmfLibrary Parse(ReadOnlySpan<byte> data, string? fileName = null)
     {
         if (data.Length < 16 || data[0] != OmfRecordTypes.LibraryHeader)
         {
@@ -30,6 +31,7 @@ public static class OmfLibraryParser
 
         return new OmfLibrary
         {
+            FileName = fileName ?? string.Empty,
             Header = header,
             Modules = modules,
             Symbols = symbols,

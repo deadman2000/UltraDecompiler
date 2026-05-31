@@ -14,6 +14,7 @@ public sealed class OmfLibraryParserTests
 
         var lib = OmfLibraryParser.ParseFile(QuickCLibAssets.PathOf("87.LIB"));
 
+        Assert.Equal("87.LIB", lib.FileName);
         Assert.Equal(16, lib.Header.PageSize);
         Assert.Equal(3584, lib.Header.DictionaryOffset);
         Assert.Equal(1, lib.Header.DictionaryBlockCount);

@@ -32,7 +32,7 @@
 | `Common` | Общие типы: `RelocationTable`, `RelocationEntry` (используются ядром, LibParser и LibMatching) |
 | `LibParser` | Разбор OMF `.LIB` Microsoft QuickC (модули, сегменты, FIXUPP, словарь символов) |
 | `LibMatching` | Сопоставление кода EXE/COM с функциями из `.LIB` (crt0, `_main`, runtime) |
-| `Tools` | CLI: `decompile`, `decompile-match`, `lib` |
+| `Tools` | CLI: `decompile`, `decompile-main`, `lib` |
 | `DecompilerTests` | Тесты ядра (дизассемблер, IR, регистры, CFG) |
 | `LibParserTests` / `LibMatchingTests` | Тесты парсера библиотек и сопоставления (эталонные `.LIB` из `QuickC/`) |
 
@@ -46,7 +46,7 @@
 DosExeParser → X86Disassembler → ControlFlowGraph → ExpressionBuilder → (будущий CodeGen)
 ```
 
-Расширенный пайплайн (CLI `decompile-match`):
+Расширенный пайплайн (CLI `decompile-main`):
 
 ```
 DosExeParser → Crt0EntryPointMatcher → MainOffsetFinder → DecompilePipeline (от _main)
@@ -123,7 +123,7 @@ DosExeParser → Crt0EntryPointMatcher → MainOffsetFinder → DecompilePipelin
 | Путь | Назначение |
 |------|------------|
 | `Tools/Commands/DecompileCommand.cs` | CLI `decompile`: парсинг → дизассемблирование → CFG → ExpressionBuilder |
-| `Tools/Commands/DecompileMatchCommand.cs` | CLI `decompile-match`: crt0 + `_main` через `.LIB`, затем `DecompilePipeline` |
+| `Tools/Commands/DecompileMatchCommand.cs` | CLI `decompile-main`: crt0 + `_main` через `.LIB`, затем `DecompilePipeline` |
 | `Tools/DecompilePipeline.cs` | Общий пайплайн декомпиляции (используется обеими командами) |
 | `Tools/Commands/LibCommand.cs` | CLI `lib`: разбор OMF `.LIB`, дизассемблирование символа |
 | `LibParser/Omf/OmfLibraryParser.cs` | Парсер QuickC `.LIB` |
@@ -133,7 +133,7 @@ DosExeParser → Crt0EntryPointMatcher → MainOffsetFinder → DecompilePipelin
 | `UltraDecompiler/Decompilation/ExpressionBuilder.cs` | Основная логика декомпиляции (символическое выполнение) |
 | `UltraDecompiler/Decompilation/RegisterExpressions.cs` | Моделирование регистров + флагов |
 | `UltraDecompiler/assets/QuickC/` | Оригинальные заголовочные файлы Microsoft QuickC 1.0 (DOS.H, CONIO.H, STDIO.H, BIOS.H и др.). Используются как эталон для генерации совместимого кода |
-| `QuickC/` (корень репозитория) | Эталонные `.LIB` и заголовки QuickC для тестов и `decompile-match` |
+| `QuickC/` (корень репозитория) | Эталонные `.LIB` и заголовки QuickC для тестов и `decompile-main` |
 | `TODO.md` | Актуальный список ограничений, нереализованных инструкций и задач проекта |
 | `DecompilerTests/BaseTests.cs` | Удобные хелперы для тестов ядра (hex DSL) |
 | `DecompilerTests/Tools/HexConverter.cs` | Парсер hex-строк с комментариями `;` |
@@ -229,7 +229,7 @@ dotnet build -c Release
   1. Проверь разбор модуля через `dotnet run --project Tools -- lib QuickC\CLIBC.LIB -s _printf`.
   2. FIXUPP → `OmfRelocationTableBuilder.Build` перед дизассемблированием кода модуля.
   3. Сравнение тел — `FunctionBodyComparer` (rel16 маскируются, near CALL/JMP игнорируют абсолютный target).
-  4. Полный сценарий: `dotnet run --project Tools -- decompile-match path\to\hello.exe`.
+  4. Полный сценарий: `dotnet run --project Tools -- decompile-main path\to\hello.exe`.
 
 ---
 
