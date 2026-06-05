@@ -1,4 +1,4 @@
-using UltraDecompiler.Decompilation.Headers;
+using UltraDecompiler.Headers;
 
 namespace UltraDecompiler.Decompilation;
 
@@ -9,7 +9,7 @@ public static class ProcedureSignatureResolver
     /// Для библиотечных функций — из <paramref name="headers"/>,
     /// для пользовательских — эвристика по ассемблеру.
     /// </summary>
-    public static void ResolveAll(ProcedureStorage storage, QuickCHeaderCatalog headers)
+    public static void ResolveAll(ProcedureStorage storage, HeaderCatalog headers)
     {
         foreach (var procedure in storage.All.ToList())
         {
@@ -17,7 +17,7 @@ public static class ProcedureSignatureResolver
         }
     }
 
-    public static ProcedureSignature Resolve(DisassembledProcedure procedure, QuickCHeaderCatalog headers)
+    public static ProcedureSignature Resolve(DisassembledProcedure procedure, HeaderCatalog headers)
     {
         if (procedure.IsLibrary && headers.TryGetSignature(procedure.Name, out var fromHeader) && fromHeader is not null)
         {

@@ -1,6 +1,6 @@
 using LibParser.Models;
 
-namespace UltraDecompiler.Decompilation;
+namespace UltraDecompiler.LibMatching;
 
 /// <summary>
 /// Набор OMF-библиотек-кандидатов: сужается по мере сопоставления символов с образом EXE.
@@ -64,9 +64,9 @@ public sealed class LibraryCandidateSet
     }
 
     /// <summary>
-    /// Сужает кандидатов до библиотек, совпавших с точкой входа (crt0).
+    /// Сужает кандидатов до библиотек, содержащих отличный от совпавшего модуль.
     /// </summary>
-    public void NarrowByEntryPointMatches(IReadOnlyList<EntryPointLibraryMatchInfo> entryMatches)
+    public void NarrowByEntryPointMatches(string moduleName, IReadOnlyList<EntryPointLibraryMatchInfo> entryMatches)
     {
         ArgumentNullException.ThrowIfNull(entryMatches);
 
@@ -79,7 +79,7 @@ public sealed class LibraryCandidateSet
         var allowed = entryMatches.Select(static m => m.Library).ToHashSet();
         for (var i = _candidates.Count - 1; i >= 0; i--)
         {
-            if (!allowed.Contains(_candidates[i]))
+            if (_candidates[i].Modules.Any(m => m.LibraryModuleName == moduleName) && !allowed.Contains(_candidates[i]))
             {
                 _candidates.RemoveAt(i);
             }

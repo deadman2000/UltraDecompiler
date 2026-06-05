@@ -35,4 +35,6 @@ public sealed class OmfModule
     /// <summary>Кодовые сегменты (класс CODE).</summary>
     public IEnumerable<OmfSegmentData> CodeSegments =>
         Segments.Where(static s => s.IsCode);
+
+    public override string ToString() => DisplayName;
 }

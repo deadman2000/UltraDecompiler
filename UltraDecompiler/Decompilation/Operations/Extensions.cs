@@ -5,7 +5,7 @@ namespace UltraDecompiler.Decompilation.Operations;
 /// <summary>
 /// Форматирование <see cref="Operation"/> в строки, близкие к синтаксису C.
 /// </summary>
-public static class OperationExtensions
+public static class Extensions
 {
     extension(Operation op)
     {

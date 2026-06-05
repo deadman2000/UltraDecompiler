@@ -1,6 +1,6 @@
 using LibParser.Models;
 
-namespace UltraDecompiler.Decompilation;
+namespace UltraDecompiler.LibMatching;
 
 /// <summary>Результат сопоставления участка EXE с публичным символом OMF-библиотеки.</summary>
 public sealed record LibraryMatchInfo

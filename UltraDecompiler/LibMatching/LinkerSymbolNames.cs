@@ -1,4 +1,4 @@
-namespace UltraDecompiler.Decompilation;
+namespace UltraDecompiler.LibMatching;
 
 /// <summary>Преобразование имён символов линкера QuickC/MSC в имена C из заголовков.</summary>
 public static class LinkerSymbolNames

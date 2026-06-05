@@ -2,7 +2,6 @@ using Common;
 using LibParser.Models;
 using LibParser.Omf;
 using McMaster.Extensions.CommandLineUtils;
-using UltraDecompiler.Decompilation;
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;

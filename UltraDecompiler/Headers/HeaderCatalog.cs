@@ -1,20 +1,21 @@
 using System.Text.RegularExpressions;
+using UltraDecompiler.Decompilation;
 
-namespace UltraDecompiler.Decompilation.Headers;
+namespace UltraDecompiler.Headers;
 
 /// <summary>
-/// Каталог сигнатур функций из заголовков QuickC (<c>INCLUDE/*.H</c>).
+/// Каталог сигнатур функций из заголовков (<c>INCLUDE/*.H</c>).
 /// </summary>
-public sealed class QuickCHeaderCatalog
+public sealed class HeaderCatalog
 {
     private readonly Dictionary<string, ProcedureSignature> _byName = new(StringComparer.Ordinal);
 
     public IReadOnlyDictionary<string, ProcedureSignature> All => _byName;
 
     /// <summary>Загружает все <c>*.H</c> из каталога.</summary>
-    public static QuickCHeaderCatalog Load(string includeDirectory)
+    public static HeaderCatalog Load(string includeDirectory)
     {
-        var catalog = new QuickCHeaderCatalog();
+        var catalog = new HeaderCatalog();
         if (!Directory.Exists(includeDirectory))
         {
             return catalog;

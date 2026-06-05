@@ -1,5 +1,5 @@
 using UltraDecompiler.Decompilation;
-using UltraDecompiler.Decompilation.Headers;
+using UltraDecompiler.Headers;
 
 namespace DecompilerTests.Decompilation;
 
@@ -12,7 +12,7 @@ public class QuickCHeaderCatalogTests
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "QuickC", "INCLUDE"));
 
-        var catalog = QuickCHeaderCatalog.Load(includeDir);
+        var catalog = HeaderCatalog.Load(includeDir);
 
         Assert.True(catalog.TryGetSignature("printf", out var signature));
         Assert.NotNull(signature);
@@ -29,7 +29,7 @@ public class QuickCHeaderCatalogTests
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "QuickC", "INCLUDE"));
 
-        var catalog = QuickCHeaderCatalog.Load(includeDir);
+        var catalog = HeaderCatalog.Load(includeDir);
 
         Assert.True(catalog.TryGetSignature("perror", out var signature));
         Assert.NotNull(signature);

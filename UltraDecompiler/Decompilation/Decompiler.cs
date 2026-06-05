@@ -1,9 +1,8 @@
 ﻿using System.Text;
 using LibParser.Models;
 using LibParser.Omf;
-using UltraDecompiler.Decompilation.Headers;
-using UltraDecompiler.Decompilation.Operations;
 using UltraDecompiler.Graph;
+using UltraDecompiler.Headers;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
 
@@ -17,7 +16,7 @@ public class Decompiler
 {
     private const string AstartSymbol = "__astart";
     private const string Crt0ModuleName = "crt0";
-    private const string MainSymbol = "_main";
+    private const string MainFunction = "main";
 
     private readonly LibMatcher _libraryMatcher = new();
 
@@ -35,6 +34,7 @@ public class Decompiler
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
 
+        // Загружаем библиотеки
         var allLibraries = LoadLibraries(libraryDirectory);
         if (allLibraries.Count == 0)
         {
@@ -42,10 +42,12 @@ public class Decompiler
                 $"В каталоге {libraryDirectory} не найдено файлов *.LIB.");
         }
 
+        // Парсим исполняемый файл
         var parser = new DosExeParser(exePath);
         var initRegisters = parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe;
         var entryPoint = (int)parser.EntryPointOffset;
 
+        // Составляем множество подключаемых библиотек. По мере парсинга, будут выкидываться неподходящие
         var libraryCandidates = new LibraryCandidateSet(allLibraries);
 
         var entryMatches = _libraryMatcher.MatchEntryPoint(
@@ -57,7 +59,8 @@ public class Decompiler
             symbolName: null,
             moduleName: Crt0ModuleName);
 
-        libraryCandidates.NarrowByEntryPointMatches(entryMatches);
+        // Выкидываем библиотеки с Crt0ModuleName, но не в entryMatches
+        libraryCandidates.NarrowByEntryPointMatches(Crt0ModuleName, entryMatches);
 
         var resolved = ResolveLibraryAndMain(
             parser,
@@ -70,9 +73,11 @@ public class Decompiler
             return DecompileResult.Failed;
         }
 
+        // Выкидываем библиотеки с __astart, кроме primaryLibrary
         var (primaryLibrary, mainOffset, astartMatch) = resolved.Value;
         libraryCandidates.NarrowBySymbol(primaryLibrary, AstartSymbol);
 
+        // Дизассемблируем main и все вложенные переходы
         var storage = CollectProcedures(
             parser,
             libraryCandidates,
@@ -80,7 +85,7 @@ public class Decompiler
             initRegisters,
             mainOffset);
 
-        var headerCatalog = QuickCHeaderCatalog.Load(includeDirectory);
+        var headerCatalog = HeaderCatalog.Load(includeDirectory);
         ProcedureSignatureResolver.ResolveAll(storage, headerCatalog);
 
         Directory.CreateDirectory(outputDirectory);
@@ -168,20 +173,21 @@ public class Decompiler
         LibraryCandidateSet libraryCandidates,
         OmfLibrary primaryLibrary,
         RegisterState initRegisters,
-        int mainOffset)
+        int initOffset)
     {
         var storage = new ProcedureStorage();
         var pending = new Queue<int>();
-        pending.Enqueue(mainOffset);
+        pending.Enqueue(initOffset);
 
         while (pending.Count > 0)
         {
             var offset = pending.Dequeue();
-            if (storage.Contains(offset))
-            {
-                continue;
-            }
 
+            // Проверяем, что процедура не была обработана
+            if (storage.Contains(offset))
+                continue;
+
+            // Дизассемблируем процедуру
             var instructions = X86Disassembler.Disassemble(
                 parser.Image,
                 parser.RelocationTable,
@@ -189,10 +195,9 @@ public class Decompiler
                 initRegisters);
 
             if (instructions.Count == 0)
-            {
                 continue;
-            }
 
+            // Пробуем сматчить её с библиотечной функцией
             var libraryMatch = TryMatchLibrary(
                 parser,
                 offset,
@@ -202,6 +207,7 @@ public class Decompiler
 
             if (libraryMatch is not null)
             {
+                // Если сматчили, регистрируем как библиотечную
                 storage.Add(new DisassembledProcedure
                 {
                     Offset = offset,
@@ -213,8 +219,9 @@ public class Decompiler
                 continue;
             }
 
-            var name = offset == mainOffset
-                ? LinkerSymbolNames.ToCName(MainSymbol)
+            // Регистрируем как пользовательскую. Для точки входа используем main
+            var name = offset == initOffset
+                ? MainFunction
                 : $"sub_{offset:X4}";
             storage.Add(new DisassembledProcedure
             {
@@ -224,6 +231,7 @@ public class Decompiler
                 IsLibrary = false,
             });
 
+            // Все переходы добавляем в очередь для обработки
             EnqueueExternalTargets(parser.Image, instructions, pending);
         }
 
@@ -319,9 +327,12 @@ public class Decompiler
             .ThenBy(static h => MemoryModelLibraryPriority(h.Library.FileName))
             .ThenBy(static h => h.Library.FileName, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Добавляет все переходы процедуры в очередь для обработки
+    /// </summary>
     private static void EnqueueExternalTargets(byte[] image, IReadOnlyList<Instruction> instructions, Queue<int> pending)
     {
-        var functionOffsets = instructions.Select(static i => i.Offset).ToHashSet();
+        var functionOffsets = instructions.Select(static i => i.Offset).Distinct();
 
         foreach (var instr in instructions)
         {

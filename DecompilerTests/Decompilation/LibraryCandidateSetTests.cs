@@ -1,5 +1,5 @@
 using LibParser.Models;
-using UltraDecompiler.Decompilation;
+using UltraDecompiler.LibMatching;
 
 namespace DecompilerTests.Decompilation;
 

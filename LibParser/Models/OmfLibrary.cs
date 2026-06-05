@@ -14,6 +14,8 @@ public sealed class OmfLibrary
     /// <summary>Исходные байты файла.</summary>
     public required byte[] RawData { get; init; }
 
+    public override string ToString() => FileName;
+
     /// <summary>Найти модуль по публичному символу.</summary>
     public OmfModule? FindModuleBySymbol(string symbolName)
     {

@@ -1,6 +1,6 @@
 using UltraDecompiler.Decompilation;
-using UltraDecompiler.Decompilation.Headers;
 using UltraDecompiler.Decompilation.Operations;
+using UltraDecompiler.Headers;
 
 namespace DecompilerTests.Expressions;
 
@@ -13,7 +13,7 @@ public class CallArgumentsTests : BaseTests
         var includeDir = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "QuickC", "INCLUDE"));
-        var catalog = QuickCHeaderCatalog.Load(includeDir);
+        var catalog = HeaderCatalog.Load(includeDir);
         Assert.True(catalog.TryGetSignature("printf", out var printfSig));
         Assert.NotNull(printfSig);
         Assert.True(printfSig!.IsVariadic);
@@ -52,7 +52,7 @@ public class CallArgumentsTests : BaseTests
         var includeDir = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "QuickC", "INCLUDE"));
-        var catalog = QuickCHeaderCatalog.Load(includeDir);
+        var catalog = HeaderCatalog.Load(includeDir);
         Assert.True(catalog.TryGetSignature("perror", out var perrorSig));
         Assert.NotNull(perrorSig);
         Assert.True(perrorSig!.ReturnType.IsVoid);

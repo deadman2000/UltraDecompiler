@@ -1,3 +1,5 @@
+using UltraDecompiler.LibMatching;
+
 namespace UltraDecompiler.Decompilation;
 
 /// <summary>Дизассемблированная процедура в образе EXE/COM.</summary>
@@ -18,7 +20,9 @@ public sealed class DisassembledProcedure
     public ProcedureSignature Signature { get; set; } = ProcedureSignature.Unknown;
 }
 
-/// <summary>Хранилище дизассемблированных процедур по смещению в образе.</summary>
+/// <summary>
+/// Хранилище дизассемблированных процедур по смещению в образе.
+/// </summary>
 public sealed class ProcedureStorage
 {
     private readonly Dictionary<int, DisassembledProcedure> _byOffset = [];

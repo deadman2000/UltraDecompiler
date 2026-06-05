@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using UltraDecompiler.Common;
+using UltraDecompiler.Decompilation;
 
 namespace UltraDecompiler.Disassembler;
 
