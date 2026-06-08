@@ -85,9 +85,13 @@ public class Decompiler
             initRegisters,
             mainOffset);
 
+        // Загружаем заголовки
         var headerCatalog = HeaderCatalog.Load(includeDirectory);
+
+        // Подставляем функции
         ProcedureSignatureResolver.ResolveAll(storage, headerCatalog);
 
+        // Экспортируем в C-файлы
         Directory.CreateDirectory(outputDirectory);
         var outputFiles = new List<string>();
 
