@@ -29,17 +29,24 @@ jobs:
       run: dotnet build --no-restore
 
   test:
-    runs-on: windows-latest
-    name: Build QuickC examples + test (on Windows)
+    runs-on: ubuntu-latest
+    name: Build QuickC examples (DOSBox) + test
     needs: build
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Build QuickC reference examples
-      shell: cmd
-      working-directory: ${{ github.workspace }}
-      run: QuickC\build_ci.cmd
+    - name: Install DOSBox-Staging
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y dosbox-staging
+
+    - name: Build QuickC reference examples via DOSBox
+      run: |
+        chmod +x QuickC/build_ci.sh || true
+        bash QuickC/build_ci.sh
+        echo "=== QuickC build artifacts in PROGRAMS ==="
+        ls -l QuickC/PROGRAMS/*_?.EXE || true
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
