@@ -12,29 +12,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Build (.NET on Linux)
 
     steps:
     - uses: actions/checkout@v4
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 10.0.x
-
-    - name: Restore dependencies
-      run: dotnet restore
-
-    - name: Build
-      run: dotnet build --no-restore
-
-  test:
-    runs-on: ubuntu-latest
-    name: Build QuickC examples (DOSBox-X) + test
-    needs: build
-
-    steps:
-    - uses: actions/checkout@v4
+    
+    - name: 'Install dosbox-x (apt)'
+      run: sudo snap install dosbox-x
 
     - name: Build reference examples
       uses: joncloud/dos-build-action@v1
@@ -47,19 +30,17 @@ jobs:
           SET INCLUDE=C:\QC\INCLUDE
           SET PATH=C:\QC;%PATH%
           CD \QC\PROGRAMS
-          DIR
-          DIR ..
-          CALL ..\build_dos.bat
+          make clean
+          make
         conf: |
+          [dosbox]
+          memsize=256
           [cpu]
-          cycles=30000
+          cycles=max
           turbo=true
-
-    - name: Show produced QuickC executables
-      run: |
-        echo "=== QuickC build artifacts in PROGRAMS ==="
-        ls -l QuickC/PROGRAMS/*_?.EXE || true
-
+          [dos]
+          log console=quiet
+          
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
