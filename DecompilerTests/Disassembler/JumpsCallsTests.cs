@@ -194,9 +194,25 @@ public class JumpsCallsTests : BaseTests
     [Fact]
     public void DisassembleRetfFar()
     {
-        var instructions = Disassemble("CA"); // RETF_FAR (CA)
-        Assert.Equal(Mnemonic.RETF_FAR, instructions[0].Mnemonic);
-        Assert.Equal("", instructions[0].Operands);
+        // CA 06 00 — RETF imm16 (far return + pop 6 bytes)
+        var instructions = Disassemble("CA 06 00");
+        Assert.Equal(Mnemonic.RETF_IMM, instructions[0].Mnemonic);
+        Assert.Equal("6", instructions[0].Operands);
+        Assert.Equal(OperandType.Immediate16, instructions[0].Operand1.Type);
+        Assert.Equal(0x0006, instructions[0].Operand1.Value);
+        Assert.Equal(3, instructions[0].Bytes.Length);
+    }
+
+    [Fact]
+    public void DisassembleRetImm16()
+    {
+        // C2 04 00 — RET imm16 (near return + pop 4 bytes)
+        var instructions = Disassemble("C2 04 00");
+        Assert.Equal(Mnemonic.RET_IMM, instructions[0].Mnemonic);
+        Assert.Equal("4", instructions[0].Operands);
+        Assert.Equal(OperandType.Immediate16, instructions[0].Operand1.Type);
+        Assert.Equal(0x0004, instructions[0].Operand1.Value);
+        Assert.Equal(3, instructions[0].Bytes.Length);
     }
 
     [Fact]

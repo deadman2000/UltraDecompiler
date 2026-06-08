@@ -67,8 +67,9 @@ public static class Extensions
             Mnemonic.CALL => "call",
             Mnemonic.CALL_FAR => "call far",
             Mnemonic.RET => "ret",
+            Mnemonic.RET_IMM => "ret",
             Mnemonic.RETF => "retf",
-            Mnemonic.RETF_FAR => "retf",
+            Mnemonic.RETF_IMM => "retf",
             Mnemonic.IRET => "iret",
 
             Mnemonic.JO => "jo",

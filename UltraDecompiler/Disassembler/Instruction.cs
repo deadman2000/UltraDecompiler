@@ -144,7 +144,7 @@ public partial class Instruction
     /// <summary>
     /// Инструкция является переходом
     /// </summary>
-    public bool IsReturn => Mnemonic is Mnemonic.RET or Mnemonic.RETF or Mnemonic.IRET;
+    public bool IsReturn => Mnemonic is Mnemonic.RET or Mnemonic.RET_IMM or Mnemonic.RETF or Mnemonic.RETF_IMM or Mnemonic.IRET;
 
     /// <summary>
     /// Инструкция является вызовом с возвратом

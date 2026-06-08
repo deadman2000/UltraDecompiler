@@ -36,17 +36,13 @@
             "commandName": "Project",
             "commandLineArgs": "decompile-main ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_M.EXE"
         },
-        "SLIBCE.LIB modules": {
+        "Library modules": {
             "commandName": "Project",
-            "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\SLIBCE.LIB -l"
+            "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\LIBH.LIB -l"
         },
-        "SLIBCE.LIB chkstk": {
+        "Library symbol": {
             "commandName": "Project",
-            "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\SLIBCE.LIB -s __chkstk"
-        },
-        "MLIBCE.LIB __astart": {
-            "commandName": "Project",
-            "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\MLIBCE.LIB -s __astart"
+            "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\LIBH.LIB -s __aFFaulshr"
         }
     }
 }

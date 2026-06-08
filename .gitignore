@@ -366,3 +366,5 @@ FodyWeavers.xsd
 report/
 *.dot
 *.svg
+
+launchSettings.json

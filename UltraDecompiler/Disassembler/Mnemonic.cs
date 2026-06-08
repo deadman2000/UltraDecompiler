@@ -50,8 +50,9 @@ public enum Mnemonic
     CALL,
     CALL_FAR,
     RET,
+    RET_IMM,
     RETF,
-    RETF_FAR,
+    RETF_IMM,
     IRET,
 
     // Условные переходы

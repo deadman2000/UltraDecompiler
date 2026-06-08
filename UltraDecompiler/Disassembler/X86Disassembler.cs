@@ -426,8 +426,27 @@ public class X86Disassembler
                     };
                 }
 
+            case 0xC2:
+                {
+                    // RET imm16 (near) — снимает imm16 байт параметров со стека после возврата
+                    ushort imm = ReadUInt16();
+                    return new Instruction
+                    {
+                        Mnemonic = Mnemonic.RET_IMM,
+                        Operand1 = new Operand(OperandType.Immediate16, imm)
+                    };
+                }
             case 0xC3: return new Instruction { Mnemonic = Mnemonic.RET };
-            case 0xCA: return new Instruction { Mnemonic = Mnemonic.RETF_FAR };
+            case 0xCA:
+                {
+                    // RETF imm16 (far) — снимает imm16 байт параметров со стека после far return
+                    ushort imm = ReadUInt16();
+                    return new Instruction
+                    {
+                        Mnemonic = Mnemonic.RETF_IMM,
+                        Operand1 = new Operand(OperandType.Immediate16, imm)
+                    };
+                }
             case 0xCB: return new Instruction { Mnemonic = Mnemonic.RETF };
             case 0xCE: return new Instruction { Mnemonic = Mnemonic.INTO };
             case 0xCF: return new Instruction { Mnemonic = Mnemonic.IRET };
