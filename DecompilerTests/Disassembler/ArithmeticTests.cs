@@ -169,4 +169,17 @@ public class ArithmeticTests : BaseTests
         Assert.Equal(0xFFFF, instructions[0].Operand2.Value);
     }
 
+    [Fact]
+    public void DisassembleAdcWordPtrBpDisp8()
+    {
+        var instructions = Disassemble("11 56 FC"); // ADC [BP-4], DX
+        Assert.Equal(Mnemonic.ADC, instructions[0].Mnemonic);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
+        Assert.Equal(AddressRegister.BP, instructions[0].Operand1.BaseReg);
+        Assert.Equal(AddressRegister.None, instructions[0].Operand1.IndexReg);
+        Assert.Equal(-4, instructions[0].Operand1.Value);
+        Assert.Equal(OperandType.Register16, instructions[0].Operand2.Type);
+        Assert.Equal(2, instructions[0].Operand2.Value); // DX
+    }
+
 }

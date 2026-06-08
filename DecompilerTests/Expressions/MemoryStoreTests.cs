@@ -56,6 +56,22 @@ public class MemoryStoreTests : BaseTests
     }
 
     [Fact]
+    public void Adc_ToMemory_Rmw_ProducesSetAndStore()
+    {
+        // ADC [BX], DX  (opcode 11 /r  modrm=17h)
+        var expr = BuildExpressions("11 17");
+
+        // Для ADC mem, reg (RMW) тоже SetOperation + StoreOperation
+        Assert.Equal(2, expr.Blocks[0].Operations.Count);
+
+        var setOp = Assert.IsType<SetOperation>(expr.Blocks[0].Operations[0]);
+        Assert.IsType<StoreOperation>(expr.Blocks[0].Operations[1]);
+
+        var math = Assert.IsType<Math2Expr>(setOp.Src);
+        Assert.Equal(Math2Operation.Add, math.Operation);
+    }
+
+    [Fact]
     public void Inc_Memory_Destination_ProducesStore()
     {
         // INC word [SI]

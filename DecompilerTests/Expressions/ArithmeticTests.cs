@@ -334,6 +334,22 @@ public class ArithmeticTests : BaseTests
         Assert.NotNull(expr.Blocks[0].EndRegisters.AX);
     }
 
+    [Fact]
+    public void Adc_Memory_BpDisp_DoesNotThrow()
+    {
+        // 11 56 FC = ADC [BP-4], DX  — специфическая инструкция, которую просили добавить
+        // (требует, чтобы дизассемблер распознал 0x11 и ExpressionBuilder/ArithmeticHandler обработал memory dst)
+        var expr = BuildExpressions("""
+            55         ; push bp
+            8B EC      ; mov bp, sp
+            11 56 FC   ; adc [bp-4], dx
+            """);
+
+        // Не должно бросать NotImplemented, главное — прошёл GenerateCode
+        Assert.NotNull(expr);
+        Assert.NotEmpty(expr.Blocks);
+    }
+
     // ==================== MUL / IMUL / DIV / IDIV ====================
 
     [Fact]
