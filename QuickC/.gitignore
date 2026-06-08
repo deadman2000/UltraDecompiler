@@ -6,3 +6,6 @@
 *.id*
 *.nam
 *.til
+
+# CI temp directory created by build_ci.cmd
+ci_temp/
