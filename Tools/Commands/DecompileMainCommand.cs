@@ -1,6 +1,3 @@
-using Common;
-using LibParser.Models;
-using LibParser.Omf;
 using McMaster.Extensions.CommandLineUtils;
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.LibMatching;
@@ -13,9 +10,6 @@ namespace Tools.Commands;
 /// </summary>
 internal static class DecompileMainCommand
 {
-    private const string AstartSymbol = "__astart";
-    private const string Crt0ModuleName = "crt0";
-
     public static void Configure(CommandLineApplication root)
     {
         root.Command("decompile-main", cmd =>
@@ -51,29 +45,36 @@ internal static class DecompileMainCommand
             var entryPoint = (int)parser.EntryPointOffset;
             var libDirectory = ResolveLibraryDirectory(libDir);
 
-            var entryMatches = MatchEntryPointDirectory(
+            var libraries = LibMatcher.LoadLibraries(libDirectory);
+            var matcher = new LibMatcher();
+            var entryMatches = matcher.MatchEntryPoint(
                 parser.Image,
                 parser.RelocationTable,
                 entryPoint,
-                libDirectory,
-                initRegisterState);
+                libraries,
+                initRegisterState,
+                symbolName: null,
+                moduleName: LibMatcher.Crt0ModuleName);
 
             WriteEntryPointMatchTable(entryPoint, entryMatches);
 
-            var viable = ResolveAllViableLibrariesAndMains(parser, entryMatches, initRegisterState, entryPoint);
-            if (viable.Count == 0)
+            // Разрешаем viable + сразу выбираем предпочтительный (поиск astartOffset полностью внутри LibMatcher)
+            var chosen = matcher.ResolvePreferredMain(
+                parser.Image,
+                parser.RelocationTable,
+                entryMatches,
+                initRegisterState,
+                entryPoint);
+            if (chosen is null)
             {
                 Console.WriteLine("Не найдена библиотека с crt0/__astart и вызовом _main. Декомпиляция отменена.");
                 return 1;
             }
 
-            WriteLibraryConfigurationVariants(viable, entryPoint);
-
-            // Для последующей декомпиляции/анализа выбираем предпочтительный вариант
-            var (selected, astartOffset, mainOffset) = PickPreferredViable(viable);
+            var (selected, astartOffset, mainOffset) = chosen.Value;
 
             Console.WriteLine($"Выбрана для анализа: {selected.Library.FileName}");
-            Console.WriteLine($"Адрес {AstartSymbol}: 0x{astartOffset:X} (линейно в образе)");
+            Console.WriteLine($"Адрес {LibMatcher.AstartSymbol}: 0x{astartOffset:X} (линейно в образе)");
             Console.WriteLine($"Адрес main: 0x{mainOffset:X} (линейно в образе)");
 
             return DecompilePipeline.Run(parser, mainOffset);
@@ -94,54 +95,6 @@ internal static class DecompileMainCommand
 
         return Path.GetFullPath(
             Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "QuickC"));
-    }
-
-    private static IReadOnlyList<EntryPointLibraryMatchInfo> MatchEntryPointDirectory(
-        byte[] image,
-        RelocationTable imageRelocations,
-        int entryPointOffset,
-        string libraryDirectory,
-        RegisterState initRegisters)
-    {
-        if (!Directory.Exists(libraryDirectory))
-        {
-            throw new DirectoryNotFoundException($"Каталог библиотек не найден: {libraryDirectory}");
-        }
-
-        var results = new List<EntryPointLibraryMatchInfo>();
-
-        foreach (var libraryPath in Directory.EnumerateFiles(libraryDirectory, "*.LIB").OrderBy(static p => p))
-        {
-            var library = OmfLibraryParser.ParseFile(libraryPath);
-            var matches = LibraryFunctionMatcher.Match(
-                image,
-                imageRelocations,
-                entryPointOffset,
-                library,
-                initRegisters,
-                symbolName: null,
-                moduleName: Crt0ModuleName);
-
-            if (matches.Count == 0)
-            {
-                continue;
-            }
-
-            results.Add(new EntryPointLibraryMatchInfo
-            {
-                Library = library,
-                Matches = matches.Select(m => new LibraryMatchInfo
-                {
-                    SymbolName = m.SymbolName,
-                    ModulePage = m.ModulePage,
-                    ModuleName = m.ModuleName,
-                    ModuleCodeOffset = m.ModuleCodeOffset,
-                    LibraryFileName = library.FileName,
-                }).ToList(),
-            });
-        }
-
-        return results;
     }
 
     private static void WriteEntryPointMatchTable(
@@ -195,167 +148,4 @@ internal static class DecompileMainCommand
         return string.Join(", ", symbols.Take(maxShown)) + $", … (+{symbols.Count - maxShown})";
     }
 
-    /// <summary>
-    /// Возвращает ВСЕ viable библиотеки, для которых:
-    /// - есть совпадение __astart/crt0 на входе
-    /// - успешно удалось разрешить адрес _main по FIXUPP из метаданных этой библиотеки.
-    /// Каждый такой — самостоятельный кандидат на "главную" библиотеку.
-    /// </summary>
-    private static List<(EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset)> ResolveAllViableLibrariesAndMains(
-        DosExeParser parser,
-        IReadOnlyList<EntryPointLibraryMatchInfo> entryMatches,
-        RegisterState initRegisters,
-        int entryPoint)
-    {
-        var viable = new List<(EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset)>();
-
-        foreach (var match in OrderLibraryCandidates(entryMatches))
-        {
-            try
-            {
-                var astartOffset = ResolveAstartOffset(parser, match.Library, initRegisters, entryPoint);
-                var mainOffset = LibraryCallResolver.FindMainFromAstart(
-                    parser.Image,
-                    parser.RelocationTable,
-                    match.Library,
-                    astartOffset,
-                    initRegisters,
-                    match.AstartMatch!.ModuleCodeOffset);
-
-                viable.Add((match, astartOffset, mainOffset));
-            }
-            catch (InvalidOperationException)
-            {
-                // crt0 этой библиотеки не соответствует вызову _main в образе — не кандидат
-            }
-        }
-
-        return viable;
-    }
-
-    private static void WriteLibraryConfigurationVariants(
-        IReadOnlyList<(EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset)> viable,
-        int entryPoint)
-    {
-        Console.WriteLine();
-        if (viable.Count == 0)
-        {
-            Console.WriteLine("(нет viable библиотек с __astart + _main)");
-            return;
-        }
-
-        if (viable.Count == 1)
-        {
-            var v = viable[0];
-            Console.WriteLine($"Библиотека (crt0): {v.Match.Library.FileName}");
-            return;
-        }
-
-        Console.WriteLine("Возможные варианты подключения библиотек (crt0/__astart):");
-        for (var i = 0; i < viable.Count; i++)
-        {
-            var v = viable[i];
-            var astart = v.AstartOffset == entryPoint ? "(точка входа)" : $"0x{v.AstartOffset:X}";
-            Console.WriteLine($"  Вариант {i + 1}: {v.Match.Library.FileName}   __astart@{astart}   main@0x{v.MainOffset:X}");
-        }
-
-        Console.WriteLine();
-        Console.WriteLine("Примечание: эти библиотеки взаимозаменяемы по crt0 (разные модели памяти / эмуляторы).");
-        Console.WriteLine("           Если в EXE используются символы из дополнительных .LIB — они будут общими для вариантов.");
-    }
-
-    private static (EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset) PickPreferredViable(
-        IReadOnlyList<(EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset)> viable)
-    {
-        return viable
-            .OrderBy(static v => LibraryPriority(v.Match.Library.FileName))
-            .ThenBy(static v => PreferEmulatorLibrary(v.Match.Library.FileName))
-            .ThenBy(static v => MemoryModelLibraryPriority(v.Match.Library.FileName))
-            .ThenBy(static v => v.Match.Library.FileName, StringComparer.OrdinalIgnoreCase)
-            .First();
-    }
-
-    private static IEnumerable<EntryPointLibraryMatchInfo> OrderLibraryCandidates(
-        IReadOnlyList<EntryPointLibraryMatchInfo> entryMatches) =>
-        entryMatches
-            .Where(static m => m.AstartMatch is not null)
-            .OrderBy(static m => LibraryPriority(m.Library.FileName))
-            .ThenBy(static m => PreferEmulatorLibrary(m.Library.FileName))
-            .ThenBy(static m => MemoryModelLibraryPriority(m.Library.FileName))
-            .ThenBy(static m => m.Library.FileName, StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>S → C → M → L: при нескольких совпадениях предпочитаем small-модель.</summary>
-    private static int MemoryModelLibraryPriority(string fileName)
-    {
-        var name = Path.GetFileNameWithoutExtension(fileName).ToUpperInvariant();
-        if (name.StartsWith("SLIB", StringComparison.Ordinal))
-        {
-            return 0;
-        }
-
-        if (name.StartsWith("CLIB", StringComparison.Ordinal))
-        {
-            return 1;
-        }
-
-        if (name.StartsWith("MLIB", StringComparison.Ordinal))
-        {
-            return 2;
-        }
-
-        if (name.StartsWith("LLIB", StringComparison.Ordinal))
-        {
-            return 3;
-        }
-
-        return 4;
-    }
-
-    /// <summary>QuickC по умолчанию линкует *LIBCE.LIB / *LIBC.LIB с эмулятором (суффикс E).</summary>
-    private static int PreferEmulatorLibrary(string fileName) =>
-        Path.GetFileNameWithoutExtension(fileName).Contains('E', StringComparison.OrdinalIgnoreCase) ? 0 : 1;
-
-    private static int LibraryPriority(string fileName)
-    {
-        if (fileName.Contains("LIBC", StringComparison.OrdinalIgnoreCase))
-        {
-            return 0;
-        }
-
-        if (fileName.Contains("LIBFP", StringComparison.OrdinalIgnoreCase))
-        {
-            return 1;
-        }
-
-        return 2;
-    }
-
-    private static int ResolveAstartOffset(
-        DosExeParser parser,
-        OmfLibrary library,
-        RegisterState initRegisters,
-        int entryPoint)
-    {
-        // Точка входа уже совпала с __astart/crt0 — не сканируем весь образ без необходимости.
-        var epMatches = LibraryFunctionMatcher.Match(
-            parser.Image,
-            parser.RelocationTable,
-            entryPoint,
-            library,
-            initRegisters,
-            AstartSymbol,
-            Crt0ModuleName);
-
-        if (epMatches.Count > 0)
-        {
-            return entryPoint;
-        }
-
-        return LibrarySymbolFinder.Find(
-            parser.Image,
-            parser.RelocationTable,
-            library,
-            AstartSymbol,
-            initRegisters);
-    }
 }

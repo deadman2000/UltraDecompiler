@@ -1,7 +1,5 @@
 ﻿using System.Text;
 using LibParser.Models;
-using LibParser.Omf;
-using UltraDecompiler.Graph;
 using UltraDecompiler.Headers;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
@@ -14,8 +12,6 @@ namespace UltraDecompiler.Decompilation;
 /// </summary>
 public class Decompiler
 {
-    private const string AstartSymbol = "__astart";
-    private const string Crt0ModuleName = "crt0";
     private const string MainFunction = "main";
 
     private readonly LibMatcher _libraryMatcher = new();
@@ -35,7 +31,7 @@ public class Decompiler
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
 
         // Загружаем библиотеки
-        var allLibraries = LoadLibraries(libraryDirectory);
+        var allLibraries = LibMatcher.LoadLibraries(libraryDirectory);
         if (allLibraries.Count == 0)
         {
             throw new DirectoryNotFoundException(
@@ -56,11 +52,11 @@ public class Decompiler
             entryPoint,
             allLibraries,
             initRegisters,
-            symbolName: AstartSymbol,
-            moduleName: Crt0ModuleName);
+            symbolName: LibMatcher.AstartSymbol,
+            moduleName: LibMatcher.Crt0ModuleName);
 
         // Выкидываем библиотеки с Crt0ModuleName, но не в entryMatches
-        libraryCandidates.NarrowByEntryPointMatches(Crt0ModuleName, entryMatches);
+        libraryCandidates.NarrowByEntryPointMatches(LibMatcher.Crt0ModuleName, entryMatches);
 
         // Находим ВСЕ viable библиотеки, у которых есть __astart + успешное разрешение _main по FIXUPP.
         // Это позволяет сохранить все потенциальные crt0-варианты (взаимозаменяемые).
@@ -103,8 +99,8 @@ public class Decompiler
                      .Where(static p => !p.IsLibrary)
                      .OrderBy(static p => p.Offset))
         {
-            var source = DecompileProcedureToC(parser, procedure, initRegisters, storage);
-            var fileName = FormatOutputFileName(procedure.Name, procedure.Offset);
+            var source = CCodeGenerator.GenerateProcedureC(parser, procedure, initRegisters, storage);
+            var fileName = CCodeGenerator.FormatOutputFileName(procedure.Name, procedure.Offset);
             var filePath = Path.Combine(outputDirectory, fileName);
             File.WriteAllText(filePath, source, Encoding.UTF8);
             outputFiles.Add(filePath);
@@ -122,9 +118,9 @@ public class Decompiler
 
         // Формируем варианты в порядке приоритета (предпочтительный — первым)
         var orderedCrtBases = crtBases
-            .OrderBy(static l => MemoryModelLibraryPriority(l.FileName))
-            .ThenBy(static l => PreferEmulatorLibrary(l.FileName))
-            .ThenBy(static l => LibraryPriority(l.FileName))
+            .OrderBy(static l => LibMatcher.MemoryModelLibraryPriority(l.FileName))
+            .ThenBy(static l => LibMatcher.PreferEmulatorLibrary(l.FileName))
+            .ThenBy(static l => LibMatcher.LibraryPriority(l.FileName))
             .ThenBy(static l => l.FileName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -171,22 +167,6 @@ public class Decompiler
         };
     }
 
-    private static List<OmfLibrary> LoadLibraries(string libraryDirectory)
-    {
-        if (!Directory.Exists(libraryDirectory))
-        {
-            throw new DirectoryNotFoundException($"Каталог библиотек не найден: {libraryDirectory}");
-        }
-
-        var libraries = new List<OmfLibrary>();
-        foreach (var libraryPath in Directory.EnumerateFiles(libraryDirectory, "*.LIB").OrderBy(static p => p))
-        {
-            libraries.Add(OmfLibraryParser.ParseFile(libraryPath));
-        }
-
-        return libraries;
-    }
-
     /// <summary>
     /// Находит ВСЕ библиотеки, для которых на точке входа есть __astart (crt0) и по метаданным
     /// FIXUPP библиотеки успешно резолвится адрес _main. Все такие — потенциальные кандидаты
@@ -212,7 +192,12 @@ public class Decompiler
 
             try
             {
-                var astartOffset = ResolveAstartOffset(match, entryPoint);
+                var astartOffset = _libraryMatcher.ResolveAstartOffset(
+                    parser.Image,
+                    parser.RelocationTable,
+                    match,
+                    entryPoint,
+                    initRegisters);
                 var mainOffset = _libraryMatcher.FindMainOffset(
                     parser.Image,
                     parser.RelocationTable,
@@ -240,57 +225,11 @@ public class Decompiler
         List<(OmfLibrary Library, int MainOffset, LibraryMatchInfo AstartMatch)> viable)
     {
         return viable
-            .OrderBy(static v => MemoryModelLibraryPriority(v.Library.FileName))
-            .ThenBy(static v => PreferEmulatorLibrary(v.Library.FileName))
-            .ThenBy(static v => LibraryPriority(v.Library.FileName))
+            .OrderBy(static v => LibMatcher.MemoryModelLibraryPriority(v.Library.FileName))
+            .ThenBy(static v => LibMatcher.PreferEmulatorLibrary(v.Library.FileName))
+            .ThenBy(static v => LibMatcher.LibraryPriority(v.Library.FileName))
             .ThenBy(static v => v.Library.FileName, StringComparer.OrdinalIgnoreCase)
             .First();
-    }
-
-    /// <summary>S → C → M → L: при нескольких совпадениях предпочитаем small-модель.</summary>
-    private static int MemoryModelLibraryPriority(string fileName)
-    {
-        var name = Path.GetFileNameWithoutExtension(fileName).ToUpperInvariant();
-        if (name.StartsWith("SLIB", StringComparison.Ordinal))
-        {
-            return 0;
-        }
-
-        if (name.StartsWith("CLIB", StringComparison.Ordinal))
-        {
-            return 1;
-        }
-
-        if (name.StartsWith("MLIB", StringComparison.Ordinal))
-        {
-            return 2;
-        }
-
-        if (name.StartsWith("LLIB", StringComparison.Ordinal))
-        {
-            return 3;
-        }
-
-        return 4;
-    }
-
-    /// <summary>QuickC по умолчанию линкует *LIBCE.LIB / *LIBC.LIB с эмулятором (суффикс E).</summary>
-    private static int PreferEmulatorLibrary(string fileName) =>
-        Path.GetFileNameWithoutExtension(fileName).Contains('E', StringComparison.OrdinalIgnoreCase) ? 0 : 1;
-
-    private static int LibraryPriority(string fileName)
-    {
-        if (fileName.Contains("LIBC", StringComparison.OrdinalIgnoreCase))
-        {
-            return 0;
-        }
-
-        if (fileName.Contains("LIBFP", StringComparison.OrdinalIgnoreCase))
-        {
-            return 1;
-        }
-
-        return 2;
     }
 
     private ProcedureStorage CollectProcedures(
@@ -427,76 +366,4 @@ public class Decompiler
         }
     }
 
-    private static int ResolveAstartOffset(
-        EntryPointLibraryMatchInfo match,
-        int entryPoint)
-    {
-        if (match.Matches.Any(static m => m.SymbolName == AstartSymbol))
-        {
-            return entryPoint;
-        }
-
-        throw new InvalidOperationException(
-            $"Библиотека {match.Library.FileName} не содержит {AstartSymbol} на точке входа.");
-    }
-
-    private static string DecompileProcedureToC(
-        DosExeParser parser,
-        DisassembledProcedure procedure,
-        RegisterState initRegisters,
-        ProcedureStorage procedures)
-    {
-        var cfg = new ControlFlowGraph();
-        cfg.BuildFromInstructions(procedure.Instructions, procedure.Offset, parser.Image, initRegisters);
-
-        var expressions = new ExpressionBuilder();
-        expressions.Build(cfg, parser.IsCom, procedures);
-
-        var operations = expressions.GetAllOperations();
-        return FormatCFunction(procedure, operations);
-    }
-
-    private static string FormatCFunction(DisassembledProcedure procedure, IReadOnlyList<Operation> operations)
-    {
-        var sb = new StringBuilder();
-        var returnType = procedure.Signature.ReturnType.ToString();
-        var parameters = FormatParameterList(procedure.Signature);
-        sb.AppendLine($"{returnType} {procedure.Name}({parameters})");
-        sb.AppendLine("{");
-
-        if (operations.Count == 0)
-        {
-            sb.AppendLine("    ;");
-        }
-        else
-        {
-            foreach (var operation in operations)
-            {
-                operation.AppendToCString(sb, indent: 1, asStatement: true);
-            }
-        }
-
-        sb.AppendLine("}");
-        return sb.ToString();
-    }
-
-    private static string FormatParameterList(ProcedureSignature signature)
-    {
-        if (signature.Parameters.Count == 0)
-        {
-            return "void";
-        }
-
-        return string.Join(", ", signature.Parameters.Select(static (p, i) => $"{p.Type} arg{i}"));
-    }
-
-    private static string FormatOutputFileName(string name, int offset)
-    {
-        if (name.StartsWith('_') || char.IsLetter(name[0]))
-        {
-            return $"{name}.c";
-        }
-
-        return $"{name}_{offset:X4}.c";
-    }
 }
