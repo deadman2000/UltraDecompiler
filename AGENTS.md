@@ -161,6 +161,7 @@ DosExeParser → Crt0EntryPointMatcher → MainOffsetFinder → DecompilePipelin
 - 4 пробела, CRLF, `csharp_style_namespace_declarations = file_scoped:error`.
 - Предпочтительно `var` **только** когда тип очевиден из инициализатора.
 - Expression-bodied члены разрешены выборочно (аксессоры — да, методы — обычно нет).
+- **Обязательная проверка форматирования**: перед завершением работы и перед коммитом необходимо запускать `dotnet format --verify-no-changes`. Любые изменения форматирования должны быть применены через `dotnet format`.
 
 ### Принятые паттерны в проекте
 - Часто используются `record` и `record struct` (Expr, RegisterExpressions).
@@ -188,9 +189,11 @@ dotnet test LibParserTests
 dotnet test LibMatchingTests
 ```
 
-Сборка:
+Сборка и проверка форматирования:
 ```powershell
 dotnet build -c Release
+dotnet format --verify-no-changes   # проверка, что код отформатирован
+dotnet format                     # применить форматирование (если нужно)
 ```
 
 ---
