@@ -9,21 +9,12 @@ set INCLUDE=%CD%\INCLUDE
 
 cd PROGRAMS
 
-echo [Small /AS + SLIBCE.LIB]
-msdos qcl.exe /AS /FeHELLO_S.EXE SLIBCE.LIB /I..\INCLUDE hello.c
-if errorlevel 1 exit /b 1
-
-echo [Compact /AC + CLIBC.LIB]
-msdos qcl.exe /AC /FeHELLO_C.EXE CLIBC.LIB /I..\INCLUDE hello.c
-if errorlevel 1 exit /b 1
-
-echo [Medium /AM + MLIBC.LIB]
-msdos qcl.exe /AM /FeHELLO_M.EXE MLIBC.LIB /I..\INCLUDE hello.c
-if errorlevel 1 exit /b 1
-
-echo [Large /AL + LLIBC.LIB]
-msdos qcl.exe /AL /FeHELLO_L.EXE LLIBC.LIB /I..\INCLUDE hello.c
-if errorlevel 1 exit /b 1
+msdos qcl.exe /AS /FeADD_S.EXE SLIBCE.LIB /I..\INCLUDE add.c
+if errorlevel 1 (
+    pause >nul
+    cd ..
+    exit /b 1
+)
 
 cd ..
 exit /b 0

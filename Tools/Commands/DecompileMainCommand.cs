@@ -43,7 +43,7 @@ internal static class DecompileMainCommand
 
             var initRegisterState = parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe;
             var entryPoint = (int)parser.EntryPointOffset;
-            var libDirectory = ResolveLibraryDirectory(libDir);
+            var libDirectory = Utils.ResolveLibraryDirectory(libDir);
 
             var libraries = LibMatcher.LoadLibraries(libDirectory);
             var entryMatches = LibMatcher.MatchEntryPoint(
@@ -83,17 +83,6 @@ internal static class DecompileMainCommand
             Console.WriteLine($"Error: {ex.Message}");
             return 1;
         }
-    }
-
-    private static string ResolveLibraryDirectory(string? libDir)
-    {
-        if (!string.IsNullOrWhiteSpace(libDir))
-        {
-            return Path.GetFullPath(libDir);
-        }
-
-        return Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "QuickC"));
     }
 
     private static void WriteEntryPointMatchTable(

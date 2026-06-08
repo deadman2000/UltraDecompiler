@@ -21,6 +21,7 @@ public static class Program
         DecompileCCommand.Configure(app);
         LibCommand.Configure(app);
         DisasmCommand.Configure(app);
+        SandboxCommand.Configure(app);
 
         app.OnExecute(() =>
         {

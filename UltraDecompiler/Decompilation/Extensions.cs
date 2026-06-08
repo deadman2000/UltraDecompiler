@@ -205,51 +205,44 @@ public static class Extensions
         /// </summary>
         public Expr GetExpression(ExprBlock block, Segment segmentOverride = Segment.None)
         {
-            if (operand.Type == OperandType.Immediate8 || operand.Type == OperandType.Immediate16)
+            switch (operand.Type)
             {
-                if (operand.Relocation is not null)
-                    return new ImageOffsetExpr(operand.Relocation, operand.Value);
-                return new ConstExpr(operand.Value);
+                case OperandType.Immediate8:
+                case OperandType.Immediate16:
+                    if (operand.Relocation is not null)
+                        return new ImageOffsetExpr(operand.Relocation, operand.Value);
+                    return new ConstExpr(operand.Value);
+                case OperandType.Register16:
+                    // Возвращает либо ранее сохранённое выражение (Variable/MathExpr),
+                    // либо ConstExpr.Zero, если значение регистра ещё неизвестно.
+                    return block.EndRegisters.Get16(operand.AsGpRegister16());
+                case OperandType.Register8:
+                    return block.EndRegisters.Get8(operand.AsGpRegister8());
+                case OperandType.SegmentRegister:
+                    return block.EndRegisters.GetSegment(operand.AsCpuSegmentRegister());
+                case OperandType.Memory:
+                    {
+                        if (operand.BaseReg == AddressRegister.BP &&
+                            operand.IndexReg == AddressRegister.None)
+                        {
+                            var param = block.Variables.TryGetStackParameter(operand.Value);
+                            if (param != null)
+                                return param;
+                        }
+
+                        var (address, segExpr) = operand.BuildMemoryReference(block.EndRegisters, segmentOverride);
+
+                        // Пытаемся распознать доступ к известной структуре в памяти (PSP и т.п.)
+                        var knownVar = block.Variables.TryGetKnownMemoryVariable(address, segExpr);
+                        if (knownVar != null)
+                            return knownVar;
+
+                        return new MemExpr(address, segExpr);
+                    }
+
+                default:
+                    throw new NotImplementedException($"Unsupported operand type: {operand.Type}");
             }
-
-            if (operand.Type == OperandType.Register16)
-            {
-                // Возвращает либо ранее сохранённое выражение (Variable/MathExpr),
-                // либо ConstExpr.Zero, если значение регистра ещё неизвестно.
-                return block.EndRegisters.Get16(operand.AsGpRegister16());
-            }
-
-            if (operand.Type == OperandType.Register8)
-            {
-                return block.EndRegisters.Get8(operand.AsGpRegister8());
-            }
-
-            if (operand.Type == OperandType.SegmentRegister)
-            {
-                return block.EndRegisters.GetSegment(operand.AsCpuSegmentRegister());
-            }
-
-            if (operand.Type == OperandType.Memory)
-            {
-                if (operand.BaseReg == AddressRegister.BP &&
-                    operand.IndexReg == AddressRegister.None)
-                {
-                    var param = block.Variables.TryGetStackParameter(operand.Value);
-                    if (param != null)
-                        return param;
-                }
-
-                var (address, segExpr) = operand.BuildMemoryReference(block.EndRegisters, segmentOverride);
-
-                // Пытаемся распознать доступ к известной структуре в памяти (PSP и т.п.)
-                var knownVar = block.Variables.TryGetKnownMemoryVariable(address, segExpr);
-                if (knownVar != null)
-                    return knownVar;
-
-                return new MemExpr(address, segExpr);
-            }
-
-            throw new NotImplementedException($"Unsupported operand type: {operand.Type}");
         }
 
         /// <summary>

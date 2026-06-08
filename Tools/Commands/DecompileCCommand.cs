@@ -47,9 +47,9 @@ internal static class DecompileCCommand
     {
         try
         {
-            var libDirectory = ResolveLibraryDirectory(libDir);
-            var incDirectory = ResolveIncludeDirectory(incDir);
-            var outputDirectory = ResolveOutputDirectory(exePath, outputDir);
+            var libDirectory = Utils.ResolveLibraryDirectory(libDir);
+            var incDirectory = Utils.ResolveIncludeDirectory(incDir);
+            var outputDirectory = Utils.ResolveOutputDirectory(exePath, outputDir);
 
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(exePath, libDirectory, incDirectory, outputDirectory);
@@ -108,38 +108,6 @@ internal static class DecompileCCommand
             Console.WriteLine($"Error: {ex.Message}");
             return 1;
         }
-    }
-
-    private static string ResolveIncludeDirectory(string? incDir)
-    {
-        if (!string.IsNullOrWhiteSpace(incDir))
-        {
-            return Path.GetFullPath(incDir);
-        }
-
-        return Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "QuickC", "INCLUDE"));
-    }
-
-    private static string ResolveLibraryDirectory(string? libDir)
-    {
-        if (!string.IsNullOrWhiteSpace(libDir))
-        {
-            return Path.GetFullPath(libDir);
-        }
-
-        return Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "QuickC"));
-    }
-
-    private static string ResolveOutputDirectory(string exePath, string? outputDir)
-    {
-        if (!string.IsNullOrWhiteSpace(outputDir))
-        {
-            return Path.GetFullPath(outputDir);
-        }
-
-        return Path.GetDirectoryName(Path.GetFullPath(exePath)) ?? ".";
     }
 
     private static void WriteProcedureTable(ProcedureStorage procedures)
