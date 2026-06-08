@@ -1,5 +1,4 @@
 ﻿using System.Text;
-using LibParser.Models;
 using UltraDecompiler.Headers;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
@@ -28,58 +27,32 @@ public class Decompiler
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
 
-        // Загружаем библиотеки
-        var allLibraries = LibMatcher.LoadLibraries(libraryDirectory);
-        if (allLibraries.Count == 0)
-        {
-            throw new DirectoryNotFoundException(
-                $"В каталоге {libraryDirectory} не найдено файлов *.LIB.");
-        }
-
         // Парсим исполняемый файл
         var parser = new DosExeParser(exePath);
         var initRegisters = parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe;
         var entryPoint = (int)parser.EntryPointOffset;
 
-        // Составляем множество подключаемых библиотек. По мере парсинга, будут выкидываться неподходящие
-        var libraryCandidates = new LibraryCandidateSet(allLibraries);
+        // Единая точка работы с библиотеками: передаём только путь к папке.
+        // Вся логика сопоставления crt0, поиска _main, narrowing и матчинга — внутри LibraryProvider.
+        var provider = new LibraryProvider(libraryDirectory);
 
-        var entryMatches = LibMatcher.MatchEntryPoint(
-            parser.Image,
-            parser.RelocationTable,
-            entryPoint,
-            allLibraries,
-            initRegisters,
-            symbolName: LibMatcher.AstartSymbol,
-            moduleName: LibMatcher.Crt0ModuleName);
-
-        // Выкидываем библиотеки с Crt0ModuleName, но не в entryMatches
-        libraryCandidates.NarrowByEntryPointMatches(LibMatcher.Crt0ModuleName, entryMatches);
-
-        // Находим ВСЕ viable библиотеки, у которых есть __astart + успешное разрешение _main по FIXUPP.
-        // Это позволяет сохранить все потенциальные crt0-варианты (взаимозаменяемые).
-        var viable = ResolveAllLibrariesAndMains(
-            parser,
-            entryMatches,
-            libraryCandidates.Candidates,
-            initRegisters,
-            entryPoint);
-        if (viable.Count == 0)
+        if (!provider.TryResolveMain(
+                parser.Image,
+                parser.RelocationTable,
+                initRegisters,
+                entryPoint,
+                out var resolution))
         {
             return DecompileResult.Failed;
         }
 
-        // Выбираем предпочтительный primary для фактической декомпиляции (по приоритетам модели памяти и т.д.)
-        var (primaryLibrary, mainOffset, astartMatch) = PickPreferredLibrary(viable);
+        var mainOffset = resolution.MainOffset;
 
-        // Подтверждаем primary как использованную (для linked), НО не удаляем другие библиотеки с __astart —
-        // они остаются как альтернативные варианты crt0. Информация о вариантах будет собрана в конце.
-        libraryCandidates.ConfirmAstartProvider(primaryLibrary);
-
-        // Дизассемблируем main и все вложенные переходы
+        // Дизассемблируем main и все вложенные переходы.
+        // Provider занимается матчингом библиотечных процедур и сужением кандидатов.
         var storage = CollectProcedures(
             parser,
-            libraryCandidates,
+            provider,
             initRegisters,
             mainOffset);
 
@@ -104,135 +77,25 @@ public class Decompiler
             outputFiles.Add(filePath);
         }
 
-        // Собираем возможные варианты подключения библиотек:
-        // - базы: все viable crt0-библиотеки (взаимозаменяемые)
-        // - аддоны: библиотеки, для которых во время сбора процедур был подтверждён хотя бы один символ
-        var crtBases = viable.Select(v => v.Library).ToList();
-        var addonFileNames = libraryCandidates.Linked
-            .Where(lib => !crtBases.Any(baseLib => ReferenceEquals(baseLib, lib)))
-            .Select(lib => lib.FileName)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        // Формируем варианты в порядке приоритета (предпочтительный — первым)
-        var orderedCrtBases = crtBases
-            .OrderBy(static l => LibMatcher.MemoryModelLibraryPriority(l.FileName))
-            .ThenBy(static l => LibMatcher.PreferEmulatorLibrary(l.FileName))
-            .ThenBy(static l => LibMatcher.LibraryPriority(l.FileName))
-            .ThenBy(static l => l.FileName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        var possibleConfigurations = new List<LibraryConfiguration>();
-        foreach (var crt in orderedCrtBases)
-        {
-            var names = new List<string> { crt.FileName };
-            names.AddRange(addonFileNames);
-            var ordered = names
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(static n => n, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            possibleConfigurations.Add(new LibraryConfiguration
-            {
-                LibraryFileNames = ordered,
-                PrimaryCrtLibrary = crt.FileName,
-            });
-        }
-
-        // Если по какой-то причине не набралось — fallback на текущие linked
-        if (possibleConfigurations.Count == 0)
-        {
-            possibleConfigurations.Add(new LibraryConfiguration
-            {
-                LibraryFileNames = libraryCandidates.LinkedFileNames,
-                PrimaryCrtLibrary = primaryLibrary.FileName,
-            });
-        }
-
-        // Для Linked публикуем чистый набор именно выбранного варианта (primary + его аддоны),
-        // чтобы не "пачкать" список подтверждениями из альтернативных crt-библиотек при совпадении символов.
-        var chosenConfig = possibleConfigurations.FirstOrDefault(
-            c => string.Equals(c.PrimaryCrtLibrary, primaryLibrary.FileName, StringComparison.OrdinalIgnoreCase))
-            ?? possibleConfigurations[0];
+        // Выбираем конфигурацию, соответствующую primary (или первую)
+        var chosenConfig = resolution.PossibleLibraryConfigurations.FirstOrDefault(
+            c => string.Equals(c.PrimaryCrtLibrary, resolution.PrimaryLibrary.FileName, StringComparison.OrdinalIgnoreCase))
+            ?? resolution.PossibleLibraryConfigurations[0];
 
         return new DecompileResult
         {
             Success = true,
             MainOffset = mainOffset,
             LinkedLibraryFileNames = chosenConfig.LibraryFileNames,
-            PossibleLibraryConfigurations = possibleConfigurations,
+            PossibleLibraryConfigurations = resolution.PossibleLibraryConfigurations,
             Procedures = storage,
             OutputFiles = outputFiles,
         };
     }
 
-    /// <summary>
-    /// Находит ВСЕ библиотеки, для которых на точке входа есть __astart (crt0) и по метаданным
-    /// FIXUPP библиотеки успешно резолвится адрес _main. Все такие — потенциальные кандидаты
-    /// (взаимозаменяемые crt0). Не выбирает одну, возвращает список.
-    /// </summary>
-    private List<(OmfLibrary Library, int MainOffset, LibraryMatchInfo AstartMatch)> ResolveAllLibrariesAndMains(
-        DosExeParser parser,
-        IReadOnlyList<EntryPointLibraryMatchInfo> entryMatches,
-        IReadOnlyList<OmfLibrary> candidateLibraries,
-        RegisterState initRegisters,
-        int entryPoint)
-    {
-        var candidateSet = candidateLibraries.ToHashSet(ReferenceEqualityComparer.Instance);
-        var result = new List<(OmfLibrary Library, int MainOffset, LibraryMatchInfo AstartMatch)>();
-
-        foreach (var match in entryMatches)
-        {
-            if (match.AstartMatch is null)
-                continue;
-
-            if (!candidateSet.Contains(match.Library))
-                continue;
-
-            try
-            {
-                var astartOffset = LibMatcher.ResolveAstartOffset(
-                    parser.Image,
-                    parser.RelocationTable,
-                    match,
-                    entryPoint,
-                    initRegisters);
-                var mainOffset = LibMatcher.FindMainOffset(
-                    parser.Image,
-                    parser.RelocationTable,
-                    match.Library,
-                    astartOffset,
-                    initRegisters,
-                    match.AstartMatch!.ModuleCodeOffset);
-
-                result.Add((match.Library, mainOffset, match.AstartMatch));
-            }
-            catch (InvalidOperationException)
-            {
-                // Для этой библиотеки FIXUPP crt0 не соответствует образу — пропускаем (несовместима)
-            }
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Выбирает предпочтительную библиотеку из viable (по аналогии с приоритетами в decompile-main).
-    /// Предпочтение: small-модель (S), наличие эмулятора (E), порядок LIBC и т.д.
-    /// </summary>
-    private static (OmfLibrary Library, int MainOffset, LibraryMatchInfo AstartMatch) PickPreferredLibrary(
-        List<(OmfLibrary Library, int MainOffset, LibraryMatchInfo AstartMatch)> viable)
-    {
-        return viable
-            .OrderBy(static v => LibMatcher.MemoryModelLibraryPriority(v.Library.FileName))
-            .ThenBy(static v => LibMatcher.PreferEmulatorLibrary(v.Library.FileName))
-            .ThenBy(static v => LibMatcher.LibraryPriority(v.Library.FileName))
-            .ThenBy(static v => v.Library.FileName, StringComparer.OrdinalIgnoreCase)
-            .First();
-    }
-
     private ProcedureStorage CollectProcedures(
         DosExeParser parser,
-        LibraryCandidateSet libraryCandidates,
+        LibraryProvider provider,
         RegisterState initRegisters,
         int initOffset)
     {
@@ -244,11 +107,9 @@ public class Decompiler
         {
             var offset = pending.Dequeue();
 
-            // Проверяем, что процедура не была обработана
             if (storage.Contains(offset))
                 continue;
 
-            // Дизассемблируем процедуру
             var instructions = X86Disassembler.Disassemble(
                 parser.Image,
                 parser.RelocationTable,
@@ -258,16 +119,15 @@ public class Decompiler
             if (instructions.Count == 0)
                 continue;
 
-            // Пробуем сматчить её с библиотечной функцией
-            var libraryMatch = TryMatchLibrary(
-                parser,
+            // Матчинг и narrowing кандидатов полностью внутри provider
+            var libraryMatch = provider.TryMatchProcedure(
+                parser.Image,
+                parser.RelocationTable,
                 offset,
-                libraryCandidates,
                 initRegisters);
 
             if (libraryMatch is not null)
             {
-                // Если сматчили, регистрируем как библиотечную
                 storage.Add(new DisassembledProcedure
                 {
                     Offset = offset,
@@ -279,7 +139,6 @@ public class Decompiler
                 continue;
             }
 
-            // Регистрируем как пользовательскую. Для точки входа используем main
             var name = offset == initOffset
                 ? MainFunction
                 : $"sub_{offset:X4}";
@@ -291,55 +150,10 @@ public class Decompiler
                 IsLibrary = false,
             });
 
-            // Все переходы добавляем в очередь для обработки
             EnqueueExternalTargets(parser.Image, instructions, pending);
         }
 
         return storage;
-    }
-
-    /// <summary>
-    /// Ищет совпадение среди кандидатов. При нахождении символа подтверждает библиотеку
-    /// и сужает кандидатов (удаляет другие .LIB, экспортирующие тот же символ — они взаимозаменяемы
-    /// для данного символа). Если символ найден в нескольких библиотеках — выбирается первая.
-    /// </summary>
-    private LibraryMatchInfo? TryMatchLibrary(
-        DosExeParser parser,
-        int offset,
-        LibraryCandidateSet libraryCandidates,
-        RegisterState initRegisters)
-    {
-        var hits = new List<(OmfLibrary Library, LibraryMatchInfo Match)>();
-
-        foreach (var library in libraryCandidates.Candidates)
-        {
-            var matches = LibMatcher.MatchFunction(
-                parser.Image,
-                parser.RelocationTable,
-                offset,
-                library,
-                initRegisters);
-
-            foreach (var match in matches)
-            {
-                hits.Add((library, match));
-            }
-        }
-
-        if (hits.Count == 0)
-        {
-            return null;
-        }
-
-        // Выбираем первое совпадение (можно улучшить приоритетами).
-        var (chosenLibrary, chosenMatch) = hits[0];
-
-        // Подтверждаем и сужаем: другие библиотеки с этим же символом исключаются из кандидатов
-        // (это обеспечивает, что для одного символа выбирается одна "семейство" библиотек).
-        // Для crt0-вариантов сужение по __astart не делается на верхнем уровне — варианты сохраняются.
-        libraryCandidates.NarrowBySymbol(chosenLibrary, chosenMatch.SymbolName);
-
-        return chosenMatch;
     }
 
     /// <summary>

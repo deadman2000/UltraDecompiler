@@ -45,38 +45,36 @@ internal static class DecompileMainCommand
             var entryPoint = (int)parser.EntryPointOffset;
             var libDirectory = Utils.ResolveLibraryDirectory(libDir);
 
-            var libraries = LibMatcher.LoadLibraries(libDirectory);
-            var entryMatches = LibMatcher.MatchEntryPoint(
+            // Используем LibraryProvider (единый класс для работы с библиотеками).
+            // Для диагностики получаем все entry matches, затем разрешаем main.
+            var provider = new LibraryProvider(libDirectory);
+
+            var entryMatches = provider.GetEntryPointMatches(
                 parser.Image,
                 parser.RelocationTable,
                 entryPoint,
-                libraries,
                 initRegisterState,
                 symbolName: null,
-                moduleName: LibMatcher.Crt0ModuleName);
+                moduleName: LibraryProvider.Crt0ModuleName);
 
             WriteEntryPointMatchTable(entryPoint, entryMatches);
 
-            // Разрешаем viable + сразу выбираем предпочтительный (поиск astartOffset полностью внутри LibMatcher)
-            var chosen = LibMatcher.ResolvePreferredMain(
-                parser.Image,
-                parser.RelocationTable,
-                entryMatches,
-                initRegisterState,
-                entryPoint);
-            if (chosen is null)
+            if (!provider.TryResolveMain(
+                    parser.Image,
+                    parser.RelocationTable,
+                    initRegisterState,
+                    entryPoint,
+                    out var resolution))
             {
                 Console.WriteLine("Не найдена библиотека с crt0/__astart и вызовом _main. Декомпиляция отменена.");
                 return 1;
             }
 
-            var (selected, astartOffset, mainOffset) = chosen.Value;
+            Console.WriteLine($"Выбрана для анализа: {resolution.PrimaryLibrary.FileName}");
+            Console.WriteLine($"Адрес {LibraryProvider.AstartSymbol}: 0x{entryPoint:X} (линейно в образе, подтверждён crt0)");
+            Console.WriteLine($"Адрес main: 0x{resolution.MainOffset:X} (линейно в образе)");
 
-            Console.WriteLine($"Выбрана для анализа: {selected.Library.FileName}");
-            Console.WriteLine($"Адрес {LibMatcher.AstartSymbol}: 0x{astartOffset:X} (линейно в образе)");
-            Console.WriteLine($"Адрес main: 0x{mainOffset:X} (линейно в образе)");
-
-            return DecompilePipeline.Run(parser, mainOffset);
+            return DecompilePipeline.Run(parser, resolution.MainOffset);
         }
         catch (Exception ex)
         {
