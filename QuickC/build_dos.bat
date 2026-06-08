@@ -1,11 +1,16 @@
 @echo off
 rem ============================================================
 rem build_dos.bat — сборка эталонных примеров QuickC ВНУТРИ DOS-эмулятора
-rem (DOSBox, DOSBox-Staging, msdos player в режиме DOS и т.п.).
+rem (DOSBox, DOSBox-Staging и т.п.).
 rem
-rem Запускается из корня QuickC (или после cd в PROGRAMS + правильные пути).
-rem Не использует "msdos.exe" wrapper — мы уже внутри DOS.
+rem Вызывается из dosbox-ci.conf после cd PROGRAMS.
 rem ============================================================
+
+echo.
+echo === INSIDE build_dos.bat (executing from emulated DOS) ===
+echo Current DOS directory:
+cd
+echo.
 
 cd PROGRAMS
 
@@ -53,6 +58,3 @@ echo.
 echo *** BUILD FAILED inside DOS emulator ***
 cd ..
 exit 1
-```
-
-Now create the Linux CI driver script.

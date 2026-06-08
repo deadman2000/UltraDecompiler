@@ -37,24 +37,23 @@ else
 fi
 
 echo "Using: $DOSBOX"
+echo "Config: dosbox-ci.conf"
+echo "Current working directory (host): $(pwd)"
 
-# Запуск DOSBox в полностью автоматическом режиме.
-# - mount c .     → текущая директория (QuickC) становится диском C:
-# - Настраиваем переменные окружения как в оригинальных .cmd
-# - Переходим в PROGRAMS и вызываем build_dos.bat
-# - -exit в конце — закрыть DOSBox после выполнения
+ls -l dosbox-ci.conf build_dos.bat 2>/dev/null || echo "WARNING: conf or bat not found in current dir"
 
-"$DOSBOX" \
-  -c "mount c ." \
-  -c "c:" \
-  -c "config -set cpu cycles=30000" \
-  -c "set LIB=c:\\" \
-  -c "set INCLUDE=c:\\INCLUDE" \
-  -c "set PATH=c:\\" \
-  -c "cd PROGRAMS" \
-  -c "call ..\\build_dos.bat" \
-  -c "exit" \
-  -exit
+# Важно для headless/CI окружения (GitHub Actions и т.п.)
+# Без dummy-драйверов DOSBox часто не может инициализировать видео и выходит до autoexec.
+export SDL_VIDEODRIVER=dummy
+export SDL_AUDIODRIVER=dummy
+
+echo "Launching DOSBox in headless mode (dummy video/audio drivers)..."
+
+# Используем конфиг с [autoexec] — значительно надёжнее длинной цепочки -c,
+# особенно когда падает бэк на классический dosbox из Ubuntu-репозиториев.
+# В конфиге: mount c ., настройка LIB/INCLUDE, cd PROGRAMS, вызов build_dos.bat
+
+"$DOSBOX" -conf dosbox-ci.conf -exit 2>&1 | cat
 
 echo "=== DOSBox QuickC build completed ==="
 
@@ -62,12 +61,3 @@ echo
 echo "Produced executables:"
 ls -l PROGRAMS/*_?.EXE 2>/dev/null || echo "(no *_?.EXE files found — build may have failed)"
 echo
-
-# Verify at least the known files exist (non-fatal here, dotnet test will fail if missing)
-for f in PROGRAMS/HELLO_S.EXE PROGRAMS/HELLO_C.EXE PROGRAMS/HELLO_M.EXE PROGRAMS/HELLO_L.EXE \
-         PROGRAMS/ADD_S.EXE  PROGRAMS/ADD_C.EXE  PROGRAMS/ADD_M.EXE  PROGRAMS/ADD_L.EXE; do
-  if [ ! -f "$f" ]; then
-    echo "WARNING: expected file not found: $f"
-  fi
-done
-

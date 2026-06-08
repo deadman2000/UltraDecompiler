@@ -49,7 +49,7 @@ jobs:
         (dosbox-staging --version 2>/dev/null || dosbox --version 2>/dev/null || echo "no version info")
         (command -v dosbox-staging || command -v dosbox || echo "dosbox not found in PATH")
 
-    - name: Build QuickC reference examples via DOSBox
+    - name: Build QuickC reference examples via DOSBox (headless)
       run: |
         chmod +x QuickC/build_ci.sh || true
         bash QuickC/build_ci.sh
