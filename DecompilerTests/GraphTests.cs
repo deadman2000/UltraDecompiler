@@ -72,4 +72,44 @@ public class GraphTests : BaseTests
         // Ожидаем более 2 блоков из-за split или нет
         Assert.True(graph.Blocks.Count >= 2);
     }
+
+    [Fact]
+    public void ConditionalJumpIntoMiddleOfOwnBlock_SetsConditionalBlockOnCorrectPart()
+    {
+        // Кейс бага: начальный линейный блок содержит jcc, который прыгает в свою середину (назад на inc).
+        // При split в BuildEdges префикс (xor) не должен получить ConditionalBlock,
+        // а блок с jcc (начиная с target=2) должен получить ConditionalBlock на себя (петля).
+        // Также NextBlock у jcc-блока должен указывать на fallthrough (ret).
+        var graph = GetGraph("""
+            31 C0    ; xor ax, ax     @0
+            40       ; inc ax         @2
+            83 F8 05 ; cmp ax, 5      @3
+            75 FA    ; jne -6 (target=2) @6
+            C3       ; ret            @8
+            """);
+
+        Assert.Equal(3, graph.Blocks.Count);
+        Assert.NotNull(graph.EntryBlock);
+        Assert.Equal(0, graph.EntryBlock.StartOffset);
+
+        var b0 = graph.Blocks.Single(b => b.StartOffset == 0);
+        var b2 = graph.Blocks.Single(b => b.StartOffset == 2);
+        var b8 = graph.Blocks.Single(b => b.StartOffset == 8);
+
+        Assert.Single(b0.Instructions);
+        Assert.Equal(3, b2.Instructions.Count);
+        Assert.Single(b8.Instructions);
+
+        // Префикс после split: только xor, sequential next на header, НЕ должен иметь conditional
+        Assert.Equal(b2, b0.NextBlock);
+        Assert.Null(b0.ConditionalBlock);
+        Assert.Null(b0.NextOffset);
+        Assert.Null(b0.ConditionalOffset);
+
+        // Блок с jcc (и заголовок цикла): conditional на себя, next — на fallthrough (ret)
+        Assert.Equal(b8, b2.NextBlock);
+        Assert.Equal(b2, b2.ConditionalBlock);
+        Assert.Null(b2.NextOffset);
+        Assert.Null(b2.ConditionalOffset);
+    }
 }

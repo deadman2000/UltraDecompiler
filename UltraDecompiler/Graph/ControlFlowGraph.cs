@@ -236,14 +236,30 @@ public class ControlFlowGraph
 
             if (block.NextOffset.HasValue)
             {
-                block.NextBlock = GetBlock(block.NextOffset.Value);
-                block.NextOffset = null;
+                var nextTargetOffset = block.NextOffset.Value;
+                var nextTarget = GetBlock(nextTargetOffset);
+                if (block.NextOffset.HasValue)
+                {
+                    // Обычный случай: блок не был разбит при GetBlock (split случился на другом блоке)
+                    block.NextBlock = nextTarget;
+                    block.NextOffset = null;
+                }
+                // else: случился split этого блока (uncond jump в середину себя) — pending NextOffset перенесён в suffix,
+                // sequential NextBlock уже проставлен внутри GetBlock на prefix; suffix обработает свой pending в последующих итерациях for
             }
 
             if (block.ConditionalOffset.HasValue)
             {
-                block.ConditionalBlock = GetBlock(block.ConditionalOffset.Value);
-                block.ConditionalOffset = null;
+                var conditionalOffset = block.ConditionalOffset.Value;
+                var conditionalTarget = GetBlock(conditionalOffset);
+                if (block.ConditionalOffset.HasValue)
+                {
+                    // Обычный случай: jumper-блок не был разбит
+                    block.ConditionalBlock = conditionalTarget;
+                    block.ConditionalOffset = null;
+                }
+                // else: GetBlock разбивает текущий блок (cond jump в середину себя) — pending ConditionalOffset перенесён
+                // в suffix-блок (который теперь содержит jump-инстр и стартует с conditional target); он будет обработан позже в цикле for
             }
         }
 
@@ -283,11 +299,14 @@ public class ControlFlowGraph
             throw new Exception();
         }
 
-        // Переносим переходы
+        // Переносим переходы (в т.ч. NextOffset, если блок с прыжком был разбит; pending всегда уходят в suffix,
+        // т.к. при split внутри блока с terminating jump'ом сам jump-инстр уходит в nextBlock)
+        nextBlock.NextOffset = firstBlock.NextOffset;
         nextBlock.ConditionalOffset = firstBlock.ConditionalOffset;
         nextBlock.ConditionalBlock = firstBlock.ConditionalBlock;
         nextBlock.NextBlock = firstBlock.NextBlock;
 
+        firstBlock.NextOffset = null;
         firstBlock.ConditionalOffset = null;
         firstBlock.ConditionalBlock = null;
 
