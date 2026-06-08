@@ -38,6 +38,18 @@ public sealed class LibraryCandidateSet
     }
 
     /// <summary>
+    /// Подтверждает библиотеку как провайдера crt0/__astart.
+    /// В отличие от NarrowBySymbol — НЕ исключает другие библиотеки, тоже содержащие __astart.
+    /// Такие библиотеки считаются взаимозаменяемыми базами; варианты будут сформированы на верхнем уровне.
+    /// </summary>
+    public void ConfirmAstartProvider(OmfLibrary library)
+    {
+        ArgumentNullException.ThrowIfNull(library);
+        ConfirmLibrary(library);
+        // Специально не вызываем удаление других с __astart — сохраняем альтернативы.
+    }
+
+    /// <summary>
     /// Исключает из кандидатов все .LIB, кроме <paramref name="matchedLibrary"/>,
     /// в словаре которых есть <paramref name="symbolName"/>.
     /// </summary>

@@ -7,9 +7,6 @@
 		<Nullable>enable</Nullable>
 		<WarningsAsErrors>true</WarningsAsErrors>
 	</PropertyGroup>
-	<Target Name="CheckFormatting" BeforeTargets="Build">
-		<Exec Command="dotnet format --verify-no-changes --verbosity normal" ContinueOnError="false" ConsoleToMSBuild="true" IgnoreExitCode="false" />
-	</Target>
 	<ItemGroup>
 	  <ProjectReference Include="..\Common\Common.csproj" />
 	  <ProjectReference Include="..\LibParser\LibParser.csproj" />

@@ -15,7 +15,6 @@ internal static class DecompileMainCommand
 {
     private const string AstartSymbol = "__astart";
     private const string Crt0ModuleName = "crt0";
-    private const string MainSymbol = "_main";
 
     public static void Configure(CommandLineApplication root)
     {
@@ -61,18 +60,21 @@ internal static class DecompileMainCommand
 
             WriteEntryPointMatchTable(entryPoint, entryMatches);
 
-            var resolved = ResolveLibraryAndMain(parser, entryMatches, initRegisterState, entryPoint);
-            if (resolved is null)
+            var viable = ResolveAllViableLibrariesAndMains(parser, entryMatches, initRegisterState, entryPoint);
+            if (viable.Count == 0)
             {
                 Console.WriteLine("Не найдена библиотека с crt0/__astart и вызовом _main. Декомпиляция отменена.");
                 return 1;
             }
 
-            var (selected, astartOffset, mainOffset) = resolved.Value;
+            WriteLibraryConfigurationVariants(viable, entryPoint);
 
-            Console.WriteLine($"библиотека: {selected.Library.FileName}");
+            // Для последующей декомпиляции/анализа выбираем предпочтительный вариант
+            var (selected, astartOffset, mainOffset) = PickPreferredViable(viable);
+
+            Console.WriteLine($"Выбрана для анализа: {selected.Library.FileName}");
             Console.WriteLine($"Адрес {AstartSymbol}: 0x{astartOffset:X} (линейно в образе)");
-            Console.WriteLine($"Адрес {MainSymbol}: 0x{mainOffset:X} (линейно в образе)");
+            Console.WriteLine($"Адрес main: 0x{mainOffset:X} (линейно в образе)");
 
             return DecompilePipeline.Run(parser, mainOffset);
         }
@@ -193,12 +195,20 @@ internal static class DecompileMainCommand
         return string.Join(", ", symbols.Take(maxShown)) + $", … (+{symbols.Count - maxShown})";
     }
 
-    private static (EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset)? ResolveLibraryAndMain(
+    /// <summary>
+    /// Возвращает ВСЕ viable библиотеки, для которых:
+    /// - есть совпадение __astart/crt0 на входе
+    /// - успешно удалось разрешить адрес _main по FIXUPP из метаданных этой библиотеки.
+    /// Каждый такой — самостоятельный кандидат на "главную" библиотеку.
+    /// </summary>
+    private static List<(EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset)> ResolveAllViableLibrariesAndMains(
         DosExeParser parser,
         IReadOnlyList<EntryPointLibraryMatchInfo> entryMatches,
         RegisterState initRegisters,
         int entryPoint)
     {
+        var viable = new List<(EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset)>();
+
         foreach (var match in OrderLibraryCandidates(entryMatches))
         {
             try
@@ -212,14 +222,57 @@ internal static class DecompileMainCommand
                     initRegisters,
                     match.AstartMatch!.ModuleCodeOffset);
 
-                return (match, astartOffset, mainOffset);
+                viable.Add((match, astartOffset, mainOffset));
             }
             catch (InvalidOperationException)
             {
+                // crt0 этой библиотеки не соответствует вызову _main в образе — не кандидат
             }
         }
 
-        return null;
+        return viable;
+    }
+
+    private static void WriteLibraryConfigurationVariants(
+        IReadOnlyList<(EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset)> viable,
+        int entryPoint)
+    {
+        Console.WriteLine();
+        if (viable.Count == 0)
+        {
+            Console.WriteLine("(нет viable библиотек с __astart + _main)");
+            return;
+        }
+
+        if (viable.Count == 1)
+        {
+            var v = viable[0];
+            Console.WriteLine($"Библиотека (crt0): {v.Match.Library.FileName}");
+            return;
+        }
+
+        Console.WriteLine("Возможные варианты подключения библиотек (crt0/__astart):");
+        for (var i = 0; i < viable.Count; i++)
+        {
+            var v = viable[i];
+            var astart = v.AstartOffset == entryPoint ? "(точка входа)" : $"0x{v.AstartOffset:X}";
+            Console.WriteLine($"  Вариант {i + 1}: {v.Match.Library.FileName}   __astart@{astart}   main@0x{v.MainOffset:X}");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Примечание: эти библиотеки взаимозаменяемы по crt0 (разные модели памяти / эмуляторы).");
+        Console.WriteLine("           Если в EXE используются символы из дополнительных .LIB — они будут общими для вариантов.");
+    }
+
+    private static (EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset) PickPreferredViable(
+        IReadOnlyList<(EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset)> viable)
+    {
+        return viable
+            .OrderBy(static v => LibraryPriority(v.Match.Library.FileName))
+            .ThenBy(static v => PreferEmulatorLibrary(v.Match.Library.FileName))
+            .ThenBy(static v => MemoryModelLibraryPriority(v.Match.Library.FileName))
+            .ThenBy(static v => v.Match.Library.FileName, StringComparer.OrdinalIgnoreCase)
+            .First();
     }
 
     private static IEnumerable<EntryPointLibraryMatchInfo> OrderLibraryCandidates(

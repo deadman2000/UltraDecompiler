@@ -62,26 +62,30 @@ public class Decompiler
         // Выкидываем библиотеки с Crt0ModuleName, но не в entryMatches
         libraryCandidates.NarrowByEntryPointMatches(Crt0ModuleName, entryMatches);
 
-        var resolved = ResolveLibraryAndMain(
+        // Находим ВСЕ viable библиотеки, у которых есть __astart + успешное разрешение _main по FIXUPP.
+        // Это позволяет сохранить все потенциальные crt0-варианты (взаимозаменяемые).
+        var viable = ResolveAllLibrariesAndMains(
             parser,
             entryMatches,
             libraryCandidates.Candidates,
             initRegisters,
             entryPoint);
-        if (resolved is null)
+        if (viable.Count == 0)
         {
             return DecompileResult.Failed;
         }
 
-        // Выкидываем библиотеки с __astart, кроме primaryLibrary
-        var (primaryLibrary, mainOffset, astartMatch) = resolved.Value;
-        libraryCandidates.NarrowBySymbol(primaryLibrary, AstartSymbol);
+        // Выбираем предпочтительный primary для фактической декомпиляции (по приоритетам модели памяти и т.д.)
+        var (primaryLibrary, mainOffset, astartMatch) = PickPreferredLibrary(viable);
+
+        // Подтверждаем primary как использованную (для linked), НО не удаляем другие библиотеки с __astart —
+        // они остаются как альтернативные варианты crt0. Информация о вариантах будет собрана в конце.
+        libraryCandidates.ConfirmAstartProvider(primaryLibrary);
 
         // Дизассемблируем main и все вложенные переходы
         var storage = CollectProcedures(
             parser,
             libraryCandidates,
-            primaryLibrary,
             initRegisters,
             mainOffset);
 
@@ -106,11 +110,62 @@ public class Decompiler
             outputFiles.Add(filePath);
         }
 
+        // Собираем возможные варианты подключения библиотек:
+        // - базы: все viable crt0-библиотеки (взаимозаменяемые)
+        // - аддоны: библиотеки, для которых во время сбора процедур был подтверждён хотя бы один символ
+        var crtBases = viable.Select(v => v.Library).ToList();
+        var addonFileNames = libraryCandidates.Linked
+            .Where(lib => !crtBases.Any(baseLib => ReferenceEquals(baseLib, lib)))
+            .Select(lib => lib.FileName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // Формируем варианты в порядке приоритета (предпочтительный — первым)
+        var orderedCrtBases = crtBases
+            .OrderBy(static l => MemoryModelLibraryPriority(l.FileName))
+            .ThenBy(static l => PreferEmulatorLibrary(l.FileName))
+            .ThenBy(static l => LibraryPriority(l.FileName))
+            .ThenBy(static l => l.FileName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var possibleConfigurations = new List<LibraryConfiguration>();
+        foreach (var crt in orderedCrtBases)
+        {
+            var names = new List<string> { crt.FileName };
+            names.AddRange(addonFileNames);
+            var ordered = names
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(static n => n, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            possibleConfigurations.Add(new LibraryConfiguration
+            {
+                LibraryFileNames = ordered,
+                PrimaryCrtLibrary = crt.FileName,
+            });
+        }
+
+        // Если по какой-то причине не набралось — fallback на текущие linked
+        if (possibleConfigurations.Count == 0)
+        {
+            possibleConfigurations.Add(new LibraryConfiguration
+            {
+                LibraryFileNames = libraryCandidates.LinkedFileNames,
+                PrimaryCrtLibrary = primaryLibrary.FileName,
+            });
+        }
+
+        // Для Linked публикуем чистый набор именно выбранного варианта (primary + его аддоны),
+        // чтобы не "пачкать" список подтверждениями из альтернативных crt-библиотек при совпадении символов.
+        var chosenConfig = possibleConfigurations.FirstOrDefault(
+            c => string.Equals(c.PrimaryCrtLibrary, primaryLibrary.FileName, StringComparison.OrdinalIgnoreCase))
+            ?? possibleConfigurations[0];
+
         return new DecompileResult
         {
             Success = true,
             MainOffset = mainOffset,
-            LinkedLibraryFileNames = libraryCandidates.LinkedFileNames,
+            LinkedLibraryFileNames = chosenConfig.LibraryFileNames,
+            PossibleLibraryConfigurations = possibleConfigurations,
             Procedures = storage,
             OutputFiles = outputFiles,
         };
@@ -132,50 +187,115 @@ public class Decompiler
         return libraries;
     }
 
-    private (OmfLibrary Library, int MainOffset, LibraryMatchInfo AstartMatch)? ResolveLibraryAndMain(
+    /// <summary>
+    /// Находит ВСЕ библиотеки, для которых на точке входа есть __astart (crt0) и по метаданным
+    /// FIXUPP библиотеки успешно резолвится адрес _main. Все такие — потенциальные кандидаты
+    /// (взаимозаменяемые crt0). Не выбирает одну, возвращает список.
+    /// </summary>
+    private List<(OmfLibrary Library, int MainOffset, LibraryMatchInfo AstartMatch)> ResolveAllLibrariesAndMains(
         DosExeParser parser,
         IReadOnlyList<EntryPointLibraryMatchInfo> entryMatches,
         IReadOnlyList<OmfLibrary> candidateLibraries,
         RegisterState initRegisters,
         int entryPoint)
     {
-        var candidateSet = candidateLibraries.ToHashSet();
+        var candidateSet = candidateLibraries.ToHashSet(ReferenceEqualityComparer.Instance);
+        var result = new List<(OmfLibrary Library, int MainOffset, LibraryMatchInfo AstartMatch)>();
 
-        foreach (var match in OrderLibraryCandidates(entryMatches))
+        foreach (var match in entryMatches)
         {
-            if (!candidateSet.Contains(match.Library))
-            {
+            if (match.AstartMatch is null)
                 continue;
+
+            if (!candidateSet.Contains(match.Library))
+                continue;
+
+            try
+            {
+                var astartOffset = ResolveAstartOffset(match, entryPoint);
+                var mainOffset = _libraryMatcher.FindMainOffset(
+                    parser.Image,
+                    parser.RelocationTable,
+                    match.Library,
+                    astartOffset,
+                    initRegisters,
+                    match.AstartMatch!.ModuleCodeOffset);
+
+                result.Add((match.Library, mainOffset, match.AstartMatch));
             }
-
-            var astartOffset = ResolveAstartOffset(match, entryPoint);
-            var mainOffset = _libraryMatcher.FindMainOffset(
-                parser.Image,
-                parser.RelocationTable,
-                match.Library,
-                astartOffset,
-                initRegisters,
-                match.AstartMatch!.ModuleCodeOffset);
-
-            return (match.Library, mainOffset, match.AstartMatch);
+            catch (InvalidOperationException)
+            {
+                // Для этой библиотеки FIXUPP crt0 не соответствует образу — пропускаем (несовместима)
+            }
         }
 
-        return null;
+        return result;
     }
 
-    private static IEnumerable<EntryPointLibraryMatchInfo> OrderLibraryCandidates(
-        IReadOnlyList<EntryPointLibraryMatchInfo> entryMatches) =>
-        entryMatches
-            .Where(static m => m.AstartMatch is not null)
-            .OrderBy(static m => LibraryPriority(m.Library.FileName))
-            .ThenBy(static m => PreferEmulatorLibrary(m.Library.FileName))
-            .ThenBy(static m => MemoryModelLibraryPriority(m.Library.FileName))
-            .ThenBy(static m => m.Library.FileName, StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Выбирает предпочтительную библиотеку из viable (по аналогии с приоритетами в decompile-main).
+    /// Предпочтение: small-модель (S), наличие эмулятора (E), порядок LIBC и т.д.
+    /// </summary>
+    private static (OmfLibrary Library, int MainOffset, LibraryMatchInfo AstartMatch) PickPreferredLibrary(
+        List<(OmfLibrary Library, int MainOffset, LibraryMatchInfo AstartMatch)> viable)
+    {
+        return viable
+            .OrderBy(static v => MemoryModelLibraryPriority(v.Library.FileName))
+            .ThenBy(static v => PreferEmulatorLibrary(v.Library.FileName))
+            .ThenBy(static v => LibraryPriority(v.Library.FileName))
+            .ThenBy(static v => v.Library.FileName, StringComparer.OrdinalIgnoreCase)
+            .First();
+    }
+
+    /// <summary>S → C → M → L: при нескольких совпадениях предпочитаем small-модель.</summary>
+    private static int MemoryModelLibraryPriority(string fileName)
+    {
+        var name = Path.GetFileNameWithoutExtension(fileName).ToUpperInvariant();
+        if (name.StartsWith("SLIB", StringComparison.Ordinal))
+        {
+            return 0;
+        }
+
+        if (name.StartsWith("CLIB", StringComparison.Ordinal))
+        {
+            return 1;
+        }
+
+        if (name.StartsWith("MLIB", StringComparison.Ordinal))
+        {
+            return 2;
+        }
+
+        if (name.StartsWith("LLIB", StringComparison.Ordinal))
+        {
+            return 3;
+        }
+
+        return 4;
+    }
+
+    /// <summary>QuickC по умолчанию линкует *LIBCE.LIB / *LIBC.LIB с эмулятором (суффикс E).</summary>
+    private static int PreferEmulatorLibrary(string fileName) =>
+        Path.GetFileNameWithoutExtension(fileName).Contains('E', StringComparison.OrdinalIgnoreCase) ? 0 : 1;
+
+    private static int LibraryPriority(string fileName)
+    {
+        if (fileName.Contains("LIBC", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0;
+        }
+
+        if (fileName.Contains("LIBFP", StringComparison.OrdinalIgnoreCase))
+        {
+            return 1;
+        }
+
+        return 2;
+    }
 
     private ProcedureStorage CollectProcedures(
         DosExeParser parser,
         LibraryCandidateSet libraryCandidates,
-        OmfLibrary primaryLibrary,
         RegisterState initRegisters,
         int initOffset)
     {
@@ -206,7 +326,6 @@ public class Decompiler
                 parser,
                 offset,
                 libraryCandidates,
-                primaryLibrary,
                 initRegisters);
 
             if (libraryMatch is not null)
@@ -243,13 +362,14 @@ public class Decompiler
     }
 
     /// <summary>
-    /// Ищет совпадение среди кандидатов; при однозначном символе сужает набор библиотек.
+    /// Ищет совпадение среди кандидатов. При нахождении символа подтверждает библиотеку
+    /// и сужает кандидатов (удаляет другие .LIB, экспортирующие тот же символ — они взаимозаменяемы
+    /// для данного символа). Если символ найден в нескольких библиотеках — выбирается первая.
     /// </summary>
     private LibraryMatchInfo? TryMatchLibrary(
         DosExeParser parser,
         int offset,
         LibraryCandidateSet libraryCandidates,
-        OmfLibrary primaryLibrary,
         RegisterState initRegisters)
     {
         var hits = new List<(OmfLibrary Library, LibraryMatchInfo Match)>();
@@ -263,9 +383,9 @@ public class Decompiler
                 library,
                 initRegisters);
 
-            if (matches.Count > 0)
+            foreach (var match in matches)
             {
-                hits.Add((library, matches[0]));
+                hits.Add((library, match));
             }
         }
 
@@ -274,62 +394,16 @@ public class Decompiler
             return null;
         }
 
-        var (chosenLibrary, chosenMatch) = ChooseBestHit(hits, libraryCandidates.Linked, primaryLibrary);
+        // Выбираем первое совпадение (можно улучшить приоритетами).
+        var (chosenLibrary, chosenMatch) = hits[0];
 
-        var librariesWithSameSymbol = hits
-            .Where(h => h.Match.SymbolName == chosenMatch.SymbolName)
-            .Select(static h => h.Library)
-            .ToList();
-
-        if (librariesWithSameSymbol.Count == 1)
-        {
-            libraryCandidates.NarrowBySymbol(chosenLibrary, chosenMatch.SymbolName);
-        }
-        else
-        {
-            libraryCandidates.ConfirmLibrary(chosenLibrary);
-        }
+        // Подтверждаем и сужаем: другие библиотеки с этим же символом исключаются из кандидатов
+        // (это обеспечивает, что для одного символа выбирается одна "семейство" библиотек).
+        // Для crt0-вариантов сужение по __astart не делается на верхнем уровне — варианты сохраняются.
+        libraryCandidates.NarrowBySymbol(chosenLibrary, chosenMatch.SymbolName);
 
         return chosenMatch;
     }
-
-    private static (OmfLibrary Library, LibraryMatchInfo Match) ChooseBestHit(
-        IReadOnlyList<(OmfLibrary Library, LibraryMatchInfo Match)> hits,
-        IReadOnlyList<OmfLibrary> linkedLibraries,
-        OmfLibrary primaryLibrary)
-    {
-        var linked = hits.Where(h => linkedLibraries.Contains(h.Library)).ToList();
-        if (linked.Count == 1)
-        {
-            return linked[0];
-        }
-
-        if (linked.Count > 1)
-        {
-            return OrderHits(linked).First();
-        }
-
-        var primaryHits = hits.Where(h => ReferenceEquals(h.Library, primaryLibrary)).ToList();
-        if (primaryHits.Count == 1)
-        {
-            return primaryHits[0];
-        }
-
-        if (primaryHits.Count > 1)
-        {
-            return OrderHits(primaryHits).First();
-        }
-
-        return OrderHits(hits).First();
-    }
-
-    private static IEnumerable<(OmfLibrary Library, LibraryMatchInfo Match)> OrderHits(
-        IEnumerable<(OmfLibrary Library, LibraryMatchInfo Match)> hits) =>
-        hits
-            .OrderBy(static h => LibraryPriority(h.Library.FileName))
-            .ThenBy(static h => PreferEmulatorLibrary(h.Library.FileName))
-            .ThenBy(static h => MemoryModelLibraryPriority(h.Library.FileName))
-            .ThenBy(static h => h.Library.FileName, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Добавляет все переходы процедуры в очередь для обработки
@@ -424,49 +498,5 @@ public class Decompiler
         }
 
         return $"{name}_{offset:X4}.c";
-    }
-
-    private static int MemoryModelLibraryPriority(string fileName)
-    {
-        var name = Path.GetFileNameWithoutExtension(fileName).ToUpperInvariant();
-        if (name.StartsWith("SLIB", StringComparison.Ordinal))
-        {
-            return 0;
-        }
-
-        if (name.StartsWith("CLIB", StringComparison.Ordinal))
-        {
-            return 1;
-        }
-
-        if (name.StartsWith("MLIB", StringComparison.Ordinal))
-        {
-            return 2;
-        }
-
-        if (name.StartsWith("LLIB", StringComparison.Ordinal))
-        {
-            return 3;
-        }
-
-        return 4;
-    }
-
-    private static int PreferEmulatorLibrary(string fileName) =>
-        Path.GetFileNameWithoutExtension(fileName).Contains('E', StringComparison.OrdinalIgnoreCase) ? 0 : 1;
-
-    private static int LibraryPriority(string fileName)
-    {
-        if (fileName.Contains("LIBC", StringComparison.OrdinalIgnoreCase))
-        {
-            return 0;
-        }
-
-        if (fileName.Contains("LIBFP", StringComparison.OrdinalIgnoreCase))
-        {
-            return 1;
-        }
-
-        return 2;
     }
 }

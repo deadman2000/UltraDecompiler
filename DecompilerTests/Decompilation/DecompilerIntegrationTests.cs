@@ -19,6 +19,11 @@ public class DecompilerIntegrationTests
 
             Assert.True(result.Success);
             Assert.Contains("SLIBCE.LIB", result.LinkedLibraryFileNames);
+            Assert.NotEmpty(result.PossibleLibraryConfigurations);
+            // Хотя бы один вариант должен включать SLIBCE.LIB как crt-базу или в списке
+            Assert.Contains(result.PossibleLibraryConfigurations, cfg =>
+                cfg.LibraryFileNames.Any(n => n.Contains("SLIBCE", StringComparison.OrdinalIgnoreCase)) ||
+                (cfg.PrimaryCrtLibrary?.Contains("SLIBCE", StringComparison.OrdinalIgnoreCase) ?? false));
             Assert.Equal(0x10, result.MainOffset);
 
             Assert.True(result.Procedures.TryGet(0x10, out var main));

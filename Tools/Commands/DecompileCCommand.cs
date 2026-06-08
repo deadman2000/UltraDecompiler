@@ -60,10 +60,32 @@ internal static class DecompileCCommand
                 return 1;
             }
 
-            Console.WriteLine("подключаемые .LIB:");
-            foreach (var libName in result.LinkedLibraryFileNames)
+            // Вывод всех возможных вариантов подключения (взаимозаменяемые crt + аддоны)
+            if (result.PossibleLibraryConfigurations.Count > 1)
             {
-                Console.WriteLine($"  {libName}");
+                Console.WriteLine("Возможные варианты подключения библиотек:");
+                for (var i = 0; i < result.PossibleLibraryConfigurations.Count; i++)
+                {
+                    var cfg = result.PossibleLibraryConfigurations[i];
+                    var list = string.Join(" + ", cfg.LibraryFileNames);
+                    var marker = cfg.PrimaryCrtLibrary is not null ? $" (crt0: {cfg.PrimaryCrtLibrary})" : "";
+                    Console.WriteLine($"  Вариант {i + 1}: {list}{marker}");
+                }
+
+                Console.WriteLine();
+                Console.WriteLine("Выбранный для декомпиляции набор (первый по приоритету):");
+                foreach (var libName in result.LinkedLibraryFileNames)
+                {
+                    Console.WriteLine($"  {libName}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("подключаемые .LIB:");
+                foreach (var libName in result.LinkedLibraryFileNames)
+                {
+                    Console.WriteLine($"  {libName}");
+                }
             }
 
             Console.WriteLine();

@@ -30,3 +30,22 @@ public sealed record EntryPointLibraryMatchInfo
             m.SymbolName == "__astart"
             && m.ModuleName.Equals("crt0", StringComparison.OrdinalIgnoreCase));
 }
+
+/// <summary>
+/// Один возможный вариант набора подключаемых OMF-библиотек для декомпилируемой программы.
+/// 
+/// Разные варианты возникают, когда несколько библиотек содержат подходящий crt0/__astart
+/// (взаимозаменяемые по crt0). Дополнительные библиотеки (аддоны) обычно общие для вариантов.
+/// Пример: SLIBCE.LIB + GRAPHICS.LIB  и  CLIBCE.LIB + GRAPHICS.LIB — два варианта.
+/// </summary>
+public sealed record LibraryConfiguration
+{
+    /// <summary>Имена файлов библиотек в этом варианте (отсортированы).</summary>
+    public required IReadOnlyList<string> LibraryFileNames { get; init; }
+
+    /// <summary>
+    /// Библиотека, предоставившая __astart/crt0 для этого варианта (если известна).
+    /// Используется как "главная" для данного сочетания.
+    /// </summary>
+    public string? PrimaryCrtLibrary { get; init; }
+}
