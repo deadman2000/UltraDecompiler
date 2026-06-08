@@ -186,13 +186,8 @@ public static class LibraryCallResolver
         var offset = image[callOffset + 1] | (image[callOffset + 2] << 8);
         var segment = image[callOffset + 3] | (image[callOffset + 4] << 8);
 
-        if (offset == 0 && segment == 0)
-        {
-            throw new InvalidOperationException();
-        }
-
         var linear = segment * 16 + offset;
-        if (linear <= 0 || linear >= image.Length)
+        if (linear < 0 || linear >= image.Length)
         {
             throw new InvalidOperationException(
                 $"Некорректный адрес {targetSymbol} в far CALL: 0x{segment:X4}:0x{offset:X4}.");

@@ -56,7 +56,7 @@ public class Decompiler
             entryPoint,
             allLibraries,
             initRegisters,
-            symbolName: null,
+            symbolName: AstartSymbol,
             moduleName: Crt0ModuleName);
 
         // Выкидываем библиотеки с Crt0ModuleName, но не в entryMatches

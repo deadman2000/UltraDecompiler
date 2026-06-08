@@ -39,6 +39,27 @@ dotnet run --project Tools -- decompile-main game.exe -l C:\QuickC
 
 Сопоставляет точку входа EXE со всеми `.LIB` каталога, выводит таблицу совпадений crt0/`__astart`, находит адрес `__astart` в образе и прогоняет дизассемблирование + ExpressionBuilder (как `decompile`).
 
+### `disasm` — дизассемблирование .EXE/.COM
+
+Быстрый просмотр инструкций без построения CFG и ExpressionBuilder. Поддерживает указание произвольного смещения.
+
+```powershell
+dotnet run --project Tools -- disasm game.exe
+dotnet run --project Tools -- disasm game.exe -o 0x120
+dotnet run --project Tools -- disasm game.exe --offset 300h
+dotnet run --project Tools -- disasm game.exe -o 0x100 -c 50
+dotnet run --project Tools -- disasm game.exe -b 128 --no-color
+```
+
+| Опция | Описание |
+|-------|----------|
+| `-o`, `--offset <OFFSET>` | Стартовое смещение (hex `0x100` / `100h` или decimal). По умолчанию — точка входа |
+| `-c`, `--count <N>` | Максимальное число инструкций |
+| `-b`, `--bytes <N>` | Максимальное число байт |
+| `--no-color` | Отключить ANSI-цвета |
+
+По умолчанию используется рекурсивный режим (как в `decompile`): дизассемблер обходит переходы и собирает связный кусок кода.
+
 ### `lib` — разбор OMF .LIB (QuickC)
 
 ```powershell
@@ -52,4 +73,4 @@ dotnet run --project Tools -- lib C:\QuickC\CLIBC.LIB -s _printf
 | `-l`, `--list-modules` | Список всех модулей и публичных символов словаря по каждому модулю |
 | `-s`, `--symbol <NAME>` | Поиск символа и сведения о модуле |
 
-Справка: `dotnet run --project Tools -- --help` или `decompile --help`, `decompile-main --help`, `lib --help`.
+Справка: `dotnet run --project Tools -- --help` или `decompile --help`, `decompile-main --help`, `decompile-c --help`, `disasm --help`, `lib --help`.

@@ -20,6 +20,7 @@ public static class Program
         DecompileMainCommand.Configure(app);
         DecompileCCommand.Configure(app);
         LibCommand.Configure(app);
+        DisasmCommand.Configure(app);
 
         app.OnExecute(() =>
         {

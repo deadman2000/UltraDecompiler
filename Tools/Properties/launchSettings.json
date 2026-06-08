@@ -28,6 +28,14 @@
             "commandName": "Project",
             "commandLineArgs": "decompile-c ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_S.EXE -o ..\\..\\..\\..\\QuickC\\PROGRAMS\\decompiled"
         },
+        "HELLO_M.EXE disasm": {
+            "commandName": "Project",
+            "commandLineArgs": "disasm -o 0 ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_M.EXE"
+        },
+        "HELLO_M.EXE decompile-main": {
+            "commandName": "Project",
+            "commandLineArgs": "decompile-main ..\\..\\..\\..\\QuickC\\PROGRAMS\\HELLO_M.EXE"
+        },
         "SLIBCE.LIB modules": {
             "commandName": "Project",
             "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\SLIBCE.LIB -l"
@@ -36,9 +44,9 @@
             "commandName": "Project",
             "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\SLIBCE.LIB -s __chkstk"
         },
-        "LLIBCE.LIB __astart": {
+        "MLIBCE.LIB __astart": {
             "commandName": "Project",
-            "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\LLIBCE.LIB -s __astart"
+            "commandLineArgs": "lib ..\\..\\..\\..\\QuickC\\MLIBCE.LIB -s __astart"
         }
     }
 }
