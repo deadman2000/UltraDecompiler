@@ -28,6 +28,7 @@ static class Prec
 {
     public const int Atom = 100;      // переменные, константы, вызовы, обращения к памяти
     public const int Unary = 15;      // -x, !x
+    public const int MulDiv = 14;     // * / %
     public const int AddSub = 13;     // + -
     public const int Shift = 12;      // << >>
     public const int Compare = 11;    // < <= > >= == !=
@@ -185,6 +186,21 @@ public enum Math2Operation
     /// Побитовое исключающее ИЛИ
     /// </summary>
     Xor,
+
+    /// <summary>
+    /// Умножение (знаковое/беззнаковое определяется контекстом инструкции MUL/IMUL)
+    /// </summary>
+    Mul,
+
+    /// <summary>
+    /// Целочисленное деление
+    /// </summary>
+    Div,
+
+    /// <summary>
+    /// Остаток от деления (mod)
+    /// </summary>
+    Mod,
 }
 
 /// <summary>
@@ -202,6 +218,7 @@ public record Math2Expr(Math2Operation Operation, Expr First, Expr Second) : Exp
         Math2Operation.And => Prec.BitAnd,
         Math2Operation.Xor => Prec.BitXor,
         Math2Operation.Or => Prec.BitOr,
+        Math2Operation.Mul or Math2Operation.Div or Math2Operation.Mod => Prec.MulDiv,
         _ => 0
     };
 
@@ -220,6 +237,9 @@ public record Math2Expr(Math2Operation Operation, Expr First, Expr Second) : Exp
             Math2Operation.And => "&",
             Math2Operation.Or => "|",
             Math2Operation.Xor => "^",
+            Math2Operation.Mul => "*",
+            Math2Operation.Div => "/",
+            Math2Operation.Mod => "%",
             _ => throw new NotImplementedException(),
         };
 

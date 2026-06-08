@@ -29,6 +29,11 @@ public partial class Instruction
             Mnemonic.PUSH => ModifyRegistersPush(state),
             Mnemonic.POP => ModifyRegistersPop(state),
 
+            Mnemonic.MUL => ModifyRegistersMulDiv(state),
+            Mnemonic.IMUL => ModifyRegistersMulDiv(state),
+            Mnemonic.DIV => ModifyRegistersMulDiv(state),
+            Mnemonic.IDIV => ModifyRegistersMulDiv(state),
+
             // Строковые инструкции
             Mnemonic.MOVSB => ModifyRegistersString(state, size: 1, updatesCx: false),
             Mnemonic.MOVSW => ModifyRegistersString(state, size: 2, updatesCx: false),
@@ -52,7 +57,7 @@ public partial class Instruction
             Mnemonic.FWAIT => state,
             Mnemonic.FPU => state,
 
-            // TODO: MUL, IMUL, DIV, IDIV, RCL/RCR, DAA, DAS, AAA, AAS, AAM, AAD, LEA, PUSHF/POPF и др.
+            // TODO: RCL/RCR, DAA, DAS, AAA, AAS, AAM, AAD, LEA, PUSHF/POPF и др. (MUL/IMUL/DIV/IDIV — см. ModifyRegistersMulDiv)
             _ => state,
         };
 
@@ -417,6 +422,21 @@ public partial class Instruction
             return state with { DH = sign, DL = sign };
         }
         return state with { DH = null, DL = null };
+    }
+
+    /// <summary>
+    /// MUL/IMUL/DIV/IDIV: затирают AX/AL (low) и DX/AH (high/remainder).
+    /// Размер (byte/word) определяем по первому байту опкода (F6=byte, F7=word).
+    /// Для целей статического анализа RegisterState достаточно обнулить затронутые регистры.
+    /// </summary>
+    private RegisterState ModifyRegistersMulDiv(RegisterState state)
+    {
+        bool isByte = Bytes.Length > 0 && Bytes[0] == 0xF6;
+        if (isByte)
+        {
+            return state with { AL = null, AH = null };
+        }
+        return state with { AL = null, AH = null, DL = null, DH = null };
     }
 
     private static RegisterState ModifyRegistersEnter(RegisterState state)

@@ -66,6 +66,11 @@ public static class Handlers
         [Mnemonic.ADC] = new ArithmeticHandler(),
         [Mnemonic.SBB] = new ArithmeticHandler(),
 
+        [Mnemonic.MUL] = new MulDivHandler(),
+        [Mnemonic.IMUL] = new MulDivHandler(),
+        [Mnemonic.DIV] = new MulDivHandler(),
+        [Mnemonic.IDIV] = new MulDivHandler(),
+
         [Mnemonic.AND] = new LogicalHandler(),
         [Mnemonic.OR] = new LogicalHandler(),
         [Mnemonic.XOR] = new LogicalHandler(),

@@ -271,4 +271,108 @@ public class ArithmeticTests : BaseTests
         // Главное — не упасть + AX обновился
         Assert.NotNull(expr.Blocks[0].EndRegisters.AX);
     }
+
+    // ==================== MUL / IMUL / DIV / IDIV ====================
+
+    [Fact]
+    public void Mul_Const_UpdatesAxDx_AndClearsCf()
+    {
+        // 03h * 04h = 000Ch , high=0 => CF=OF=0
+        var expr = BuildExpressions("""
+            B8 03 00 ; mov ax, 3
+            B9 04 00 ; mov cx, 4
+            F7 E1    ; mul cx
+            """);
+
+        var block = expr.Blocks[0];
+        // const * const folded => без SetOperation
+        Assert.Empty(block.Operations);
+
+        var ax = Assert.IsType<ConstExpr>(block.EndRegisters.AX);
+        var dx = Assert.IsType<ConstExpr>(block.EndRegisters.DX);
+        Assert.Equal(0x000C, ax.Value);
+        Assert.Equal(0, dx.Value);
+
+        var cf = Assert.IsType<ConstExpr>(block.EndRegisters.CF);
+        Assert.Equal(0, cf.Value);
+    }
+
+    [Fact]
+    public void Imul_Variable_ProducesMulAndHighAndSetsCfAccordingToSignExtend()
+    {
+        var expr = BuildExpressions("F7 E9", vars =>  // IMUL CX  (F7 E9 = IMUL CX)
+        {
+            var a = vars.CreateVariable("a");
+            var c = vars.CreateVariable("c");
+            var init = RegisterExpressions.InitZero();
+            return init
+                .Set16(GpRegister16.AX, a)
+                .Set16(GpRegister16.CX, c);
+        });
+
+        var block = expr.Blocks[0];
+        // Для IMUL с переменными создаём 2 SetOperation: low и high
+        Assert.Equal(2, block.Operations.Count);
+
+        var setLow = Assert.IsType<SetOperation>(block.Operations[0]);
+        var mul = Assert.IsType<Math2Expr>(setLow.Src);
+        Assert.Equal(Math2Operation.Mul, mul.Operation);
+        Assert.Equal("a", Assert.IsType<Variable>(mul.First).Name);
+        Assert.Equal("c", Assert.IsType<Variable>(mul.Second).Name);
+
+        // AX указывает на low var
+        var axVar = Assert.IsType<Variable>(block.EndRegisters.AX);
+        Assert.Equal(setLow.Dst, axVar);
+
+        // DX указывает на high (shr)
+        var dxVar = Assert.IsType<Variable>(block.EndRegisters.DX);
+        Assert.NotNull(dxVar);
+
+        // CF должен быть CmpExpr (high != expected sign-extend)
+        var cf = block.EndRegisters.CF;
+        var cfCmp = Assert.IsType<CmpExpr>(cf);
+        Assert.Equal(CmpOperation.Ne, cfCmp.Operation);
+    }
+
+    [Fact]
+    public void Div_Const_ProducesQuotientAndRemainder()
+    {
+        // DX:AX = 0:0017 / 0005  => AX=4 (quot 23/5=4), DX=3 (rem)
+        var expr = BuildExpressions("""
+            B8 17 00 ; mov ax, 0x17
+            31 D2    ; xor dx, dx
+            B9 05 00 ; mov cx, 5
+            F7 F1    ; div cx
+            """);
+
+        var block = expr.Blocks[0];
+        // Часть операций свёрнута (xor, const), но для div с const создастся Set для quot/rem
+        // Проверяем итоговые регистры
+        var ax = Assert.IsType<ConstExpr>(block.EndRegisters.AX);
+        var dx = Assert.IsType<ConstExpr>(block.EndRegisters.DX);
+        Assert.Equal(4, ax.Value);  // 0x17 / 5 = 4 (цело)
+        Assert.Equal(3, dx.Value);  // 0x17 % 5 = 3
+    }
+
+    [Fact]
+    public void Idiv_WithVariable_DoesNotThrow_AndSetsAxDx()
+    {
+        var expr = BuildExpressions("F7 F9", vars =>  // IDIV CX
+        {
+            var val = vars.CreateVariable("val");
+            var c = vars.CreateVariable("c");
+            var init = RegisterExpressions.InitZero();
+            return init
+                .Set16(GpRegister16.AX, val)
+                .Set16(GpRegister16.CX, c);
+        });
+
+        var block = expr.Blocks[0];
+        // Должны быть SetOperation (минимум для quot)
+        Assert.NotEmpty(block.Operations);
+        var ax = Assert.IsType<Variable>(block.EndRegisters.AX);
+        var dx = Assert.IsType<Variable>(block.EndRegisters.DX);
+        Assert.NotNull(ax);
+        Assert.NotNull(dx);
+    }
 }

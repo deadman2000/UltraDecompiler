@@ -20,7 +20,6 @@
 ### 1. Инструкции дизассемблера / ExpressionBuilder
 
 **Не реализованы или частично:**
-- `MUL`, `IMUL`, `DIV`, `IDIV`
 - `DAA/DAS/AAA/AAS`, `PUSHF/POPF/LAHF/SAHF`, `RCL/RCR` (ротации с CF)
 - POP в память через 8F (PUSH imm16 68h, POP r/m 8F/0 — реализованы)
 - `CWD` (`CBW` добавлен)

@@ -128,6 +128,9 @@ public static class Extensions
                     Math2Operation.And => c1.Value & c2.Value,
                     Math2Operation.Or => c1.Value | c2.Value,
                     Math2Operation.Xor => c1.Value ^ c2.Value,
+                    Math2Operation.Mul => c1.Value * c2.Value,
+                    Math2Operation.Div => c1.Value / c2.Value,
+                    Math2Operation.Mod => c1.Value % c2.Value,
                     _ => throw new NotImplementedException($"Unsupported Math2Operation in folding: {op}")
                 };
                 return new ConstExpr(value);
