@@ -9,6 +9,7 @@ public static class Handlers
         [Mnemonic.PUSH] = new PushHandler(),
         [Mnemonic.POP] = new PopHandler(),
         [Mnemonic.CBW] = new CbwHandler(),
+        [Mnemonic.CWD] = new CwdHandler(),
         [Mnemonic.LEAVE] = new LeaveHandler(),
         [Mnemonic.XCHG] = new XchgHandler(),
         [Mnemonic.CMP] = new CmpHandler(),

@@ -259,6 +259,68 @@ public class ArithmeticTests : BaseTests
     }
 
     [Fact]
+    public void Cwd_SignExtend_WhenAxNegative()
+    {
+        // B8 00 80 ; mov ax, 8000h ; 99 ; cwd
+        var expr = BuildExpressions("""
+            B8 00 80 ; mov ax, 8000h
+            99       ; cwd
+            """);
+
+        var block = expr.Blocks[0];
+        // CWD не создаёт SetOperation — только обновляет DX (как CBW)
+        Assert.Empty(block.Operations);
+
+        var dx = Assert.IsType<ConstExpr>(block.EndRegisters.DX);
+        Assert.Equal(0xFFFF, (ushort)dx.Value);
+
+        // AX не должен измениться
+        var ax = Assert.IsType<ConstExpr>(block.EndRegisters.AX);
+        Assert.Equal(0x8000, (ushort)ax.Value);
+    }
+
+    [Fact]
+    public void Cwd_SignExtend_WhenAxPositive()
+    {
+        var expr = BuildExpressions("""
+            B8 7F 00 ; mov ax, 007Fh
+            99       ; cwd
+            """);
+
+        var block = expr.Blocks[0];
+        Assert.Empty(block.Operations);
+
+        var dx = Assert.IsType<ConstExpr>(block.EndRegisters.DX);
+        Assert.Equal(0, dx.Value);
+
+        var ax = Assert.IsType<ConstExpr>(block.EndRegisters.AX);
+        Assert.Equal(0x007F, ax.Value);
+    }
+
+    [Fact]
+    public void Cwd_WithVariable_ProducesSignExtendExprInDx()
+    {
+        var expr = BuildExpressions("99", vars =>   // cwd
+        {
+            var v = vars.CreateVariable("val");
+            return RegisterExpressions.InitZero().Set16(GpRegister16.AX, v);
+        });
+
+        var block = expr.Blocks[0];
+        // Нет SetOperation (CWD — чистое преобразование регистра)
+        Assert.Empty(block.Operations);
+
+        // DX теперь содержит выражение знакового расширения (shr/and/sub/and над переменной)
+        var dx = block.EndRegisters.DX;
+        // Просто проверяем, что это не константа и не исходная переменная AX
+        Assert.NotNull(dx);
+        Assert.False(dx is ConstExpr);
+        // AX остался той же переменной
+        var ax = Assert.IsType<Variable>(block.EndRegisters.AX);
+        Assert.Equal("val", ax.Name);
+    }
+
+    [Fact]
     public void Adc_Sbb_DoNotThrow_AndUpdateRegisters()
     {
         // Просто проверяем, что ADC/SBB доходят до HandleArithmetic и не падают
