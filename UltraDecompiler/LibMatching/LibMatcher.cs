@@ -4,7 +4,7 @@ using LibParser.Omf;
 
 namespace UltraDecompiler.LibMatching;
 
-public sealed class LibMatcher
+public static class LibMatcher
 {
     /// <summary>Имя символа crt0-точки входа в библиотеках QuickC.</summary>
     public const string AstartSymbol = "__astart";
@@ -17,7 +17,7 @@ public sealed class LibMatcher
     /// </summary>
     /// <param name="symbolName">Если задано — проверяется только этот символ.</param>
     /// <param name="moduleName">Если задано — проверяются только символы указанного модуля.</param>
-    public IReadOnlyList<EntryPointLibraryMatchInfo> MatchEntryPoint(
+    public static IReadOnlyList<EntryPointLibraryMatchInfo> MatchEntryPoint(
         byte[] image,
         RelocationTable imageRelocations,
         int entryPointOffset,
@@ -58,7 +58,7 @@ public sealed class LibMatcher
         return results;
     }
 
-    public IReadOnlyList<LibraryMatchInfo> MatchFunction(
+    public static IReadOnlyList<LibraryMatchInfo> MatchFunction(
         byte[] image,
         RelocationTable imageRelocations,
         int imageOffset,
@@ -69,7 +69,7 @@ public sealed class LibMatcher
     /// <summary>
     /// Сопоставляет участок образа с символами одной OMF-библиотеки.
     /// </summary>
-    public IReadOnlyList<LibraryMatchInfo> MatchFunction(
+    public static IReadOnlyList<LibraryMatchInfo> MatchFunction(
         byte[] image,
         RelocationTable imageRelocations,
         int imageOffset,
@@ -88,7 +88,7 @@ public sealed class LibMatcher
             .Select(m => ToMatchInfo(m, library))
             .ToList();
 
-    public int FindMainOffset(
+    public static int FindMainOffset(
         byte[] image,
         RelocationTable imageRelocations,
         OmfLibrary library,
@@ -106,7 +106,7 @@ public sealed class LibMatcher
     /// <summary>
     /// Универсальный поиск адреса символа по вызову из другого символа (через FIXUPP модуля библиотеки).
     /// </summary>
-    public int FindCalledSymbolOffset(
+    public static int FindCalledSymbolOffset(
         byte[] image,
         RelocationTable imageRelocations,
         OmfLibrary library,
@@ -160,7 +160,7 @@ public sealed class LibMatcher
     /// возвращает <paramref name="entryPoint"/> (оптимизация — не перепроверяем).
     /// Иначе выполняет поиск: сначала проверка на entryPoint, затем fallback через <see cref="LibrarySymbolFinder"/>.
     /// </summary>
-    public int ResolveAstartOffset(
+    public static int ResolveAstartOffset(
         byte[] image,
         RelocationTable imageRelocations,
         EntryPointLibraryMatchInfo match,
@@ -183,7 +183,7 @@ public sealed class LibMatcher
     /// Разрешает смещение __astart в образе для данной библиотеки (без предварительного EntryPointMatch).
     /// Сначала проверяет совпадение на точке входа, при необходимости делает полный перебор (fallback).
     /// </summary>
-    public int ResolveAstartOffset(
+    public static int ResolveAstartOffset(
         byte[] image,
         RelocationTable imageRelocations,
         OmfLibrary library,
@@ -231,7 +231,7 @@ public sealed class LibMatcher
     /// Каждый такой — самостоятельный кандидат на "главную" библиотеку.
     /// Этот метод инкапсулирует поиск astartOffset (и main) и используется diagnostic CLI decompile-main.
     /// </summary>
-    public List<(EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset)> ResolveAllViableLibrariesAndMains(
+    public static List<(EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset)> ResolveAllViableLibrariesAndMains(
         byte[] image,
         RelocationTable imageRelocations,
         IReadOnlyList<EntryPointLibraryMatchInfo> entryMatches,
@@ -289,7 +289,7 @@ public sealed class LibMatcher
     /// Возвращает null, если не найдено ни одного viable (нет crt0/__astart + _main).
     /// Это объединение ResolveAllViableLibrariesAndMains + PickPreferredViable для упрощения DecompileMainCommand.
     /// </summary>
-    public (EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset)? ResolvePreferredMain(
+    public static (EntryPointLibraryMatchInfo Match, int AstartOffset, int MainOffset)? ResolvePreferredMain(
         byte[] image,
         RelocationTable imageRelocations,
         IReadOnlyList<EntryPointLibraryMatchInfo> entryMatches,

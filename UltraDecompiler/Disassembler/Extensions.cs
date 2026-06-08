@@ -131,6 +131,9 @@ public static class Extensions
             Mnemonic.CWD => "cwd",
             Mnemonic.XLAT => "xlat",
 
+            Mnemonic.FWAIT => "fwait",
+            Mnemonic.FPU => "fpu",
+
             Mnemonic.DB => "db",
 
             _ => instruction.Mnemonic.ToString().ToLower()

@@ -14,8 +14,6 @@ public class Decompiler
 {
     private const string MainFunction = "main";
 
-    private readonly LibMatcher _libraryMatcher = new();
-
     /// <summary>
     /// Декомпилирует EXE/COM: находит <c>_main</c>, рекурсивно собирает функции,
     /// сопоставляет runtime с .LIB и сохраняет пользовательский код в <paramref name="outputDirectory"/>.
@@ -46,7 +44,7 @@ public class Decompiler
         // Составляем множество подключаемых библиотек. По мере парсинга, будут выкидываться неподходящие
         var libraryCandidates = new LibraryCandidateSet(allLibraries);
 
-        var entryMatches = _libraryMatcher.MatchEntryPoint(
+        var entryMatches = LibMatcher.MatchEntryPoint(
             parser.Image,
             parser.RelocationTable,
             entryPoint,
@@ -192,13 +190,13 @@ public class Decompiler
 
             try
             {
-                var astartOffset = _libraryMatcher.ResolveAstartOffset(
+                var astartOffset = LibMatcher.ResolveAstartOffset(
                     parser.Image,
                     parser.RelocationTable,
                     match,
                     entryPoint,
                     initRegisters);
-                var mainOffset = _libraryMatcher.FindMainOffset(
+                var mainOffset = LibMatcher.FindMainOffset(
                     parser.Image,
                     parser.RelocationTable,
                     match.Library,
@@ -315,7 +313,7 @@ public class Decompiler
 
         foreach (var library in libraryCandidates.Candidates)
         {
-            var matches = _libraryMatcher.MatchFunction(
+            var matches = LibMatcher.MatchFunction(
                 parser.Image,
                 parser.RelocationTable,
                 offset,

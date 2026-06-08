@@ -83,6 +83,10 @@ public enum Mnemonic
     BOUND,
     ARPL,
 
+    // FPU / 8087
+    FWAIT,
+    FPU,
+
     // Специальные
     DAA, DAS, AAA, AAS,
     AAM, AAD,

@@ -46,8 +46,7 @@ internal static class DecompileMainCommand
             var libDirectory = ResolveLibraryDirectory(libDir);
 
             var libraries = LibMatcher.LoadLibraries(libDirectory);
-            var matcher = new LibMatcher();
-            var entryMatches = matcher.MatchEntryPoint(
+            var entryMatches = LibMatcher.MatchEntryPoint(
                 parser.Image,
                 parser.RelocationTable,
                 entryPoint,
@@ -59,7 +58,7 @@ internal static class DecompileMainCommand
             WriteEntryPointMatchTable(entryPoint, entryMatches);
 
             // Разрешаем viable + сразу выбираем предпочтительный (поиск astartOffset полностью внутри LibMatcher)
-            var chosen = matcher.ResolvePreferredMain(
+            var chosen = LibMatcher.ResolvePreferredMain(
                 parser.Image,
                 parser.RelocationTable,
                 entryMatches,

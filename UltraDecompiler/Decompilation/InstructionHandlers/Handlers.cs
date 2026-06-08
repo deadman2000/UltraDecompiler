@@ -40,6 +40,8 @@ public static class Handlers
         [Mnemonic.STC] = new FlagHandler(),
         [Mnemonic.CMC] = new FlagHandler(),
         [Mnemonic.NOP] = new NopHandler(),
+        [Mnemonic.FWAIT] = new NopHandler(),
+        [Mnemonic.FPU] = new NopHandler(),
 
         [Mnemonic.JO] = new JoHandler(),
         [Mnemonic.JNO] = new JnoHandler(),

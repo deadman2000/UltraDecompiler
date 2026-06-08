@@ -49,6 +49,9 @@ public partial class Instruction
             Mnemonic.ROL => ModifyRegistersRotate(state),
             Mnemonic.ROR => ModifyRegistersRotate(state),
 
+            Mnemonic.FWAIT => state,
+            Mnemonic.FPU => state,
+
             // TODO: MUL, IMUL, DIV, IDIV, RCL/RCR, DAA, DAS, AAA, AAS, AAM, AAD, LEA, PUSHF/POPF и др.
             _ => state,
         };

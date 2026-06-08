@@ -176,4 +176,26 @@ public class PushPopTests : BaseTests
         Assert.Equal("1234h", instructions[0].Operands);
     }
 
+    [Fact]
+    public void DisassemblePushImm8_Positive()
+    {
+        // PUSH imm8 (0x6A) — знак-расширяется до 16 бит
+        var instructions = Disassemble("6A 05"); // PUSH 5
+        Assert.Equal(Mnemonic.PUSH, instructions[0].Mnemonic);
+        Assert.Equal(OperandType.Immediate16, instructions[0].Operand1.Type);
+        Assert.Equal(0x0005, instructions[0].Operand1.Value);
+        Assert.Contains("5", instructions[0].Operands);
+    }
+
+    [Fact]
+    public void DisassemblePushImm8_Negative()
+    {
+        // PUSH -1 (sign-extend 0xFF -> 0xFFFF)
+        var instructions = Disassemble("6A FF"); // PUSH 0FFFFh
+        Assert.Equal(Mnemonic.PUSH, instructions[0].Mnemonic);
+        Assert.Equal(OperandType.Immediate16, instructions[0].Operand1.Type);
+        Assert.Equal(0xFFFF, instructions[0].Operand1.Value);
+        Assert.Equal("FFFFh", instructions[0].Operands);
+    }
+
 }

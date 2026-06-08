@@ -330,6 +330,17 @@ public class X86Disassembler
                     Operand1 = Imm16(ReadUInt16()),
                 };
 
+            case 0x6A:
+                {
+                    // PUSH imm8 (знак-расширяется до 16 бит)
+                    sbyte imm = (sbyte)ReadByte();
+                    return new Instruction
+                    {
+                        Mnemonic = Mnemonic.PUSH,
+                        Operand1 = Imm16((ushort)imm)
+                    };
+                }
+
             case 0x50:
             case 0x51:
             case 0x52:
@@ -432,6 +443,7 @@ public class X86Disassembler
                 }
 
             case 0x90: return new Instruction { Mnemonic = Mnemonic.NOP };
+            case 0x9B: return new Instruction { Mnemonic = Mnemonic.FWAIT };
 
             case 0x86:
             case 0x87:
@@ -523,6 +535,16 @@ public class X86Disassembler
 
             case 0xD4: return DecodeAam();
             case 0xD5: return DecodeAad();
+
+            case 0xD8:
+            case 0xD9:
+            case 0xDA:
+            case 0xDB:
+            case 0xDC:
+            case 0xDD:
+            case 0xDE:
+            case 0xDF:
+                return DecodeFpu(opcode);
 
             case 0x9C: return new Instruction { Mnemonic = Mnemonic.PUSHF };
             case 0x9D: return new Instruction { Mnemonic = Mnemonic.POPF };
@@ -673,6 +695,108 @@ public class X86Disassembler
     {
         byte baseVal = ReadByte();
         return baseVal == 0x0A ? new Instruction { Mnemonic = Mnemonic.AAD } : new Instruction { Mnemonic = Mnemonic.AAD, Commentary = "non-standard" };
+    }
+
+    /// <summary>
+    /// Декодирование FPU escape-инструкций 8087 (опкоды D8-DF).
+    /// Для библиотек QuickC (эмуляция floating point) это в основном thunk'и
+    /// вида "FWAIT; &lt;fpu-op&gt;; NOP; RET" с FIXUPP на FIDRQQ/FIWRQQ и т.п.
+    /// Полная поддержка всех FPU-мнемоник не требуется; важно корректно
+    /// потреблять байты (modrm + disp) и не превращать в DB.
+    /// </summary>
+    private Instruction DecodeFpu(byte opcode)
+    {
+        byte modrm = ReadByte();
+        int mod = (modrm >> 6) & 3;
+        int regField = (modrm >> 3) & 7;
+        int rm = modrm & 7;
+
+        // Пытаемся дать более осмысленную "псевдо-мнемонику" для часто встречающихся thunk'ов QuickC.
+        // Полноценная таблица 8087 не нужна — эти инструкции почти никогда не дойдут до ExpressionBuilder.
+        // Ключ — правильный размер инструкции + отсутствие DB.
+        string fpuName = (opcode, regField, mod, modrm) switch
+        {
+            // D8
+            (0xD8, 0, _, _) => "fadd",
+            (0xD8, 1, _, _) => "fmul",
+            (0xD8, 2, _, _) => "fcom",
+            (0xD8, 3, _, _) => "fcomp",
+            (0xD8, 4, _, _) => "fsub",
+            (0xD8, 5, _, _) => "fsubr",
+            (0xD8, 6, _, _) => "fdiv",
+            (0xD8, 7, _, _) => "fdivr",
+
+            // D9 — сначала конкретные 2-байтные (mod==3) по полному modrm (часто в thunk'ах)
+            (0xD9, _, 3, 0xE0) => "fchs",
+            (0xD9, _, 3, 0xE1) => "fld1",
+            (0xD9, _, 3, 0xE4) => "ftst",
+            (0xD9, _, 3, 0xE5) => "fxam",
+
+            // D9 mem (mod != 3)
+            (0xD9, 0, _, _) when mod != 3 => "fld",
+            (0xD9, 2, _, _) when mod != 3 => "fst",
+            (0xD9, 3, _, _) when mod != 3 => "fstp",
+            (0xD9, 4, _, _) when mod != 3 => "fldenv",
+            (0xD9, 5, _, _) when mod != 3 => "fldcw",
+            (0xD9, 6, _, _) when mod != 3 => "fstenv",
+            (0xD9, 7, _, _) when mod != 3 => "fstcw",
+
+            // D9 /r mod==3 по regField (общие)
+            (0xD9, 1, 3, _) => "fxch",
+            (0xD9, 0, 3, _) => "fld",
+            (0xD9, 3, 3, _) => "fstp",
+            (0xD9, _, 3, _) => "fpu",
+
+            (0xDA, _, _, _) => "fpu",
+            (0xDB, _, _, _) => "fpu",
+
+            // DC
+            (0xDC, 0, _, _) => "fadd",
+            (0xDC, 1, _, _) => "fmul",
+            (0xDC, 4, _, _) => "fsub",
+            (0xDC, 6, _, _) => "fdiv",
+
+            // DD
+            (0xDD, 0, _, _) when mod != 3 => "fld",
+            (0xDD, 2, _, _) when mod != 3 => "fst",
+            (0xDD, 3, _, _) when mod != 3 => "fstp",
+            (0xDD, _, 3, _) => "fpu",
+
+            // DE — классика для thunk'ов (FADDP и т.д.)
+            (0xDE, 0, 3, _) => "faddp",
+            (0xDE, 1, 3, _) => "fmulp",
+            (0xDE, 2, 3, _) => "fcompp",
+            (0xDE, 4, 3, _) => "fsubp",
+            (0xDE, 5, 3, _) => "fsubrp",
+            (0xDE, 6, 3, _) => "fdivp",
+            (0xDE, 7, 3, _) => "fdivrp",
+            (0xDE, _, _, _) => "fpu",
+
+            (0xDF, _, _, _) => "fpu",
+
+            _ => "fpu"
+        };
+
+        Mnemonic mnem = Mnemonic.FPU;
+
+        var instr = new Instruction { Mnemonic = mnem };
+
+        // Потребляем displacement при необходимости (mod != 3)
+        if (mod != 3)
+        {
+            if (mod == 1)
+                ReadByte();
+            else if (mod == 2)
+                ReadUInt16Core();
+            else if (mod == 0 && rm == 6)
+                ReadUInt16Core();
+        }
+
+        // Для CLI `lib -s` делаем вывод осмысленным: "faddp", "fld" и т.д. в Commentary.
+        // Это не влияет на байты и LibMatching.
+        instr.Commentary = fpuName;
+
+        return instr;
     }
 
     private Instruction DecodeEnter()
