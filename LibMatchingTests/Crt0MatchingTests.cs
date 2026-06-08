@@ -28,8 +28,8 @@ public class Crt0MatchingTests
     }
 
     [Theory]
-    [MemberData(nameof(HelloMemoryModelCases.MemberData), MemberType = typeof(HelloMemoryModelCases))]
-    public void Match_HelloEntryPoint_WithCrt0(HelloMemoryModelCase modelCase)
+    [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
+    public void Match_HelloEntryPoint_WithCrt0(ExeMemoryModelCase modelCase)
     {
         var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
         var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
@@ -65,8 +65,8 @@ public class Crt0MatchingTests
     }
 
     [Theory]
-    [MemberData(nameof(HelloMemoryModelCases.MemberData), MemberType = typeof(HelloMemoryModelCases))]
-    public void Match_HelloEntryPoint_DoesNotFindPrintf(HelloMemoryModelCase modelCase)
+    [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
+    public void Match_HelloEntryPoint_DoesNotFindPrintf(ExeMemoryModelCase modelCase)
     {
         var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
         var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
@@ -82,8 +82,8 @@ public class Crt0MatchingTests
     }
 
     [Theory]
-    [MemberData(nameof(HelloMemoryModelCases.MemberData), MemberType = typeof(HelloMemoryModelCases))]
-    public void Match_HelloPrintf_DoesNotFindCrt0Symbols(HelloMemoryModelCase modelCase)
+    [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
+    public void Match_HelloPrintf_DoesNotFindCrt0Symbols(ExeMemoryModelCase modelCase)
     {
         var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
         var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
@@ -100,8 +100,8 @@ public class Crt0MatchingTests
     }
 
     [Theory]
-    [MemberData(nameof(HelloMemoryModelCases.MemberData), MemberType = typeof(HelloMemoryModelCases))]
-    public void Match_HelloEntryPoint_With87Lib_ReturnsEmpty(HelloMemoryModelCase modelCase)
+    [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
+    public void Match_HelloEntryPoint_With87Lib_ReturnsEmpty(ExeMemoryModelCase modelCase)
     {
         var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
         var mathLib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf("87.LIB"));

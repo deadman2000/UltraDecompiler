@@ -52,7 +52,7 @@
 - `OmfFixupNameResolver` — имена целей FIXUPP.
 - `LibraryFunctionMatcher` + `FunctionBodyComparer` — сопоставление тела функции EXE с символом `.LIB` (с маскированием rel16 и near CALL/JMP).
 - `Crt0EntryPointMatcher` — выбор библиотеки по совпадению crt0/`__astart` на точке входа.
-- `MainOffsetFinder` — поиск `_main` по FIXUPP вызова из crt0.
+- `LibraryCallResolver` (бывший MainOffsetFinder) — поиск `_main` и произвольных символов по FIXUPP-вызовам из библиотечных функций (crt0 и др.). Основной метод `FindCalledSymbol`, удобный `FindMainFromAstart`.
 - CLI `decompile-main`: crt0 → `_main` → `DecompilePipeline`.
 - CLI `lib -s SYMBOL`: разбор модуля, таблица FIXUPP, дизассемблирование CODE.
 - Тесты: `LibParserTests`, `LibMatchingTests` (эталонные `.LIB` / `.EXE` из `QuickC/`).

@@ -1,7 +1,7 @@
 namespace LibMatchingTests;
 
-/// <summary>Эталон hello.c, собранный QuickC под разные модели памяти.</summary>
-public sealed record HelloMemoryModelCase(
+/// <summary>Эталонный EXE, собранный QuickC под разные модели памяти.</summary>
+public sealed record ExeMemoryModelCase(
     string Name,
     string ExeFileName,
     string LibraryFileName)
@@ -9,13 +9,13 @@ public sealed record HelloMemoryModelCase(
     public override string ToString() => Name;
 }
 
-/// <summary>Наборы EXE + .LIB для тестов сопоставления hello.c.</summary>
-internal static class HelloMemoryModelCases
+/// <summary>Наборы EXE + .LIB для тестов сопоставления EXE.</summary>
+internal static class ExeMemoryModelCases
 {
     public static IEnumerable<object[]> MemberData =>
         All.Select(static c => new object[] { c });
 
-    public static IReadOnlyList<HelloMemoryModelCase> All { get; } =
+    public static IReadOnlyList<ExeMemoryModelCase> All { get; } =
     [
         new("Small", "HELLO_S.EXE", "SLIBCE.LIB"),
         new("Compact", "HELLO_C.EXE", "CLIBC.LIB"),

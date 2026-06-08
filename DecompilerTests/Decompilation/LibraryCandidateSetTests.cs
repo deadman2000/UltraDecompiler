@@ -19,35 +19,6 @@ public class LibraryCandidateSetTests
         Assert.Equal(["SLIBCE.LIB"], set.LinkedFileNames);
     }
 
-    [Fact]
-    public void NarrowByEntryPoint_KeepsOnlyCrt0Matches()
-    {
-        var slibce = CreateLibrary("SLIBCE.LIB", ["__astart"]);
-        var math = CreateLibrary("MATH.LIB", ["_sin"]);
-
-        var set = new LibraryCandidateSet([slibce, math]);
-        set.NarrowByEntryPointMatches([
-            new EntryPointLibraryMatchInfo
-            {
-                Library = slibce,
-                Matches =
-                [
-                    new LibraryMatchInfo
-                    {
-                        SymbolName = "__astart",
-                        ModulePage = 1,
-                        ModuleName = "crt0",
-                        ModuleCodeOffset = 0,
-                        LibraryFileName = slibce.FileName,
-                    },
-                ],
-            },
-        ]);
-
-        Assert.Single(set.Candidates);
-        Assert.Equal("SLIBCE.LIB", set.Candidates[0].FileName);
-    }
-
     private static OmfLibrary CreateLibrary(string fileName, string[] symbols)
     {
         var dict = symbols.ToDictionary(

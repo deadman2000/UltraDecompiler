@@ -9,8 +9,8 @@ namespace LibMatchingTests;
 public class ExeMatchingTests
 {
     [Theory]
-    [MemberData(nameof(HelloMemoryModelCases.MemberData), MemberType = typeof(HelloMemoryModelCases))]
-    public void Match_Printf_ForMemoryModel(HelloMemoryModelCase modelCase)
+    [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
+    public void Match_Printf_ForMemoryModel(ExeMemoryModelCase modelCase)
     {
         var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
         var lib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
@@ -31,8 +31,8 @@ public class ExeMatchingTests
     }
 
     [Theory]
-    [MemberData(nameof(HelloMemoryModelCases.MemberData), MemberType = typeof(HelloMemoryModelCases))]
-    public void Match_EntryPoint_DoesNotFindPrintf(HelloMemoryModelCase modelCase)
+    [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
+    public void Match_EntryPoint_DoesNotFindPrintf(ExeMemoryModelCase modelCase)
     {
         var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
         var lib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
@@ -48,8 +48,8 @@ public class ExeMatchingTests
     }
 
     [Theory]
-    [MemberData(nameof(HelloMemoryModelCases.MemberData), MemberType = typeof(HelloMemoryModelCases))]
-    public void Match_PrintfOffsetPlusOne_ReturnsEmpty(HelloMemoryModelCase modelCase)
+    [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
+    public void Match_PrintfOffsetPlusOne_ReturnsEmpty(ExeMemoryModelCase modelCase)
     {
         var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
         var lib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
@@ -66,8 +66,8 @@ public class ExeMatchingTests
     }
 
     [Theory]
-    [MemberData(nameof(HelloMemoryModelCases.MemberData), MemberType = typeof(HelloMemoryModelCases))]
-    public void Match_Printf_FindsOnlyPrintfSymbol(HelloMemoryModelCase modelCase)
+    [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
+    public void Match_Printf_FindsOnlyPrintfSymbol(ExeMemoryModelCase modelCase)
     {
         var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
         var lib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
@@ -84,8 +84,8 @@ public class ExeMatchingTests
     }
 
     [Theory]
-    [MemberData(nameof(HelloMemoryModelCases.MemberData), MemberType = typeof(HelloMemoryModelCases))]
-    public void Match_Printf_WrongLibrary_ReturnsEmpty(HelloMemoryModelCase modelCase)
+    [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
+    public void Match_Printf_WrongLibrary_ReturnsEmpty(ExeMemoryModelCase modelCase)
     {
         var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
         var printfOffset = PrintfOffsetFinder.Find(

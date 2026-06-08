@@ -88,13 +88,35 @@ public sealed class LibMatcher
         int astartOffset,
         RegisterState initRegisters,
         int astartModuleCodeOffset) =>
-        MainOffsetFinder.FindFromAstart(
+        LibraryCallResolver.FindMainFromAstart(
             image,
             imageRelocations,
             library,
             astartOffset,
             initRegisters,
             astartModuleCodeOffset);
+
+    /// <summary>
+    /// Универсальный поиск адреса символа по вызову из другого символа (через FIXUPP модуля библиотеки).
+    /// </summary>
+    public int FindCalledSymbolOffset(
+        byte[] image,
+        RelocationTable imageRelocations,
+        OmfLibrary library,
+        string callerSymbolName,
+        string targetSymbolName,
+        int callerOffset,
+        RegisterState initRegisters,
+        int callerModuleCodeOffset = 0) =>
+        LibraryCallResolver.FindCalledSymbol(
+            image,
+            imageRelocations,
+            library,
+            callerSymbolName,
+            targetSymbolName,
+            callerOffset,
+            initRegisters,
+            callerModuleCodeOffset);
 
     private static LibraryMatchInfo ToMatchInfo(LibraryMatchResult match, OmfLibrary library) =>
         new()

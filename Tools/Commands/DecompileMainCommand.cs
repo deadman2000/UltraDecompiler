@@ -204,7 +204,7 @@ internal static class DecompileMainCommand
             try
             {
                 var astartOffset = ResolveAstartOffset(parser, match.Library, initRegisters, entryPoint);
-                var mainOffset = MainOffsetFinder.FindFromAstart(
+                var mainOffset = LibraryCallResolver.FindMainFromAstart(
                     parser.Image,
                     parser.RelocationTable,
                     match.Library,

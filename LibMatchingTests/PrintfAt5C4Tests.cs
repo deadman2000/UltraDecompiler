@@ -8,8 +8,8 @@ namespace LibMatchingTests;
 public class PrintfAt5C4Tests
 {
     [Theory]
-    [MemberData(nameof(HelloMemoryModelCases.MemberData), MemberType = typeof(HelloMemoryModelCases))]
-    public void Match_Printf_AtDiscoveredOffset(HelloMemoryModelCase modelCase)
+    [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
+    public void Match_Printf_AtDiscoveredOffset(ExeMemoryModelCase modelCase)
     {
         var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
         var lib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
