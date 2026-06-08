@@ -1,9 +1,11 @@
 @echo off
 rem ============================================================
 rem build_dos.bat — сборка эталонных примеров QuickC ВНУТРИ DOS-эмулятора
-rem (DOSBox, DOSBox-Staging и т.п.).
+rem (DOSBox-X и т.п. через joncloud/dos-build-action или вручную).
 rem
-rem Вызывается из dosbox-ci.conf после cd PROGRAMS.
+rem Должен вызываться когда текущая директория — это PROGRAMS
+rem (т.е. caller уже сделал CD в PROGRAMS).
+rem Использует ..\QCL.EXE и ..\*.LIB относительно PROGRAMS.
 rem ============================================================
 
 echo.
@@ -11,8 +13,6 @@ echo === INSIDE build_dos.bat (executing from emulated DOS) ===
 echo Current DOS directory:
 cd
 echo.
-
-cd PROGRAMS
 
 echo [hello.c] Small /AS + SLIBCE.LIB
 ..\QCL.EXE /AS /FeHELLO_S.EXE ..\SLIBCE.LIB /I..\INCLUDE hello.c
@@ -50,11 +50,9 @@ if errorlevel 1 goto build_error
 
 echo.
 echo === SUCCESS: All QuickC examples built inside DOS emulator ===
-cd ..
 goto :eof
 
 :build_error
 echo.
 echo *** BUILD FAILED inside DOS emulator ***
-cd ..
 exit 1

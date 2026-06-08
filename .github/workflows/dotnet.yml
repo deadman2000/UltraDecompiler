@@ -30,29 +30,33 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    name: Build QuickC examples (DOSBox) + test
+    name: Build QuickC examples (DOSBox-X) + test
     needs: build
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install DOSBox
-      run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y software-properties-common
-        # Try to get newer dosbox-staging from official PPA
-        sudo add-apt-repository -y ppa:dosbox-staging/stable || true
-        sudo apt-get update -qq
-        sudo apt-get install -y dosbox-staging || sudo apt-get install -y dosbox
+    - name: Build reference examples
+      uses: joncloud/dos-build-action@v1
+      with:
+        programs: |
+          QuickC:C:\QC
+        run: |
+          C:
+          SET LIB=C:\QC
+          SET INCLUDE=C:\QC\INCLUDE
+          SET PATH=C:\QC;%PATH%
+          CD \QC\PROGRAMS
+          DIR
+          DIR ..
+          CALL ..\build_dos.bat
+        conf: |
+          [cpu]
+          cycles=30000
+          turbo=true
 
-        echo "=== Installed DOSBox ==="
-        (dosbox-staging --version 2>/dev/null || dosbox --version 2>/dev/null || echo "no version info")
-        (command -v dosbox-staging || command -v dosbox || echo "dosbox not found in PATH")
-
-    - name: Build QuickC reference examples via DOSBox (headless)
+    - name: Show produced QuickC executables
       run: |
-        chmod +x QuickC/build_ci.sh || true
-        bash QuickC/build_ci.sh
         echo "=== QuickC build artifacts in PROGRAMS ==="
         ls -l QuickC/PROGRAMS/*_?.EXE || true
 
