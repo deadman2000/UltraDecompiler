@@ -314,25 +314,18 @@ public sealed class LibraryProvider
                 continue;
             }
 
-            try
-            {
-                var astartOffset = ResolveAstartOffsetInternal(
-                    image, imageRelocations, match, entryPoint, initRegisters);
+            var astartOffset = ResolveAstartOffsetInternal(
+                image, imageRelocations, match, entryPoint, initRegisters);
 
-                var mainOffset = LibraryCallResolver.FindMainFromAstart(
-                    image,
-                    imageRelocations,
-                    match.Library,
-                    astartOffset,
-                    initRegisters,
-                    match.AstartMatch!.ModuleCodeOffset);
+            var mainOffset = LibraryCallResolver.FindMainFromAstart(
+                image,
+                imageRelocations,
+                match.Library,
+                astartOffset,
+                initRegisters,
+                match.AstartMatch!.ModuleCodeOffset);
 
-                result.Add((match.Library, mainOffset, match.AstartMatch));
-            }
-            catch (InvalidOperationException)
-            {
-                // FIXUPP crt0 не соответствует — библиотека не viable
-            }
+            result.Add((match.Library, mainOffset, match.AstartMatch));
         }
 
         return result;
