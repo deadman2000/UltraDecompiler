@@ -29,6 +29,8 @@ public static class Handlers
         [Mnemonic.INT] = new InterruptHandler(),
         [Mnemonic.CALL] = new CallHandler(),
         [Mnemonic.CALL_FAR] = new CallHandler(),
+        [Mnemonic.RET] = new RetHandler(),
+        [Mnemonic.RET_IMM] = new RetHandler(),
         [Mnemonic.LOOP] = new LoopHandler(),
         [Mnemonic.LOOPE] = new LoopHandler(),
         [Mnemonic.LOOPNE] = new LoopHandler(),

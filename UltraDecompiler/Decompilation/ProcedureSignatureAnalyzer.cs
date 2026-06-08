@@ -12,7 +12,8 @@ public static class ProcedureSignatureAnalyzer
     {
         var parameters = AnalyzeParameters(procedure.Instructions);
         var returnType = AnalyzeReturnType(procedure.Instructions);
-        return new ProcedureSignature(returnType, parameters);
+        var clobbers = CollectClobbers(procedure.Instructions);
+        return new ProcedureSignature(returnType, parameters, clobbers: clobbers);
     }
 
     private static IReadOnlyList<ProcedureParameter> AnalyzeParameters(IReadOnlyList<Instruction> instructions)
@@ -136,4 +137,25 @@ public static class ProcedureSignatureAnalyzer
         instr.Operand1.AsGpRegister16() == GpRegister16.BP &&
         instr.Operand2.Type == OperandType.Register16 &&
         instr.Operand2.AsGpRegister16() == GpRegister16.SP;
+
+    /// <summary>
+    /// Собирает 16-битные регистры, упоминаемые в инструкциях процедуры (консервативная оценка clobbers).
+    /// Используется для пометки регистров, которые callee может изменить (полезно после CALL в CallHandler).
+    /// </summary>
+    private static IReadOnlySet<GpRegister16> CollectClobbers(IReadOnlyList<Instruction> instructions)
+    {
+        var regs = new HashSet<GpRegister16>();
+        foreach (var instr in instructions)
+        {
+            CollectReg16(instr.Operand1, regs);
+            CollectReg16(instr.Operand2, regs);
+        }
+        return regs;
+    }
+
+    private static void CollectReg16(Operand operand, HashSet<GpRegister16> regs)
+    {
+        if (operand.Type == OperandType.Register16)
+            regs.Add(operand.AsGpRegister16());
+    }
 }

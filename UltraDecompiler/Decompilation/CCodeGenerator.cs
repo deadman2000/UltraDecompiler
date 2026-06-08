@@ -52,7 +52,23 @@ public static class CCodeGenerator
         {
             foreach (var operation in operations)
             {
-                operation.AppendToCString(sb, indent: 1, asStatement: true);
+                if (operation is ReturnOperation retOp)
+                {
+                    // Для void — всегда голый return, даже если ReturnOperation несёт значение AX.
+                    // Это гарантирует корректный C-код. Value из AX сохраняется в IR для анализа/тестов.
+                    if (procedure.Signature.ReturnType.IsVoid || retOp.Value == null)
+                    {
+                        sb.AppendLine("    return;");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"    return {retOp.Value};");
+                    }
+                }
+                else
+                {
+                    operation.AppendToCString(sb, indent: 1, asStatement: true);
+                }
             }
         }
 

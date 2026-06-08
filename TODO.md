@@ -69,6 +69,7 @@
 
 - **Реализовано (2026):** восстановление **входных параметров** декомпилируемой функции в `ExpressionBuilder` — пролог `push bp; mov bp, sp` / `ENTER`, обращения `[BP+offset]` (offset ≥ 4) → переменные `arg0`, `arg1`, …; чтения параметров в IR подменяются на `Variable` вместо `MemExpr`.
 - **Реализовано (2026):** сигнатуры в `DisassembledProcedure.Signature` — библиотечные функции из `QuickC/INCLUDE` (`QuickCHeaderCatalog`), пользовательские из `ProcedureSignatureAnalyzer` (пролог + `[BP+n]`, эвристика `void`/`int` по записи в AX). `CallHandler` берёт callee из `ProcedureStorage`, аргументы — со стека (cdecl) / PUSH перед CALL (variadic). `CallExpr(string Name, …)` вместо класса `Procedure`.
+- **Реализовано (базово):** явная поддержка return — `RetHandler` + `ReturnOperation(Expr? Value из AX)` в IR, обработка в `GenerateCode` (ExpressionBuilder), генерация `return <expr>;` / `return;` в `CCodeGenerator` (с учётом `Signature.ReturnType`). Добавлена базовая коллекция/применение `Clobbers` (ProcedureSignature + Analyzer + CallHandler). Улучшена модель возвратов и clobber после вызовов.
 - Нет анализа эпилога, локальных переменных `[BP-offset]`, точных типов параметров пользовательских функций (пока `int`).
 - Косвенные вызовы и far call — без сигнатуры; только адрес в аргументах.
 - LibMatching даёт имена только для символов, чьё тело совпало с кодом в образе; произвольные процедуры пользователя не восстанавливаются.

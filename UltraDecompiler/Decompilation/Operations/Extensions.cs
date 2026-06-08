@@ -21,6 +21,7 @@ public static class Extensions
                 SetOperation s => FormatSet(s, indent),
                 CallOperation c => FormatCall(c, indent),
                 StoreOperation st => FormatStore(st, indent),
+                ReturnOperation r => FormatReturn(r, indent),
                 WhileOperation w => FormatWhile(w, indent),
                 ForOperation f => FormatFor(f, indent),
                 IfOperation i => FormatIf(i, indent),
@@ -61,6 +62,15 @@ public static class Extensions
     {
         var args = string.Join(", ", call.Args);
         return $"{Indent(indent)}{call.Name}({args})";
+    }
+
+    static string FormatReturn(ReturnOperation ret, int indent)
+    {
+        if (ret.Value is { } v)
+        {
+            return $"{Indent(indent)}return {v}";
+        }
+        return $"{Indent(indent)}return";
     }
 
     static string FormatStore(StoreOperation store, int indent)

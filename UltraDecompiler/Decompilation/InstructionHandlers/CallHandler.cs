@@ -51,12 +51,24 @@ public class CallHandler : IInstructionHandler
         if (signature.ReturnType.IsVoid)
         {
             block.Operations.Add(new CallOperation(callExpr.Name, callExpr.Args));
-            return;
+        }
+        else
+        {
+            var resultVar = block.Variables.CreateVariable();
+            block.Operations.Add(new SetOperation(resultVar, callExpr));
+            block.EndRegisters = block.EndRegisters.Set16(GpRegister16.AX, resultVar);
         }
 
-        var resultVar = block.Variables.CreateVariable();
-        block.Operations.Add(new SetOperation(resultVar, callExpr));
-        block.EndRegisters = block.EndRegisters.Set16(GpRegister16.AX, resultVar);
+        // Применяем clobbers процедуры (caller-saved регистры, которые callee может изменить).
+        // AX пропускаем, если только что записали туда возвращаемое значение.
+        foreach (var reg in signature.Clobbers)
+        {
+            if (reg == GpRegister16.AX && !signature.ReturnType.IsVoid)
+                continue;
+
+            var clobberVar = block.Variables.CreateVariable();
+            block.EndRegisters = block.EndRegisters.Set16(reg, clobberVar);
+        }
     }
 
     private static IReadOnlyList<Expr> ResolveArguments(

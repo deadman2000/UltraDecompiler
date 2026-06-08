@@ -202,9 +202,18 @@ public partial class ExpressionBuilder
         foreach (var instr in block.BasicBlock.Instructions)
         {
             // === Управление потоком ===
-            // При встрече прыжка/возврата/выхода сразу завершаем обработку блока.
-            // Для условных переходов сразу заполняем Condition.
-            if (instr.IsUnconditionalJump || instr.IsReturn)
+            // При встрече безусловного перехода — завершаем блок (переход моделируется в CFG).
+            // При RET/RET_IMM: вызываем обработчик (RetHandler создаст ReturnOperation с AX),
+            // затем завершаем блок. Это добавляет явный возврат в IR.
+            // Для условных переходов сразу заполняем Condition (в их хендлерах).
+            if (instr.IsReturn)
+            {
+                Handlers.Get(instr.Mnemonic)?.Handle(block, instr);
+                Debug.Assert(block.BasicBlock.ConditionalBlock == null);
+                return block;
+            }
+
+            if (instr.IsUnconditionalJump)
             {
                 Debug.Assert(block.BasicBlock.ConditionalBlock == null);
                 return block;
