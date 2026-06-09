@@ -34,7 +34,7 @@ public class GetAllOperationsTests : BaseTests
         var ifOp = Assert.Single(ops.OfType<IfOperation>());
 
         Assert.IsType<CmpExpr>(ifOp.Condition);
-        Assert.NotNull(ifOp.ElseBody);
+        Assert.Null(ifOp.ElseBody);
     }
 
     [Fact]

@@ -111,7 +111,7 @@ public static class Extensions
         AppendBody(sb, branch.ThenBody, indent);
         sb.AppendLine($"{Indent(indent)}}}");
 
-        if (branch.ElseBody != null)
+        if (branch.ElseBody is { Count: > 0 })
         {
             sb.AppendLine($"{Indent(indent)}else");
             sb.AppendLine($"{Indent(indent)}{{");

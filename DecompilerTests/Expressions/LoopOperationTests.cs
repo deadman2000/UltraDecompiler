@@ -51,6 +51,18 @@ public class LoopOperationTests
     }
 
     [Fact]
+    public void IfOperation_EmptyElse_OmitsElseBranch()
+    {
+        var thenBody = new List<Operation> { new SetOperation(new Variable(1), ConstExpr.One) };
+        var ifOp = new IfOperation(ConstExpr.One, thenBody, Array.Empty<Operation>());
+        string result = ifOp.ToCString();
+
+        Assert.Contains("var1 = 1;", result);
+        Assert.DoesNotContain("else", result);
+        Assert.DoesNotContain("; // empty body", result);
+    }
+
+    [Fact]
     public void WhileOperation_SimpleBody_ProducesCorrectC()
     {
         var cond = new CmpExpr(CmpOperation.Ne, new Variable(1), ConstExpr.Zero);

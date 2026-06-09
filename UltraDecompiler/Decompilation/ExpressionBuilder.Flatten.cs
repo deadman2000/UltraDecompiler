@@ -86,8 +86,10 @@ public partial class ExpressionBuilder
                 List<Operation>? elseBody = null;
                 if (block.Next != null)
                 {
-                    elseBody = new List<Operation>();
-                    CollectOperations(block.Next, elseBody, visited, stopBefore: merge);
+                    var elseOps = new List<Operation>();
+                    CollectOperations(block.Next, elseOps, visited, stopBefore: merge);
+                    if (elseOps.Count > 0)
+                        elseBody = elseOps;
                 }
 
                 result.Add(new IfOperation(block.Condition, thenBody, elseBody));
