@@ -9,7 +9,7 @@ public sealed record CompilerOptions
     /// <see langword="true"/>, если включена проверка стека.
     /// </summary>
     public bool StackCheckingEnabled { get; init; }
-    
+
     public override string ToString()
     {
         return StackCheckingEnabled

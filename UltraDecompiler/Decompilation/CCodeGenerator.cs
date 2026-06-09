@@ -23,6 +23,8 @@ public static class CCodeGenerator
         sb.AppendLine($"{returnType} {procedure.Name}({parameters})");
         sb.AppendLine("{");
 
+        AppendLocalVariableDeclarations(sb, procedure, operations);
+
         if (operations.Count == 0)
         {
             sb.AppendLine("    ;");
@@ -53,6 +55,29 @@ public static class CCodeGenerator
 
         sb.AppendLine("}");
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Добавляет объявления локальных переменных (int), используемых в теле функции.
+    /// Параметры из сигнатуры не дублируются.
+    /// </summary>
+    private static void AppendLocalVariableDeclarations(
+        StringBuilder sb,
+        DisassembledProcedure procedure,
+        IReadOnlyList<Operation> operations)
+    {
+        var parameters = procedure.Expressions.Parameters.Select(static p => p.Variable);
+        var locals = UsedVariableCollector.Collect(operations, parameters);
+
+        foreach (var variable in locals)
+        {
+            sb.AppendLine($"    int {variable};");
+        }
+
+        if (locals.Count > 0 && operations.Count > 0)
+        {
+            sb.AppendLine();
+        }
     }
 
     private static string FormatParameterList(ProcedureSignature signature)
