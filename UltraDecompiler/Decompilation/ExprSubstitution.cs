@@ -44,6 +44,56 @@ internal static class ExprSubstitution
     }
 
     /// <summary>
+    /// Собирает все переменные, встречающиеся в выражении.
+    /// </summary>
+    public static HashSet<Variable> CollectVariables(Expr? expr)
+    {
+        var result = new HashSet<Variable>();
+        CollectVariablesRecursive(expr, result);
+        return result;
+    }
+
+    private static void CollectVariablesRecursive(Expr? expr, HashSet<Variable> result)
+    {
+        if (expr is null)
+        {
+            return;
+        }
+
+        if (expr is Variable variable)
+        {
+            result.Add(variable);
+            return;
+        }
+
+        switch (expr)
+        {
+            case Math1Expr m:
+                CollectVariablesRecursive(m.Op, result);
+                break;
+            case Math2Expr m:
+                CollectVariablesRecursive(m.First, result);
+                CollectVariablesRecursive(m.Second, result);
+                break;
+            case MemExpr mem:
+                CollectVariablesRecursive(mem.Address, result);
+                CollectVariablesRecursive(mem.Segment, result);
+                break;
+            case CmpExpr cmp:
+                CollectVariablesRecursive(cmp.Left, result);
+                CollectVariablesRecursive(cmp.Right, result);
+                break;
+            case CallExpr call:
+                foreach (var arg in call.Args)
+                {
+                    CollectVariablesRecursive(arg, result);
+                }
+
+                break;
+        }
+    }
+
+    /// <summary>
     /// Проверяет, встречается ли переменная в выражении.
     /// </summary>
     public static bool Contains(Expr? expr, Variable variable)

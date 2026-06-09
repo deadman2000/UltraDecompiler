@@ -79,4 +79,47 @@ public class OperationOptimizerTests
         Assert.Equal(var1, use.Args[0]);
         Assert.DoesNotContain(optimized, op => op is SetOperation { Dst.Number: 2 or 3 });
     }
+
+    [Fact]
+    public void Optimize_PropagatesExpressionToReturn()
+    {
+        var arg0 = new Variable(0);
+        var arg1 = new Variable(1);
+        var var11 = new Variable(11);
+
+        var operations = new List<Operation>
+        {
+            new SetOperation(var11, new Math2Expr(Math2Operation.Add, arg0, arg1)),
+            new ReturnOperation(var11),
+        };
+
+        var optimized = OperationOptimizer.Optimize(operations);
+
+        Assert.Single(optimized);
+        var ret = Assert.IsType<ReturnOperation>(optimized[0]);
+        var sum = Assert.IsType<Math2Expr>(ret.Value);
+        Assert.Equal(Math2Operation.Add, sum.Operation);
+        Assert.Equal(arg0, sum.First);
+        Assert.Equal(arg1, sum.Second);
+    }
+
+    [Fact]
+    public void Optimize_DoesNotPropagateExpressionToReturnWhenSourceVariableIsRedefined()
+    {
+        var var10 = new Variable(10);
+        var var11 = new Variable(11);
+
+        var operations = new List<Operation>
+        {
+            new SetOperation(var11, new Math2Expr(Math2Operation.Add, var10, new ConstExpr(1))),
+            new SetOperation(var10, new ConstExpr(999)),
+            new ReturnOperation(var11),
+        };
+
+        var optimized = OperationOptimizer.Optimize(operations);
+
+        Assert.Contains(optimized, op => op is SetOperation { Dst.Number: 11 });
+        var ret = Assert.IsType<ReturnOperation>(optimized[^1]);
+        Assert.Equal(var11, ret.Value);
+    }
 }

@@ -35,6 +35,11 @@ public static class OperationOptimizer
 
                 if (!IsVariableReadAfter(operations, i, set.Dst))
                 {
+                    if (IsVariableUsedInEarlierSetSource(operations, i, set.Dst))
+                    {
+                        continue;
+                    }
+
                     if (set.Src is CallExpr call)
                     {
                         operations[i] = new CallOperation(call.Name, call.Args);
@@ -53,6 +58,15 @@ public static class OperationOptimizer
                     && CanPropagateCopy(operations, i, set.Dst, srcVar))
                 {
                     SubstituteVariable(operations, i + 1, set.Dst, srcVar);
+                    operations.RemoveAt(i);
+                    i--;
+                    changed = true;
+                    continue;
+                }
+
+                if (CanPropagateToReturn(operations, i, set))
+                {
+                    SubstituteVariable(operations, i + 1, set.Dst, set.Src);
                     operations.RemoveAt(i);
                     i--;
                     changed = true;
@@ -94,6 +108,74 @@ public static class OperationOptimizer
         return !DefinesVariableBetween(operations, copyIndex, lastReadIndex, src);
     }
 
+    /// <summary>
+    /// Разрешает подставить выражение из SetOperation напрямую в return,
+    /// если результат используется только там и переменные выражения не переопределяются.
+    /// </summary>
+    private static bool CanPropagateToReturn(
+        IReadOnlyList<Operation> operations,
+        int setIndex,
+        SetOperation set)
+    {
+        if (!IsOnlyUsedInReturn(operations, setIndex, set.Dst))
+        {
+            return false;
+        }
+
+        var lastReadIndex = FindLastReadIndex(operations, setIndex, set.Dst);
+        if (lastReadIndex < 0)
+        {
+            return true;
+        }
+
+        foreach (var variable in ExprSubstitution.CollectVariables(set.Src))
+        {
+            if (DefinesVariableBetween(operations, setIndex, lastReadIndex, variable))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsOnlyUsedInReturn(
+        IReadOnlyList<Operation> operations,
+        int defIndex,
+        Variable variable)
+    {
+        for (var i = defIndex + 1; i < operations.Count; i++)
+        {
+            if (ReadsVariableOutsideReturn(operations[i], variable))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ReadsVariableOutsideReturn(Operation operation, Variable variable) =>
+        operation switch
+        {
+            ReturnOperation => false,
+            SetOperation set => ExprSubstitution.Contains(set.Src, variable),
+            CallOperation call => call.Args.Any(arg => ExprSubstitution.Contains(arg, variable)),
+            StoreOperation store => ExprSubstitution.Contains(store.Address, variable)
+                || ExprSubstitution.Contains(store.Segment, variable)
+                || ExprSubstitution.Contains(store.Value, variable),
+            IfOperation branch => ExprSubstitution.Contains(branch.Condition, variable)
+                || branch.ThenBody.Any(op => ReadsVariableOutsideReturn(op, variable))
+                || (branch.ElseBody?.Any(op => ReadsVariableOutsideReturn(op, variable)) ?? false),
+            WhileOperation loop => ExprSubstitution.Contains(loop.Condition, variable)
+                || loop.Body.Any(op => ReadsVariableOutsideReturn(op, variable)),
+            ForOperation loop => (loop.Init is not null && ReadsVariableOutsideReturn(loop.Init, variable))
+                || ExprSubstitution.Contains(loop.Condition, variable)
+                || (loop.Iteration is not null && ReadsVariableOutsideReturn(loop.Iteration, variable))
+                || loop.Body.Any(op => ReadsVariableOutsideReturn(op, variable)),
+            _ => false,
+        };
+
     private static int FindLastReadIndex(IReadOnlyList<Operation> operations, int fromIndex, Variable variable)
     {
         var last = -1;
@@ -111,6 +193,27 @@ public static class OperationOptimizer
 
     private static bool IsVariableReadAfter(IReadOnlyList<Operation> operations, int defIndex, Variable variable) =>
         FindLastReadIndex(operations, defIndex, variable) >= 0;
+
+    /// <summary>
+    /// Переопределение переменной нельзя удалять как мёртвый код, если она участвует
+    /// в выражении более раннего SetOperation (иначе ломается проверка CanPropagateToReturn).
+    /// </summary>
+    private static bool IsVariableUsedInEarlierSetSource(
+        IReadOnlyList<Operation> operations,
+        int defIndex,
+        Variable variable)
+    {
+        for (var i = 0; i < defIndex; i++)
+        {
+            if (operations[i] is SetOperation earlier
+                && ExprSubstitution.Contains(earlier.Src, variable))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private static bool DefinesVariableBetween(
         IReadOnlyList<Operation> operations,
