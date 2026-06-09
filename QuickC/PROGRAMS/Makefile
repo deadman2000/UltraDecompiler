@@ -1,38 +1,17 @@
 CC     := qcl
-CFLAGS := /nologo
+CFLAGS := /nologo /AS /Gs
 
 SRCS := $(wildcard *.c)
 
-EXES_S := $(SRCS:.c=_s.exe)
-EXES_GS := $(SRCS:.c=_gs.exe)
-EXES_M := $(SRCS:.c=_m.exe)
-EXES_C := $(SRCS:.c=_c.exe)
-EXES_L := $(SRCS:.c=_l.exe)
-
-ALL_EXES := $(EXES_S) $(EXES_GS) $(EXES_M) $(EXES_C) $(EXES_L)
+EXES := $(SRCS:.c=.exe)
 
 .PHONY: all clean
 
-all: $(ALL_EXES)
+all: $(EXES)
 	@echo Сборка завершена.
-# ==================== Small ====================
-%_s.exe: %.c
-	$(CC) /AS $(CFLAGS) $< /Fe$@
-	
-%_gs.exe: %.c
-	$(CC) /AS /Gs $(CFLAGS) $< /Fe$@
 
-# ==================== Medium ====================
-%_m.exe: %.c
-	$(CC) /AM $(CFLAGS) $< /Fe$@
-
-# ==================== Compact ====================
-%_c.exe: %.c
-	$(CC) /AC $(CFLAGS) $< /Fe$@
-
-# ==================== Large ====================
-%_l.exe: %.c
-	$(CC) /AL $(CFLAGS) $< /Fe$@
+%.exe: %.c
+	$(CC) $(CFLAGS) $< /Fe$@
 
 clean:
 	del *.obj
