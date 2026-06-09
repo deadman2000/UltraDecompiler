@@ -1,4 +1,5 @@
 ﻿using LibParser.Omf;
+using TestSupport;
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
@@ -12,7 +13,7 @@ public class ExeMatchingTests
     [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
     public void Match_Printf_ForMemoryModel(ExeMemoryModelCase modelCase)
     {
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
+        var parser = new DosExeParser(modelCase.ExePath);
         var lib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
         var printfOffset = PrintfOffsetFinder.Find(parser, lib);
 
@@ -34,7 +35,7 @@ public class ExeMatchingTests
     [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
     public void Match_EntryPoint_DoesNotFindPrintf(ExeMemoryModelCase modelCase)
     {
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
+        var parser = new DosExeParser(modelCase.ExePath);
         var lib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
 
         var matches = LibraryFunctionMatcher.Match(
@@ -51,7 +52,7 @@ public class ExeMatchingTests
     [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
     public void Match_PrintfOffsetPlusOne_ReturnsEmpty(ExeMemoryModelCase modelCase)
     {
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
+        var parser = new DosExeParser(modelCase.ExePath);
         var lib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
         var printfOffset = PrintfOffsetFinder.Find(parser, lib);
 
@@ -69,7 +70,7 @@ public class ExeMatchingTests
     [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
     public void Match_Printf_FindsOnlyPrintfSymbol(ExeMemoryModelCase modelCase)
     {
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
+        var parser = new DosExeParser(modelCase.ExePath);
         var lib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
         var printfOffset = PrintfOffsetFinder.Find(parser, lib);
 
@@ -87,7 +88,7 @@ public class ExeMatchingTests
     [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
     public void Match_Printf_WrongLibrary_ReturnsEmpty(ExeMemoryModelCase modelCase)
     {
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
+        var parser = new DosExeParser(modelCase.ExePath);
         var printfOffset = PrintfOffsetFinder.Find(
             parser,
             OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName)));
@@ -97,7 +98,7 @@ public class ExeMatchingTests
             "SLIBCE.LIB" => "CLIBC.LIB",
             "CLIBC.LIB" => "SLIBCE.LIB",
             "MLIBC.LIB" => "SLIBCE.LIB",
-            "LLIBC.LIB" => "SLIBCE.LIB",
+            "LLIBCE.LIB" => "SLIBCE.LIB",
             _ => throw new InvalidOperationException($"Неизвестная библиотека: {modelCase.LibraryFileName}"),
         };
 

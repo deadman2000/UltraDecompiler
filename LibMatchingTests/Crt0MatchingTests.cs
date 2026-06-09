@@ -1,5 +1,7 @@
 using Common;
 using LibParser.Omf;
+using TestSupport;
+using UltraDecompiler.Compilation;
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
@@ -31,7 +33,7 @@ public class Crt0MatchingTests
     [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
     public void Match_HelloEntryPoint_WithCrt0(ExeMemoryModelCase modelCase)
     {
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
+        var parser = new DosExeParser(modelCase.ExePath);
         var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
         var crt0Page = Crt0TestHelpers.GetCrt0ModulePage(library);
 
@@ -53,7 +55,7 @@ public class Crt0MatchingTests
     [Fact]
     public void Match_HelloEntryPoint_Matches_Astart()
     {
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf("HELLO_L.EXE"));
+        var parser = new DosExeParser(ExeProvider.Get("hello.c", MemoryModel.Large));
         var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf("LLIBCE.LIB"));
         var crt0 = Crt0TestHelpers.GetCrt0Module(library);
 
@@ -68,7 +70,7 @@ public class Crt0MatchingTests
     [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
     public void Match_HelloEntryPoint_DoesNotFindPrintf(ExeMemoryModelCase modelCase)
     {
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
+        var parser = new DosExeParser(modelCase.ExePath);
         var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
 
         var matches = LibraryFunctionMatcher.Match(
@@ -85,7 +87,7 @@ public class Crt0MatchingTests
     [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
     public void Match_HelloPrintf_DoesNotFindCrt0Symbols(ExeMemoryModelCase modelCase)
     {
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
+        var parser = new DosExeParser(modelCase.ExePath);
         var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
         var printfOffset = PrintfOffsetFinder.Find(parser, library);
 
@@ -103,7 +105,7 @@ public class Crt0MatchingTests
     [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
     public void Match_HelloEntryPoint_With87Lib_ReturnsEmpty(ExeMemoryModelCase modelCase)
     {
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
+        var parser = new DosExeParser(modelCase.ExePath);
         var mathLib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf("87.LIB"));
 
         var matches = LibraryFunctionMatcher.Match(

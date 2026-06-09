@@ -1,3 +1,5 @@
+using TestSupport;
+using UltraDecompiler.Compilation;
 using UltraDecompiler.Decompilation;
 using UltraDecompiler.Decompilation.Operations;
 
@@ -13,7 +15,7 @@ public class DecompilerIntegrationTests
         {
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(
-                QuickCTestAssets.ProgramsPathOf("HELLO_S.EXE"),
+                ExeProvider.Get("hello.c", MemoryModel.Small),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory);
@@ -69,7 +71,7 @@ public class DecompilerIntegrationTests
             var decompiler = new Decompiler();
 
             Assert.Throws<DirectoryNotFoundException>(() => decompiler.Decompile(
-                QuickCTestAssets.ProgramsPathOf("HELLO_S.EXE"),
+                ExeProvider.Get("hello.c", MemoryModel.Small),
                 Path.Combine(outputDirectory, "missing-libs"),
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory));
@@ -91,7 +93,7 @@ public class DecompilerIntegrationTests
         {
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(
-                QuickCTestAssets.ProgramsPathOf("ADD_S.EXE"),
+                ExeProvider.Get("add.c", MemoryModel.Small),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory);
@@ -189,17 +191,15 @@ public class DecompilerIntegrationTests
     }
 
     [Theory]
-    [InlineData("ADD_S.EXE")]
-    // Для других моделей памяти (C/M/L) кодогенерация вызовов и стек может отличаться;
-    // базовый тест на S покрывает типичный near cdecl с push immediate + CallState.
-    public void Decompile_AddVariants_RecoverAddCallArguments(string exeFileName)
+    [InlineData(MemoryModel.Small)]
+    public void Decompile_AddVariants_RecoverAddCallArguments(MemoryModel memoryModel)
     {
         var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
         try
         {
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(
-                QuickCTestAssets.ProgramsPathOf(exeFileName),
+                ExeProvider.Get("add.c", memoryModel),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory);
@@ -225,7 +225,7 @@ public class DecompilerIntegrationTests
                     && c.Args.Any(a => a is ConstExpr { Value: 10 })
                     && c.Args.Any(a => a is ConstExpr { Value: 5 }));
 
-            Assert.True(hasCorrectAddCall, $"В {exeFileName} не найден вызов add(10, 5) с точными аргументами 10 и 5 после разрешения CallState");
+            Assert.True(hasCorrectAddCall, $"В add.c ({memoryModel}) не найден вызов add(10, 5) с точными аргументами 10 и 5 после разрешения CallState");
         }
         finally
         {

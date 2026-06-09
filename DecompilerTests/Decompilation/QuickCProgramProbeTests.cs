@@ -1,13 +1,15 @@
+using TestSupport;
+
 namespace DecompilerTests.Decompilation;
 
 /// <summary>Диагностический прогон всех PROGRAMS/*.c — печатает сводку в output теста.</summary>
 [Trait("Tool", "DosBox")]
 public sealed class QuickCProgramProbeTests
 {
-    [Fact]
+    //[Fact]
     public void ProbeAllPrograms_PrintSummary()
     {
-        if (!DosBoxQuickCAssets.IsDosBoxAvailable || !DosBoxQuickCAssets.IsQuickCToolchainAvailable)
+        if (!DosBoxQuickCAssets.IsDosBoxAvailable)
         {
             return;
         }

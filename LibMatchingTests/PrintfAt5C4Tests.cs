@@ -1,4 +1,6 @@
 using LibParser.Omf;
+using TestSupport;
+using UltraDecompiler.Compilation;
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
@@ -11,7 +13,7 @@ public class PrintfAt5C4Tests
     [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
     public void Match_Printf_AtDiscoveredOffset(ExeMemoryModelCase modelCase)
     {
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
+        var parser = new DosExeParser(modelCase.ExePath);
         var lib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
         var printfOffset = PrintfOffsetFinder.Find(parser, lib);
 
@@ -31,7 +33,7 @@ public class PrintfAt5C4Tests
     public void Match_Printf_At5C4_HelloS()
     {
         const int printfOffset = 0x5C4;
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf("HELLO_S.EXE"));
+        var parser = new DosExeParser(ExeProvider.Get("hello.c", MemoryModel.Small));
         var lib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf("SLIBCE.LIB"));
 
         var finderOffset = PrintfOffsetFinder.Find(parser, lib);

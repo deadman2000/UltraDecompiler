@@ -1,3 +1,4 @@
+using TestSupport;
 using UltraDecompiler.CodeGeneration;
 using UltraDecompiler.Decompilation;
 
@@ -18,9 +19,9 @@ public sealed class QuickCProgramRoundTripTests
     [MemberData(nameof(QuickCProgramCases.SourceFileMemberData), MemberType = typeof(QuickCProgramCases))]
     public void RoundTrip_CompileDecompileRebuild_MatchesOriginalExe(string sourceFileName)
     {
-        if (!DosBoxQuickCAssets.IsDosBoxAvailable || !DosBoxQuickCAssets.IsQuickCToolchainAvailable)
+        if (!DosBoxQuickCAssets.IsDosBoxAvailable)
         {
-            return;
+            throw new InvalidOperationException();
         }
 
         var sourcePath = QuickCTestAssets.ProgramsPathOf(sourceFileName);

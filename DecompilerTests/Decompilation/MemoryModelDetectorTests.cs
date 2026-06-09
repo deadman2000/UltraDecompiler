@@ -1,3 +1,4 @@
+using TestSupport;
 using UltraDecompiler.Compilation;
 using UltraDecompiler.Decompilation;
 
@@ -22,18 +23,18 @@ public class MemoryModelDetectorTests
         Assert.Equal(expected, MemoryModelDetector.DetectFromLibraryFileName(fileName));
 
     [Theory]
-    [InlineData("HELLO_S.EXE", MemoryModel.Small)]
-    [InlineData("HELLO_C.EXE", MemoryModel.Compact)]
-    [InlineData("HELLO_M.EXE", MemoryModel.Medium)]
-    [InlineData("HELLO_L.EXE", MemoryModel.Large)]
-    public void Decompile_HelloMemoryModels_DetectsMemoryModel(string exeFileName, MemoryModel expected)
+    [InlineData(MemoryModel.Small)]
+    [InlineData(MemoryModel.Compact)]
+    [InlineData(MemoryModel.Medium)]
+    [InlineData(MemoryModel.Large)]
+    public void Decompile_HelloMemoryModels_DetectsMemoryModel(MemoryModel expected)
     {
         var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
         try
         {
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(
-                QuickCTestAssets.ProgramsPathOf(exeFileName),
+                ExeProvider.Get("hello.c", expected),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory);

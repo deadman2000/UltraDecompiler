@@ -1,11 +1,17 @@
+using TestSupport;
+using UltraDecompiler.Compilation;
+
 namespace LibMatchingTests;
 
 /// <summary>Эталонный EXE, собранный QuickC под разные модели памяти.</summary>
 public sealed record ExeMemoryModelCase(
     string Name,
-    string ExeFileName,
+    string SourceFileName,
+    MemoryModel MemoryModel,
     string LibraryFileName)
 {
+    public string ExePath => ExeProvider.Get(SourceFileName, MemoryModel);
+
     public override string ToString() => Name;
 }
 
@@ -17,9 +23,9 @@ internal static class ExeMemoryModelCases
 
     public static IReadOnlyList<ExeMemoryModelCase> All { get; } =
     [
-        new("Small", "HELLO_S.EXE", "SLIBCE.LIB"),
-        new("Compact", "HELLO_C.EXE", "CLIBC.LIB"),
-        new("Medium", "HELLO_M.EXE", "MLIBC.LIB"),
-        new("Large", "HELLO_L.EXE", "LLIBC.LIB"),
+        new("Small", "hello.c", MemoryModel.Small, "SLIBCE.LIB"),
+        new("Compact", "hello.c", MemoryModel.Compact, "CLIBC.LIB"),
+        new("Medium", "hello.c", MemoryModel.Medium, "MLIBC.LIB"),
+        new("Large", "hello.c", MemoryModel.Large, "LLIBCE.LIB"),
     ];
 }

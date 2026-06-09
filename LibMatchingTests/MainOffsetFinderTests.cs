@@ -1,4 +1,5 @@
 using LibParser.Omf;
+using TestSupport;
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
@@ -12,7 +13,7 @@ public class MainOffsetFinderTests
     [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
     public void FindFromAstart_HelloMemoryModels(ExeMemoryModelCase modelCase)
     {
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
+        var parser = new DosExeParser(modelCase.ExePath);
         var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
         var entryPoint = (int)parser.EntryPointOffset;
 
@@ -37,7 +38,7 @@ public class MainOffsetFinderTests
     [MemberData(nameof(ExeMemoryModelCases.MemberData), MemberType = typeof(ExeMemoryModelCases))]
     public void FindCalledSymbol_MainFromAstart_UsingGeneralApi(ExeMemoryModelCase modelCase)
     {
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(modelCase.ExeFileName));
+        var parser = new DosExeParser(modelCase.ExePath);
         var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf(modelCase.LibraryFileName));
         var entryPoint = (int)parser.EntryPointOffset;
 

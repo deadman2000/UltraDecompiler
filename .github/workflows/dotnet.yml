@@ -19,28 +19,6 @@ jobs:
     - name: 'Install dosbox-x (apt)'
       run: sudo snap install dosbox-x
 
-    - name: Build reference examples
-      uses: joncloud/dos-build-action@v1
-      with:
-        programs: |
-          QuickC:C:\QC
-        run: |
-          C:
-          SET LIB=C:\QC
-          SET INCLUDE=C:\QC\INCLUDE
-          SET PATH=C:\QC;%PATH%
-          CD \QC\PROGRAMS
-          make clean
-          make
-        conf: |
-          [dosbox]
-          memsize=256
-          [cpu]
-          cycles=max
-          turbo=true
-          [dos]
-          log console=quiet
-          
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:

@@ -1,3 +1,5 @@
+using TestSupport;
+using UltraDecompiler.Compilation;
 using UltraDecompiler.Decompilation;
 
 namespace DecompilerTests.Decompilation;
@@ -10,7 +12,7 @@ public class StringLiteralSubstitutionTests
     [Fact]
     public void Decompile_HelloGs_MaterializesPrintfFormatString()
     {
-        var mainSource = DecompileMainSource("HELLO_GS.EXE");
+        var mainSource = DecompileMainSource(ExeProvider.Get("hello.c", MemoryModel.Small, stackCheck: false));
 
         Assert.Contains("printf(\"Hello world\\n\")", mainSource);
         Assert.DoesNotContain("printf(618", mainSource);
@@ -20,21 +22,21 @@ public class StringLiteralSubstitutionTests
     [Fact]
     public void Decompile_AddGs_MaterializesPrintfFormatString()
     {
-        var mainSource = DecompileMainSource("ADD_GS.EXE");
+        var mainSource = DecompileMainSource(ExeProvider.Get("add.c", MemoryModel.Small, stackCheck: false));
 
         Assert.Contains("printf(\"%d\",", mainSource);
         Assert.DoesNotContain("printf(618", mainSource);
         Assert.DoesNotContain("printf(0x", mainSource, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string DecompileMainSource(string exeName)
+    private static string DecompileMainSource(string exePath)
     {
         var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
         try
         {
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(
-                QuickCTestAssets.ProgramsPathOf(exeName),
+                exePath,
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory);

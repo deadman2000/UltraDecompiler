@@ -1,4 +1,5 @@
-using DecompilerTests.Decompilation;
+using TestSupport;
+using UltraDecompiler.Compilation;
 using UltraDecompiler.Parser;
 
 namespace DecompilerTests.Parser;
@@ -6,13 +7,17 @@ namespace DecompilerTests.Parser;
 public class ExeImageLayoutTests
 {
     [Theory]
-    [InlineData("HELLO_S.EXE", 5728, "Hello world\n")]
-    [InlineData("HELLO_GS.EXE", 5728, "Hello world\n")]
-    [InlineData("ADD_S.EXE", 5776, "%d")]
-    [InlineData("ADD_GS.EXE", 5776, "%d")]
-    public void From_SmallModel_ResolvesDataSegmentAndString(string exeName, int expectedDataOffset, string expectedString)
+    [InlineData("hello.c", true, 5728, "Hello world\n")]
+    [InlineData("hello.c", false, 5728, "Hello world\n")]
+    [InlineData("add.c", true, 5776, "%d")]
+    [InlineData("add.c", false, 5776, "%d")]
+    public void From_SmallModel_ResolvesDataSegmentAndString(
+        string sourceFileName,
+        bool stackCheck,
+        int expectedDataOffset,
+        string expectedString)
     {
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf(exeName));
+        var parser = new DosExeParser(ExeProvider.Get(sourceFileName, MemoryModel.Small, stackCheck));
         var layout = ExeImageLayout.From(parser);
 
         Assert.Equal(expectedDataOffset, layout.DataSegmentOffset);

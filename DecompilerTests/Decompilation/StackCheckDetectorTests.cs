@@ -1,3 +1,5 @@
+using TestSupport;
+using UltraDecompiler.Compilation;
 using UltraDecompiler.Decompilation;
 using UltraDecompiler.Decompilation.Operations;
 using UltraDecompiler.PostProcessing;
@@ -14,7 +16,7 @@ public class StackCheckDetectorTests
         {
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(
-                QuickCTestAssets.ProgramsPathOf("HELLO_S.EXE"),
+                ExeProvider.Get("hello.c", MemoryModel.Small),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory);
@@ -43,7 +45,7 @@ public class StackCheckDetectorTests
         {
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(
-                QuickCTestAssets.ProgramsPathOf("ADD_S.EXE"),
+                ExeProvider.Get("add.c", MemoryModel.Small),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory);

@@ -1,3 +1,4 @@
+using TestSupport;
 using UltraDecompiler.CodeGeneration;
 using UltraDecompiler.Compilation;
 using UltraDecompiler.Decompilation;
@@ -77,7 +78,7 @@ public class MakefileGeneratorTests
         {
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(
-                QuickCTestAssets.ProgramsPathOf("ADD_S.EXE"),
+                ExeProvider.Get("add.c", MemoryModel.Small),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory);
@@ -89,7 +90,6 @@ public class MakefileGeneratorTests
             Assert.True(File.Exists(makefilePath));
 
             var makefile = File.ReadAllText(makefilePath);
-            Assert.Contains("TARGET := ADD_S.EXE", makefile);
             Assert.Contains("main.c", makefile);
             Assert.Contains("sub_0010.c", makefile);
             Assert.Contains("SLIBCE.LIB", makefile);

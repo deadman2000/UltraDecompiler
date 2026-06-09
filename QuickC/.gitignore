@@ -12,3 +12,6 @@ ci_temp/
 
 # Изолированные рабочие каталоги round-trip тестов (DecompilerTests)
 RT/
+
+# Кэш EXE-примеров, собираемых ExeProvider (DecompilerTests / LibMatchingTests)
+BUILT/

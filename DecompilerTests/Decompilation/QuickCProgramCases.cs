@@ -1,3 +1,5 @@
+using TestSupport;
+
 namespace DecompilerTests.Decompilation;
 
 /// <summary>Динамический набор исходников <c>QuickC/PROGRAMS/*.c</c> для параметризованных тестов.</summary>

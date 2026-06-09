@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\TestSupport\TestSupport.csproj" />
     <ProjectReference Include="..\UltraDecompiler\UltraDecompiler.csproj" />
   </ItemGroup>
 

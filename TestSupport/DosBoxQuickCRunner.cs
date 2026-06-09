@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using System.Text;
 
-namespace DecompilerTests.Decompilation;
+namespace TestSupport;
 
 /// <summary>Запуск команд QuickC внутри DOSBox-X (рабочий каталог — корень QuickC).</summary>
-internal static class DosBoxQuickCRunner
+public static class DosBoxQuickCRunner
 {
     /// <summary>Результат запуска DOSBox-X.</summary>
     public sealed record RunResult(int ExitCode, string Output);

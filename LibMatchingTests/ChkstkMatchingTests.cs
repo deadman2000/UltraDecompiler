@@ -1,4 +1,6 @@
 using LibParser.Omf;
+using TestSupport;
+using UltraDecompiler.Compilation;
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
@@ -12,7 +14,7 @@ public class ChkstkMatchingTests
     public void Match_Chkstk_At027C_HelloS()
     {
         const int chkstkOffset = 0x27C;
-        var parser = new DosExeParser(QuickCTestAssets.ProgramsPathOf("HELLO_S.EXE"));
+        var parser = new DosExeParser(ExeProvider.Get("hello.c", MemoryModel.Small));
         var lib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf("SLIBCE.LIB"));
 
         var matches = LibraryFunctionMatcher.Match(

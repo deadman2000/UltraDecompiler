@@ -1,7 +1,7 @@
-namespace DecompilerTests.Decompilation;
+namespace TestSupport;
 
 /// <summary>Пути к DOSBox-X и проверка доступности QuickC toolchain для интеграционных тестов.</summary>
-internal static class DosBoxQuickCAssets
+public static class DosBoxQuickCAssets
 {
     private static readonly Lazy<string?> ResolvedDosBoxExecutableLazy = new(ResolveDosBoxExecutable);
 
@@ -10,12 +10,6 @@ internal static class DosBoxQuickCAssets
 
     /// <summary><see langword="true"/>, если найден исполняемый файл DOSBox-X.</summary>
     public static bool IsDosBoxAvailable => ResolvedDosBoxExecutable is not null;
-
-    /// <summary><see langword="true"/>, если в каталоге QuickC есть компилятор и make.</summary>
-    public static bool IsQuickCToolchainAvailable =>
-        File.Exists(Path.Combine(QuickCTestAssets.QuickCRootDirectory, "QCL.EXE"))
-        && File.Exists(Path.Combine(QuickCTestAssets.QuickCRootDirectory, "MAKE.EXE"))
-        && File.Exists(QuickCTestAssets.DosBoxConfigPath);
 
     private static string? ResolveDosBoxExecutable()
     {

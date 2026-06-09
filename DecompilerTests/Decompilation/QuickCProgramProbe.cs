@@ -1,3 +1,4 @@
+using TestSupport;
 using UltraDecompiler.Decompilation;
 
 namespace DecompilerTests.Decompilation;
@@ -25,10 +26,10 @@ internal static class QuickCProgramProbe
     {
         var result = new ProbeResult { SourceFileName = sourceFileName };
 
-        if (!DosBoxQuickCAssets.IsDosBoxAvailable || !DosBoxQuickCAssets.IsQuickCToolchainAvailable)
+        if (!DosBoxQuickCAssets.IsDosBoxAvailable)
         {
             result.Stage = ProbeStage.Skipped;
-            result.Detail = "DOSBox-X или QuickC toolchain недоступны.";
+            result.Detail = "DOSBox-X недоступен.";
             return result;
         }
 
