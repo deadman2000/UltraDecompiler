@@ -247,8 +247,28 @@ public static class Extensions
             _ => "?"
         };
 
-        private string FormatImageOffset(int value) =>
-            operand.Relocation is not null ? $"{operand.Relocation}+{value.ToHex()}" : value.ToHex();
+        private static string FormatDisplacementMagnitude(int value)
+        {
+            int abs = Math.Abs(value);
+            if (abs is > 0 and < 10)
+                return abs.ToString();
+
+            if (abs < 0x100)
+                return $"{abs:X2}h";
+
+            return $"{abs:X4}h";
+        }
+
+        private string FormatImageOffset(int value)
+        {
+            if (operand.Relocation is null)
+                return value.ToHex();
+
+            if (value == 0)
+                return $"{operand.Relocation}+0";
+
+            return $"{operand.Relocation}{(value < 0 ? '-' : '+')}{FormatDisplacementMagnitude(value)}";
+        }
 
         private string FormatRelativeTarget(int value) =>
             operand.Relocation ?? value.ToHex();
@@ -271,9 +291,11 @@ public static class Extensions
             }
 
             if (value == 0)
-                return Ansi.Wrap(Ansi.Pink, operand.Relocation);
+                return Ansi.Wrap(Ansi.Pink, operand.Relocation) + "+0";
 
-            return Ansi.Wrap(Ansi.Pink, operand.Relocation) + "+" + Ansi.Wrap(Ansi.Green, value.ToHex());
+            return Ansi.Wrap(Ansi.Pink, operand.Relocation)
+                + (value < 0 ? "-" : "+")
+                + Ansi.Wrap(Ansi.Green, FormatDisplacementMagnitude(value));
         }
 
         private string GetRegName() => operand.Type switch
@@ -316,100 +338,140 @@ public static class Extensions
 
         private string GetMemoryString()
         {
-            var parts = new List<string>();
+            var baseReg = operand.BaseReg;
+            var indexReg = operand.IndexReg;
+            var value = operand.Value;
+            var relocation = operand.Relocation;
 
-            // Base register
-            if (operand.BaseReg != AddressRegister.None)
+            var sb = new StringBuilder("[");
+            bool hasContent = false;
+
+            if (baseReg != AddressRegister.None)
             {
-                string baseName = operand.BaseReg switch
+                if (hasContent)
+                    sb.Append('+');
+
+                sb.Append(FormatAddressRegister(baseReg));
+                hasContent = true;
+            }
+
+            if (indexReg != AddressRegister.None && indexReg != baseReg)
+            {
+                if (hasContent)
+                    sb.Append('+');
+
+                sb.Append(FormatAddressRegister(indexReg));
+                hasContent = true;
+            }
+
+            if (relocation is not null)
+            {
+                if (hasContent)
+                    sb.Append('+');
+
+                sb.Append(relocation);
+                hasContent = true;
+
+                if (value != 0)
                 {
-                    AddressRegister.BX => "BX",
-                    AddressRegister.BP => "BP",
-                    AddressRegister.SI => "SI",
-                    AddressRegister.DI => "DI",
-                    _ => "?"
-                };
-                parts.Add(baseName);
+                    sb.Append(value < 0 ? '-' : '+');
+                    sb.Append(FormatDisplacementMagnitude(value));
+                }
             }
-
-            // Index register
-            if (operand.IndexReg != AddressRegister.None && operand.IndexReg != operand.BaseReg)
+            else if (value != 0)
             {
-                string idxName = operand.IndexReg switch
+                if (hasContent)
                 {
-                    AddressRegister.BX => "BX",
-                    AddressRegister.BP => "BP",
-                    AddressRegister.SI => "SI",
-                    AddressRegister.DI => "DI",
-                    _ => "?"
-                };
-                parts.Add(idxName);
+                    sb.Append(value < 0 ? '-' : '+');
+                    sb.Append(FormatDisplacementMagnitude(value));
+                }
+                else
+                {
+                    sb.Append(value.ToHex());
+                }
+
+                hasContent = true;
             }
 
-            // Displacement (в т.ч. FIXUP при disp=0 — типично для PUSH [sym] в crt0)
-            if (operand.Relocation is not null)
-            {
-                parts.Add(operand.Value != 0
-                    ? operand.FormatImageOffset(operand.Value)
-                    : operand.Relocation);
-            }
-            else if (operand.Value != 0)
-            {
-                parts.Add(operand.FormatImageOffset(operand.Value));
-            }
-
-            if (parts.Count == 0)
+            if (!hasContent)
                 return "[0]";
 
-            return $"[{string.Join("+", parts)}]";
+            sb.Append(']');
+            return sb.ToString();
         }
 
         private string GetMemoryStringColored()
         {
-            var parts = new List<string>();
+            var baseReg = operand.BaseReg;
+            var indexReg = operand.IndexReg;
+            var value = operand.Value;
+            var relocation = operand.Relocation;
 
-            if (operand.BaseReg != AddressRegister.None)
+            var sb = new StringBuilder("[");
+            bool hasContent = false;
+
+            if (baseReg != AddressRegister.None)
             {
-                parts.Add(Ansi.Wrap(Ansi.Cyan, operand.BaseReg switch
+                if (hasContent)
+                    sb.Append('+');
+
+                sb.Append(Ansi.Wrap(Ansi.Cyan, FormatAddressRegister(baseReg)));
+                hasContent = true;
+            }
+
+            if (indexReg != AddressRegister.None && indexReg != baseReg)
+            {
+                if (hasContent)
+                    sb.Append('+');
+
+                sb.Append(Ansi.Wrap(Ansi.Cyan, FormatAddressRegister(indexReg)));
+                hasContent = true;
+            }
+
+            if (relocation is not null)
+            {
+                if (hasContent)
+                    sb.Append('+');
+
+                sb.Append(Ansi.Wrap(Ansi.Pink, relocation));
+                hasContent = true;
+
+                if (value != 0)
                 {
-                    AddressRegister.BX => "BX",
-                    AddressRegister.BP => "BP",
-                    AddressRegister.SI => "SI",
-                    AddressRegister.DI => "DI",
-                    _ => "?",
-                }));
+                    sb.Append(value < 0 ? '-' : '+');
+                    sb.Append(Ansi.Wrap(Ansi.Green, FormatDisplacementMagnitude(value)));
+                }
             }
-
-            if (operand.IndexReg != AddressRegister.None && operand.IndexReg != operand.BaseReg)
+            else if (value != 0)
             {
-                parts.Add(Ansi.Wrap(Ansi.Cyan, operand.IndexReg switch
+                if (hasContent)
                 {
-                    AddressRegister.BX => "BX",
-                    AddressRegister.BP => "BP",
-                    AddressRegister.SI => "SI",
-                    AddressRegister.DI => "DI",
-                    _ => "?",
-                }));
+                    sb.Append(value < 0 ? '-' : '+');
+                    sb.Append(Ansi.Wrap(Ansi.Green, FormatDisplacementMagnitude(value)));
+                }
+                else
+                {
+                    sb.Append(operand.FormatImageOffsetColored(value));
+                }
+
+                hasContent = true;
             }
 
-            if (operand.Relocation is not null)
-            {
-                parts.Add(operand.Value != 0
-                    ? operand.FormatImageOffsetColored(operand.Value)
-                    : Ansi.Wrap(Ansi.Pink, operand.Relocation));
-            }
-            else if (operand.Value != 0)
-            {
-                parts.Add(operand.FormatImageOffsetColored(operand.Value));
-            }
-
-            if (parts.Count == 0)
-            {
+            if (!hasContent)
                 return "[" + Ansi.Wrap(Ansi.Green, "0") + "]";
-            }
 
-            return $"[{string.Join("+", parts)}]";
+            sb.Append(']');
+            return sb.ToString();
         }
+
+        private static string FormatAddressRegister(AddressRegister reg) => reg switch
+        {
+            AddressRegister.BX => "BX",
+            AddressRegister.BP => "BP",
+            AddressRegister.SI => "SI",
+            AddressRegister.DI => "DI",
+            _ => "?",
+        };
     }
 
     extension(Segment segment)

@@ -1,12 +1,12 @@
 using McMaster.Extensions.CommandLineUtils;
 using UltraDecompiler.Disassembler;
+using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
 
 namespace Tools.Commands;
 
 /// <summary>
-/// Простое дизассемблирование DOS .EXE / .COM с возможностью указания смещения.
-/// Поддерживает рекурсивный (по умолчанию) и линейный (--linear) режимы.
+/// Простое дизассемблирование DOS .EXE / .COM с возможностью указания смещения или _main.
 /// </summary>
 internal static class DisasmCommand
 {
@@ -21,6 +21,16 @@ internal static class DisasmCommand
             var offsetOpt = cmd.Option(
                 "-o|--offset <OFFSET>",
                 "Стартовое смещение (hex: 0x100 / 100h или decimal). По умолчанию — точка входа",
+                CommandOptionType.SingleValue);
+
+            var mainOpt = cmd.Option(
+                "--main",
+                "Дизассемблировать с _main (сопоставление crt0/.LIB, как в decompile-main)",
+                CommandOptionType.NoValue);
+
+            var libDirOpt = cmd.Option(
+                "-l|--lib-dir <DIR>",
+                "Каталог с OMF .LIB для --main (по умолчанию — QuickC в корне репозитория)",
                 CommandOptionType.SingleValue);
 
             var countOpt = cmd.Option(
@@ -46,6 +56,8 @@ internal static class DisasmCommand
                 return Execute(
                     exePath,
                     offsetOpt.Value(),
+                    mainOpt.HasValue(),
+                    libDirOpt.Value(),
                     countOpt.Value(),
                     bytesOpt.Value(),
                     noColorOpt.HasValue());
@@ -56,22 +68,32 @@ internal static class DisasmCommand
     private static int Execute(
         string exePath,
         string? offsetText,
+        bool fromMain,
+        string? libDir,
         string? countText,
         string? bytesText,
         bool noColor)
     {
         try
         {
+            if (fromMain && offsetText is not null)
+            {
+                throw new ArgumentException("Нельзя одновременно указывать --main и --offset.");
+            }
+
             var parser = new DosExeParser(exePath);
             parser.PrintInfo();
 
-            var startOffset = ParseOffset(offsetText, parser);
+            var initRegisters = parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe;
+            var startOffset = ResolveStartOffset(parser, offsetText, fromMain, libDir, initRegisters);
             var maxInstructions = ParsePositiveInt(countText, nameof(countText));
             var maxBytes = ParsePositiveInt(bytesText, nameof(bytesText));
 
-            var initRegisters = parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe;
-
-            if (offsetText is not null)
+            if (fromMain)
+            {
+                Console.WriteLine($"\nДизассемблирование с _main: 0x{startOffset:X} (точка входа: 0x{parser.EntryPointOffset:X})");
+            }
+            else if (offsetText is not null)
             {
                 Console.WriteLine($"\nДизассемблирование с 0x{startOffset:X} (точка входа: 0x{parser.EntryPointOffset:X})");
             }
@@ -125,6 +147,37 @@ internal static class DisasmCommand
             Console.WriteLine($"Error: {ex.Message}");
             return 1;
         }
+    }
+
+    private static int ResolveStartOffset(
+        DosExeParser parser,
+        string? offsetText,
+        bool fromMain,
+        string? libDir,
+        RegisterState initRegisters)
+    {
+        if (fromMain)
+        {
+            var entryPoint = (int)parser.EntryPointOffset;
+            var libDirectory = Utils.ResolveLibraryDirectory(libDir);
+            var provider = new LibraryProvider(libDirectory);
+
+            if (!provider.TryResolveMain(
+                    parser.Image,
+                    parser.RelocationTable,
+                    initRegisters,
+                    entryPoint,
+                    out var resolution))
+            {
+                throw new InvalidOperationException(
+                    "Не найдена библиотека с crt0/__astart и вызовом _main.");
+            }
+
+            Console.WriteLine($"Библиотека: {resolution.PrimaryLibrary.FileName}");
+            return resolution.MainOffset;
+        }
+
+        return ParseOffset(offsetText, parser);
     }
 
     /// <summary>Разбор смещения: десятичное, 0x… или …h. По умолчанию — EntryPointOffset.</summary>

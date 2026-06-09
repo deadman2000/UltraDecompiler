@@ -49,11 +49,15 @@ dotnet run --project Tools -- disasm game.exe -o 0x120
 dotnet run --project Tools -- disasm game.exe --offset 300h
 dotnet run --project Tools -- disasm game.exe -o 0x100 -c 50
 dotnet run --project Tools -- disasm game.exe -b 128 --no-color
+dotnet run --project Tools -- disasm game.exe --main
+dotnet run --project Tools -- disasm game.exe --main -l C:\QuickC
 ```
 
 | Опция | Описание |
 |-------|----------|
 | `-o`, `--offset <OFFSET>` | Стартовое смещение (hex `0x100` / `100h` или decimal). По умолчанию — точка входа |
+| `--main` | Дизассемблировать с `_main` (сопоставление crt0/.LIB, как в `decompile-main`) |
+| `-l`, `--lib-dir <DIR>` | Каталог с OMF `.LIB` для `--main` (по умолчанию — `QuickC` в корне репозитория) |
 | `-c`, `--count <N>` | Максимальное число инструкций |
 | `-b`, `--bytes <N>` | Максимальное число байт |
 | `--no-color` | Отключить ANSI-цвета |

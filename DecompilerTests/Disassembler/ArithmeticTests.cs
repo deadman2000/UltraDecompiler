@@ -174,6 +174,7 @@ public class ArithmeticTests : BaseTests
     {
         var instructions = Disassemble("11 56 FC"); // ADC [BP-4], DX
         Assert.Equal(Mnemonic.ADC, instructions[0].Mnemonic);
+        Assert.Equal("[BP-4], DX", instructions[0].Operands);
         Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
         Assert.Equal(AddressRegister.BP, instructions[0].Operand1.BaseReg);
         Assert.Equal(AddressRegister.None, instructions[0].Operand1.IndexReg);

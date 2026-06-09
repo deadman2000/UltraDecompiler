@@ -17,6 +17,17 @@ public class PushPopTests : BaseTests
     }
 
     [Fact]
+    public void DisassemblePushMemoryBpDisp8Negative()
+    {
+        var instructions = Disassemble("FF 76 FE"); // PUSH [BP-2]
+        Assert.Equal(Mnemonic.PUSH, instructions[0].Mnemonic);
+        Assert.Equal("[BP-2]", instructions[0].Operands);
+        Assert.Equal(OperandType.Memory, instructions[0].Operand1.Type);
+        Assert.Equal(AddressRegister.BP, instructions[0].Operand1.BaseReg);
+        Assert.Equal(-2, instructions[0].Operand1.Value);
+    }
+
+    [Fact]
     public void DisassemblePushReg16()
     {
         var instructions = Disassemble("50"); // PUSH AX
