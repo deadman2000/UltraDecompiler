@@ -109,7 +109,13 @@ public class Decompiler
             outputFiles.Add(headerPath);
         }
 
+        // Выбираем конфигурацию, соответствующую primary (или первую).
+        var chosenConfig = resolution.PossibleLibraryConfigurations.FirstOrDefault(
+            c => string.Equals(c.PrimaryCrtLibrary, resolution.PrimaryLibrary.FileName, StringComparison.OrdinalIgnoreCase))
+            ?? resolution.PossibleLibraryConfigurations[0];
+
         // Исходники с #include на зависимости.
+        var sourceFileNames = new List<string>();
         foreach (var (procedure, operations) in preparedProcedures)
         {
             var includes = ProcedureIncludeResolver.ResolveIncludes(
@@ -123,12 +129,20 @@ public class Decompiler
             var filePath = Path.Combine(outputDirectory, fileName);
             File.WriteAllText(filePath, source, Encoding.ASCII);
             outputFiles.Add(filePath);
+            sourceFileNames.Add(fileName);
         }
 
-        // Выбираем конфигурацию, соответствующую primary (или первую)
-        var chosenConfig = resolution.PossibleLibraryConfigurations.FirstOrDefault(
-            c => string.Equals(c.PrimaryCrtLibrary, resolution.PrimaryLibrary.FileName, StringComparison.OrdinalIgnoreCase))
-            ?? resolution.PossibleLibraryConfigurations[0];
+        var makefilePath = MakefileGenerator.WriteMakefile(
+            new MakefileOptions
+            {
+                TargetExeFileName = Path.GetFileName(exePath),
+                SourceFileNames = sourceFileNames,
+                CompilerOptions = compilerOptions,
+                LibraryFileNames = chosenConfig.LibraryFileNames,
+                OutputDirectory = Path.GetFullPath(outputDirectory),
+            },
+            outputDirectory);
+        outputFiles.Add(makefilePath);
 
         return new DecompileResult
         {

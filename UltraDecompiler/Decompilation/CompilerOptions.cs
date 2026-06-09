@@ -25,4 +25,22 @@ public sealed record CompilerOptions
 
         return $"{memoryLine}{Environment.NewLine}{stackLine}";
     }
+
+    public string GetQuickCCompilerFlags()
+    {
+        var flags = new List<string>();
+
+        var memoryFlag = MemoryModelDetector.GetCompilerFlag(MemoryModel);
+        if (!string.IsNullOrEmpty(memoryFlag))
+        {
+            flags.Add(memoryFlag);
+        }
+
+        if (!StackCheckingEnabled)
+        {
+            flags.Add("/Gs");
+        }
+
+        return string.Join(' ', flags);
+    }
 }
