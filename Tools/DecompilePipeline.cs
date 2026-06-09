@@ -1,10 +1,12 @@
 using System.Diagnostics;
 using System.Text;
+using UltraDecompiler.Compilation;
 using UltraDecompiler.Decompilation;
 using UltraDecompiler.Decompilation.Operations;
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.Graph;
 using UltraDecompiler.Parser;
+using UltraDecompiler.PostProcessing;
 
 namespace Tools;
 

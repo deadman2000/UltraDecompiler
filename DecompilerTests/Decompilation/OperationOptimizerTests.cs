@@ -1,5 +1,6 @@
 using UltraDecompiler.Decompilation;
 using UltraDecompiler.Decompilation.Operations;
+using UltraDecompiler.PostProcessing;
 
 namespace DecompilerTests.Decompilation;
 

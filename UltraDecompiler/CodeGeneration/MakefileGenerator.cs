@@ -1,6 +1,7 @@
 using System.Text;
+using UltraDecompiler.Compilation;
 
-namespace UltraDecompiler.Decompilation;
+namespace UltraDecompiler.CodeGeneration;
 
 /// <summary>Параметры генерации Makefile для сборки декомпилированного проекта QuickC.</summary>
 public sealed record MakefileOptions

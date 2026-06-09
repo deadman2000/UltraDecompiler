@@ -1,3 +1,4 @@
+using UltraDecompiler.Compilation;
 using UltraDecompiler.LibMatching;
 
 namespace UltraDecompiler.Decompilation;

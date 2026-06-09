@@ -1,3 +1,4 @@
+using UltraDecompiler.CodeGeneration;
 using UltraDecompiler.Decompilation;
 using UltraDecompiler.Decompilation.Operations;
 using UltraDecompiler.Headers;

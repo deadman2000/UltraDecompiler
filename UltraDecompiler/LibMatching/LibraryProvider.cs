@@ -1,7 +1,7 @@
 using Common;
 using LibParser.Models;
 using LibParser.Omf;
-using UltraDecompiler.Decompilation;
+using UltraDecompiler.Compilation;
 
 namespace UltraDecompiler.LibMatching;
 

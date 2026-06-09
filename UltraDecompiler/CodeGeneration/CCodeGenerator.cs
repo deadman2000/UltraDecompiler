@@ -1,6 +1,8 @@
 using System.Text;
+using UltraDecompiler.Decompilation;
+using UltraDecompiler.PostProcessing;
 
-namespace UltraDecompiler.Decompilation;
+namespace UltraDecompiler.CodeGeneration;
 
 /// <summary>
 /// Генератор исходного кода на C из декомпилированных процедур и IR-операций.

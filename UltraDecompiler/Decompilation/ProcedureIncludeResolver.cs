@@ -1,4 +1,6 @@
+using UltraDecompiler.CodeGeneration;
 using UltraDecompiler.Headers;
+using UltraDecompiler.PostProcessing;
 
 namespace UltraDecompiler.Decompilation;
 

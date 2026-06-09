@@ -1,8 +1,11 @@
 ﻿using System.Text;
+using UltraDecompiler.CodeGeneration;
+using UltraDecompiler.Compilation;
 using UltraDecompiler.Graph;
 using UltraDecompiler.Headers;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
+using UltraDecompiler.PostProcessing;
 
 namespace UltraDecompiler.Decompilation;
 

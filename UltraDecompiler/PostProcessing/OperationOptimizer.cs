@@ -1,4 +1,6 @@
-namespace UltraDecompiler.Decompilation;
+using UltraDecompiler.Decompilation;
+
+namespace UltraDecompiler.PostProcessing;
 
 /// <summary>
 /// Упрощает плоский список IR-операций перед генерацией C-кода:

@@ -1,4 +1,6 @@
-namespace UltraDecompiler.Decompilation;
+using UltraDecompiler.Decompilation;
+
+namespace UltraDecompiler.PostProcessing;
 
 /// <summary>
 /// Определяет режим проверки стека QuickC по вызовам <c>_chkstk</c> в прологах функций

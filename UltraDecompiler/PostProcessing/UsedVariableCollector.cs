@@ -1,4 +1,6 @@
-namespace UltraDecompiler.Decompilation;
+using UltraDecompiler.Decompilation;
+
+namespace UltraDecompiler.PostProcessing;
 
 /// <summary>
 /// Собирает переменные, встречающиеся в IR-операциях процедуры (для объявлений в C).
