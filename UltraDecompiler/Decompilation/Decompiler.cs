@@ -84,10 +84,13 @@ public class Decompiler
         {
             // Получаем тело процедуры из операций
             var operations = procedure.Expressions.GetAllOperations();
-            var filteredOperations = StackCheckDetector.RemoveChkstkCalls(operations);
+            // Удаляем проверки стека
+            operations = StackCheckDetector.RemoveChkstkCalls(operations);
+            // Оптимизация
+            operations = OperationOptimizer.Optimize(operations);
 
             // Экспортируем в C-файлы
-            var source = CCodeGenerator.FormatCFunction(procedure, filteredOperations);
+            var source = CCodeGenerator.FormatCFunction(procedure, operations);
             var fileName = CCodeGenerator.FormatOutputFileName(procedure.Name, procedure.Offset);
             var filePath = Path.Combine(outputDirectory, fileName);
             File.WriteAllText(filePath, source, Encoding.UTF8);

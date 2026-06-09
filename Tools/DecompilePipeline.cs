@@ -49,7 +49,8 @@ internal static class DecompilePipeline
         {
             StackCheckingEnabled = StackCheckDetector.AnalyzeFromOperations(operations),
         };
-        var filteredOperations = StackCheckDetector.RemoveChkstkCalls(operations);
+        var filteredOperations = OperationOptimizer.Optimize(
+            StackCheckDetector.RemoveChkstkCalls(operations));
 
         Console.WriteLine(compilerOptions);
         Console.WriteLine();
