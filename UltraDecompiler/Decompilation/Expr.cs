@@ -50,6 +50,14 @@ public record Variable(int Number = 0) : Expr
     /// </summary>
     public string? Name { get; set; }
 
+    /// <summary>
+    /// Выведенный тип C (из сигнатуры вызова или копирования). <see langword="null"/> — <c>int</c>.
+    /// </summary>
+    public CType? Type { get; set; }
+
+    /// <summary>Тип для объявления в C-коде.</summary>
+    public CType DeclaredType => Type ?? CType.Int;
+
     public override string ToString() => Name is not null ? Name : $"var{Number}";
 }
 

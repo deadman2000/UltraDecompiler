@@ -24,7 +24,7 @@ internal static class UsedVariableCollector
         }
 
         return result.Values
-            .Where(v => !exclude.Contains(v.Number))
+            .Where(v => !exclude.Contains(v.Number) && !IsImplicitSegmentVariable(v))
             .OrderBy(static v => v.Number)
             .ToList();
     }
@@ -112,4 +112,7 @@ internal static class UsedVariableCollector
 
     private static void AddVariable(Variable variable, Dictionary<int, Variable> result) =>
         result.TryAdd(variable.Number, variable);
+
+    private static bool IsImplicitSegmentVariable(Variable variable) =>
+        variable.Name is "_psp";
 }

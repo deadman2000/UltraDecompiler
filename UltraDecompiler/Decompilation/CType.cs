@@ -35,6 +35,10 @@ public sealed record CType(CTypeKind Kind, CType? Pointee = null)
         (Kind == CTypeKind.Char && Pointee != null) ||
         (Kind == CTypeKind.Pointer && Pointee?.Kind == CTypeKind.Char);
 
+    /// <summary>Является ли тип void*.</summary>
+    public bool IsVoidPtr =>
+        Kind == CTypeKind.Pointer && Pointee?.IsVoid == true;
+
     public override string ToString() => Kind switch
     {
         CTypeKind.Void => "void",

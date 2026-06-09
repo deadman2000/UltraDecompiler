@@ -95,13 +95,13 @@ public static class CCodeGenerator
     {
         if (procedure.Expressions == null)
             return;
-        
+
         var parameters = procedure.Expressions.Parameters.Select(static p => p.Variable);
         var locals = UsedVariableCollector.Collect(operations, parameters);
 
         foreach (var variable in locals)
         {
-            sb.AppendLine($"    int {variable};");
+            sb.AppendLine($"    {variable.DeclaredType} {variable};");
         }
 
         if (locals.Count > 0 && operations.Count > 0)

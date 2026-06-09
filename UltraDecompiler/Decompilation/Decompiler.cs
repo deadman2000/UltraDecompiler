@@ -95,6 +95,7 @@ public class Decompiler
             operations = StackCheckDetector.RemoveChkstkCalls(operations);
             operations = OperationOptimizer.Optimize(operations);
             procedure.Callees = ProcedureDependencyCollector.Collect(operations);
+            VariableTypeInferrer.Infer(operations, storage, headerCatalog);
             preparedProcedures.Add((procedure, operations));
         }
 

@@ -1,4 +1,5 @@
 using System.Text;
+using UltraDecompiler.CodeGeneration;
 
 namespace UltraDecompiler.Decompilation.Operations;
 
@@ -75,6 +76,11 @@ public static class Extensions
 
     static string FormatStore(StoreOperation store, int indent)
     {
+        if (PointerStoreFormatter.TryFormat(store, out var lvalue))
+        {
+            return $"{Indent(indent)}{lvalue} = {store.Value}";
+        }
+
         var segPrefix = store.Segment != null ? $"{store.Segment}:" : "";
         return $"{Indent(indent)}{segPrefix}[{store.Address}] = {store.Value}";
     }

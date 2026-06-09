@@ -1,4 +1,3 @@
-alloc.c
 bits.c
 copy.c
 dos.c
