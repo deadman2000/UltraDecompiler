@@ -99,6 +99,52 @@ public class LibModuleMatchingTests
     }
 
     [Fact]
+    public void Match_MultiSymbolModule_UsesPubdefOffsetForMalloc()
+    {
+        var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf("SLIBCE.LIB"));
+        var (module, code) = LibMatchingTestHelpers.RequireModule(library, "_malloc");
+        var mallocOffset = module.TryGetCodeOffset("_malloc");
+        Assert.NotNull(mallocOffset);
+        Assert.True(mallocOffset > 0);
+
+        var mallocMatches = LibraryFunctionMatcher.Match(
+            code.Data,
+            RelocationTable.Empty,
+            mallocOffset.Value,
+            library,
+            RegisterState.Unknown,
+            symbolName: "_malloc",
+            moduleName: null);
+
+        Assert.Single(mallocMatches);
+        Assert.Equal("_malloc", mallocMatches[0].SymbolName);
+        Assert.Equal(mallocOffset.Value, mallocMatches[0].ModuleCodeOffset);
+
+        var freeMatches = LibraryFunctionMatcher.Match(
+            code.Data,
+            RelocationTable.Empty,
+            0,
+            library,
+            RegisterState.Unknown,
+            symbolName: "_free",
+            moduleName: null);
+
+        Assert.Single(freeMatches);
+        Assert.Equal(0, freeMatches[0].ModuleCodeOffset);
+
+        var wrongOffset = LibraryFunctionMatcher.Match(
+            code.Data,
+            RelocationTable.Empty,
+            mallocOffset.Value,
+            library,
+            RegisterState.Unknown,
+            symbolName: "_free",
+            moduleName: null);
+
+        Assert.Empty(wrongOffset);
+    }
+
+    [Fact]
     public void Match_WithSymbolAndModuleFilter_ReturnsEmptyForWrongSymbol()
     {
         var library = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf("SLIBCE.LIB"));

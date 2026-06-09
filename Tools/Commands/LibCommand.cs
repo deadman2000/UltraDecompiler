@@ -106,9 +106,20 @@ internal static class LibCommand
                 {
                     Console.WriteLine($"  Код (CODE): {code.Data.Length} байт");
 
+                    var codeOffset = module.TryGetCodeOffset(symbolName) ?? 0;
+                    if (codeOffset != 0)
+                    {
+                        Console.WriteLine($"  Точка входа: 0x{codeOffset:X}");
+                    }
+                    else if (module.PublicSymbols.Count > 0)
+                    {
+                        Console.WriteLine(
+                            $"  Предупреждение: PUBDEF для {symbolName} не найден, дизассемблирование с 0");
+                    }
+
                     var relocationTable = OmfRelocationTableBuilder.Build(code, module.Fixups);
                     var disassembler = new X86Disassembler(code.Data, relocationTable);
-                    disassembler.Disassemble(0);
+                    disassembler.Disassemble(codeOffset);
 
                     foreach (var instr in disassembler.Instructions)
                     {

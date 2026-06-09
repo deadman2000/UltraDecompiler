@@ -10,8 +10,8 @@ namespace UltraDecompiler.LibMatching;
 /// <remarks>
 /// Алгоритм: извлечь линейное тело функции из образа программы, затем перебрать символы
 /// словаря .LIB и сравнить с кодом соответствующего модуля. Словарь OMF хранит только
-/// «символ → страница модуля», без смещения внутри CODE; пока предполагаем, что публичная
-/// функция начинается с offset 0 сегмента _TEXT (типично для однофайловых модулей QuickC).
+/// «символ → страница модуля»; смещение внутри CODE берётся из PUBDEF модуля
+/// (<see cref="OmfModule.TryGetCodeOffset"/>), иначе используется 0.
 /// </remarks>
 public static class LibraryFunctionMatcher
 {
@@ -105,8 +105,7 @@ public static class LibraryFunctionMatcher
                 continue;
             }
 
-            // TODO: когда появится разбор PUBDEF — искать точку входа символа внутри сегмента.
-            const int moduleCodeOffset = 0;
+            var moduleCodeOffset = module.TryGetCodeOffset(currentSymbolName) ?? 0;
             var cacheKey = (symbol.ModulePage, moduleCodeOffset);
             if (!checkedModules.TryGetValue(cacheKey, out var matches))
             {

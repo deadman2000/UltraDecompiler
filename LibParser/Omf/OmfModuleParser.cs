@@ -26,6 +26,7 @@ internal static class OmfModuleParser
         var externalList = new List<OmfExternalSymbol>();
         var segments = new Dictionary<int, SegmentInfo>();
         var fixups = new List<OmfFixup>();
+        var publicSymbols = new List<OmfModulePublicSymbol>();
         var fixupThreads = new OmfFixuppThreadState();
 
         string headerName = string.Empty;
@@ -73,6 +74,11 @@ internal static class OmfModuleParser
 
                 case OmfRecordTypes.Grpdef:
                     ParseGrpdef(content, names, groupNames);
+                    break;
+
+                case OmfRecordTypes.Pubdef:
+                case OmfRecordTypes.Pubdef32:
+                    ParsePubdef(content, recordType, publicSymbols);
                     break;
 
                 case OmfRecordTypes.Ledata:
@@ -132,6 +138,7 @@ internal static class OmfModuleParser
             Segments = segmentList,
             ExternalSymbols = externalList,
             Fixups = fixups,
+            PublicSymbols = publicSymbols,
         };
     }
 
@@ -199,6 +206,51 @@ internal static class OmfModuleParser
         while (!reader.End)
         {
             names.Add(reader.ReadCountedAscii());
+        }
+    }
+
+    private static void ParsePubdef(
+        ReadOnlySpan<byte> content,
+        byte recordType,
+        List<OmfModulePublicSymbol> publicSymbols)
+    {
+        var reader = new OmfBinaryReader(content);
+        if (!reader.TryReadIndex(out var groupIndex))
+        {
+            return;
+        }
+
+        if (!reader.TryReadIndex(out var segmentIndex))
+        {
+            return;
+        }
+
+        // Абсолютная адресация: при нулевых индексах группы и сегмента следует Base Frame (16 бит).
+        if (groupIndex == 0 && segmentIndex == 0 && !reader.TryReadUInt16(out _))
+        {
+            return;
+        }
+
+        var use32BitOffset = recordType == OmfRecordTypes.Pubdef32;
+        while (!reader.End)
+        {
+            var name = reader.ReadCountedAscii();
+            if (string.IsNullOrEmpty(name))
+            {
+                break;
+            }
+
+            var offset = use32BitOffset
+                ? (int)reader.ReadUInt32()
+                : reader.ReadUInt16();
+            _ = reader.ReadIndex();
+
+            publicSymbols.Add(new OmfModulePublicSymbol
+            {
+                Name = name,
+                SegmentIndex = segmentIndex,
+                Offset = offset,
+            });
         }
     }
 

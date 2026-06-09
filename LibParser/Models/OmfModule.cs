@@ -29,12 +29,49 @@ public sealed class OmfModule
     /// <summary>Релокации FIXUPP (привязаны к предшествующим LEDATA/LIDATA).</summary>
     public required IReadOnlyList<OmfFixup> Fixups { get; init; }
 
+    /// <summary>Публичные символы модуля (PUBDEF).</summary>
+    public required IReadOnlyList<OmfModulePublicSymbol> PublicSymbols { get; init; }
+
     /// <summary>Отображаемое имя: LIBMOD, иначе HeaderName.</summary>
     public string DisplayName => LibraryModuleName ?? HeaderName;
 
     /// <summary>Кодовые сегменты (класс CODE).</summary>
     public IEnumerable<OmfSegmentData> CodeSegments =>
         Segments.Where(static s => s.IsCode);
+
+    /// <summary>Найти публичный символ модуля по имени (PUBDEF).</summary>
+    public OmfModulePublicSymbol? FindPublicSymbol(string symbolName)
+    {
+        foreach (var symbol in PublicSymbols)
+        {
+            if (string.Equals(symbol.Name, symbolName, StringComparison.Ordinal))
+            {
+                return symbol;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Смещение символа в кодовом сегменте или <see langword="null"/>.</summary>
+    public int? TryGetCodeOffset(string symbolName)
+    {
+        var publicSymbol = FindPublicSymbol(symbolName);
+        if (publicSymbol is null)
+        {
+            return null;
+        }
+
+        foreach (var segment in Segments)
+        {
+            if (segment.SegmentIndex == publicSymbol.SegmentIndex && segment.IsCode)
+            {
+                return publicSymbol.Offset;
+            }
+        }
+
+        return null;
+    }
 
     public override string ToString() => DisplayName;
 }
