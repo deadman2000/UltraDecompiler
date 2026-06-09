@@ -160,7 +160,7 @@ public sealed class HeaderCatalog
         CType baseType = CTypeKind.Unknown switch
         {
             _ when typeTokens.Contains("void") => CType.Void,
-            _ when typeTokens.Contains("char") => new CType(CTypeKind.Char),
+            _ when typeTokens.Contains("char") => CType.Char,
             _ when typeTokens.Contains("int") => CType.Int,
             _ when typeTokens.Contains("long") => new CType(CTypeKind.Long),
             _ when typeTokens.Contains("float") => new CType(CTypeKind.Float),
@@ -170,6 +170,12 @@ public sealed class HeaderCatalog
             _ when typeTokens.Contains("FILE") => new CType(CTypeKind.Pointer, CType.Int),
             _ => CType.Int,
         };
+
+        if (baseType.Kind == CTypeKind.Char && pointerDepth == 1)
+        {
+            baseType = CType.CharPtr;
+            pointerDepth = 0;
+        }
 
         for (var i = 0; i < pointerDepth; i++)
         {

@@ -22,7 +22,18 @@ public sealed record CType(CTypeKind Kind, CType? Pointee = null)
 
     public static CType Int { get; } = new(CTypeKind.Int);
 
+    /// <summary>Базовый тип char (8-битный).</summary>
+    public static CType Char { get; } = new(CTypeKind.Char);
+
+    /// <summary>Указатель на char (char*), используется для форматных строк printf и т.п.</summary>
+    public static CType CharPtr { get; } = new(CTypeKind.Pointer, new CType(CTypeKind.Char));
+
     public bool IsVoid => Kind == CTypeKind.Void;
+
+    /// <summary>Является ли тип char* (в т.ч. const char* из заголовков).</summary>
+    public bool IsCharPtr =>
+        (Kind == CTypeKind.Char && Pointee != null) ||
+        (Kind == CTypeKind.Pointer && Pointee?.Kind == CTypeKind.Char);
 
     public override string ToString() => Kind switch
     {

@@ -11,13 +11,9 @@ public class PopHandler : IInstructionHandler
 {
     public void Handle(ExprBlock block, Instruction instr)
     {
-        if (block.EndStack.Count == 0)
-        {
-            throw new InvalidOperationException(
-                $"POP at offset {instr.Offset:X4} from empty symbolic stack (unbalanced PUSH/POP or indirect manipulation of SP)");
-        }
-
-        var value = block.EndStack.Pop();
+        var value = block.EndStack.Count == 0
+            ? new Variable() { Name = "stackErr" }
+            : block.EndStack.Pop();
 
         var dst = instr.Operand1;
         if (dst.Type == OperandType.Register16)

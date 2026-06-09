@@ -1,4 +1,6 @@
-﻿namespace UltraDecompiler.Decompilation;
+﻿using System.Text;
+
+namespace UltraDecompiler.Decompilation;
 
 /// <summary>
 /// Базовый класс выражений
@@ -70,6 +72,41 @@ public record ConstExpr(int Value) : Expr
 public record ImageOffsetExpr(string BaseName, int Value) : Expr
 {
     public override string ToString() => $"{BaseName} + 0x{Value:X4}";
+}
+
+/// <summary>
+/// Строковый литерал. Появляется, когда аргумент функции по сигнатуре из заголовка имеет тип char*
+/// (например, форматная строка printf). Создаётся в CallSiteResolver из ConstExpr/ImageOffsetExpr
+/// путём чтения содержимого по адресу в образе программы.
+/// </summary>
+public record StringExpr(string Value) : Expr
+{
+    public override string ToString() => ToCStringLiteral(Value);
+
+    private static string ToCStringLiteral(string s)
+    {
+        var sb = new StringBuilder();
+        sb.Append('"');
+        foreach (char c in s)
+        {
+            switch (c)
+            {
+                case '\\': sb.Append("\\\\"); break;
+                case '"': sb.Append("\\\""); break;
+                case '\n': sb.Append("\\n"); break;
+                case '\r': sb.Append("\\r"); break;
+                case '\t': sb.Append("\\t"); break;
+                default:
+                    if (c >= 32 && c < 127)
+                        sb.Append(c);
+                    else
+                        sb.Append($"\\x{(int)c:X2}");
+                    break;
+            }
+        }
+        sb.Append('"');
+        return sb.ToString();
+    }
 }
 
 /// <summary>

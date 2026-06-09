@@ -60,9 +60,15 @@ public class Decompiler
         // Подставляем функции (сигнатуры из заголовков .LIB или анализ тел пользовательских процедур).
         ProcedureSignatureResolver.ResolveAll(storage, headerCatalog);
 
+        var imageLayout = ExeImageLayout.From(parser);
+
         // Подставляем в CallExpr (через CallState) имена (библиотечные) и аргументы по сигнатурам callee.
-        // CallHandler запоминал только состояние вызова, разрешение — отдельный этап.
-        CallSiteResolver.ResolveAll(storage);
+        // Для аргументов char* (из заголовков) near-указатель переводится в StringExpr по адресу в образе.
+        CallSiteResolver.ResolveAll(storage, parser.Image, imageLayout);
+
+        // Safety net после разрешения: гарантируем StringExpr для char* аргументов по типу из заголовка,
+        // даже если CallExpr в IR не имел CallState на момент финального прохода.
+        MaterializeCharPtrLiterals(storage, parser.Image, imageLayout);
 
         Directory.CreateDirectory(outputDirectory);
         var outputFiles = new List<string>();
@@ -193,6 +199,49 @@ public class Decompiler
             if (target >= 0 && !functionOffsets.Contains(target))
             {
                 pending.Enqueue(target);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Проходит по всем операциям и для вызовов, чья сигнатура (из заголовка) имеет параметр char*,
+    /// преобразует соответствующий ConstExpr/ImageOffsetExpr в StringExpr путём чтения литерала.
+    /// Это обеспечивает восстановление "printf("...")" по типу, без эвристик в кодогенераторе.
+    /// </summary>
+    private static void MaterializeCharPtrLiterals(ProcedureStorage storage, byte[] image, ExeImageLayout layout)
+    {
+        if (image.Length == 0) return;
+
+        foreach (var proc in storage.All)
+        {
+            foreach (var block in proc.Expressions.Blocks)
+            {
+                for (int i = 0; i < block.Operations.Count; i++)
+                {
+                    if (block.Operations[i] is SetOperation set && set.Src is CallExpr ce)
+                    {
+                        if (!storage.TryGetByName(ce.Name, out var target) || target is null) continue;
+                        var sig = target.Signature;
+                        bool changed = false;
+                        var newArgs = new List<Expr>(ce.Args);
+                        for (int a = 0; a < sig.Parameters.Count && a < newArgs.Count; a++)
+                        {
+                            if (!sig.Parameters[a].Type.IsCharPtr || newArgs[a] is StringExpr)
+                                continue;
+
+                            var mat = StringLiteralMaterializer.TryMaterialize(image, newArgs[a], layout);
+                            if (mat != null)
+                            {
+                                newArgs[a] = mat;
+                                changed = true;
+                            }
+                        }
+                        if (changed)
+                        {
+                            block.Operations[i] = new SetOperation(set.Dst, new CallExpr(ce.Name, newArgs));
+                        }
+                    }
+                }
             }
         }
     }

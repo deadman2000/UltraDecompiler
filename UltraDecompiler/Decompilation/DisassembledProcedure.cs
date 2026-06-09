@@ -32,6 +32,7 @@ public sealed class DisassembledProcedure
 public sealed class ProcedureStorage
 {
     private readonly Dictionary<int, DisassembledProcedure> _byOffset = [];
+    private readonly Dictionary<string, DisassembledProcedure> _byName = new(StringComparer.Ordinal);
 
     public IReadOnlyCollection<DisassembledProcedure> All => _byOffset.Values;
 
@@ -40,8 +41,14 @@ public sealed class ProcedureStorage
     public bool TryGet(int offset, out DisassembledProcedure? procedure) =>
         _byOffset.TryGetValue(offset, out procedure);
 
-    public void Add(DisassembledProcedure procedure) =>
+    public bool TryGetByName(string name, out DisassembledProcedure? procedure) =>
+        _byName.TryGetValue(name, out procedure);
+
+    public void Add(DisassembledProcedure procedure)
+    {
         _byOffset[procedure.Offset] = procedure;
+        _byName[procedure.Name] = procedure;
+    }
 
     /// <summary>Имя процедуры для подстановки в CALL/JMP или синтетическое <c>sub_XXXX</c>.</summary>
     public string GetName(int offset) =>

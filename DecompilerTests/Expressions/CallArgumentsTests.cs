@@ -17,6 +17,11 @@ public class CallArgumentsTests : BaseTests
         Assert.True(catalog.TryGetSignature("printf", out var printfSig));
         Assert.NotNull(printfSig);
         Assert.True(printfSig!.IsVariadic);
+        Assert.True(printfSig.Parameters.Count >= 1, "printf должен иметь хотя бы 1 параметр (формат)");
+        var firstParamType = printfSig.Parameters[0].Type;
+        var firstTypeStr = firstParamType.ToString();
+        Assert.Equal("char*", firstTypeStr);
+        Assert.Equal(CTypeKind.Pointer, firstParamType.Kind);
 
         var storage = new ProcedureStorage();
         storage.Add(new DisassembledProcedure

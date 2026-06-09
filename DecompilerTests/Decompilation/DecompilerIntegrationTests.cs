@@ -43,6 +43,12 @@ public class DecompilerIntegrationTests
             Assert.Contains("printf(", mainSource);
             Assert.Contains("int main(void)", mainSource);
             Assert.True(printfProcedure.Signature.Parameters.Count >= 1);
+            // Проверяем, что форматная строка восстановлена как StringExpr (char* из заголовка),
+            // а не оставлена как сырой числовой адрес (ConstExpr).
+            // Точное содержимое зависит от отображения near-DGROUP → байты образа (отдельная задача).
+            Assert.Contains("printf(\"Hello world\\n\"", mainSource);
+            Assert.DoesNotContain("printf(618", mainSource);
+            Assert.DoesNotContain("printf(0x", mainSource, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -138,6 +144,12 @@ public class DecompilerIntegrationTests
                 (c.Name == "printf" || c.Name.Contains("printf", StringComparison.OrdinalIgnoreCase)));
             Assert.NotNull(printfCall);
             Assert.Equal(2, printfCall!.Args.Count);
+
+            // Проверяем в сгенерированном C, что первый аргумент — char* литерал (а не число/int)
+            var mainSourceForAdd = File.ReadAllText(result.OutputFiles.First(path => path.EndsWith("main.c", StringComparison.Ordinal)));
+            Assert.Contains("printf(\"%d\",", mainSourceForAdd);
+            Assert.DoesNotContain("printf(618", mainSourceForAdd);
+            Assert.DoesNotContain("printf(0x", mainSourceForAdd, StringComparison.OrdinalIgnoreCase);
 
             // Также проверяем, что в procedures есть пользовательская функция сложения
             // (кроме main)

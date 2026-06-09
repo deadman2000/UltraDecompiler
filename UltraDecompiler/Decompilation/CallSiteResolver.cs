@@ -1,3 +1,5 @@
+using UltraDecompiler.Parser;
+
 namespace UltraDecompiler.Decompilation;
 
 /// <summary>
@@ -9,11 +11,11 @@ public static class CallSiteResolver
     /// Разрешает все вызовы во всех процедурах хранилища (обновляет Operations in-place).
     /// Должен вызываться после ProcedureSignatureResolver.ResolveAll.
     /// </summary>
-    public static void ResolveAll(ProcedureStorage storage)
+    public static void ResolveAll(ProcedureStorage storage, byte[]? image = null, ExeImageLayout? layout = null)
     {
         foreach (var procedure in storage.All)
         {
-            ResolveBlocks(procedure.Expressions.Blocks, storage);
+            ResolveBlocks(procedure.Expressions.Blocks, storage, image, layout);
         }
     }
 
@@ -21,15 +23,15 @@ public static class CallSiteResolver
     /// Разрешает вызовы в списке ExprBlock'ов (используется из ExpressionBuilder при Build с procedures,
     /// и из ResolveAll).
     /// </summary>
-    public static void ResolveBlocks(IReadOnlyList<ExprBlock> blocks, ProcedureStorage storage)
+    public static void ResolveBlocks(IReadOnlyList<ExprBlock> blocks, ProcedureStorage storage, byte[]? image = null, ExeImageLayout? layout = null)
     {
         foreach (var block in blocks)
         {
-            ResolveInBlock(block, storage);
+            ResolveInBlock(block, storage, image, layout);
         }
     }
 
-    private static void ResolveInBlock(ExprBlock block, ProcedureStorage storage)
+    private static void ResolveInBlock(ExprBlock block, ProcedureStorage storage, byte[]? image, ExeImageLayout? layout)
     {
         for (var i = 0; i < block.Operations.Count; i++)
         {
@@ -37,7 +39,7 @@ public static class CallSiteResolver
 
             if (op is SetOperation setOp && setOp.Src is CallExpr callExpr)
             {
-                var resolvedExpr = ResolveCallExpr(callExpr, storage);
+                var resolvedExpr = ResolveCallExpr(callExpr, storage, image, layout);
                 if (!ReferenceEquals(resolvedExpr, callExpr))
                 {
                     block.Operations[i] = new SetOperation(setOp.Dst, resolvedExpr);
@@ -48,11 +50,25 @@ public static class CallSiteResolver
         }
     }
 
-    private static CallExpr ResolveCallExpr(CallExpr callExpr, ProcedureStorage storage)
+    private static CallExpr ResolveCallExpr(CallExpr callExpr, ProcedureStorage storage, byte[]? image, ExeImageLayout? layout)
     {
         var state = callExpr.CallState;
         if (state == null)
+        {
+            // После первого разрешения CallState обычно уже нет. Если у нас есть образ,
+            // мы всё равно можем "дотипизировать" аргументы по текущей сигнатуре callee
+            // (преобразовать ConstExpr адреса в StringExpr для char* параметров).
+            if (image != null && layout != null && storage.TryGetByName(callExpr.Name, out var p) && p != null)
+            {
+                var calleeSig = p.Signature;
+                var materialized = MaterializeCharPtrArgs(callExpr.Args, calleeSig, image, layout);
+                if (!ReferenceEquals(materialized, callExpr.Args))
+                {
+                    return new CallExpr(callExpr.Name, materialized);
+                }
+            }
             return callExpr;
+        }
 
         if (!storage.TryGet(state.TargetOffset, out var targetProc) || targetProc is null)
             return callExpr;
@@ -65,12 +81,12 @@ public static class CallSiteResolver
         // Если есть запомненное состояние, строим аргументы строго по сигнатуре callee
         if (state.CallSiteStack != null || state.CallSitePushArgs != null || state.CallSiteRegisters != null)
         {
-            finalArgs = BuildArgsFromCalleeSignature(callExpr, sig);
+            finalArgs = BuildArgsFromCalleeSignature(callExpr, sig, image, layout, storage);
         }
         else
         {
             // CallExpr без снимков состояния — fallback.
-            finalArgs = ComputeFinalArgs(callExpr.Args, sig);
+            finalArgs = ComputeFinalArgs(callExpr.Args, sig, image);
         }
 
         if (string.Equals(finalName, callExpr.Name, StringComparison.Ordinal)
@@ -89,7 +105,7 @@ public static class CallSiteResolver
     /// Использует запомненное состояние call site (стек + регистры + push-аргументы),
     /// упакованное в CallState.
     /// </summary>
-    private static IReadOnlyList<Expr> BuildArgsFromCalleeSignature(CallExpr callSite, ProcedureSignature sig)
+    private static IReadOnlyList<Expr> BuildArgsFromCalleeSignature(CallExpr callSite, ProcedureSignature sig, byte[]? image, ExeImageLayout? layout, ProcedureStorage storage)
     {
         var state = callSite.CallState;
         if (sig.Parameters.Count == 0 && !sig.IsVariadic)
@@ -148,10 +164,13 @@ public static class CallSiteResolver
             }
         }
 
+        if (image != null && layout != null)
+            return MaterializeCharPtrArgs(result, sig, image, layout);
+
         return result;
     }
 
-    private static IReadOnlyList<Expr> ComputeFinalArgs(IReadOnlyList<Expr> capturedArgs, ProcedureSignature sig)
+    private static IReadOnlyList<Expr> ComputeFinalArgs(IReadOnlyList<Expr> capturedArgs, ProcedureSignature sig, byte[]? image)
     {
         // Fallback для CallExpr, у которых не было снимков состояния.
         // Просто берём/подрезаем то, что было захвачено раньше.
@@ -166,5 +185,28 @@ public static class CallSiteResolver
             return capturedArgs;
 
         return capturedArgs;
+    }
+
+    /// <summary>
+    /// Для уже разрешённых аргументов (без CallState) материализует StringExpr для тех,
+    /// чей тип по текущей сигнатуре callee — char*.
+    /// </summary>
+    private static IReadOnlyList<Expr> MaterializeCharPtrArgs(IReadOnlyList<Expr> args, ProcedureSignature sig, byte[] image, ExeImageLayout layout)
+    {
+        if (args.Count == 0 || sig.Parameters.Count == 0)
+            return args;
+
+        var result = new List<Expr>(args);
+
+        for (int i = 0; i < sig.Parameters.Count && i < result.Count; i++)
+        {
+            if (sig.Parameters[i].Type.IsCharPtr)
+            {
+                var mat = StringLiteralMaterializer.TryMaterialize(image, result[i], layout);
+                if (mat != null)
+                    result[i] = mat;
+            }
+        }
+        return result;
     }
 }
