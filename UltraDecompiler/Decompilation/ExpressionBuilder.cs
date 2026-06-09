@@ -15,7 +15,6 @@ public partial class ExpressionBuilder
     private readonly Dictionary<BasicBlock, ExprBlock> _blocksMap = [];
     private readonly Queue<ExprBlock> _queue = new();
     private ExprBlock? _entryBlock;
-    private ProcedureStorage? _procedures;
 
     public List<ExprBlock> Blocks { get; } = [];
 
@@ -34,6 +33,9 @@ public partial class ExpressionBuilder
     /// 
     /// Важно: состояние регистров (RegisterExpressions) передаётся между блоками.
     /// Это позволяет отслеживать значения регистров через границы базовых блоков.
+    /// 
+    /// Если передан <paramref name="procedures"/>, после построения блоков автоматически
+    /// выполняется CallSiteResolver для подстановки имён (в т.ч. библиотечных) и аргументов в CallExpr.
     /// </summary>
     /// <param name="graph">Построенный граф потока управления</param>
     /// <param name="isCom">true для .COM файлов (другая инициализация регистров)</param>
@@ -41,45 +43,30 @@ public partial class ExpressionBuilder
         Build(graph, isCom, procedures: null);
 
     /// <summary>
-    /// Выполняет декомпиляцию с подстановкой имён и сигнатур известных процедур в CALL.
+    /// Выполняет декомпиляцию. При наличии procedures после RunBuild выполняется разрешение вызовов.
     /// </summary>
     public void Build(ControlFlowGraph graph, bool isCom, ProcedureStorage? procedures)
     {
         Variables.Clear();
-        _procedures = procedures;
 
         var initialRegisters = isCom
             ? RegisterExpressions.InitCom(Variables)
             : RegisterExpressions.InitExe(Variables);
 
-        RunBuild(graph, initialRegisters, []);
+        RunBuild(graph, initialRegisters, [], procedures);
     }
 
     /// <summary>
-    /// Устаревшая перегрузка: строит минимальное <see cref="ProcedureStorage"/> только с именами.
+    /// Выполняет декомпиляцию процедуры (с начальным retAddr на стеке).
+    /// При наличии procedures после построения выполняется CallSiteResolver.
     /// </summary>
-    public void Build(
-        ControlFlowGraph graph,
-        bool isCom,
-        IReadOnlyDictionary<int, string>? knownProcedureNames)
+    public void BuildProc(ControlFlowGraph graph, ProcedureStorage? procedures)
     {
-        ProcedureStorage? storage = null;
-        if (knownProcedureNames is not null)
-        {
-            storage = new ProcedureStorage();
-            foreach (var (offset, name) in knownProcedureNames)
-            {
-                storage.Add(new DisassembledProcedure
-                {
-                    Offset = offset,
-                    Instructions = [],
-                    Name = name,
-                    IsLibrary = false,
-                });
-            }
-        }
-
-        Build(graph, isCom, storage);
+        Variables.Clear();
+        var initialRegisters = RegisterExpressions.InitProc(Variables);
+        List<Expr> stack = [];
+        stack.Add(Variables.CreateVariable("retAddr"));
+        RunBuild(graph, initialRegisters, stack, procedures);
     }
 
     /// <summary>
@@ -94,13 +81,14 @@ public partial class ExpressionBuilder
     public void Build(ControlFlowGraph graph, RegisterExpressions initialRegisters, Stack<Expr> initialStack)
     {
         // Важно: Variables НЕ очищаем — пользователь мог создать в них переменные для initialRegisters.
-        RunBuild(graph, initialRegisters, initialStack);
+        RunBuild(graph, initialRegisters, initialStack, procedures: null);
     }
 
     /// <summary>
     /// Общая логика построения (BFS + linking). Clears должны быть сделаны вызывающим кодом.
+    /// При наличии procedures после построения выполняется CallSiteResolver (подстановка в CallExpr).
     /// </summary>
-    private void RunBuild(ControlFlowGraph graph, RegisterExpressions initialRegisters, IEnumerable<Expr> initialStack)
+    private void RunBuild(ControlFlowGraph graph, RegisterExpressions initialRegisters, IEnumerable<Expr> initialStack, ProcedureStorage? procedures)
     {
         Blocks.Clear();
         _blocksMap.Clear();
@@ -151,6 +139,12 @@ public partial class ExpressionBuilder
                 exprBlock.ConditionalBlock = condCode;
             }
         }
+
+        // Отдельный этап после основного symbolic execution: разрешение вызовов по ProcedureStorage.
+        if (procedures != null)
+        {
+            CallSiteResolver.ResolveBlocks(Blocks, procedures);
+        }
     }
 
     private void CreateExprBlock(BasicBlock block, in RegisterExpressions registers, IEnumerable<Expr> stack)
@@ -164,7 +158,6 @@ public partial class ExpressionBuilder
             Variables = Variables,
             InitRegisters = registers,
             InitStack = stack.ToArray(),
-            Procedures = _procedures,
         };
         Blocks.Add(exprBlock);
         _blocksMap[block] = exprBlock;

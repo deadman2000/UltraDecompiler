@@ -143,6 +143,23 @@ public record struct RegisterExpressions(
                                        DS: psp);
     }
 
+    public static RegisterExpressions InitProc(VariableStorage variables)
+    {
+        var zero = ConstExpr.Zero;
+        return new RegisterExpressions(AX: variables.CreateVariable("varAX"),
+                                       BX: variables.CreateVariable("varBX"),
+                                       CX: variables.CreateVariable("varCX"),
+                                       DX: variables.CreateVariable("varDX"),
+                                       SP: new ConstExpr(0xfffe),
+                                       BP: zero,
+                                       SI: zero,
+                                       DI: zero,
+                                       ES: variables.PspBase,
+                                       CS: variables.CreateVariable("varCS"),
+                                       SS: variables.CreateVariable("varSS"),
+                                       DS: variables.PspBase);
+    }
+
     /// <summary>
     /// Установка 16-битного регистра: сбрасывает H и L в null.
     /// Для gp-регистров (AX–BX) переводит группу в состояние (X=expr, H=null, L=null).

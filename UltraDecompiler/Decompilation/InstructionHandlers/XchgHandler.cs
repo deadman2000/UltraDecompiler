@@ -28,8 +28,7 @@ public class XchgHandler : IInstructionHandler
         }
         else if (op1.Type == OperandType.Memory)
         {
-            var (addr, seg) = op1.BuildMemoryReference(block.EndRegisters, instr.Segment);
-            block.Operations.Add(new StoreOperation(addr, seg, val2));
+            op1.EmitStore(block, instr.Segment, val2);
         }
 
         // Обновляем второй операнд значением первого (симметрично)
@@ -43,8 +42,7 @@ public class XchgHandler : IInstructionHandler
         }
         else if (op2.Type == OperandType.Memory)
         {
-            var (addr, seg) = op2.BuildMemoryReference(block.EndRegisters, instr.Segment);
-            block.Operations.Add(new StoreOperation(addr, seg, val1));
+            op2.EmitStore(block, instr.Segment, val1);
         }
     }
 }

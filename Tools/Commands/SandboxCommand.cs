@@ -23,7 +23,6 @@ internal static class SandboxCommand
         var image = HexConverter.FromHexString("11 56 FC"); // adc word ptr [bp - 4], dx
 
         var disassembler = new X86Disassembler(image);
-        //disassembler.Disassemble(0, RegisterState.Unknown);
 
         var cfg = new ControlFlowGraph();
         cfg.Build(disassembler, 0, RegisterState.Unknown);
@@ -33,8 +32,6 @@ internal static class SandboxCommand
         expressions.Build(cfg, registers, []);
 
         Console.WriteLine();
-
-        //RegisterState registers = RegisterState.Unknown with { BP = new Variable() { Name = "x" } };
 
         return 0;
     }

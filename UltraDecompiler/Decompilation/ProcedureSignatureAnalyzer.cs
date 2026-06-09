@@ -12,8 +12,7 @@ public static class ProcedureSignatureAnalyzer
     {
         var parameters = AnalyzeParameters(procedure.Instructions);
         var returnType = AnalyzeReturnType(procedure.Instructions);
-        var clobbers = CollectClobbers(procedure.Instructions);
-        return new ProcedureSignature(returnType, parameters, clobbers: clobbers);
+        return new ProcedureSignature(returnType, parameters);
     }
 
     private static IReadOnlyList<ProcedureParameter> AnalyzeParameters(IReadOnlyList<Instruction> instructions)
@@ -99,29 +98,24 @@ public static class ProcedureSignatureAnalyzer
 
         foreach (var instr in instructions)
         {
-            CollectFromOperand(instr.Operand1, offsets);
-            CollectFromOperand(instr.Operand2, offsets);
+            CollectBpOffsets(instr.Operand1, offsets);
+            CollectBpOffsets(instr.Operand2, offsets);
         }
 
         return offsets.ToList();
     }
 
-    private static void CollectFromOperand(Operand operand, SortedSet<int> offsets)
+    // Отлавливаем операции с BP регистром и добавляем смещение в offsets
+    private static void CollectBpOffsets(Operand operand, SortedSet<int> offsets)
     {
         if (operand.Type != OperandType.Memory)
-        {
             return;
-        }
 
         if (operand.BaseReg != AddressRegister.BP || operand.IndexReg != AddressRegister.None)
-        {
             return;
-        }
 
         if (operand.Value < FirstParameterOffset || operand.Value % 2 != 0)
-        {
             return;
-        }
 
         offsets.Add(operand.Value);
     }
@@ -137,25 +131,4 @@ public static class ProcedureSignatureAnalyzer
         instr.Operand1.AsGpRegister16() == GpRegister16.BP &&
         instr.Operand2.Type == OperandType.Register16 &&
         instr.Operand2.AsGpRegister16() == GpRegister16.SP;
-
-    /// <summary>
-    /// Собирает 16-битные регистры, упоминаемые в инструкциях процедуры (консервативная оценка clobbers).
-    /// Используется для пометки регистров, которые callee может изменить (полезно после CALL в CallHandler).
-    /// </summary>
-    private static IReadOnlySet<GpRegister16> CollectClobbers(IReadOnlyList<Instruction> instructions)
-    {
-        var regs = new HashSet<GpRegister16>();
-        foreach (var instr in instructions)
-        {
-            CollectReg16(instr.Operand1, regs);
-            CollectReg16(instr.Operand2, regs);
-        }
-        return regs;
-    }
-
-    private static void CollectReg16(Operand operand, HashSet<GpRegister16> regs)
-    {
-        if (operand.Type == OperandType.Register16)
-            regs.Add(operand.AsGpRegister16());
-    }
 }

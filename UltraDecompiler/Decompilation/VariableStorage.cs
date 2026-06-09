@@ -9,6 +9,7 @@ public class VariableStorage
     private Variable? _pspBase;
     private readonly Dictionary<int, Variable> _pspFields = new();
     private readonly Dictionary<int, Variable> _stackParameters = new();
+    private readonly Dictionary<int, Variable> _stackLocals = new();
 
     /// <summary>true, если для функции активирован стандартный стековый кадр (BP-based).</summary>
     public bool StackFrameActive { get; private set; }
@@ -19,6 +20,7 @@ public class VariableStorage
         _pspBase = null;
         _pspFields.Clear();
         _stackParameters.Clear();
+        _stackLocals.Clear();
         StackFrameActive = false;
     }
 
@@ -75,6 +77,41 @@ public class VariableStorage
             return null;
 
         return _stackParameters.GetValueOrDefault(bpDisplacement);
+    }
+
+    /// <summary>
+    /// Активирует стековый кадр и создаёт переменные для локальных переменных
+    /// по отрицательным смещениям [BP+disp] (disp &lt; 0, обычно -2, -4, ...).
+    /// Локальные получают безымянные Variable (будут varN в выводе).
+    /// </summary>
+    public IReadOnlyList<Variable> ActivateStackLocals(IEnumerable<int> localOffsets)
+    {
+        StackFrameActive = true;
+        _stackLocals.Clear();
+
+        var result = new List<Variable>();
+        foreach (var offset in localOffsets.OrderBy(o => o))
+        {
+            if (_stackLocals.ContainsKey(offset))
+                continue;
+
+            var variable = CreateVariable();
+            _stackLocals[offset] = variable;
+            result.Add(variable);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Возвращает переменную локала для обращения [BP+disp] (disp &lt; 0), если кадр активен.
+    /// </summary>
+    public Variable? TryGetStackLocal(int bpDisplacement)
+    {
+        if (!StackFrameActive || bpDisplacement >= 0)
+            return null;
+
+        return _stackLocals.GetValueOrDefault(bpDisplacement);
     }
 
     /// <summary>

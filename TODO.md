@@ -44,17 +44,6 @@
 
 ### 2. LibParser и LibMatching (новое, 2026)
 
-**Реализовано:**
-- Парсер OMF `.LIB` QuickC: модули, LEDATA/LIDATA, EXTDEF, FIXUPP, словарь символов (`LibParser`).
-- `OmfRelocationTableBuilder` — таблица релокаций для дизассемблирования кода модуля.
-- `OmfFixupNameResolver` — имена целей FIXUPP.
-- `LibraryFunctionMatcher` + `FunctionBodyComparer` — сопоставление тела функции EXE с символом `.LIB` (с маскированием rel16 и near CALL/JMP).
-- `Crt0EntryPointMatcher` — выбор библиотеки по совпадению crt0/`__astart` на точке входа.
-- `LibraryCallResolver` (бывший MainOffsetFinder) — поиск `_main` и произвольных символов по FIXUPP-вызовам из библиотечных функций (crt0 и др.). Основной метод `FindCalledSymbol`, удобный `FindMainFromAstart`.
-- CLI `decompile-main`: crt0 → `_main` → `DecompilePipeline`.
-- CLI `lib -s SYMBOL`: разбор модуля, таблица FIXUPP, дизассемблирование CODE.
-- Тесты: `LibParserTests`, `LibMatchingTests` (эталонные `.LIB` / `.EXE` из `QuickC/`).
-
 **Ограничения и задачи:**
 - Нет разбора PUBDEF — точка входа символа в CODE предполагается offset 0 (типично для однофайловых модулей QuickC, но не всегда).
 - `FunctionBodyComparer`: тело в EXE может быть длиннее тела в `.LIB` (границы функции не определяются точно; CALL без RET).
@@ -67,10 +56,7 @@
 
 ### 3. Анализ процедур
 
-- **Реализовано (2026):** восстановление **входных параметров** декомпилируемой функции в `ExpressionBuilder` — пролог `push bp; mov bp, sp` / `ENTER`, обращения `[BP+offset]` (offset ≥ 4) → переменные `arg0`, `arg1`, …; чтения параметров в IR подменяются на `Variable` вместо `MemExpr`.
-- **Реализовано (2026):** сигнатуры в `DisassembledProcedure.Signature` — библиотечные функции из `QuickC/INCLUDE` (`QuickCHeaderCatalog`), пользовательские из `ProcedureSignatureAnalyzer` (пролог + `[BP+n]`, эвристика `void`/`int` по записи в AX). `CallHandler` берёт callee из `ProcedureStorage`, аргументы — со стека (cdecl) / PUSH перед CALL (variadic). `CallExpr(string Name, …)` вместо класса `Procedure`.
-- **Реализовано (базово):** явная поддержка return — `RetHandler` + `ReturnOperation(Expr? Value из AX)` в IR, обработка в `GenerateCode` (ExpressionBuilder), генерация `return <expr>;` / `return;` в `CCodeGenerator` (с учётом `Signature.ReturnType`). Добавлена базовая коллекция/применение `Clobbers` (ProcedureSignature + Analyzer + CallHandler). Улучшена модель возвратов и clobber после вызовов.
-- Нет анализа эпилога, локальных переменных `[BP-offset]`, точных типов параметров пользовательских функций (пока `int`).
+- Нет анализа эпилога, локальных переменных `[BP-offset]` (частично реализовано: поддержка в VariableStorage + подстановка Variable вместо MemExpr/Store для [BP- disp] при наличии пролога), точных типов параметров пользовательских функций (пока `int`).
 - Косвенные вызовы и far call — без сигнатуры; только адрес в аргументах.
 - LibMatching даёт имена только для символов, чьё тело совпало с кодом в образе; произвольные процедуры пользователя не восстанавливаются.
 - Отсутствует построение графа вызовов (call graph).
@@ -116,8 +102,6 @@
 
 - Поддержка генерации структур и union'ов на основе анализа обращений к памяти
 - Восстановление имён переменных и функций (где возможно) — частично через LibMatching
-- Экспорт CFG и IR в удобные для анализа форматы
 - Поддержка большего количества DOS-вызовов через `msdos.h`
-- Интеграция с дизассемблерами (IDA/Ghidra) для улучшения качества входных данных
 
 ---

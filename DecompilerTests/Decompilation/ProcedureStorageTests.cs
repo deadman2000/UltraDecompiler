@@ -20,6 +20,7 @@ public class ProcedureStorageTests
         {
             Offset = 0x10,
             Instructions = [],
+            Expressions = null!,
             Name = "main",
             IsLibrary = false,
         };

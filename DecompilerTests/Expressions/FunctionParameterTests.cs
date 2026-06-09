@@ -80,6 +80,13 @@ public class FunctionParameterTests : BaseTests
             """);
 
         Assert.Empty(expr.Parameters);
+
+        // [bp-2] должен подставляться как локальная переменная (Variable)
+        var ax = expr.Blocks[0].EndRegisters.AX;
+        var localVar = Assert.IsType<Variable>(ax);
+        // Локалы создаются без имени (varN), в отличие от argN для параметров
+        Assert.True(string.IsNullOrEmpty(localVar.Name) || localVar.Name.StartsWith("var"),
+            "Локальная переменная должна иметь имя varN или без имени");
     }
 
     [Fact]

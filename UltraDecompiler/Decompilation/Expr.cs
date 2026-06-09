@@ -263,6 +263,11 @@ public record Math2Expr(Math2Operation Operation, Expr First, Expr Second) : Exp
 /// </summary>
 public record CallExpr(string Name, IReadOnlyList<Expr> Args) : Expr
 {
+    /// <summary>
+    /// Состояние на момент вызова
+    /// </summary>
+    public CallState? CallState { get; init; }
+
     public override string ToString()
     {
         var args = string.Join(", ", Args);

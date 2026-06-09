@@ -225,9 +225,11 @@ public static class Extensions
                         if (operand.BaseReg == AddressRegister.BP &&
                             operand.IndexReg == AddressRegister.None)
                         {
-                            var param = block.Variables.TryGetStackParameter(operand.Value);
-                            if (param != null)
-                                return param;
+                            // Сначала параметры (argN), потом локальные переменные (varN) по [BP+disp]
+                            var slot = block.Variables.TryGetStackParameter(operand.Value)
+                                       ?? block.Variables.TryGetStackLocal(operand.Value);
+                            if (slot != null)
+                                return slot;
                         }
 
                         var (address, segExpr) = operand.BuildMemoryReference(block.EndRegisters, segmentOverride);
@@ -296,6 +298,32 @@ public static class Extensions
             }
 
             return (address, segExpr);
+        }
+
+        /// <summary>
+        /// Эмитит запись в память по операнду.
+        /// Если это обращение к локальной переменной по [BP + отрицательное_смещение],
+        /// создаёт SetOperation на соответствующую Variable (поддержка локалов).
+        /// Иначе создаёт StoreOperation (для глобалов, параметров, [bx+si] и т.д.).
+        /// </summary>
+        public void EmitStore(ExprBlock block, Segment segmentOverride, Expr value)
+        {
+            if (operand.Type != OperandType.Memory)
+                throw new InvalidOperationException("EmitStore может вызываться только для memory-операнда");
+
+            if (operand.BaseReg == AddressRegister.BP && operand.IndexReg == AddressRegister.None)
+            {
+                var local = block.Variables.TryGetStackLocal(operand.Value);
+                if (local != null)
+                {
+                    block.Operations.Add(new SetOperation(local, value));
+                    return;
+                }
+                // Для параметров (disp >=4) или [bp+0] — оставляем Store (обычно не пишем в arg)
+            }
+
+            var (addr, seg) = operand.BuildMemoryReference(block.EndRegisters, segmentOverride);
+            block.Operations.Add(new StoreOperation(addr, seg, value));
         }
 
         /// <summary>

@@ -2,9 +2,6 @@ namespace UltraDecompiler.Decompilation.InstructionHandlers;
 
 /// <summary>
 /// Обрабатывает CALL и CALL_FAR.
-///
-/// Прямые near-вызовы: имя и сигнатура из <see cref="ProcedureStorage"/>.
-/// Аргументы подставляются из символического стека (cdecl) по сигнатуре callee.
 /// </summary>
 public class CallHandler : IInstructionHandler
 {
@@ -12,23 +9,30 @@ public class CallHandler : IInstructionHandler
     {
         var op = instr.Operand1.IsSet ? instr.Operand1 : instr.Operand2;
         string name;
-        ProcedureSignature signature = ProcedureSignature.Unknown;
         IReadOnlyList<Expr> args;
+        CallState? callState = null;
 
         if (op.Type == OperandType.Relative16)
         {
             var target = op.Value;
-            if (block.Procedures?.TryGet(target, out var procedure) == true && procedure is not null)
-            {
-                name = procedure.Name;
-                signature = procedure.Signature;
-            }
-            else
-            {
-                name = block.Procedures?.GetName(target) ?? $"sub_{target:X4}";
-            }
+            name = $"sub_{target:X4}";
 
-            args = ResolveArguments(block, instr, signature);
+            // Запоминаем адрес перехода + полное состояние на момент вызова в отдельном CallState.
+            // Аргументы НЕ вычисляем здесь. Их определим после того,
+            // как будет проанализирована целевая функция (её сигнатура:
+            // какие параметры, через стек или регистры).
+            var pushArgs = CallSiteArgumentResolver.ResolveFromPushSequence(
+                block, block.BasicBlock.Instructions, instr);
+
+            callState = new CallState
+            {
+                TargetOffset = target,
+                CallSiteStack = block.EndStack.ToArray(),
+                CallSiteRegisters = block.EndRegisters,
+                CallSitePushArgs = pushArgs
+            };
+
+            args = [];
         }
         else if (instr.Mnemonic == Mnemonic.CALL_FAR)
         {
@@ -46,74 +50,17 @@ public class CallHandler : IInstructionHandler
             args = [];
         }
 
-        var callExpr = new CallExpr(name, args);
-
-        if (signature.ReturnType.IsVoid)
+        var callExpr = new CallExpr(name, args)
         {
-            block.Operations.Add(new CallOperation(callExpr.Name, callExpr.Args));
-        }
-        else
-        {
-            var resultVar = block.Variables.CreateVariable();
-            block.Operations.Add(new SetOperation(resultVar, callExpr));
-            block.EndRegisters = block.EndRegisters.Set16(GpRegister16.AX, resultVar);
-        }
+            CallState = callState
+        };
 
-        // Применяем clobbers процедуры (caller-saved регистры, которые callee может изменить).
-        // AX пропускаем, если только что записали туда возвращаемое значение.
-        foreach (var reg in signature.Clobbers)
-        {
-            if (reg == GpRegister16.AX && !signature.ReturnType.IsVoid)
-                continue;
-
-            var clobberVar = block.Variables.CreateVariable();
-            block.EndRegisters = block.EndRegisters.Set16(reg, clobberVar);
-        }
-    }
-
-    private static IReadOnlyList<Expr> ResolveArguments(
-        ExprBlock block,
-        Instruction callInstruction,
-        ProcedureSignature signature)
-    {
-        if (signature.IsVariadic)
-        {
-            var fromStack = CallSiteArgumentResolver.ResolveAllFromStack(block.EndStack);
-            if (fromStack.Count > 0)
-            {
-                return fromStack;
-            }
-
-            var fromPush = CallSiteArgumentResolver.ResolveFromPushSequence(
-                block,
-                block.BasicBlock.Instructions,
-                callInstruction);
-
-            if (fromPush.Count > 0)
-            {
-                return fromPush;
-            }
-        }
-
-        if (signature.Parameters.Count == 0)
-        {
-            var fromPush = CallSiteArgumentResolver.ResolveFromPushSequence(
-                block,
-                block.BasicBlock.Instructions,
-                callInstruction);
-
-            if (fromPush.Count > 0)
-            {
-                return fromPush;
-            }
-        }
-
-        if (signature.Parameters.Count > 0)
-        {
-            return CallSiteArgumentResolver.Resolve(block, signature);
-        }
-
-        return [];
+        // Все вызовы (в т.ч. к библиотечным) моделируем как возвращающие значение в AX.
+        // Это консервативно для dataflow. Если callee на самом деле void (по проанализированной сигнатуре),
+        // то в CCodeGenerator или дополнительном этапе можно убрать присваивание (мёртвое).
+        var resultVar = block.Variables.CreateVariable();
+        block.Operations.Add(new SetOperation(resultVar, callExpr));
+        block.EndRegisters = block.EndRegisters.Set16(GpRegister16.AX, resultVar);
     }
 
     private static List<Expr> BuildIndirectTargetArgs(ExprBlock block, Operand op, Instruction instr)

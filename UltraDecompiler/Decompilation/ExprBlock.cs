@@ -56,7 +56,4 @@ public class ExprBlock(BasicBlock basicBlock)
     /// Конеченое состояние стека
     /// </summary>
     public Stack<Expr> EndStack { get; set; } = [];
-
-    /// <summary>Дизассемблированные процедуры образа (имена и сигнатуры для CALL).</summary>
-    public ProcedureStorage? Procedures { get; set; }
 }

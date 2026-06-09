@@ -348,6 +348,11 @@ public class ArithmeticTests : BaseTests
         // Не должно бросать NotImplemented, главное — прошёл GenerateCode
         Assert.NotNull(expr);
         Assert.NotEmpty(expr.Blocks);
+
+        // С поддержкой локалов: для ADC mem создаётся temp var для результата арифм. + Set на локал (Variable)
+        Assert.Equal(2, expr.Blocks[0].Operations.Count);
+        var last = Assert.IsType<SetOperation>(expr.Blocks[0].Operations[1]);
+        Assert.IsType<Variable>(last.Dst);
     }
 
     // ==================== MUL / IMUL / DIV / IDIV ====================

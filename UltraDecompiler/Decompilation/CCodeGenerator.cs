@@ -1,6 +1,4 @@
 using System.Text;
-using UltraDecompiler.Graph;
-using UltraDecompiler.Parser;
 
 namespace UltraDecompiler.Decompilation;
 
@@ -11,27 +9,6 @@ namespace UltraDecompiler.Decompilation;
 /// </summary>
 public static class CCodeGenerator
 {
-    /// <summary>
-    /// Декомпилирует одну процедуру в полный текст C-функции.
-    /// Включает построение ControlFlowGraph, ExpressionBuilder (IR) и форматирование.
-    /// Используется только для пользовательских (не IsLibrary) процедур.
-    /// </summary>
-    public static string GenerateProcedureC(
-        DosExeParser parser,
-        DisassembledProcedure procedure,
-        RegisterState initRegisters,
-        ProcedureStorage procedures)
-    {
-        var cfg = new ControlFlowGraph();
-        cfg.BuildFromInstructions(procedure.Instructions, procedure.Offset, parser.Image, initRegisters);
-
-        var expressions = new ExpressionBuilder();
-        expressions.Build(cfg, parser.IsCom, procedures);
-
-        var operations = expressions.GetAllOperations();
-        return FormatCFunction(procedure, operations);
-    }
-
     /// <summary>
     /// Форматирует процедуру (с её сигнатурой) и готовый список операций в текст C-функции.
     /// Добавляет заголовок функции, тело с отступами и закрывающую скобку.

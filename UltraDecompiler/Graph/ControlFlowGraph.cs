@@ -84,21 +84,21 @@ public class ControlFlowGraph
                 var jumpAddr = lastInstr.GetEffectiveJumpTarget(disassembler.Image);
 
                 // Проверка, что адрес еще не был обработан
-                if (!visited.Contains(jumpAddr))
+                if (jumpAddr != -1 && !visited.Contains(jumpAddr))
                     queue.Enqueue((jumpAddr, lastInstr.Registers));
 
                 if (lastInstr.IsConditionalJump)
                 {
                     var next = lastInstr.Offset + lastInstr.Size;
                     block.NextOffset = next;
-                    block.ConditionalOffset = jumpAddr;
+                    block.ConditionalOffset = (jumpAddr != -1) ? jumpAddr : null;
 
                     if (!visited.Contains(next))
                         queue.Enqueue((next, lastInstr.Registers));
                 }
                 else
                 {
-                    block.NextOffset = jumpAddr;
+                    block.NextOffset = (jumpAddr != -1) ? jumpAddr : null;
                 }
             }
         }
@@ -175,7 +175,9 @@ public class ControlFlowGraph
                 if (instr.IsConditionalJump || instr.IsUnconditionalJump)
                 {
                     var jumpAddr = instr.GetEffectiveJumpTarget(image);
-                    if (jumpAddr != -1 && allowed.Contains(jumpAddr) && !visited.Contains(jumpAddr))
+                    bool validJump = jumpAddr != -1 && allowed.Contains(jumpAddr);
+
+                    if (validJump && !visited.Contains(jumpAddr))
                     {
                         queue.Enqueue((jumpAddr, registers));
                     }
@@ -184,7 +186,7 @@ public class ControlFlowGraph
                     {
                         var next = instr.Offset + instr.Size;
                         block.NextOffset = next;
-                        block.ConditionalOffset = jumpAddr;
+                        block.ConditionalOffset = validJump ? jumpAddr : null;
 
                         if (allowed.Contains(next) && !visited.Contains(next))
                         {
@@ -193,7 +195,7 @@ public class ControlFlowGraph
                     }
                     else
                     {
-                        block.NextOffset = jumpAddr;
+                        block.NextOffset = validJump ? jumpAddr : null;
                     }
 
                     break;
@@ -278,7 +280,9 @@ public class ControlFlowGraph
         var firstBlock = Blocks.FirstOrDefault(b => b.StartOffset < offset && b.EndOffset >= offset);
         if (firstBlock == null)
         {
-            Console.WriteLine($"Block not found {offset:X4}!!!");
+            // Target jump за пределами текущей процедуры или на не-инструкцию (редко, но возможно для tail-jmp в crt0).
+            // Не фатально — NextBlock/ConditionalBlock останется null.
+            System.Diagnostics.Debug.WriteLine($"CFG: block target not found in current proc: 0x{offset:X4}");
             return null;
         }
 

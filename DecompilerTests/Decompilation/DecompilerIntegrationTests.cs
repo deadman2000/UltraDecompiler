@@ -1,4 +1,5 @@
 using UltraDecompiler.Decompilation;
+using UltraDecompiler.Decompilation.Operations;
 
 namespace DecompilerTests.Decompilation;
 
@@ -66,6 +67,139 @@ public class DecompilerIntegrationTests
                 Path.Combine(outputDirectory, "missing-libs"),
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Decompile_AddSmall_RecoversCallToAddFunctionWithCorrectArguments()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var decompiler = new Decompiler();
+            var result = decompiler.Decompile(
+                QuickCTestAssets.ProgramsPathOf("ADD_S.EXE"),
+                QuickCTestAssets.LibDirectory,
+                QuickCTestAssets.IncludeDirectory,
+                outputDirectory);
+
+            Assert.True(result.Success);
+
+            // Находим main по имени (смещение main может отличаться для разных моделей памяти)
+            var mainProc = result.Procedures.All.FirstOrDefault(p => p.Name == "main" && !p.IsLibrary);
+            Assert.NotNull(mainProc);
+            Assert.Equal("main", mainProc!.Name);
+            Assert.False(mainProc.IsLibrary);
+
+            // Получаем все операции main (IR после разрешения CallState)
+            var mainOps = mainProc.Expressions.GetAllOperations();
+
+            // Ищем вызов add(10, 5) — CallExpr от пользовательской sub_ с точными аргументами 10 и 5.
+            // (CallState + resolver должны восстановить именно эти константы из снимка стека на момент вызова)
+            var allCallExprs = mainOps
+                .SelectMany(op =>
+                {
+                    if (op is SetOperation s && s.Src is CallExpr ce) return new[] { ce };
+                    if (op is CallOperation co) return new[] { new CallExpr(co.Name, co.Args) };
+                    return Array.Empty<CallExpr>();
+                })
+                .ToList();
+
+            var addCallExpr = allCallExprs
+                .FirstOrDefault(c => c is not null
+                    && c.Name.StartsWith("sub_")
+                    && c.Args.Count == 2
+                    && c.Args.Any(a => a is ConstExpr { Value: 10 })
+                    && c.Args.Any(a => a is ConstExpr { Value: 5 }));
+
+            Assert.NotNull(addCallExpr);
+            Assert.StartsWith("sub_", addCallExpr!.Name); // пользовательская функция сложения
+            Assert.Equal(2, addCallExpr.Args.Count);
+
+            // Точная проверка значений аргументов (как просил пользователь)
+            var argValues = addCallExpr.Args
+                .OfType<ConstExpr>()
+                .Select(c => c.Value)
+                .OrderBy(v => v)
+                .ToArray();
+            Assert.Equal(new[] { 5, 10 }, argValues);
+
+            // Проверка variadic: printf в ADD_S.EXE должен иметь 2 аргумента
+            // (адрес форматной строки + результат add, т.е. значение c)
+            var printfCall = allCallExprs.FirstOrDefault(c =>
+                c != null &&
+                (c.Name == "printf" || c.Name.Contains("printf", StringComparison.OrdinalIgnoreCase)));
+            Assert.NotNull(printfCall);
+            Assert.Equal(2, printfCall!.Args.Count);
+
+            // Также проверяем, что в procedures есть пользовательская функция сложения
+            // (кроме main)
+            var userFunctions = result.Procedures.All
+                .Where(p => !p.IsLibrary && p.Name != "main")
+                .ToList();
+
+            Assert.NotEmpty(userFunctions);
+
+            // Проверяем сигнатуру одной из них (функция add имеет 2 параметра)
+            var addUserProc = userFunctions.FirstOrDefault(p => p.Signature.Parameters.Count == 2);
+            Assert.NotNull(addUserProc);
+            Assert.Equal(2, addUserProc!.Signature.Parameters.Count);
+            Assert.False(addUserProc.Signature.ReturnType.IsVoid); // short -> int в модели
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("ADD_S.EXE")]
+    // Для других моделей памяти (C/M/L) кодогенерация вызовов и стек может отличаться;
+    // базовый тест на S покрывает типичный near cdecl с push immediate + CallState.
+    public void Decompile_AddVariants_RecoverAddCallArguments(string exeFileName)
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var decompiler = new Decompiler();
+            var result = decompiler.Decompile(
+                QuickCTestAssets.ProgramsPathOf(exeFileName),
+                QuickCTestAssets.LibDirectory,
+                QuickCTestAssets.IncludeDirectory,
+                outputDirectory);
+
+            Assert.True(result.Success);
+
+            var mainProc = result.Procedures.All.ToList().FirstOrDefault(p => p.Name == "main" && !p.IsLibrary);
+            Assert.NotNull(mainProc);
+
+            var mainOps = mainProc!.Expressions.GetAllOperations();
+
+            // Проверяем наличие вызова add(10, 5) с точными значениями аргументов
+            var hasCorrectAddCall = mainOps
+                .SelectMany(op =>
+                {
+                    if (op is SetOperation s && s.Src is CallExpr ce) return new[] { ce };
+                    if (op is CallOperation co) return new[] { new CallExpr(co.Name, co.Args) };
+                    return Array.Empty<CallExpr>();
+                })
+                .Any(c => c is not null
+                    && c.Name.StartsWith("sub_")
+                    && c.Args.Count == 2
+                    && c.Args.Any(a => a is ConstExpr { Value: 10 })
+                    && c.Args.Any(a => a is ConstExpr { Value: 5 }));
+
+            Assert.True(hasCorrectAddCall, $"В {exeFileName} не найден вызов add(10, 5) с точными аргументами 10 и 5 после разрешения CallState");
         }
         finally
         {

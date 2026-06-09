@@ -26,8 +26,7 @@ public class ArithmeticHandler : IInstructionHandler
                 block.EndRegisters = block.EndRegisters.Set8(dst.AsGpRegister8(), ConstExpr.Zero);
             else if (dst.Type == OperandType.Memory)
             {
-                var (addr, seg) = dst.BuildMemoryReference(block.EndRegisters, instr.Segment);
-                block.Operations.Add(new StoreOperation(addr, seg, ConstExpr.Zero));
+                dst.EmitStore(block, instr.Segment, ConstExpr.Zero);
             }
 
             block.EndRegisters = block.EndRegisters.ApplyArithmeticFlags(ConstExpr.Zero);
@@ -75,8 +74,7 @@ public class ArithmeticHandler : IInstructionHandler
         }
         else if (dst.Type == OperandType.Memory)
         {
-            var (addr, seg) = dst.BuildMemoryReference(block.EndRegisters, instr.Segment);
-            block.Operations.Add(new StoreOperation(addr, seg, result));
+            dst.EmitStore(block, instr.Segment, result);
         }
         else
         {

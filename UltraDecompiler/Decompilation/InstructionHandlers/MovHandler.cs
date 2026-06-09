@@ -35,8 +35,7 @@ public class MovHandler : IInstructionHandler
         }
         else if (instr.Operand1.Type == OperandType.Memory)
         {
-            var (addr, seg) = instr.Operand1.BuildMemoryReference(block.EndRegisters, instr.Segment);
-            block.Operations.Add(new StoreOperation(addr, seg, exprSrc));
+            instr.Operand1.EmitStore(block, instr.Segment, exprSrc);
         }
         else
         {

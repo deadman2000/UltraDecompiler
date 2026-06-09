@@ -54,7 +54,11 @@ public static class CallSiteArgumentResolver
     }
 
     /// <summary>
-    /// Восстанавливает аргументы по последовательности PUSH перед CALL (cdecl).
+    /// Восстанавливает аргументы, подготовленные на стеке перед CALL (cdecl).
+    /// Собирает выражения из PUSH-инструкций, идущих перед вызовом (даже если между ними есть mov/вычисления).
+    /// Останавливается при предыдущем CALL или корректировке SP (add/sub sp — cleanup от предыдущего вызова).
+    /// Это позволяет корректно собирать аргументы для variadic (printf и т.п.) и обычных вызовов
+    /// в реальном коде QuickC, где подготовка аргументов не всегда "чистая" последовательность PUSH без промежуточных инструкций.
     /// </summary>
     public static IReadOnlyList<Expr> ResolveFromPushSequence(
         ExprBlock block,
@@ -80,15 +84,31 @@ public static class CallSiteArgumentResolver
         for (var i = callIndex - 1; i >= 0; i--)
         {
             var instr = blockInstructions[i];
-            if (instr.Mnemonic != Mnemonic.PUSH)
+
+            if (instr.Mnemonic == Mnemonic.CALL || instr.Mnemonic == Mnemonic.CALL_FAR)
             {
-                break;
+                break; // предыдущий вызов — начало подготовки аргументов для текущего
             }
 
-            pushed.Add(instr.Operand1.GetExpression(block, instr.Segment));
+            if (instr.Mnemonic == Mnemonic.ADD || instr.Mnemonic == Mnemonic.SUB)
+            {
+                var dst = instr.Operand1;
+                if (dst.Type == OperandType.Register16 &&
+                    dst.AsGpRegister16() == GpRegister16.SP)
+                {
+                    break; // корректировка стека (cleanup после предыдущего вызова или alloc)
+                }
+            }
+
+            if (instr.Mnemonic == Mnemonic.PUSH)
+            {
+                pushed.Add(instr.Operand1.GetExpression(block, instr.Segment));
+            }
+            // продолжаем дальше по блоку, чтобы поймать push после mov reg, val и т.п.
         }
 
-        pushed.Reverse();
+        // Первый добавленный — самый близкий к CALL (вершина на момент подготовки последнего push)
+        // Порядок уже top-first для собранных push'ей этого вызова.
         return pushed;
     }
 
@@ -104,5 +124,22 @@ public static class CallSiteArgumentResolver
         var items = stack.ToArray();
         var takeCount = Math.Min(count, items.Length);
         return items.Take(takeCount).ToList();
+    }
+
+    /// <summary>
+    /// Возвращает содержимое стека, пригодное для использования в качестве аргументов *исходящего* вызова.
+    /// Исключает синтетический "retAddr", который добавляется в BuildProc как моделирование адреса возврата
+    /// *текущей* декомпилируемой процедуры. Этот retAddr лежит внизу стековой модели и не является
+    /// аргументом для вызываемых функций (в т.ч. _chkstk и других runtime).
+    /// </summary>
+    public static IReadOnlyList<Expr> ResolveCallArgsFromStack(Stack<Expr> stack)
+    {
+        var all = ResolveAllFromStack(stack);
+        return all.Where(static e => !IsSyntheticReturnAddress(e)).ToList();
+    }
+
+    private static bool IsSyntheticReturnAddress(Expr e)
+    {
+        return e is Variable v && string.Equals(v.Name, "retAddr", StringComparison.Ordinal);
     }
 }

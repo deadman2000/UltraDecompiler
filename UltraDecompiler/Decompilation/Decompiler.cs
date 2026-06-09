@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using UltraDecompiler.Graph;
 using UltraDecompiler.Headers;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
@@ -32,8 +33,6 @@ public class Decompiler
         var initRegisters = parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe;
         var entryPoint = (int)parser.EntryPointOffset;
 
-        // Единая точка работы с библиотеками: передаём только путь к папке.
-        // Вся логика сопоставления crt0, поиска _main, narrowing и матчинга — внутри LibraryProvider.
         var provider = new LibraryProvider(libraryDirectory);
 
         if (!provider.TryResolveMain(
@@ -49,7 +48,6 @@ public class Decompiler
         var mainOffset = resolution.MainOffset;
 
         // Дизассемблируем main и все вложенные переходы.
-        // Provider занимается матчингом библиотечных процедур и сужением кандидатов.
         var storage = CollectProcedures(
             parser,
             provider,
@@ -59,10 +57,13 @@ public class Decompiler
         // Загружаем заголовки
         var headerCatalog = HeaderCatalog.Load(includeDirectory);
 
-        // Подставляем функции
+        // Подставляем функции (сигнатуры из заголовков .LIB или анализ тел пользовательских процедур).
         ProcedureSignatureResolver.ResolveAll(storage, headerCatalog);
 
-        // Экспортируем в C-файлы
+        // Подставляем в CallExpr (через CallState) имена (библиотечные) и аргументы по сигнатурам callee.
+        // CallHandler запоминал только состояние вызова, разрешение — отдельный этап.
+        CallSiteResolver.ResolveAll(storage);
+
         Directory.CreateDirectory(outputDirectory);
         var outputFiles = new List<string>();
 
@@ -70,7 +71,11 @@ public class Decompiler
                      .Where(static p => !p.IsLibrary)
                      .OrderBy(static p => p.Offset))
         {
-            var source = CCodeGenerator.GenerateProcedureC(parser, procedure, initRegisters, storage);
+            // Получаем тело процедуры из операций
+            var operations = procedure.Expressions.GetAllOperations();
+
+            // Экспортируем в C-файлы
+            var source = CCodeGenerator.FormatCFunction(procedure, operations);
             var fileName = CCodeGenerator.FormatOutputFileName(procedure.Name, procedure.Offset);
             var filePath = Path.Combine(outputDirectory, fileName);
             File.WriteAllText(filePath, source, Encoding.UTF8);
@@ -103,6 +108,8 @@ public class Decompiler
         var pending = new Queue<int>();
         pending.Enqueue(initOffset);
 
+        // Обнаруживаем все достижимые процедуры, определяем имена (в т.ч. library match),
+        // добавляем "скелеты" (stub) в storage. Expressions будут построены позже, когда все имена известны.
         while (pending.Count > 0)
         {
             var offset = pending.Dequeue();
@@ -126,29 +133,41 @@ public class Decompiler
                 offset,
                 initRegisters);
 
+            var cfg = new ControlFlowGraph();
+            cfg.BuildFromInstructions(instructions, offset, parser.Image, initRegisters);
+
+            var expressions = new ExpressionBuilder();
+            expressions.BuildProc(cfg, storage);
+
+            DisassembledProcedure proc;
             if (libraryMatch is not null)
             {
-                storage.Add(new DisassembledProcedure
+                proc = new DisassembledProcedure
                 {
                     Offset = offset,
                     Instructions = instructions,
+                    Expressions = expressions,
                     Name = LinkerSymbolNames.ToCName(libraryMatch.SymbolName),
                     IsLibrary = true,
                     LibraryMatch = libraryMatch,
-                });
+                };
+                storage.Add(proc);
+                // Для library не сканируем её внутренние вызовы (не enqueue)
                 continue;
             }
 
             var name = offset == initOffset
                 ? MainFunction
                 : $"sub_{offset:X4}";
-            storage.Add(new DisassembledProcedure
+            proc = new DisassembledProcedure
             {
                 Offset = offset,
                 Instructions = instructions,
+                Expressions = expressions,
                 Name = name,
                 IsLibrary = false,
-            });
+            };
+            storage.Add(proc);
 
             EnqueueExternalTargets(parser.Image, instructions, pending);
         }

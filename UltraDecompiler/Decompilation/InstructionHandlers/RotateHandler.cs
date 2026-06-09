@@ -76,8 +76,7 @@ public class RotateHandler(bool isLeft) : IInstructionHandler
         }
         else if (dst.Type == OperandType.Memory)
         {
-            var (addr, seg) = dst.BuildMemoryReference(block.EndRegisters, instr.Segment);
-            block.Operations.Add(new StoreOperation(addr, seg, result));
+            dst.EmitStore(block, instr.Segment, result);
         }
         else
         {

@@ -49,7 +49,7 @@ public class CallTests : BaseTests
         var callExpr = Assert.IsType<CallExpr>(setOp.Src);
 
         Assert.Equal("sub_0008", callExpr.Name);
-        Assert.Empty(callExpr.Args); // пока не восстанавливаем аргументы
+        Assert.Empty(callExpr.Args); // аргументы захватываются (здесь пусто, т.к. нет PUSH перед call); подстановка по сигнатуре — в CallSiteResolver после анализа callee
 
         // Результат вызова должен находиться в AX
         var ax = Assert.IsType<Variable>(block.EndRegisters.AX);

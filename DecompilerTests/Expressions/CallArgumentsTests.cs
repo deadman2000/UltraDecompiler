@@ -23,6 +23,7 @@ public class CallArgumentsTests : BaseTests
         {
             Offset = 0xE,
             Instructions = [],
+            Expressions = null!,
             Name = "printf",
             IsLibrary = true,
             Signature = printfSig!,
@@ -62,6 +63,7 @@ public class CallArgumentsTests : BaseTests
         {
             Offset = 0x9,
             Instructions = [],
+            Expressions = null!,
             Name = "perror",
             IsLibrary = true,
             Signature = perrorSig,
@@ -73,9 +75,10 @@ public class CallArgumentsTests : BaseTests
             90
             """, storage);
 
-        var callOp = Assert.IsType<CallOperation>(expr.Blocks[0].Operations[0]);
-        Assert.Equal("perror", callOp.Name);
-        Assert.Single(callOp.Args);
+        var setOp = Assert.IsType<SetOperation>(expr.Blocks[0].Operations[0]);
+        var callExpr = Assert.IsType<CallExpr>(setOp.Src);
+        Assert.Equal("perror", callExpr.Name);
+        Assert.Single(callExpr.Args);
     }
 
     protected static ExpressionBuilder BuildExpressions(string hex, ProcedureStorage procedures, bool isCom = false)

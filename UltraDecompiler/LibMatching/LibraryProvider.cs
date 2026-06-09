@@ -225,7 +225,14 @@ public sealed class LibraryProvider
             return null;
         }
 
-        var (chosenLibrary, chosenMatch) = hits[0];
+        // Выбираем предпочтительный: сначала из уже подтверждённых (_linked, т.е. primary crt0 + ранее выбранные),
+        // затем по алфавиту/порядку. Это гарантирует, что runtime-функции берутся из той же библиотеки, что и crt0 (SLIBCE а не SLIBC).
+        var chosen = hits
+            .OrderBy(h => _linked.Contains(h.Library) ? 0 : 1)
+            .ThenBy(h => h.Library.FileName, StringComparer.OrdinalIgnoreCase)
+            .First();
+
+        var (chosenLibrary, chosenMatch) = chosen;
 
         // Подтверждаем и сужаем: другие .LIB с этим символом исключаются
         NarrowBySymbolInternal(chosenLibrary, chosenMatch.SymbolName);

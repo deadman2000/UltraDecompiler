@@ -35,8 +35,7 @@ public class LogicalHandler : IInstructionHandler
                 block.EndRegisters = block.EndRegisters.Set8(dst.AsGpRegister8(), ConstExpr.Zero);
             else if (dst.Type == OperandType.Memory)
             {
-                var (addr, seg) = dst.BuildMemoryReference(block.EndRegisters, instr.Segment);
-                block.Operations.Add(new StoreOperation(addr, seg, ConstExpr.Zero));
+                dst.EmitStore(block, instr.Segment, ConstExpr.Zero);
             }
 
             block.EndRegisters = block.EndRegisters with { CF = ConstExpr.Zero, OF = ConstExpr.Zero };
@@ -63,8 +62,7 @@ public class LogicalHandler : IInstructionHandler
         }
         else if (dst.Type == OperandType.Memory)
         {
-            var (addr, seg) = dst.BuildMemoryReference(block.EndRegisters, instr.Segment);
-            block.Operations.Add(new StoreOperation(addr, seg, result));
+            dst.EmitStore(block, instr.Segment, result);
         }
         else
         {

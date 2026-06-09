@@ -32,9 +32,8 @@ public class PopHandler : IInstructionHandler
         }
         else if (dst.Type == OperandType.Memory)
         {
-            // POP WORD PTR [addr] — создаём StoreOperation
-            var (addr, seg) = dst.BuildMemoryReference(block.EndRegisters, instr.Segment);
-            block.Operations.Add(new StoreOperation(addr, seg, value));
+            // POP WORD PTR [addr] — для локалов на стеке создаём SetOperation
+            dst.EmitStore(block, instr.Segment, value);
         }
         else
         {

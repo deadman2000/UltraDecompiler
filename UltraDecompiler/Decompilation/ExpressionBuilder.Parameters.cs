@@ -11,7 +11,8 @@ public partial class ExpressionBuilder
     public IReadOnlyList<FunctionParameter> Parameters { get; private set; } = [];
 
     /// <summary>
-    /// Анализирует пролог и обращения к аргументам на стеке; создаёт именованные переменные параметров.
+    /// Анализирует пролог и обращения к аргументам/локалам на стеке;
+    /// создаёт именованные переменные параметров (argN) и локальных переменных (varN).
     /// </summary>
     private void AnalyzeFunctionParameters(ControlFlowGraph graph)
     {
@@ -20,11 +21,13 @@ public partial class ExpressionBuilder
         if (!StackFrameAnalyzer.HasStandardPrologue(graph.EntryBlock))
             return;
 
-        var offsets = StackFrameAnalyzer.CollectParameterOffsets(graph);
-        if (offsets.Count == 0)
-            return;
+        var paramOffsets = StackFrameAnalyzer.CollectParameterOffsets(graph);
+        if (paramOffsets.Count > 0)
+            Parameters = Variables.ActivateStackFrame(paramOffsets);
 
-        Parameters = Variables.ActivateStackFrame(offsets);
+        var localOffsets = StackFrameAnalyzer.CollectLocalOffsets(graph);
+        if (localOffsets.Count > 0)
+            Variables.ActivateStackLocals(localOffsets);
     }
 
     /// <summary>
@@ -75,6 +78,26 @@ public partial class ExpressionBuilder
             return offsets.ToList();
         }
 
+        /// <summary>
+        /// Собирает все смещения вида [BP+disp] с disp &lt; 0 (локальные переменные стекового кадра).
+        /// Выравнивание по 2 байта (слово).
+        /// </summary>
+        public static IReadOnlyList<int> CollectLocalOffsets(ControlFlowGraph graph)
+        {
+            var offsets = new SortedSet<int>();
+
+            foreach (var block in graph.Blocks)
+            {
+                foreach (var instr in block.Instructions)
+                {
+                    CollectLocalFromOperand(instr.Operand1, offsets);
+                    CollectLocalFromOperand(instr.Operand2, offsets);
+                }
+            }
+
+            return offsets.ToList();
+        }
+
         private static void CollectFromOperand(Operand operand, SortedSet<int> offsets)
         {
             if (operand.Type != OperandType.Memory)
@@ -87,6 +110,24 @@ public partial class ExpressionBuilder
                 return;
 
             // Near-модель QuickC передаёт 16-битные слова; выравниваем по чётным смещениям.
+            if (operand.Value % 2 != 0)
+                return;
+
+            offsets.Add(operand.Value);
+        }
+
+        private static void CollectLocalFromOperand(Operand operand, SortedSet<int> offsets)
+        {
+            if (operand.Type != OperandType.Memory)
+                return;
+
+            if (operand.BaseReg != AddressRegister.BP || operand.IndexReg != AddressRegister.None)
+                return;
+
+            if (operand.Value >= 0)
+                return;
+
+            // Локалы — слова, чётные отрицательные смещения (например -2, -4).
             if (operand.Value % 2 != 0)
                 return;
 

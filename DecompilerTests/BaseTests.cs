@@ -43,7 +43,20 @@ public abstract class BaseTests
     {
         var graph = GetGraph(hex);
         var decompiler = new ExpressionBuilder();
-        decompiler.Build(graph, isCom, knownProcedures);
+        ProcedureStorage procedures = new();
+
+        foreach (var kv in knownProcedures)
+        {
+            procedures.Add(new DisassembledProcedure()
+            {
+                Instructions = [],
+                Expressions = null!,
+                Name = kv.Value,
+                Offset = kv.Key
+            });
+        }
+
+        decompiler.Build(graph, isCom, procedures);
         return decompiler;
     }
 

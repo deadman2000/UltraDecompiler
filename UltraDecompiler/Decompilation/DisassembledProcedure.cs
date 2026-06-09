@@ -9,6 +9,12 @@ public sealed class DisassembledProcedure
 
     public required IReadOnlyList<Instruction> Instructions { get; init; }
 
+    /// <summary>
+    /// ExpressionBuilder с результатом символического выполнения (IR).
+    /// set позволяет обновить после добавления stub в ProcedureStorage (когда стали известны имена всех callee).
+    /// </summary>
+    public required ExpressionBuilder Expressions { get; init; }
+
     public required string Name { get; init; }
 
     /// <summary>Функция сопоставлена с символом OMF-библиотеки.</summary>
