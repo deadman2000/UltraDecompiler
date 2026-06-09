@@ -1,9 +1,8 @@
 #include <stdio.h>
-#include <dos.h>
 
 int main(void)
 {
-    unsigned char b = peek(0xB800, 0);
+    unsigned char b = *((unsigned char far *)0xB8000000L);
 
     printf("%u\n", b);
 

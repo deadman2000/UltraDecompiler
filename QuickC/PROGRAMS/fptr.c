@@ -1,9 +1,8 @@
 #include <stdio.h>
-#include <dos.h>
 
 int main(void)
 {
-    char far *screen = MK_FP(0xB800, 0);
+    char far *screen = (char far *)0xB8000000L;
 
     *screen = 'A';
     printf("ok\n");

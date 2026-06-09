@@ -10,7 +10,7 @@ public sealed record ExeMemoryModelCase(
     MemoryModel MemoryModel,
     string LibraryFileName)
 {
-    public string ExePath => ExeProvider.Get(SourceFileName, MemoryModel);
+    public string ExePath => ExeProvider.Get(SourceFileName, MemoryModel, libraries: [LibraryFileName]);
 
     public override string ToString() => Name;
 }

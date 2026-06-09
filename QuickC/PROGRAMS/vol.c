@@ -1,9 +1,8 @@
 #include <stdio.h>
-#include <dos.h>
 
 int main(void)
 {
-    char far *vid = MK_FP(0xB800, 0);
+    char far *vid = (char far *)0xB8000000L;
     unsigned i;
 
     for (i = 0; i < 80; i++) {

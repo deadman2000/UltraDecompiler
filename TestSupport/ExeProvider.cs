@@ -17,16 +17,22 @@ public static class ExeProvider
     /// Возвращает путь к exe-файлу примера, собранного с заданными параметрами.
     /// </summary>
     /// <param name="fileName">Имя исходника примера (например <c>hello.c</c>).</param>
+    /// <param name="libraries">
+    /// OMF-библиотеки для линковки (<c>SLIBCE.LIB</c>, <c>LIBH.LIB</c> и т.д.).
+    /// <see langword="null"/> или пустой список — без явной линковки.
+    /// </param>
     public static string Get(
         string fileName,
         MemoryModel memoryModel = MemoryModel.Compact,
         bool stackCheck = true,
-        OptimizationLevel optimization = OptimizationLevel.Enabled)
+        OptimizationLevel optimization = OptimizationLevel.Enabled,
+        IReadOnlyList<string>? libraries = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
 
         var sourceFileName = NormalizeSourceFileName(fileName);
-        var cachePath = GetCachePath(sourceFileName, memoryModel, stackCheck, optimization);
+        var normalizedLibraries = NormalizeLibraries(libraries);
+        var cachePath = GetCachePath(sourceFileName, memoryModel, stackCheck, optimization, normalizedLibraries);
 
         if (File.Exists(cachePath))
         {
@@ -41,20 +47,38 @@ public static class ExeProvider
                 return cachePath;
             }
 
-            EnsureCompiled(sourceFileName, cachePath, memoryModel, stackCheck, optimization);
+            EnsureCompiled(
+                sourceFileName,
+                cachePath,
+                memoryModel,
+                stackCheck,
+                optimization,
+                normalizedLibraries);
             return cachePath;
         }
     }
 
+    /// <inheritdoc cref="Get(string, MemoryModel, bool, OptimizationLevel, IReadOnlyList{string}?)"/>
+    public static string Get(
+        string fileName,
+        MemoryModel memoryModel,
+        bool stackCheck,
+        OptimizationLevel optimization,
+        params string[] libraries) =>
+        Get(fileName, memoryModel, stackCheck, optimization, libraries);
+
     private static Lock GetCacheLock(string cachePath) =>
         CacheLocks.GetOrAdd(cachePath, static _ => new Lock());
 
-    /// <summary>Строит имя EXE в стиле QuickC (<c>HELLO_S.EXE</c>, <c>HELLO_GS.EXE</c>, …).</summary>
+    /// <summary>
+    /// Строит относительный путь кэша: <c>hello/s_gs_o.exe</c>, <c>long/s_gs_o_slibce_libh.exe</c>.
+    /// </summary>
     private static string FormatExeFileName(
         string fileName,
         MemoryModel memoryModel,
         bool stackCheck,
-        OptimizationLevel optimization)
+        OptimizationLevel optimization,
+        IReadOnlyList<string> libraries)
     {
         var sourceFileName = NormalizeSourceFileName(fileName);
 
@@ -68,17 +92,19 @@ public static class ExeProvider
             OptimizationLevel.EnableLoop => "ol",
             _ => throw new ArgumentOutOfRangeException(nameof(optimization), optimization, null),
         };
+        var librariesTag = FormatLibrariesTag(libraries);
 
-        return Path.Combine(baseName, $"{memoryTag}_{stackTag}_{optTag}.exe");
+        return Path.Combine(baseName, $"{memoryTag}_{stackTag}_{optTag}{librariesTag}.exe");
     }
 
     private static string GetCachePath(
         string sourceFileName,
         MemoryModel memoryModel,
         bool stackCheck,
-        OptimizationLevel optimization)
+        OptimizationLevel optimization,
+        IReadOnlyList<string> libraries)
     {
-        var relativePath = FormatExeFileName(sourceFileName, memoryModel, stackCheck, optimization);
+        var relativePath = FormatExeFileName(sourceFileName, memoryModel, stackCheck, optimization, libraries);
         return Path.Combine(QuickCTestAssets.BuiltExesDirectory, relativePath);
     }
 
@@ -87,7 +113,8 @@ public static class ExeProvider
         string cachePath,
         MemoryModel memoryModel,
         bool stackCheck,
-        OptimizationLevel optimization)
+        OptimizationLevel optimization,
+        IReadOnlyList<string> libraries)
     {
         if (!DosBoxQuickCAssets.IsDosBoxAvailable)
         {
@@ -117,9 +144,10 @@ public static class ExeProvider
 
         try
         {
+            var librariesArg = FormatLibrariesCommandLine(libraries);
             var compileResult = DosBoxQuickCRunner.Run(
                 $@"CD {dosWorkspacePath}",
-                $@"QCL /nologo {compilerFlags} {isolatedSourceFileName} /Fe{TempExeFileName}");
+                $@"QCL /nologo {compilerFlags} {isolatedSourceFileName} /Fe{TempExeFileName}{librariesArg}");
 
             if (!File.Exists(tempHostPath))
             {
@@ -137,6 +165,40 @@ public static class ExeProvider
             }
         }
     }
+
+    private static string[] NormalizeLibraries(IReadOnlyList<string>? libraries)
+    {
+        if (libraries is null || libraries.Count == 0)
+        {
+            return [];
+        }
+
+        return libraries
+            .Select(static lib => lib.Trim())
+            .Where(static lib => lib.Length > 0)
+            .Select(static lib => Path.GetFileName(lib))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static lib => lib, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    /// <summary>Суффикс имени кэша по списку библиотек: <c>_slibce_libh</c>.</summary>
+    private static string FormatLibrariesTag(IReadOnlyList<string> libraries)
+    {
+        if (libraries.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var tags = libraries
+            .Select(static lib => Path.GetFileNameWithoutExtension(lib).ToLowerInvariant())
+            .OrderBy(static tag => tag, StringComparer.Ordinal);
+
+        return "_" + string.Join('_', tags);
+    }
+
+    private static string FormatLibrariesCommandLine(IReadOnlyList<string> libraries) =>
+        libraries.Count == 0 ? string.Empty : " " + string.Join(' ', libraries);
 
     private static string NormalizeSourceFileName(string fileName)
     {
