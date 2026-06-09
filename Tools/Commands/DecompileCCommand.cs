@@ -91,6 +91,8 @@ internal static class DecompileCCommand
             Console.WriteLine();
             WriteProcedureTable(result.Procedures);
 
+            Console.WriteLine(result.CompilerOptions);
+
             var userCount = result.Procedures.All.Count(static p => !p.IsLibrary);
             Console.WriteLine();
             Console.WriteLine($"Пользовательских функций: {userCount}, сохранено C-файлов: {result.OutputFiles.Count}");

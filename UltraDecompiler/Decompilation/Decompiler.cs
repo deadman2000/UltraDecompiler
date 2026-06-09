@@ -70,6 +70,11 @@ public class Decompiler
         // даже если CallExpr в IR не имел CallState на момент финального прохода.
         MaterializeCharPtrLiterals(storage, parser.Image, imageLayout);
 
+        var compilerOptions = new CompilerOptions
+        {
+            StackCheckingEnabled = StackCheckDetector.Analyze(storage, parser.Image),
+        };
+
         Directory.CreateDirectory(outputDirectory);
         var outputFiles = new List<string>();
 
@@ -79,9 +84,10 @@ public class Decompiler
         {
             // Получаем тело процедуры из операций
             var operations = procedure.Expressions.GetAllOperations();
+            var filteredOperations = StackCheckDetector.RemoveChkstkCalls(operations);
 
             // Экспортируем в C-файлы
-            var source = CCodeGenerator.FormatCFunction(procedure, operations);
+            var source = CCodeGenerator.FormatCFunction(procedure, filteredOperations);
             var fileName = CCodeGenerator.FormatOutputFileName(procedure.Name, procedure.Offset);
             var filePath = Path.Combine(outputDirectory, fileName);
             File.WriteAllText(filePath, source, Encoding.UTF8);
@@ -101,6 +107,7 @@ public class Decompiler
             PossibleLibraryConfigurations = resolution.PossibleLibraryConfigurations,
             Procedures = storage,
             OutputFiles = outputFiles,
+            CompilerOptions = compilerOptions,
         };
     }
 

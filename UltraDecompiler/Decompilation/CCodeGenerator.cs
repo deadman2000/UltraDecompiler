@@ -13,7 +13,9 @@ public static class CCodeGenerator
     /// Форматирует процедуру (с её сигнатурой) и готовый список операций в текст C-функции.
     /// Добавляет заголовок функции, тело с отступами и закрывающую скобку.
     /// </summary>
-    public static string FormatCFunction(DisassembledProcedure procedure, IReadOnlyList<Operation> operations)
+    public static string FormatCFunction(
+        DisassembledProcedure procedure,
+        IReadOnlyList<Operation> operations)
     {
         var sb = new StringBuilder();
         var returnType = procedure.Signature.ReturnType.ToString();

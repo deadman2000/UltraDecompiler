@@ -112,14 +112,18 @@ public class StackTests : BaseTests
     }
 
     [Fact]
-    public void PopFromEmptyStack_Throws()
+    public void PopFromEmptyStack_UsesStackErrPlaceholder()
     {
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            BuildExpressions("""
-                58   ; pop ax   (стек пуст)
-                """));
+        var expr = BuildExpressions("""
+            58   ; pop ax   (стек пуст)
+            """);
 
-        Assert.Contains("empty symbolic stack", ex.Message);
+        var block = expr.Blocks[0];
+        Assert.Empty(block.EndStack);
+
+        var axVal = block.EndRegisters.Get16(GpRegister16.AX);
+        var v = Assert.IsType<Variable>(axVal);
+        Assert.Equal("stackErr", v.Name);
     }
 
     [Fact]

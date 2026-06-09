@@ -45,8 +45,16 @@ internal static class DecompilePipeline
         expressions.Build(cfg, parser.IsCom);
 
         var operations = expressions.GetAllOperations();
+        var compilerOptions = new CompilerOptions
+        {
+            StackCheckingEnabled = StackCheckDetector.AnalyzeFromOperations(operations),
+        };
+        var filteredOperations = StackCheckDetector.RemoveChkstkCalls(operations);
+
+        Console.WriteLine(compilerOptions);
         Console.WriteLine();
-        foreach (var op in operations)
+
+        foreach (var op in filteredOperations)
         {
             var line = new StringBuilder();
             op.AppendToCString(line, asStatement: true);

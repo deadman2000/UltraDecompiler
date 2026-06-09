@@ -22,6 +22,9 @@ public sealed class DecompileResult
 
     public required IReadOnlyList<string> OutputFiles { get; init; }
 
+    /// <summary>Восстановленные параметры компиляции.</summary>
+    public CompilerOptions CompilerOptions { get; init; } = new();
+
     public static DecompileResult Failed { get; } = new()
     {
         Success = false,
