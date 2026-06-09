@@ -72,6 +72,7 @@ public class Decompiler
 
         var compilerOptions = new CompilerOptions
         {
+            MemoryModel = MemoryModelDetector.DetectFromLibraryFileName(resolution.PrimaryLibrary.FileName),
             StackCheckingEnabled = StackCheckDetector.Analyze(storage, parser.Image),
         };
 

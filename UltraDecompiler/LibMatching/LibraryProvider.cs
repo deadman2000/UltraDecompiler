@@ -1,6 +1,7 @@
 using Common;
 using LibParser.Models;
 using LibParser.Omf;
+using UltraDecompiler.Decompilation;
 
 namespace UltraDecompiler.LibMatching;
 
@@ -430,31 +431,15 @@ public sealed class LibraryProvider
     // ==================== Приоритеты выбора библиотек (публичны для диагностики и совместимости) ====================
 
     /// <summary>S → C → M → L: при нескольких совпадениях предпочитаем small-модель.</summary>
-    public static int MemoryModelLibraryPriority(string fileName)
-    {
-        var name = Path.GetFileNameWithoutExtension(fileName).ToUpperInvariant();
-        if (name.StartsWith("SLIB", StringComparison.Ordinal))
+    public static int MemoryModelLibraryPriority(string fileName) =>
+        MemoryModelDetector.DetectFromLibraryFileName(fileName) switch
         {
-            return 0;
-        }
-
-        if (name.StartsWith("CLIB", StringComparison.Ordinal))
-        {
-            return 1;
-        }
-
-        if (name.StartsWith("MLIB", StringComparison.Ordinal))
-        {
-            return 2;
-        }
-
-        if (name.StartsWith("LLIB", StringComparison.Ordinal))
-        {
-            return 3;
-        }
-
-        return 4;
-    }
+            MemoryModel.Small => 0,
+            MemoryModel.Compact => 1,
+            MemoryModel.Medium => 2,
+            MemoryModel.Large => 3,
+            _ => 4,
+        };
 
     /// <summary>QuickC по умолчанию линкует *LIBCE.LIB / *LIBC.LIB с эмулятором (суффикс E).</summary>
     public static int PreferEmulatorLibrary(string fileName) =>
