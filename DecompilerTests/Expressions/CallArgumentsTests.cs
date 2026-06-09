@@ -28,7 +28,6 @@ public class CallArgumentsTests : BaseTests
         {
             Offset = 0xE,
             Instructions = [],
-            Expressions = null!,
             Name = "printf",
             IsLibrary = true,
             Signature = printfSig!,
@@ -68,7 +67,6 @@ public class CallArgumentsTests : BaseTests
         {
             Offset = 0x9,
             Instructions = [],
-            Expressions = null!,
             Name = "perror",
             IsLibrary = true,
             Signature = perrorSig,

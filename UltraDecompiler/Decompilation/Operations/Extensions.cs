@@ -126,7 +126,7 @@ public static class Extensions
     {
         if (body.Count == 0)
         {
-            sb.AppendLine($"{Indent(indent + 1)}; // пустое тело");
+            sb.AppendLine($"{Indent(indent + 1)}; // empty body");
             return;
         }
 

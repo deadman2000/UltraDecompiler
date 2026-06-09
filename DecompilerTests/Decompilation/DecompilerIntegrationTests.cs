@@ -107,7 +107,7 @@ public class DecompilerIntegrationTests
             Assert.False(mainProc.IsLibrary);
 
             // Получаем все операции main (IR после разрешения CallState)
-            var mainOps = mainProc.Expressions.GetAllOperations();
+            var mainOps = mainProc.Expressions!.GetAllOperations();
 
             // Ищем вызов add(10, 5) — CallExpr от пользовательской sub_ с точными аргументами 10 и 5.
             // (CallState + resolver должны восстановить именно эти константы из снимка стека на момент вызова)
@@ -209,7 +209,7 @@ public class DecompilerIntegrationTests
             var mainProc = result.Procedures.All.ToList().FirstOrDefault(p => p.Name == "main" && !p.IsLibrary);
             Assert.NotNull(mainProc);
 
-            var mainOps = mainProc!.Expressions.GetAllOperations();
+            var mainOps = mainProc!.Expressions!.GetAllOperations();
 
             // Проверяем наличие вызова add(10, 5) с точными значениями аргументов
             var hasCorrectAddCall = mainOps

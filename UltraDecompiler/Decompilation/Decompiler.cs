@@ -91,7 +91,7 @@ public class Decompiler
         var preparedProcedures = new List<(DisassembledProcedure Procedure, IReadOnlyList<Operation> Operations)>();
         foreach (var procedure in userProcedures)
         {
-            var operations = procedure.Expressions.GetAllOperations();
+            var operations = procedure.Expressions!.GetAllOperations();
             operations = StackCheckDetector.RemoveChkstkCalls(operations);
             operations = OperationOptimizer.Optimize(operations);
             procedure.Callees = ProcedureDependencyCollector.Collect(operations);
@@ -194,12 +194,6 @@ public class Decompiler
                 offset,
                 initRegisters);
 
-            var cfg = new ControlFlowGraph();
-            cfg.BuildFromInstructions(instructions, offset, parser.Image, initRegisters);
-
-            var expressions = new ExpressionBuilder();
-            expressions.BuildProc(cfg, storage);
-
             DisassembledProcedure proc;
             if (libraryMatch is not null)
             {
@@ -207,7 +201,6 @@ public class Decompiler
                 {
                     Offset = offset,
                     Instructions = instructions,
-                    Expressions = expressions,
                     Name = LinkerSymbolNames.ToCName(libraryMatch.SymbolName),
                     IsLibrary = true,
                     LibraryMatch = libraryMatch,
@@ -216,6 +209,12 @@ public class Decompiler
                 // Для library не сканируем её внутренние вызовы (не enqueue)
                 continue;
             }
+
+            var cfg = new ControlFlowGraph();
+            cfg.BuildFromInstructions(instructions, offset, parser.Image, initRegisters);
+
+            var expressions = new ExpressionBuilder();
+            expressions.BuildProc(cfg, storage);
 
             var name = offset == initOffset
                 ? MainFunction
@@ -269,6 +268,9 @@ public class Decompiler
 
         foreach (var proc in storage.All)
         {
+            if (proc.Expressions == null)
+                continue;
+
             foreach (var block in proc.Expressions.Blocks)
             {
                 for (int i = 0; i < block.Operations.Count; i++)

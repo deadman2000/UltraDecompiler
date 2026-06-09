@@ -93,6 +93,9 @@ public static class CCodeGenerator
         DisassembledProcedure procedure,
         IReadOnlyList<Operation> operations)
     {
+        if (procedure.Expressions == null)
+            return;
+        
         var parameters = procedure.Expressions.Parameters.Select(static p => p.Variable);
         var locals = UsedVariableCollector.Collect(operations, parameters);
 

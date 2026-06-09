@@ -15,6 +15,9 @@ public static class CallSiteResolver
     {
         foreach (var procedure in storage.All)
         {
+            if (procedure.Expressions == null)
+                continue;
+
             ResolveBlocks(procedure.Expressions.Blocks, storage, image, layout);
         }
     }

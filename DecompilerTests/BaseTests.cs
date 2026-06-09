@@ -50,7 +50,6 @@ public abstract class BaseTests
             procedures.Add(new DisassembledProcedure()
             {
                 Instructions = [],
-                Expressions = null!,
                 Name = kv.Value,
                 Offset = kv.Key
             });

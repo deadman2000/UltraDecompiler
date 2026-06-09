@@ -47,7 +47,7 @@ public class LoopOperationTests
         var ifOp = new IfOperation(ConstExpr.One, Array.Empty<Operation>());
         string result = ifOp.ToCString();
 
-        Assert.Contains("; // пустое тело", result);
+        Assert.Contains("; // empty body", result);
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class LoopOperationTests
 
         string result = loop.ToCString();
 
-        Assert.Contains("; // пустое тело", result);
+        Assert.Contains("; // empty body", result);
     }
 
     [Fact]

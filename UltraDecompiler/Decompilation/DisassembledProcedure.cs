@@ -13,7 +13,7 @@ public sealed class DisassembledProcedure
     /// ExpressionBuilder с результатом символического выполнения (IR).
     /// set позволяет обновить после добавления stub в ProcedureStorage (когда стали известны имена всех callee).
     /// </summary>
-    public required ExpressionBuilder Expressions { get; init; }
+    public ExpressionBuilder? Expressions { get; set; }
 
     public required string Name { get; init; }
 
