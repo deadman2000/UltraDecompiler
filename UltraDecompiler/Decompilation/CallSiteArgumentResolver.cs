@@ -80,7 +80,7 @@ public static class CallSiteArgumentResolver
             return [];
         }
 
-        var pushed = new List<Expr>();
+        var pushed = new List<(Instruction Instr, Expr Expr)>();
         for (var i = callIndex - 1; i >= 0; i--)
         {
             var instr = blockInstructions[i];
@@ -102,14 +102,39 @@ public static class CallSiteArgumentResolver
 
             if (instr.Mnemonic == Mnemonic.PUSH)
             {
-                pushed.Add(instr.Operand1.GetExpression(block, instr.Segment));
+                pushed.Add((instr, instr.Operand1.GetExpression(block, instr.Segment)));
             }
             // продолжаем дальше по блоку, чтобы поймать push после mov reg, val и т.п.
         }
 
-        // Первый добавленный — самый близкий к CALL (вершина на момент подготовки последнего push)
-        // Порядок уже top-first для собранных push'ей этого вызова.
-        return pushed;
+        // QuickC после _chkstk часто делает push DI; push SI до подготовки аргументов следующего вызова.
+        // Без этой обрезки variadic (printf) получает лишние нулевые аргументы из сохранённых регистров.
+        TrimCalleeSavePushesFromEnd(pushed);
+
+        // Первый элемент — самый близкий к CALL (вершина на момент подготовки последнего push).
+        return pushed.ConvertAll(static p => p.Expr);
+    }
+
+    /// <summary>
+    /// Убирает с конца списка push'и сохранения callee-saved регистров (SI/DI/BX),
+    /// не являющиеся аргументами вызова.
+    /// </summary>
+    private static void TrimCalleeSavePushesFromEnd(List<(Instruction Instr, Expr Expr)> pushed)
+    {
+        while (pushed.Count > 0 && IsCalleeSaveRegisterPush(pushed[^1].Instr))
+        {
+            pushed.RemoveAt(pushed.Count - 1);
+        }
+    }
+
+    private static bool IsCalleeSaveRegisterPush(Instruction instr)
+    {
+        if (instr.Mnemonic != Mnemonic.PUSH || instr.Operand1.Type != OperandType.Register16)
+        {
+            return false;
+        }
+
+        return instr.Operand1.AsGpRegister16() is GpRegister16.SI or GpRegister16.DI or GpRegister16.BX;
     }
 
     private static List<Expr> TakeStackArguments(Stack<Expr> stack, int count)

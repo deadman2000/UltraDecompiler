@@ -46,7 +46,7 @@ public class DecompilerIntegrationTests
             // Проверяем, что форматная строка восстановлена как StringExpr (char* из заголовка),
             // а не оставлена как сырой числовой адрес (ConstExpr).
             // Точное содержимое зависит от отображения near-DGROUP → байты образа (отдельная задача).
-            Assert.Contains("printf(\"Hello world\\n\"", mainSource);
+            Assert.Contains("printf(\"Hello world\\n\")", mainSource);
             Assert.DoesNotContain("printf(618", mainSource);
             Assert.DoesNotContain("printf(0x", mainSource, StringComparison.OrdinalIgnoreCase);
         }
