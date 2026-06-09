@@ -9,3 +9,6 @@
 
 # CI temp directory created by build_ci.cmd
 ci_temp/
+
+# Изолированные рабочие каталоги round-trip тестов (DecompilerTests)
+RT/
