@@ -24,6 +24,9 @@ public sealed class DisassembledProcedure
 
     /// <summary>Сигнатура (тип возврата и параметры) для подстановки в CALL.</summary>
     public ProcedureSignature Signature { get; set; } = ProcedureSignature.Unknown;
+
+    /// <summary>Имена процедур, вызываемых из тела (после разрешения CallSiteResolver).</summary>
+    public IReadOnlyList<string> Callees { get; set; } = [];
 }
 
 /// <summary>

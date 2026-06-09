@@ -45,7 +45,8 @@ public static class StackCheckDetector
             _ => false,
         };
 
-    private static bool IsChkstkName(string name) =>
+    /// <summary>Проверяет, является ли имя вызовом runtime-проверки стека.</summary>
+    public static bool IsChkstkName(string name) =>
         string.Equals(name, ChkstkCName, StringComparison.Ordinal)
         || string.Equals(name, ChkstkLinkerName, StringComparison.Ordinal);
 

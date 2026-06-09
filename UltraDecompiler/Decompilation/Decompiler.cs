@@ -78,22 +78,49 @@ public class Decompiler
         Directory.CreateDirectory(outputDirectory);
         var outputFiles = new List<string>();
 
-        foreach (var procedure in storage.All
-                     .Where(static p => !p.IsLibrary)
-                     .OrderBy(static p => p.Offset))
-        {
-            // Получаем тело процедуры из операций
-            var operations = procedure.Expressions.GetAllOperations();
-            // Удаляем проверки стека
-            operations = StackCheckDetector.RemoveChkstkCalls(operations);
-            // Оптимизация
-            operations = OperationOptimizer.Optimize(operations);
+        var userProcedures = storage.All
+            .Where(static p => !p.IsLibrary)
+            .OrderBy(static p => p.Offset)
+            .ToList();
 
-            // Экспортируем в C-файлы
-            var source = CCodeGenerator.FormatCFunction(procedure, operations);
+        // Собираем зависимости и готовим IR для кодогенерации.
+        var preparedProcedures = new List<(DisassembledProcedure Procedure, IReadOnlyList<Operation> Operations)>();
+        foreach (var procedure in userProcedures)
+        {
+            var operations = procedure.Expressions.GetAllOperations();
+            operations = StackCheckDetector.RemoveChkstkCalls(operations);
+            operations = OperationOptimizer.Optimize(operations);
+            procedure.Callees = ProcedureDependencyCollector.Collect(operations);
+            preparedProcedures.Add((procedure, operations));
+        }
+
+        // Заголовки только для пользовательских процедур, вызываемых из других (main и точка входа — без .h).
+        var referencedUserProcedures = ProcedureDependencyCollector.CollectReferencedUserProcedureNames(
+            userProcedures,
+            storage);
+
+        foreach (var procedure in userProcedures.Where(p => referencedUserProcedures.Contains(p.Name)))
+        {
+            var headerSource = CCodeGenerator.FormatHeaderFile(procedure);
+            var headerFileName = CCodeGenerator.FormatHeaderFileName(procedure.Name, procedure.Offset);
+            var headerPath = Path.Combine(outputDirectory, headerFileName);
+            File.WriteAllText(headerPath, headerSource, Encoding.ASCII);
+            outputFiles.Add(headerPath);
+        }
+
+        // Исходники с #include на зависимости.
+        foreach (var (procedure, operations) in preparedProcedures)
+        {
+            var includes = ProcedureIncludeResolver.ResolveIncludes(
+                procedure,
+                procedure.Callees,
+                storage,
+                headerCatalog);
+
+            var source = CCodeGenerator.FormatCSource(procedure, operations, includes);
             var fileName = CCodeGenerator.FormatOutputFileName(procedure.Name, procedure.Offset);
             var filePath = Path.Combine(outputDirectory, fileName);
-            File.WriteAllText(filePath, source, Encoding.UTF8);
+            File.WriteAllText(filePath, source, Encoding.ASCII);
             outputFiles.Add(filePath);
         }
 

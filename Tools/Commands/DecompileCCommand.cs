@@ -94,8 +94,11 @@ internal static class DecompileCCommand
             Console.WriteLine(result.CompilerOptions);
 
             var userCount = result.Procedures.All.Count(static p => !p.IsLibrary);
+            var sourceCount = result.OutputFiles.Count(static p => p.EndsWith(".c", StringComparison.OrdinalIgnoreCase));
+            var headerCount = result.OutputFiles.Count(static p => p.EndsWith(".h", StringComparison.OrdinalIgnoreCase));
             Console.WriteLine();
-            Console.WriteLine($"Пользовательских функций: {userCount}, сохранено C-файлов: {result.OutputFiles.Count}");
+            Console.WriteLine(
+                $"Пользовательских функций: {userCount}, сохранено файлов: {result.OutputFiles.Count} ({sourceCount} .c, {headerCount} .h)");
             Console.WriteLine();
             Console.WriteLine("Сохранённые файлы:");
             foreach (var filePath in result.OutputFiles)

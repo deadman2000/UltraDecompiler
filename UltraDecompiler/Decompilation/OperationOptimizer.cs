@@ -1,5 +1,3 @@
-using UltraDecompiler.Decompilation.Operations;
-
 namespace UltraDecompiler.Decompilation;
 
 /// <summary>

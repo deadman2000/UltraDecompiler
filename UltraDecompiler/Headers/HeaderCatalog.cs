@@ -9,6 +9,7 @@ namespace UltraDecompiler.Headers;
 public sealed class HeaderCatalog
 {
     private readonly Dictionary<string, ProcedureSignature> _byName = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _headerFileByName = new(StringComparer.Ordinal);
 
     public IReadOnlyDictionary<string, ProcedureSignature> All => _byName;
 
@@ -32,8 +33,14 @@ public sealed class HeaderCatalog
     public bool TryGetSignature(string cName, out ProcedureSignature? signature) =>
         _byName.TryGetValue(cName, out signature);
 
+    /// <summary>Возвращает имя файла заголовка QuickC INCLUDE, где объявлена функция.</summary>
+    public bool TryGetHeaderFile(string cName, out string? headerFile) =>
+        _headerFileByName.TryGetValue(cName, out headerFile);
+
     private void ParseFile(string path)
     {
+        var headerFileName = Path.GetFileName(path);
+
         foreach (var line in File.ReadLines(path))
         {
             if (!TryParseDeclaration(line, out var name, out var returnType, out var parameters, out var isVariadic))
@@ -42,6 +49,7 @@ public sealed class HeaderCatalog
             }
 
             _byName.TryAdd(name, new ProcedureSignature(returnType, parameters, isVariadic));
+            _headerFileByName.TryAdd(name, headerFileName);
         }
     }
 
