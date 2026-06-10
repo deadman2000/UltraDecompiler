@@ -52,6 +52,58 @@ public class CallArgumentsTests : BaseTests
     }
 
     [Fact]
+    public void DirectCall_PrintfWithRegisterPushes_PreservesComputedArgumentExpressions()
+    {
+        var includeDir = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..", "..", "..", "..", "QuickC", "INCLUDE"));
+        var catalog = HeaderCatalog.Load(includeDir);
+        Assert.True(catalog.TryGetSignature("printf", out var printfSig));
+        Assert.NotNull(printfSig);
+
+        var storage = new ProcedureStorage();
+        storage.Add(new DisassembledProcedure
+        {
+            Offset = 0x18,
+            Instructions = [],
+            Name = "printf",
+            IsLibrary = true,
+            Signature = printfSig!,
+        });
+
+        // Паттерн QuickC (bits.c): mov ax, val; push ax — между push и call AX перезаписывается.
+        var expr = BuildExpressions("""
+            B8 0A 00    ; mov ax, 10
+            50          ; push ax
+            B8 05 00    ; mov ax, 5
+            50          ; push ax
+            B8 01 00    ; mov ax, 1
+            50          ; push ax
+            B8 6A 02    ; mov ax, 26Ah
+            50          ; push ax
+            E8 05 00    ; call 8
+            90
+            """, storage);
+
+        var setOp = Assert.IsType<SetOperation>(expr.Blocks[0].Operations[0]);
+        var callExpr = Assert.IsType<CallExpr>(setOp.Src);
+        Assert.Equal("printf", callExpr.Name);
+        Assert.Equal(4, callExpr.Args.Count);
+
+        Assert.IsType<ConstExpr>(callExpr.Args[0]);
+        Assert.Equal(0x26A, ((ConstExpr)callExpr.Args[0]).Value);
+
+        var ready = Assert.IsType<ConstExpr>(callExpr.Args[1]);
+        Assert.Equal(1, ready.Value);
+
+        var mode = Assert.IsType<ConstExpr>(callExpr.Args[2]);
+        Assert.Equal(5, mode.Value);
+
+        var count = Assert.IsType<ConstExpr>(callExpr.Args[3]);
+        Assert.Equal(10, count.Value);
+    }
+
+    [Fact]
     public void DirectCall_VoidPerror_EmitsCallOperationWithoutSet()
     {
         var includeDir = Path.GetFullPath(Path.Combine(

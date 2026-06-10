@@ -11,6 +11,7 @@ public class PushHandler : IInstructionHandler
     public void Handle(ExprBlock block, Instruction instr)
     {
         var expr = instr.Operand1.GetExpression(block, instr.Segment);
+        block.PushExprsByOffset[instr.Offset] = expr;
         block.EndStack.Push(expr);
     }
 }

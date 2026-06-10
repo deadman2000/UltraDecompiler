@@ -105,6 +105,56 @@ public class OperationOptimizerTests
     }
 
     [Fact]
+    public void Optimize_DoesNotPropagateCopyAcrossLocalReassignment()
+    {
+        // Паттерн bits.c: один локал переприсваивается при записи в битовые поля.
+        var storage = new Variable(5);
+        var tempReady = new Variable(8);
+        var tempMode = new Variable(9);
+        var tempCount = new Variable(11);
+
+        var operations = new List<Operation>
+        {
+            new SetOperation(tempReady, new ConstExpr(1)),
+            new SetOperation(storage, tempReady),
+            new SetOperation(tempMode, new Math2Expr(Math2Operation.Or,
+                new Math2Expr(Math2Operation.And, storage, new ConstExpr(65521)),
+                new ConstExpr(10))),
+            new SetOperation(storage, tempMode),
+            new SetOperation(tempCount, new Math2Expr(Math2Operation.Or,
+                new Math2Expr(Math2Operation.And, storage, new ConstExpr(65295)),
+                new ConstExpr(160))),
+            new SetOperation(storage, tempCount),
+            new SetOperation(new Variable(20), new CallExpr("printf", [
+                new StringExpr("%u %u %u\n"),
+                new Math2Expr(Math2Operation.And, storage, new ConstExpr(1)),
+                new Math2Expr(Math2Operation.And,
+                    new Math2Expr(Math2Operation.Shr, storage, new ConstExpr(1)),
+                    new ConstExpr(7)),
+                new Math2Expr(Math2Operation.And,
+                    new Math2Expr(Math2Operation.Shr, storage, new ConstExpr(4)),
+                    new ConstExpr(15)),
+            ])),
+        };
+
+        var optimized = OperationOptimizer.Optimize(operations);
+
+        var printfArgs = optimized
+            .SelectMany(static op => op switch
+            {
+                SetOperation { Src: CallExpr call } => call.Args,
+                CallOperation call => call.Args,
+                _ => [],
+            })
+            .ToList();
+
+        // Не подставляем устаревшее значение после ready (var8) в mode/count.
+        Assert.DoesNotContain("var8", printfArgs[2].ToString());
+        Assert.DoesNotContain("var8", printfArgs[3].ToString());
+        Assert.Equal("(var11 >> 1) & 7", printfArgs[2].ToString());
+    }
+
+    [Fact]
     public void Optimize_DoesNotPropagateExpressionToReturnWhenSourceVariableIsRedefined()
     {
         var var10 = new Variable(10);

@@ -119,18 +119,20 @@ public static class CallSiteResolver
         var regs = state?.CallSiteRegisters;
 
         // Выбираем источник stack-слов в зависимости от сигнатуры callee.
-        // Для фиксированного числа stack-параметров надёжнее брать top-N из снимка стека
-        // на момент CALL (символический стек точно отражает, что было положено для этого вызова,
-        // даже если между отдельными push были mov/вычисления).
-        // Push-лист (из ResolveFromPushSequence) хорош для variadic (показывает сколько caller реально передал).
+        // Снимок стека на момент CALL хранит корректные выражения (в т.ч. после mov reg, val; push reg).
+        // Push-лист задаёт число аргументов variadic и порядок (после обрезки callee-save push).
         IReadOnlyList<Expr> stackSource;
-        if (sig.IsVariadic)
+        if (sig.IsVariadic && pushList is { Count: > 0 } && stackSnap.Count > 0)
         {
-            stackSource = (pushList != null && pushList.Count > 0) ? pushList : stackSnap;
+            var takeCount = Math.Min(pushList.Count, stackSnap.Count);
+            stackSource = stackSnap.Take(takeCount).ToArray();
+        }
+        else if (sig.IsVariadic && pushList is { Count: > 0 })
+        {
+            stackSource = pushList;
         }
         else
         {
-            // Фиксированные stack-параметры — берём из снимка стека на момент вызова.
             stackSource = stackSnap;
         }
 

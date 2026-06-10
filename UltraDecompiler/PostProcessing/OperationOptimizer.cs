@@ -55,9 +55,10 @@ public static class OperationOptimizer
                 }
 
                 if (set.Src is Variable srcVar
-                    && CanPropagateCopy(operations, i, set.Dst, srcVar))
+                    && CanPropagateCopy(operations, i, set.Dst, srcVar, GetCopyPropagationEnd(operations, i, set.Dst)))
                 {
-                    SubstituteVariable(operations, i + 1, set.Dst, srcVar);
+                    var propagateEnd = GetCopyPropagationEnd(operations, i, set.Dst);
+                    SubstituteVariable(operations, i + 1, propagateEnd, set.Dst, srcVar);
                     operations.RemoveAt(i);
                     i--;
                     changed = true;
@@ -66,7 +67,8 @@ public static class OperationOptimizer
 
                 if (CanPropagateToReturn(operations, i, set))
                 {
-                    SubstituteVariable(operations, i + 1, set.Dst, set.Src);
+                    var propagateEnd = GetCopyPropagationEnd(operations, i, set.Dst);
+                    SubstituteVariable(operations, i + 1, propagateEnd, set.Dst, set.Src);
                     operations.RemoveAt(i);
                     i--;
                     changed = true;
@@ -93,19 +95,62 @@ public static class OperationOptimizer
             _ => operation,
         };
 
+    /// <summary>
+    /// Конец полуоткрытого интервала [copyIndex+1, end) для подстановки копии:
+    /// до следующего присваивания <paramref name="dst"/>, иначе до конца списка.
+    /// </summary>
+    private static int GetCopyPropagationEnd(IReadOnlyList<Operation> operations, int copyIndex, Variable dst)
+    {
+        var nextDef = FindNextDefinitionIndex(operations, copyIndex, dst);
+        return nextDef >= 0 ? nextDef : operations.Count;
+    }
+
     private static bool CanPropagateCopy(
         IReadOnlyList<Operation> operations,
         int copyIndex,
         Variable dst,
-        Variable src)
+        Variable src,
+        int propagateEnd)
     {
-        var lastReadIndex = FindLastReadIndex(operations, copyIndex, dst);
+        var lastReadIndex = FindLastReadIndexInRange(operations, copyIndex, propagateEnd, dst);
         if (lastReadIndex < 0)
         {
             return true;
         }
 
         return !DefinesVariableBetween(operations, copyIndex, lastReadIndex, src);
+    }
+
+    private static int FindNextDefinitionIndex(IReadOnlyList<Operation> operations, int fromIndex, Variable variable)
+    {
+        for (var i = fromIndex + 1; i < operations.Count; i++)
+        {
+            if (operations[i] is SetOperation set && set.Dst.Number == variable.Number)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static int FindLastReadIndexInRange(
+        IReadOnlyList<Operation> operations,
+        int fromIndex,
+        int toExclusive,
+        Variable variable)
+    {
+        var last = -1;
+
+        for (var i = fromIndex + 1; i < toExclusive && i < operations.Count; i++)
+        {
+            if (ReadsVariableDeep(operations[i], variable))
+            {
+                last = i;
+            }
+        }
+
+        return last;
     }
 
     /// <summary>
@@ -232,9 +277,9 @@ public static class OperationOptimizer
         return false;
     }
 
-    private static void SubstituteVariable(List<Operation> operations, int fromIndex, Variable from, Expr to)
+    private static void SubstituteVariable(List<Operation> operations, int fromIndex, int toExclusive, Variable from, Expr to)
     {
-        for (var i = fromIndex; i < operations.Count; i++)
+        for (var i = fromIndex; i < toExclusive && i < operations.Count; i++)
         {
             operations[i] = SubstituteInOperation(operations[i], from, to);
         }

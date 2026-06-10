@@ -56,4 +56,11 @@ public class ExprBlock(BasicBlock basicBlock)
     /// Конеченое состояние стека
     /// </summary>
     public Stack<Expr> EndStack { get; set; } = [];
+
+    /// <summary>
+    /// Выражения, положенные на стек инструкциями PUSH (по смещению инструкции).
+    /// Нужно для восстановления аргументов CALL: <c>GetExpression</c> на конце блока
+    /// для PUSH reg даёт текущее значение регистра, а не то, что было в момент push.
+    /// </summary>
+    public Dictionary<int, Expr> PushExprsByOffset { get; } = [];
 }

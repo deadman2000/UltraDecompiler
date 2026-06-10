@@ -56,6 +56,14 @@ public class FormattingTests : BaseTests
     }
 
     [Fact]
+    public void ToString_BitwiseNotOnVariable_UsesTilde()
+    {
+        var v = new Variable(1) { Name = "x" };
+        var not = new Math1Expr(Math1Operation.Not, v);
+        Assert.Equal("~x", not.ToString());
+    }
+
+    [Fact]
     public void ToString_UnaryOnComplex_NeedsParens()
     {
         // !(a == 1)

@@ -172,10 +172,11 @@ public record Math1Expr(Math1Operation Operation, Expr Op) : Expr
 
     public override string ToString(int parentPrec)
     {
+        // x86 NOT → побитовое ~; логическое ! для условий — через BoolNot() и CmpExpr.
         string opSym = Operation switch
         {
             Math1Operation.Neg => "-",
-            Math1Operation.Not => "!",
+            Math1Operation.Not => Op is CmpExpr ? "!" : "~",
             _ => throw new NotImplementedException(),
         };
 

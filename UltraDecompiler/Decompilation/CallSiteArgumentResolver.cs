@@ -102,7 +102,10 @@ public static class CallSiteArgumentResolver
 
             if (instr.Mnemonic == Mnemonic.PUSH)
             {
-                pushed.Add((instr, instr.Operand1.GetExpression(block, instr.Segment)));
+                var expr = block.PushExprsByOffset.TryGetValue(instr.Offset, out var recorded)
+                    ? recorded
+                    : instr.Operand1.GetExpression(block, instr.Segment);
+                pushed.Add((instr, expr));
             }
             // продолжаем дальше по блоку, чтобы поймать push после mov reg, val и т.п.
         }
