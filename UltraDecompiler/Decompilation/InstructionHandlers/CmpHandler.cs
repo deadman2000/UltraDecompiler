@@ -18,6 +18,8 @@ public class CmpHandler : IInstructionHandler
         var left = instr.Operand1.GetExpression(block, instr.Segment);
         var right = instr.Operand2.GetExpression(block, instr.Segment);
 
+        block.LastComparisonOperands = (left, right);
+
         var zfExpr = new CmpExpr(CmpOperation.Eq, left, right);
         var cfExpr = new CmpExpr(CmpOperation.Ult, left, right); // left &lt; right (unsigned) → CF
 

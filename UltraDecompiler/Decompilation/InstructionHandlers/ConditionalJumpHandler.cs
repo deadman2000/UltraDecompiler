@@ -1,3 +1,5 @@
+using UltraDecompiler.PostProcessing;
+
 namespace UltraDecompiler.Decompilation.InstructionHandlers;
 
 /// <summary>
@@ -10,6 +12,29 @@ public abstract class ConditionalJumpHandler : IInstructionHandler
     {
         var condition = BuildCondition(block, instr);
         block.Condition = condition;
+        ApplyComparisonSignedness(block, instr.Mnemonic);
+    }
+
+    /// <summary>
+    /// Если переход следует сразу за CMP, помечает сравниваемые переменные знаковыми или беззнаковыми.
+    /// </summary>
+    private static void ApplyComparisonSignedness(ExprBlock block, Mnemonic mnemonic)
+    {
+        if (block.PreviousMnemonic != Mnemonic.CMP || block.LastComparisonOperands is not { } cmp)
+        {
+            return;
+        }
+
+        if (VariableSignedness.IsUnsignedConditionalJump(mnemonic))
+        {
+            VariableSignedness.MarkUnsigned(cmp.Left);
+            VariableSignedness.MarkUnsigned(cmp.Right);
+        }
+        else if (VariableSignedness.IsSignedConditionalJump(mnemonic))
+        {
+            VariableSignedness.MarkSigned(cmp.Left);
+            VariableSignedness.MarkSigned(cmp.Right);
+        }
     }
 
     /// <summary>

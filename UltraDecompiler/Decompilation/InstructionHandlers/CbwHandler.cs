@@ -1,3 +1,5 @@
+using UltraDecompiler.PostProcessing;
+
 namespace UltraDecompiler.Decompilation.InstructionHandlers;
 
 /// <summary>
@@ -14,6 +16,7 @@ public class CbwHandler : IInstructionHandler
     public void Handle(ExprBlock block, Instruction instr)
     {
         var al = block.EndRegisters.Get8(GpRegister8.AL);
+        VariableSignedness.MarkChar(al);
 
         // signBit = (AL >> 7) & 1   → 0 или 1
         Expr signBit = al.Calculate(Math2Operation.And, new ConstExpr(0x80))

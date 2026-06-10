@@ -1,3 +1,5 @@
+using UltraDecompiler.PostProcessing;
+
 namespace UltraDecompiler.Decompilation.InstructionHandlers;
 
 /// <summary>
@@ -32,7 +34,7 @@ public class MulDivHandler : IInstructionHandler
         }
         else
         {
-            HandleDiv(block, instr, src, isByte);
+            HandleDiv(block, instr, src, isByte, isSigned);
         }
     }
 
@@ -41,6 +43,17 @@ public class MulDivHandler : IInstructionHandler
         Expr multiplicand = isByte
             ? block.EndRegisters.Get8(GpRegister8.AL)
             : block.EndRegisters.Get16(GpRegister16.AX);
+
+        if (isSigned)
+        {
+            VariableSignedness.MarkSigned(multiplicand);
+            VariableSignedness.MarkSigned(src);
+        }
+        else
+        {
+            VariableSignedness.MarkUnsigned(multiplicand);
+            VariableSignedness.MarkUnsigned(src);
+        }
 
         Expr product = multiplicand.Calculate(Math2Operation.Mul, src);
 
@@ -72,6 +85,17 @@ public class MulDivHandler : IInstructionHandler
         {
             block.EndRegisters = block.EndRegisters.Set16(GpRegister16.AX, low);
             block.EndRegisters = block.EndRegisters.Set16(GpRegister16.DX, high);
+        }
+
+        if (isSigned)
+        {
+            VariableSignedness.MarkSigned(low);
+            VariableSignedness.MarkSigned(high);
+        }
+        else
+        {
+            VariableSignedness.MarkUnsigned(low);
+            VariableSignedness.MarkUnsigned(high);
         }
 
         // CF/OF по правилам x86
@@ -116,7 +140,7 @@ public class MulDivHandler : IInstructionHandler
         };
     }
 
-    private static void HandleDiv(ExprBlock block, Instruction instr, Expr src, bool isByte)
+    private static void HandleDiv(ExprBlock block, Instruction instr, Expr src, bool isByte, bool isSigned)
     {
         Expr highPart = isByte
             ? block.EndRegisters.Get8(GpRegister8.AH)
@@ -124,6 +148,19 @@ public class MulDivHandler : IInstructionHandler
         Expr lowPart = isByte
             ? block.EndRegisters.Get8(GpRegister8.AL)
             : block.EndRegisters.Get16(GpRegister16.AX);
+
+        if (isSigned)
+        {
+            VariableSignedness.MarkSigned(highPart);
+            VariableSignedness.MarkSigned(lowPart);
+            VariableSignedness.MarkSigned(src);
+        }
+        else
+        {
+            VariableSignedness.MarkUnsigned(highPart);
+            VariableSignedness.MarkUnsigned(lowPart);
+            VariableSignedness.MarkUnsigned(src);
+        }
 
         int shift = isByte ? 8 : 16;
         // (high << shift) | low  — символическое представление 16/8-битного "wide" дивиденда
@@ -156,6 +193,17 @@ public class MulDivHandler : IInstructionHandler
         {
             block.EndRegisters = block.EndRegisters.Set16(GpRegister16.AX, quot);
             block.EndRegisters = block.EndRegisters.Set16(GpRegister16.DX, rem);
+        }
+
+        if (isSigned)
+        {
+            VariableSignedness.MarkSigned(quot);
+            VariableSignedness.MarkSigned(rem);
+        }
+        else
+        {
+            VariableSignedness.MarkUnsigned(quot);
+            VariableSignedness.MarkUnsigned(rem);
         }
 
         // Для DIV/IDIV флаги не определены — не меняем (оставляем предыдущие значения)

@@ -23,6 +23,14 @@ public class ExprBlock(BasicBlock basicBlock)
     public List<Operation> Operations { get; } = [];
 
     /// <summary>
+    /// Операнды последнего CMP в этом блоке (для вывода знаковости по условным переходам).
+    /// </summary>
+    public (Expr Left, Expr Right)? LastComparisonOperands { get; set; }
+
+    /// <summary>Мнемоника инструкции, выполненной непосредственно перед текущей.</summary>
+    public Mnemonic? PreviousMnemonic { get; set; }
+
+    /// <summary>
     /// Следующий блок
     /// </summary>
     public ExprBlock? Next { get; set; }

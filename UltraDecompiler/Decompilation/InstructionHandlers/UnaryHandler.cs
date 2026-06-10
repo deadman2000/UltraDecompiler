@@ -1,3 +1,5 @@
+using UltraDecompiler.PostProcessing;
+
 namespace UltraDecompiler.Decompilation.InstructionHandlers;
 
 /// <summary>
@@ -14,6 +16,12 @@ public class UnaryHandler(Math1Operation operation) : IInstructionHandler
     {
         var dst = instr.Operand1;
         var current = dst.GetExpression(block, instr.Segment);
+
+        if (operation == Math1Operation.Neg)
+        {
+            VariableSignedness.MarkSigned(current);
+        }
+
         Expr result = current.Calculate(operation);
 
         if (result is not ConstExpr)
@@ -21,6 +29,11 @@ public class UnaryHandler(Math1Operation operation) : IInstructionHandler
             var resultVar = block.Variables.CreateVariable();
             block.Operations.Add(new SetOperation(resultVar, result));
             result = resultVar;
+        }
+
+        if (operation == Math1Operation.Neg)
+        {
+            VariableSignedness.MarkSigned(result);
         }
 
         if (dst.Type == OperandType.Register16)

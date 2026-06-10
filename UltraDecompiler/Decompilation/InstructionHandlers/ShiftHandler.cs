@@ -1,3 +1,5 @@
+using UltraDecompiler.PostProcessing;
+
 namespace UltraDecompiler.Decompilation.InstructionHandlers;
 
 /// <summary>
@@ -10,7 +12,7 @@ namespace UltraDecompiler.Decompilation.InstructionHandlers;
 /// Сейчас SAR трактуется как SHR — это упрощение (QuickC редко использует арифметический сдвиг
 /// в местах, критичных для знака).
 /// </summary>
-public class ShiftHandler(Math2Operation shiftOp) : IInstructionHandler
+public class ShiftHandler(Math2Operation shiftOp, bool? signedShift = null) : IInstructionHandler
 {
     public void Handle(ExprBlock block, Instruction instr)
     {
@@ -21,6 +23,15 @@ public class ShiftHandler(Math2Operation shiftOp) : IInstructionHandler
         var srcExpr = instr.Operand2.GetExpression(block, instr.Segment);
         var dstCurrent = dst.GetExpression(block, instr.Segment);
 
+        if (signedShift == true)
+        {
+            VariableSignedness.MarkSigned(dstCurrent);
+        }
+        else if (signedShift == false)
+        {
+            VariableSignedness.MarkUnsigned(dstCurrent);
+        }
+
         Expr result = dstCurrent.Calculate(shiftOp, srcExpr);
 
         if (result is not ConstExpr)
@@ -28,6 +39,15 @@ public class ShiftHandler(Math2Operation shiftOp) : IInstructionHandler
             var resultVar = block.Variables.CreateVariable();
             block.Operations.Add(new SetOperation(resultVar, result));
             result = resultVar;
+        }
+
+        if (signedShift == true)
+        {
+            VariableSignedness.MarkSigned(result);
+        }
+        else if (signedShift == false)
+        {
+            VariableSignedness.MarkUnsigned(result);
         }
 
         if (dst.Type == OperandType.Register16)

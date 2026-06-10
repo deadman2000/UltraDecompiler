@@ -1,3 +1,5 @@
+using UltraDecompiler.PostProcessing;
+
 namespace UltraDecompiler.Decompilation.InstructionHandlers;
 
 /// <summary>
@@ -15,6 +17,7 @@ public class CwdHandler : IInstructionHandler
     public void Handle(ExprBlock block, Instruction instr)
     {
         var ax = block.EndRegisters.Get16(GpRegister16.AX);
+        VariableSignedness.MarkSigned(ax);
 
         // signBit = (AX >> 15) & 1   → 0 или 1
         // Используем тот же стиль, что и в CbwHandler: And(0x8000) затем Shr(15)

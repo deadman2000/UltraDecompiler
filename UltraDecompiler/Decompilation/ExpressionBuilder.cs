@@ -192,8 +192,12 @@ public partial class ExpressionBuilder
         // InitStack[0] — самый глубокий, InitStack[^1] — вершина (результат последнего PUSH).
         block.EndStack = new Stack<Expr>(block.InitStack.Reverse());
 
+        Mnemonic? previousMnemonic = null;
+
         foreach (var instr in block.BasicBlock.Instructions)
         {
+            block.PreviousMnemonic = previousMnemonic;
+
             // === Управление потоком ===
             // При встрече безусловного перехода — завершаем блок (переход моделируется в CFG).
             // При RET/RET_IMM: вызываем обработчик (RetHandler создаст ReturnOperation с AX),
@@ -214,6 +218,7 @@ public partial class ExpressionBuilder
 
             var handler = Handlers.Get(instr.Mnemonic) ?? throw new NotImplementedException($"Instruction {instr} is not yet supported");
             handler.Handle(block, instr);
+            previousMnemonic = instr.Mnemonic;
 
             if (instr.IsExit)
             {

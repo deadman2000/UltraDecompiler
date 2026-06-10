@@ -22,6 +22,9 @@ public sealed record CType(CTypeKind Kind, CType? Pointee = null)
 
     public static CType Int { get; } = new(CTypeKind.Int);
 
+    /// <summary>Беззнаковый 16-битный тип (<c>unsigned</c> / <c>unsigned int</c> в QuickC).</summary>
+    public static CType UnsignedInt { get; } = new(CTypeKind.Unsigned);
+
     /// <summary>Базовый тип char (8-битный).</summary>
     public static CType Char { get; } = new(CTypeKind.Char);
 

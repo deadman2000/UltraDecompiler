@@ -47,10 +47,14 @@ public static class VariableTypeInferrer
             return false;
         }
 
+        if (set.Src is Variable srcVar && srcVar.Type is not null)
+        {
+            return VariableSignedness.TrySetType(set.Dst, srcVar.Type);
+        }
+
         CType? inferred = set.Src switch
         {
             CallExpr call => ResolveCallReturnType(call.Name, storage, headers),
-            Variable src when src.Type is not null => src.Type,
             _ => null,
         };
 
@@ -81,7 +85,7 @@ public static class VariableTypeInferrer
             return false;
         }
 
-        return true;
+        return VariableSignedness.CanApplyType(current, inferred);
     }
 
     /// <summary>
