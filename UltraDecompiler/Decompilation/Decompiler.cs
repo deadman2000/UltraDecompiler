@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Linq.Expressions;
+using System.Text;
 using UltraDecompiler.CodeGeneration;
 using UltraDecompiler.Compilation;
 using UltraDecompiler.Graph;
@@ -25,7 +27,8 @@ public class Decompiler
         string exePath,
         string libraryDirectory,
         string includeDirectory,
-        string outputDirectory)
+        string outputDirectory,
+        bool exportGraph = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(exePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryDirectory);
@@ -56,6 +59,20 @@ public class Decompiler
             provider,
             initRegisters,
             mainOffset);
+
+        if (exportGraph)
+        {
+            foreach (var proc in storage.All)
+            {
+                if (proc.IsLibrary || proc.Expressions == null)
+                    continue;
+
+                var exprDotPath = Path.Combine(outputDirectory, $"{proc.Name}.dot");
+                var exprSvgPath = Path.Combine(outputDirectory, $"{proc.Name}.svg");
+                proc.Expressions.SaveDot(exprDotPath);
+                ConvertDotToSvg(exprDotPath, exprSvgPath);
+            }
+        }
 
         // Загружаем заголовки
         var headerCatalog = HeaderCatalog.Load(includeDirectory);
@@ -304,4 +321,14 @@ public class Decompiler
         }
     }
 
+    private static void ConvertDotToSvg(string dotPath, string svgPath)
+    {
+        var proc = new Process();
+        proc.StartInfo = new ProcessStartInfo("dot", $"-Tsvg \"{dotPath}\" -o \"{svgPath}\"")
+        {
+            UseShellExecute = false,
+        };
+        proc.Start();
+        proc.WaitForExit();
+    }
 }
