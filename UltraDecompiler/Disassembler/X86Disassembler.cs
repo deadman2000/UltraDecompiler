@@ -111,6 +111,7 @@ public class X86Disassembler
             var instr = DecodeOneInstruction();
             instr.Offset = instrStart;
             instr.Bytes = Image[instrStart.._pos].ToArray();
+            ResolveJumpTarget(instr);
             registers = instr.ApplyRegisters(registers);
             Instructions.Add(instr);
 
@@ -119,7 +120,7 @@ public class X86Disassembler
 
             if (instr.IsConditionalJump || instr.IsUnconditionalJump)
             {
-                int target = instr.GetEffectiveJumpTarget(Image);
+                int target = instr.JumpTarget;
                 if (target != -1 && ShouldFollowJump(instr, target, minJumpTarget))
                 {
                     queue.Enqueue((target, registers));
@@ -160,12 +161,37 @@ public class X86Disassembler
             var instr = DecodeOneInstruction();
             instr.Offset = instrStart;
             instr.Bytes = Image[instrStart.._pos].ToArray();
+            ResolveJumpTarget(instr);
             registers = instr.ApplyRegisters(registers);
             yield return instr;
 
             if (instr.IsConditionalJump || instr.IsUnconditionalJump || instr.IsReturn || instr.IsExit)
                 break;
         }
+    }
+
+    /// <summary>
+    /// Фиксирует целевой адрес перехода/вызова по операнду или содержимому памяти (FF /2, FF /4).
+    /// </summary>
+    private void ResolveJumpTarget(Instruction instr)
+    {
+        int direct = instr.GetJumpTarget();
+        if (direct != -1)
+        {
+            instr.JumpTarget = direct;
+            return;
+        }
+
+        if (instr.Mnemonic is not Mnemonic.CALL and not Mnemonic.JMP)
+            return;
+
+        var op = instr.Operand1.IsSet ? instr.Operand1 : instr.Operand2;
+        if (op.Type != OperandType.Memory)
+            return;
+
+        int val = op.Value;
+        if (val >= 0 && val + 2 <= Image.Length)
+            instr.JumpTarget = (ushort)(Image[val] | (Image[val + 1] << 8));
     }
 
     private Instruction DecodeOneInstruction()

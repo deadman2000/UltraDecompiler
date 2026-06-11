@@ -181,7 +181,13 @@ public partial class Instruction
     }
 
     /// <summary>
-    /// Возвращает целевой адрес прямого перехода
+    /// Целевой адрес перехода или вызова (-1, если неизвестен).
+    /// Заполняется дизассемблером при разборе (прямые rel8/rel16 и косвенные FF /2, FF /4).
+    /// </summary>
+    public int JumpTarget { get; set; } = -1;
+
+    /// <summary>
+    /// Возвращает целевой адрес прямого перехода из операнда
     /// </summary>
     public int GetJumpTarget()
     {
@@ -189,28 +195,6 @@ public partial class Instruction
             return Operand1.Value;
         if (Operand2.Type is OperandType.Relative8 or OperandType.Relative16)
             return Operand2.Value;
-        return -1;
-    }
-
-    /// <summary>
-    /// Вычисляет эффективный адрес перехода (для косвенных вызовов FF /2 и FF /4)
-    /// </summary>
-    public int GetEffectiveJumpTarget(byte[] image)
-    {
-        int direct = GetJumpTarget();
-        if (direct != -1)
-            return direct;
-
-        var op = Operand1.IsSet ? Operand1 : Operand2;
-        if ((Mnemonic == Mnemonic.CALL || Mnemonic == Mnemonic.JMP) && op.Type == OperandType.Memory)
-        {
-            int val = op.Value;
-            if (val >= 0 && val + 2 <= image.Length)
-            {
-                return (ushort)(image[val] | (image[val + 1] << 8));
-            }
-        }
-
         return -1;
     }
 

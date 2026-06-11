@@ -222,6 +222,6 @@ public class JumpsCallsTests : BaseTests
         var disassembler = new X86Disassembler("FF 26 04 00 05 00 C3".FromHex());
         disassembler.Disassemble(0);
         Assert.Equal(Mnemonic.JMP, disassembler.Instructions[0].Mnemonic);
-        // Covers the memory indirect jump target resolution in GetEffectiveJumpTarget (realAddr + read ushort)
+        Assert.Equal(0x0005, disassembler.Instructions[0].JumpTarget);
     }
 }

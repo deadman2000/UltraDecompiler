@@ -54,20 +54,21 @@ public partial class ExpressionBuilder
             ? RegisterExpressions.InitCom(Variables)
             : RegisterExpressions.InitExe(Variables);
 
-        RunBuild(graph, initialRegisters, [], procedures, image: null);
+        RunBuild(graph, initialRegisters, [], procedures);
     }
 
     /// <summary>
     /// Выполняет декомпиляцию процедуры (с начальным retAddr на стеке).
     /// При наличии procedures после построения выполняется CallSiteResolver.
     /// </summary>
-    public void BuildProc(ControlFlowGraph graph, ProcedureStorage? procedures, byte[] image)
+    public void BuildProc(ControlFlowGraph graph, ProcedureStorage? procedures)
     {
         Variables.Clear();
         var initialRegisters = RegisterExpressions.InitProc(Variables);
         List<Expr> stack = [];
         stack.Add(Variables.CreateInternalVariable("retAddr"));
-        RunBuild(graph, initialRegisters, stack, procedures, image);
+        RunBuild(graph, initialRegisters, stack, procedures);
+        TailReturnInserter.Apply(Blocks, graph.Blocks);
     }
 
     /// <summary>
@@ -82,7 +83,7 @@ public partial class ExpressionBuilder
     public void Build(ControlFlowGraph graph, RegisterExpressions initialRegisters, Stack<Expr> initialStack)
     {
         // Важно: Variables НЕ очищаем — пользователь мог создать в них переменные для initialRegisters.
-        RunBuild(graph, initialRegisters, initialStack, procedures: null, image: null);
+        RunBuild(graph, initialRegisters, initialStack, procedures: null);
     }
 
     /// <summary>
@@ -93,8 +94,7 @@ public partial class ExpressionBuilder
         ControlFlowGraph graph,
         RegisterExpressions initialRegisters,
         IEnumerable<Expr> initialStack,
-        ProcedureStorage? procedures,
-        byte[]? image)
+        ProcedureStorage? procedures)
     {
         Blocks.Clear();
         _blocksMap.Clear();
@@ -129,11 +129,6 @@ public partial class ExpressionBuilder
             {
                 CreateExprBlock(block.BasicBlock.ConditionalBlock, block.EndRegisters, block.EndStack);
             }
-        }
-
-        if (image is not null)
-        {
-            TailReturnInserter.Apply(Blocks, graph.Blocks, image);
         }
 
         // Второй проход: связываем ExprBlock'и между собой.

@@ -74,7 +74,7 @@ public class BitsCodegenTests : BaseTests
     {
         var graph = GetGraph(hex);
         var decompiler = new ExpressionBuilder();
-        decompiler.BuildProc(graph, storage, []);
+        decompiler.BuildProc(graph, storage);
         return decompiler;
     }
 }

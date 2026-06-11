@@ -93,7 +93,7 @@ public class Decompiler
         var compilerOptions = new CompilerOptions
         {
             MemoryModel = MemoryModelDetector.DetectFromLibraryFileName(resolution.PrimaryLibrary.FileName),
-            StackCheckingEnabled = StackCheckDetector.Analyze(storage, parser.Image),
+            StackCheckingEnabled = StackCheckDetector.Analyze(storage),
         };
 
         Directory.CreateDirectory(outputDirectory);
@@ -240,10 +240,10 @@ public class Decompiler
             }
 
             var cfg = new ControlFlowGraph();
-            cfg.BuildFromInstructions(instructions, offset, parser.Image, initRegisters);
+            cfg.BuildFromInstructions(instructions, offset, initRegisters);
 
             var expressions = new ExpressionBuilder();
-            expressions.BuildProc(cfg, storage, parser.Image);
+            expressions.BuildProc(cfg, storage);
 
             var name = offset == initOffset
                 ? MainFunction
@@ -258,7 +258,7 @@ public class Decompiler
             };
             storage.Add(proc);
 
-            EnqueueExternalTargets(parser.Image, instructions, pending);
+            EnqueueExternalTargets(instructions, pending);
         }
 
         return storage;
@@ -267,7 +267,7 @@ public class Decompiler
     /// <summary>
     /// Добавляет все переходы процедуры в очередь для обработки
     /// </summary>
-    private static void EnqueueExternalTargets(byte[] image, IReadOnlyList<Instruction> instructions, Queue<int> pending)
+    private static void EnqueueExternalTargets(IReadOnlyList<Instruction> instructions, Queue<int> pending)
     {
         var functionOffsets = instructions.Select(static i => i.Offset).Distinct();
 
@@ -278,7 +278,7 @@ public class Decompiler
                 continue;
             }
 
-            var target = instr.GetEffectiveJumpTarget(image);
+            var target = instr.JumpTarget;
             if (target >= 0 && !functionOffsets.Contains(target))
             {
                 pending.Enqueue(target);

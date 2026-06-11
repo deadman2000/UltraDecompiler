@@ -12,7 +12,7 @@ public static class TailReturnInserter
     /// <summary>
     /// Для блоков, завершающихся безусловным JMP в эпилог (pop/leave/ret), добавляет return.
     /// </summary>
-    public static void Apply(IReadOnlyList<ExprBlock> blocks, IReadOnlyList<BasicBlock> basicBlocks, byte[] image)
+    public static void Apply(IReadOnlyList<ExprBlock> blocks, IReadOnlyList<BasicBlock> basicBlocks)
     {
         var blockByOffset = basicBlocks.ToDictionary(static b => b.StartOffset);
 
@@ -30,7 +30,7 @@ public static class TailReturnInserter
                 continue;
             }
 
-            var targetOffset = lastInstr.GetEffectiveJumpTarget(image);
+            var targetOffset = lastInstr.JumpTarget;
             if (targetOffset < 0 || !blockByOffset.TryGetValue(targetOffset, out var targetBlock))
             {
                 continue;

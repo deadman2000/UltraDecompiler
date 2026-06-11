@@ -81,7 +81,7 @@ public class ControlFlowGraph
 
             if (lastInstr.IsConditionalJump || lastInstr.IsUnconditionalJump)
             {
-                var jumpAddr = lastInstr.GetEffectiveJumpTarget(disassembler.Image);
+                var jumpAddr = lastInstr.JumpTarget;
 
                 // Проверка, что адрес еще не был обработан
                 if (jumpAddr != -1 && !visited.Contains(jumpAddr))
@@ -112,11 +112,9 @@ public class ControlFlowGraph
     public void BuildFromInstructions(
         IReadOnlyList<Instruction> functionInstructions,
         int startOffset,
-        byte[] image,
         RegisterState initRegisters)
     {
         ArgumentNullException.ThrowIfNull(functionInstructions);
-        ArgumentNullException.ThrowIfNull(image);
 
         if (functionInstructions.Count == 0)
         {
@@ -174,7 +172,7 @@ public class ControlFlowGraph
 
                 if (instr.IsConditionalJump || instr.IsUnconditionalJump)
                 {
-                    var jumpAddr = instr.GetEffectiveJumpTarget(image);
+                    var jumpAddr = instr.JumpTarget;
                     bool validJump = jumpAddr != -1 && allowed.Contains(jumpAddr);
 
                     if (validJump && !visited.Contains(jumpAddr))

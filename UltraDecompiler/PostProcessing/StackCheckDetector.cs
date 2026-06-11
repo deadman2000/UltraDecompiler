@@ -17,15 +17,14 @@ public static class StackCheckDetector
     /// <summary>
     /// Анализирует хранилище процедур: ищет вызов <c>_chkstk</c> в прологе пользовательских функций.
     /// </summary>
-    public static bool Analyze(ProcedureStorage storage, byte[] image)
+    public static bool Analyze(ProcedureStorage storage)
     {
         ArgumentNullException.ThrowIfNull(storage);
-        ArgumentNullException.ThrowIfNull(image);
 
         var chkstkOffset = TryGetChkstkOffset(storage);
         return storage.All
             .Where(static p => !p.IsLibrary)
-            .Any(p => HasChkstkAtEntry(p, image, chkstkOffset));
+            .Any(p => HasChkstkAtEntry(p, chkstkOffset));
     }
 
     /// <summary>
@@ -74,7 +73,7 @@ public static class StackCheckDetector
     /// Проверяет пролог: после <c>push bp; mov bp, sp</c> (или <c>enter</c>) и опционального
     /// <c>mov ax, imm16</c> первый <c>call</c> ведёт на <c>_chkstk</c>.
     /// </summary>
-    private static bool HasChkstkAtEntry(DisassembledProcedure procedure, byte[] image, int? chkstkOffset)
+    private static bool HasChkstkAtEntry(DisassembledProcedure procedure, int? chkstkOffset)
     {
         var instructions = procedure.Instructions;
         if (instructions.Count == 0)
@@ -93,7 +92,7 @@ public static class StackCheckDetector
             return false;
         }
 
-        var target = instructions[index].GetEffectiveJumpTarget(image);
+        var target = instructions[index].JumpTarget;
         if (chkstkOffset is int offset && target == offset)
         {
             return true;
