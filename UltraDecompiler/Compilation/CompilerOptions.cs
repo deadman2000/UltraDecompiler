@@ -13,6 +13,9 @@ public sealed record CompilerOptions
     /// </summary>
     public bool StackCheckingEnabled { get; init; }
 
+    /// <summary>Уровень оптимизации QuickC.</summary>
+    public OptimizationLevel OptimizationLevel { get; init; } = OptimizationLevel.Disabled;
+
     public override string ToString()
     {
         var memoryLine = MemoryModel == MemoryModel.Unknown
@@ -23,7 +26,10 @@ public sealed record CompilerOptions
             ? "Проверка стека QuickC: включена (по умолчанию, без /Gs)."
             : "Проверка стека QuickC: отключена (флаг /Gs).";
 
-        return $"{memoryLine}{Environment.NewLine}{stackLine}";
+        var optimizationLine =
+            $"Оптимизация QuickC: {OptimizationLevelDetector.GetDisplayName(OptimizationLevel)}.";
+
+        return $"{memoryLine}{Environment.NewLine}{stackLine}{Environment.NewLine}{optimizationLine}";
     }
 
     public string GetQuickCCompilerFlags()
@@ -40,6 +46,8 @@ public sealed record CompilerOptions
         {
             flags.Add("/Gs");
         }
+
+        flags.Add(OptimizationLevelDetector.GetCompilerFlag(OptimizationLevel));
 
         return string.Join(' ', flags);
     }

@@ -28,7 +28,7 @@ public class MakefileGeneratorTests
                 OutputDirectory = outputDirectory,
             });
 
-            Assert.Contains("CFLAGS := /nologo /AS", makefile);
+            Assert.Contains("CFLAGS := /nologo /AS /Od", makefile);
             Assert.Contains("TARGET := HELLO_S.EXE", makefile);
             Assert.Contains("SRCS   := main.c", makefile);
             Assert.Contains("SLIBCE.LIB", makefile);
@@ -62,7 +62,7 @@ public class MakefileGeneratorTests
                 OutputDirectory = outputDirectory,
             });
 
-            Assert.Contains("CFLAGS := /nologo /AC /Gs", makefile);
+            Assert.Contains("CFLAGS := /nologo /AC /Gs /Od", makefile);
         }
         finally
         {
