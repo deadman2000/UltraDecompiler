@@ -5,8 +5,13 @@ using UltraDecompiler.Decompilation.Operations;
 
 namespace DecompilerTests.Decompilation;
 
+/// <summary>Сквозные тесты полного пайплайна <see cref="Decompiler"/> на эталонных PROGRAMS.</summary>
 public class DecompilerIntegrationTests
 {
+    // Исходник hello.c: printf("Hello world\n");
+    // Ожидаемый фрагмент main.c:
+    //   int main(void) { printf("Hello world\n"); return 0; }
+    // Также проверяем сопоставление crt0/printf из SLIBCE.LIB и смещение _main = 0x10.
     [Fact]
     public void Decompile_HelloSmall_FindsMainPrintfAndWritesCFile()
     {
@@ -61,6 +66,7 @@ public class DecompilerIntegrationTests
         }
     }
 
+    // Отсутствующий каталог .LIB — ошибка до начала разбора образа
     [Fact]
     public void Decompile_MissingLibraryDirectory_Throws()
     {
@@ -85,6 +91,15 @@ public class DecompilerIntegrationTests
         }
     }
 
+    // Исходник add.c:
+    //   short add(short a, short b) { return a + b; }
+    //   short c = add(10, 5); printf("%d", c);
+    // Ожидаемый фрагмент main.c:
+    //   #include "sub_0010.h"
+    //   #include <STDIO.H>
+    //   int c = sub_0010(10, 5);
+    //   printf("%d", c);
+    // Проверяем IR (аргументы 10 и 5), зависимости процедур и заголовки.
     [Fact]
     public void Decompile_AddSmall_RecoversCallToAddFunctionWithCorrectArguments()
     {
@@ -190,6 +205,7 @@ public class DecompilerIntegrationTests
         }
     }
 
+    // Тот же add.c, но для разных моделей памяти: аргументы вызова sub_* должны оставаться 10 и 5
     [Theory]
     [InlineData(MemoryModel.Small)]
     public void Decompile_AddVariants_RecoverAddCallArguments(MemoryModel memoryModel)

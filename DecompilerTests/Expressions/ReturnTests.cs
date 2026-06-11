@@ -9,6 +9,7 @@ namespace DecompilerTests.Expressions;
 /// </summary>
 public class ReturnTests : BaseTests
 {
+    // return 42: mov ax,42; ret → ReturnOperation(ConstExpr(42))
     [Fact]
     public void MovAxConst_Ret_ProducesReturnOperationWithConstValue()
     {
@@ -31,6 +32,7 @@ public class ReturnTests : BaseTests
         Assert.Equal(42, ax.Value);
     }
 
+    // return (5+10): арифметика перед ret попадает в ReturnOperation.Value
     [Fact]
     public void ArithBeforeRet_ProducesReturnWithMathExpr()
     {
@@ -49,6 +51,7 @@ public class ReturnTests : BaseTests
         Assert.NotNull(retOp.Value);
     }
 
+    // ret без явного mov ax — ReturnOperation с текущим (init) AX
     [Fact]
     public void RetWithoutAxTouch_StillProducesReturnOperation_WithCurrentAx()
     {

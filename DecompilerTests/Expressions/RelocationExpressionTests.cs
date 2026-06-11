@@ -5,8 +5,10 @@ using UltraDecompiler.Graph;
 
 namespace DecompilerTests.Expressions;
 
+/// <summary>Символические смещения из таблицы релокаций → ImageOffsetExpr.</summary>
 public class RelocationExpressionTests : BaseTests
 {
+    // MOV DI, 0166h с rel16 «image» → ImageOffsetExpr("image", 0x166)
     [Fact]
     public void BuildExpressions_EmitsNamedImageOffsets()
     {

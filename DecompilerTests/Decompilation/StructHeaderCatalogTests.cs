@@ -2,8 +2,12 @@ using UltraDecompiler.Headers;
 
 namespace DecompilerTests.Decompilation;
 
+/// <summary>Разбор struct и сигнатур API из эталонных заголовков QuickC (<c>DOS.H</c>).</summary>
 public class StructHeaderCatalogTests
 {
+    // Проверяем, что из DOS.H извлекается struct dosdate_t:
+    //   struct dosdate_t { unsigned char day; month; unsigned int year; dayofweek; };
+    // Размер 6 байт (1+1+2+1 + выравнивание не требуется для 8086).
     [Fact]
     public void Load_QuickCInclude_ParsesDosdateStruct()
     {
@@ -19,6 +23,8 @@ public class StructHeaderCatalogTests
         Assert.Equal(["day", "month", "year", "dayofweek"], definition.Fields.Select(static f => f.Name).ToArray());
     }
 
+    // Проверяем сигнатуру void _dos_getdate(struct dosdate_t *) из DOS.H —
+    // нужна для типизации вызова при декомпиляции dos.c / dvars.c.
     [Fact]
     public void Load_QuickCInclude_DosGetdateTakesStructPointer()
     {

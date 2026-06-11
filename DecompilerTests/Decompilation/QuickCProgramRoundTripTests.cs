@@ -15,6 +15,8 @@ public sealed class QuickCProgramRoundTripTests
     private const string DecompiledSubdirectory = "OUT";
     private const string CompilerFlags = "/nologo /AS /Gs";
 
+    // Для каждого PROGRAMS/*.c: QCL → EXE → Decompiler → MAKE → побайтовое сравнение с оригиналом.
+    // Требует DOSBox с QuickC; при отсутствии — тест падает с InvalidOperationException.
     [Theory]
     [MemberData(nameof(QuickCProgramCases.SourceFileMemberData), MemberType = typeof(QuickCProgramCases))]
     public void RoundTrip_CompileDecompileRebuild_MatchesOriginalExe(string sourceFileName)

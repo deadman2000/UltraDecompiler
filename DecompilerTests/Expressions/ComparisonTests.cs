@@ -7,6 +7,7 @@ namespace DecompilerTests.Expressions;
 /// </summary>
 public class ComparisonTests : BaseTests
 {
+    // cmp ax, 5 при AX=5 → ZF = (5 == 5)
     [Fact]
     public void DecompileCmpSetsZfAsEquality()
     {
@@ -29,6 +30,7 @@ public class ComparisonTests : BaseTests
         Assert.Equal(5, right.Value);
     }
 
+    // cmp ax, bx → ZF сравнивает символические значения регистров
     [Fact]
     public void DecompileCmpBetweenRegisters()
     {
@@ -49,6 +51,7 @@ public class ComparisonTests : BaseTests
         Assert.Equal(block.EndRegisters.BX, zf.Right);
     }
 
+    // test ax, 1: ZF=(результат&1)==0, CF=OF=0
     [Fact]
     public void DecompileTestSetsZfAndClearsCarryOverflow()
     {
@@ -76,6 +79,7 @@ public class ComparisonTests : BaseTests
         Assert.Equal(0, of.Value);
     }
 
+    // test ax, ax при AX=0 — проверка на ноль
     [Fact]
     public void DecompileTestAxAxCommonIdiom()
     {

@@ -8,6 +8,7 @@ namespace DecompilerTests.Decompilation;
 /// </summary>
 public class StringLiteralSubstitutionTests
 {
+    // hello.c → main.c: printf("Hello world\n"), а не printf(618) / printf(0x26A)
     [Fact]
     public void Decompile_HelloGs_MaterializesPrintfFormatString()
     {
@@ -18,6 +19,7 @@ public class StringLiteralSubstitutionTests
         Assert.DoesNotContain("printf(0x", mainSource, StringComparison.OrdinalIgnoreCase);
     }
 
+    // add.c → main.c: printf("%d", ...), форматная строка — литерал, не near-адрес DGROUP
     [Fact]
     public void Decompile_AddGs_MaterializesPrintfFormatString()
     {

@@ -9,6 +9,7 @@ namespace DecompilerTests.Expressions;
 /// </summary>
 public class ControlFlowTests : BaseTests
 {
+    // jmp short → два ExprBlock, NextBlock без ConditionalBlock
     [Fact]
     public void DecompileMultipleBlocksWithJmp()
     {

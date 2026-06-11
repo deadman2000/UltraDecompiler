@@ -6,8 +6,10 @@ using UltraDecompiler.PostProcessing;
 
 namespace DecompilerTests.Expressions;
 
+/// <summary>Вывод signed/unsigned типов переменных по инструкциям и Jcc.</summary>
 public class SignednessInferenceTests : BaseTests
 {
+    // cwd → операнд AX помечается как signed int
     [Fact]
     public void Cwd_MarksAxVariableAsSignedInt()
     {
@@ -21,6 +23,7 @@ public class SignednessInferenceTests : BaseTests
         Assert.Equal(CTypeKind.Int, ax.Type?.Kind);
     }
 
+    // cbw → AL как char
     [Fact]
     public void Cbw_MarksAlVariableAsChar()
     {
@@ -34,6 +37,7 @@ public class SignednessInferenceTests : BaseTests
         Assert.Equal(CTypeKind.Char, chVar!.Type?.Kind);
     }
 
+    // sar → знаковый сдвиг, destination = int
     [Fact]
     public void Sar_MarksDestinationAsSigned()
     {
@@ -47,6 +51,7 @@ public class SignednessInferenceTests : BaseTests
         Assert.Equal(CTypeKind.Int, ax.Type?.Kind);
     }
 
+    // shr → беззнаковый сдвиг
     [Fact]
     public void Shr_MarksDestinationAsUnsigned()
     {
@@ -60,6 +65,7 @@ public class SignednessInferenceTests : BaseTests
         Assert.Equal(CTypeKind.Unsigned, ax.Type?.Kind);
     }
 
+    // imul → signed
     [Fact]
     public void Imul_MarksOperandsAsSigned()
     {
@@ -79,6 +85,7 @@ public class SignednessInferenceTests : BaseTests
         Assert.Equal(CTypeKind.Int, ax.Type?.Kind);
     }
 
+    // mul → unsigned
     [Fact]
     public void Mul_MarksOperandsAsUnsigned()
     {
@@ -98,6 +105,7 @@ public class SignednessInferenceTests : BaseTests
         Assert.Equal(CTypeKind.Unsigned, ax.Type?.Kind);
     }
 
+    // cmp; jb → беззнаковое сравнение
     [Fact]
     public void CmpFollowedByJb_MarksComparedVariablesAsUnsigned()
     {
@@ -114,6 +122,7 @@ public class SignednessInferenceTests : BaseTests
         Assert.Equal(CTypeKind.Unsigned, left.Type?.Kind);
     }
 
+    // cmp; jl → знаковое сравнение
     [Fact]
     public void CmpFollowedByJl_MarksComparedVariablesAsSigned()
     {
@@ -130,6 +139,7 @@ public class SignednessInferenceTests : BaseTests
         Assert.Equal(CTypeKind.Int, left.Type?.Kind);
     }
 
+    // neg → signed
     [Fact]
     public void Neg_MarksOperandAsSigned()
     {
@@ -143,6 +153,7 @@ public class SignednessInferenceTests : BaseTests
         Assert.Equal(CTypeKind.Int, ax.Type?.Kind);
     }
 
+    // var dst = unsigned src → dst тоже unsigned
     [Fact]
     public void VariableTypeInferrer_PropagatesUnsignedThroughAssignment()
     {

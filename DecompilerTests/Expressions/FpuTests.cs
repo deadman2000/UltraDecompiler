@@ -2,8 +2,10 @@
 
 namespace DecompilerTests.Expressions;
 
+/// <summary>FPU-инструкции пока игнорируются в IR (не порождают Set/Store).</summary>
 public class FpuTests : BaseTests
 {
+    // fwait; faddp; nop; ret — без NotImplementedException и без side-effect операций
     [Fact]
     public void Fwait_And_Fpu_Are_Treated_As_Nop_In_ExpressionBuilder()
     {

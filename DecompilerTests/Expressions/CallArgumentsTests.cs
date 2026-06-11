@@ -7,6 +7,7 @@ namespace DecompilerTests.Expressions;
 /// <summary>Тесты подстановки аргументов CALL по сигнатуре из ProcedureStorage.</summary>
 public class CallArgumentsTests : BaseTests
 {
+    // push fmt; push val; call printf → CallExpr("printf", [0x1000, 0x1234])
     [Fact]
     public void DirectCall_WithPrintfSignature_PassesStackArguments()
     {
@@ -51,6 +52,7 @@ public class CallArgumentsTests : BaseTests
         Assert.Equal(0x1234, value.Value);
     }
 
+    // Паттерн bits.c: mov/push между push'ами — аргументы printf не схлопываются (1, 5, 10)
     [Fact]
     public void DirectCall_PrintfWithRegisterPushes_PreservesComputedArgumentExpressions()
     {
@@ -103,6 +105,7 @@ public class CallArgumentsTests : BaseTests
         Assert.Equal(10, count.Value);
     }
 
+    // void perror(msg) — один строковый аргумент с стека
     [Fact]
     public void DirectCall_VoidPerror_EmitsCallOperationWithoutSet()
     {

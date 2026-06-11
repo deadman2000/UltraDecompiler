@@ -4,8 +4,12 @@ using UltraDecompiler.Decompilation.Operations;
 
 namespace DecompilerTests.Decompilation;
 
+/// <summary>Генерация тела функции: объявление локалей, параметров и пустых тел.</summary>
 public class CCodeGeneratorTests : BaseTests
 {
+    // Пролог copy_arg(int arg0): локаль на [bp-2], параметр не дублируется как int arg0;
+    // Ожидаемый фрагмент:
+    //   int copy_arg(int arg0) { int var1; ... }
     [Fact]
     public void FormatCFunction_DeclaresStackLocal_ExcludesParameter()
     {
@@ -41,6 +45,7 @@ public class CCodeGeneratorTests : BaseTests
         Assert.Contains("arg0", source);
     }
 
+    // Переменная, используемая только в if, всё равно объявляется в прологе
     [Fact]
     public void FormatCFunction_DeclaresVariablesUsedInConditions()
     {
@@ -71,6 +76,7 @@ public class CCodeGeneratorTests : BaseTests
         Assert.Contains("if (var3 == 0)", source);
     }
 
+    // Пустое тело void-функции — нет блока int varN;, только комментарий-заглушка
     [Fact]
     public void FormatCFunction_NoLocals_NoDeclarationBlock()
     {

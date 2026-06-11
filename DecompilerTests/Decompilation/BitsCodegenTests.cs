@@ -9,6 +9,9 @@ namespace DecompilerTests.Decompilation;
 /// </summary>
 public class BitsCodegenTests : BaseTests
 {
+    // Паттерн bits.c: из одного слова извлекаются три битовых поля и передаются в printf.
+    // Регрессия: все три push не должны схлопнуться в один адрес (618, 618, 618).
+    // Ожидаемый вызов: printf("%u %u %u\n", ready, mode, count) — три разных Expr.
     [Fact]
     public void BitfieldPrintfArgs_RegisterPushesAfterFieldExtract_StayDistinct()
     {

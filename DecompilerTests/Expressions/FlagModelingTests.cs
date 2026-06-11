@@ -10,6 +10,7 @@ namespace DecompilerTests.Expressions;
 /// </summary>
 public class FlagModelingTests : BaseTests
 {
+    // cmp 5,3 → CF = (5 <u 3) = false, моделируется как CmpExpr Ult
     [Fact]
     public void Cmp_SetsCfAsUnsignedLessThan()
     {
@@ -23,6 +24,7 @@ public class FlagModelingTests : BaseTests
         Assert.Equal(CmpOperation.Ult, cf.Operation);
     }
 
+    // jae после cmp → условие (left >=u right)
     [Fact]
     public void Cmp_Jae_ProducesUgeCondition()
     {
@@ -74,6 +76,7 @@ public class FlagModelingTests : BaseTests
         Assert.Equal(Math2Operation.And, cond.Operation);
     }
 
+    // sub с заёмом → CF как беззнаковое «меньше»
     [Fact]
     public void Sub_SetsCfCorrectly()
     {

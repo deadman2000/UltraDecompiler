@@ -7,6 +7,7 @@ namespace DecompilerTests.Expressions;
 /// </summary>
 public class ShiftsTests : BaseTests
 {
+    // sal ax, 1: 1<<1=2
     [Fact]
     public void DecompileSalShiftByOne()
     {
@@ -24,6 +25,7 @@ public class ShiftsTests : BaseTests
         Assert.Equal(2, ax.Value);
     }
 
+    // shr cx, 1: 0x80>>1=0x40
     [Fact]
     public void DecompileShrShiftByOne()
     {
@@ -41,6 +43,7 @@ public class ShiftsTests : BaseTests
         Assert.Equal(0x40, cx.Value);
     }
 
+    // sal ax, cl при CL=3: 1<<3=8
     [Fact]
     public void DecompileSalWithCl()
     {

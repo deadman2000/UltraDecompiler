@@ -3,8 +3,10 @@ using UltraDecompiler.Headers;
 
 namespace DecompilerTests.Decompilation;
 
+/// <summary>Разбор сигнатур стандартных функций из эталонных заголовков QuickC.</summary>
 public class QuickCHeaderCatalogTests
 {
+    // STDIO.H: int printf(const char *, ...); — variadic, первый аргумент char*
     [Fact]
     public void Load_QuickCInclude_ParsesPrintfSignature()
     {
@@ -22,6 +24,7 @@ public class QuickCHeaderCatalogTests
         Assert.True(signature.IsVariadic);
     }
 
+    // void perror(const char *); — возвращаемый тип void
     [Fact]
     public void Load_QuickCInclude_PerrorIsVoid()
     {

@@ -8,6 +8,7 @@ namespace DecompilerTests.Expressions;
 /// </summary>
 public class LoopOperationTests
 {
+    // IfOperation.ToCString: if без else
     [Fact]
     public void IfOperation_ThenOnly_ProducesCorrectC()
     {
@@ -25,6 +26,7 @@ public class LoopOperationTests
         Assert.DoesNotContain("else", result);
     }
 
+    // if/else с двумя ветками присваивания
     [Fact]
     public void IfOperation_WithElse_ProducesCorrectC()
     {
@@ -62,6 +64,7 @@ public class LoopOperationTests
         Assert.DoesNotContain("; // empty body", result);
     }
 
+    // while (var != 0) { [var2] = var3; }
     [Fact]
     public void WhileOperation_SimpleBody_ProducesCorrectC()
     {
@@ -79,6 +82,7 @@ public class LoopOperationTests
         Assert.Contains("[var2] = var3;", result);
     }
 
+    // for (i = 0; i < 10; i = i + 1) { ... }
     [Fact]
     public void ForOperation_ClassicCounter_ProducesCorrectC()
     {

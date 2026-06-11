@@ -4,8 +4,10 @@ using UltraDecompiler.Decompilation;
 
 namespace DecompilerTests.Decompilation;
 
+/// <summary>Определение модели памяти QuickC по имени CRT-.LIB и по декомпиляции hello.c.</summary>
 public class MemoryModelDetectorTests
 {
+    // Префикс S/C/M/L в имени библиотеки → Small/Compact/Medium/Large
     [Theory]
     [InlineData("SLIBC.LIB", MemoryModel.Small)]
     [InlineData("SLIBCE.LIB", MemoryModel.Small)]
@@ -22,6 +24,7 @@ public class MemoryModelDetectorTests
     public void DetectFromLibraryFileName_RecognizesQuickCLibraries(string fileName, MemoryModel expected) =>
         Assert.Equal(expected, MemoryModelDetector.DetectFromLibraryFileName(fileName));
 
+    // hello_{S,C,M,L}.EXE — CompilerOptions.MemoryModel совпадает с моделью образа
     [Theory]
     [InlineData(MemoryModel.Small)]
     [InlineData(MemoryModel.Compact)]

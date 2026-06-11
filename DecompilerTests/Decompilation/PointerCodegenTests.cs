@@ -6,8 +6,10 @@ using UltraDecompiler.PostProcessing;
 
 namespace DecompilerTests.Decompilation;
 
+/// <summary>Типизация указателей: malloc/strcpy и кодогенерация по паттерну alloc.c.</summary>
 public class PointerCodegenTests
 {
+    // STDLIB.H: void *malloc(unsigned size) — нужен для вывода void* у результата malloc
     [Fact]
     public void Load_QuickCInclude_ParsesMallocReturnTypeAsVoidPtr()
     {
@@ -24,6 +26,7 @@ public class PointerCodegenTests
         Assert.Equal("void*", signature.ReturnType.ToString());
     }
 
+    // var = malloc(32) → тип локали void*, а не int
     [Fact]
     public void VariableTypeInferrer_MallocAssignment_InfersVoidPtr()
     {
@@ -53,6 +56,13 @@ public class PointerCodegenTests
         Assert.Equal("void*", ptrVar.Type?.ToString());
     }
 
+    // Паттерн alloc.c:
+    //   char *p = malloc(32);
+    //   if (p) { p[0] = 'A'; p[1] = 0; printf("%s\n", p); free(p); }
+    // Ожидаемый фрагмент main.c:
+    //   char* var9;
+    //   var9 = malloc(32);
+    //   if (var9 != 0) { *var9 = 65; var9[1] = 0; printf("%s\n", var9); free(var9); }
     [Fact]
     public void FormatCFunction_AllocLikeMain_EmitsCharPtrAndPointerStores()
     {
@@ -112,6 +122,7 @@ public class PointerCodegenTests
         Assert.DoesNotContain("_psp:[var9]", source);
     }
 
+    // dst = strcpy(dst, "hello") — возвращаемое значение strcpy даёт тип char* назначению
     [Fact]
     public void FormatCFunction_StrcpyReturn_InfersCharPtr()
     {

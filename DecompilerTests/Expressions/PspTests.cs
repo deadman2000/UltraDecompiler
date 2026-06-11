@@ -2,8 +2,10 @@
 
 namespace DecompilerTests.Expressions;
 
+/// <summary>Распознавание обращений к полям PSP (DS=сегмент PSP).</summary>
 public class PspTests : BaseTests
 {
+    // MOV AX, [002Ch] → Psp.EnvironmentSegment
     [Fact]
     public void PspRecognition_DirectEnvironmentSegment()
     {
@@ -17,6 +19,7 @@ public class PspTests : BaseTests
         Assert.Equal("Psp.EnvironmentSegment", pspField.Name);
     }
 
+    // [0080h] → CommandTailLength, [0081h] → CommandTail
     [Fact]
     public void PspRecognition_CommandTailLength_And_Tail()
     {
@@ -33,6 +36,7 @@ public class PspTests : BaseTests
         Assert.Equal("Psp.CommandTail", cl.Name);
     }
 
+    // MOV BX, 2Ch; MOV AX, [BX] — косвенное смещение PSP
     [Fact]
     public void PspRecognition_ViaRegister_BxLoadedWithKnownOffset()
     {
@@ -47,6 +51,7 @@ public class PspTests : BaseTests
         Assert.Equal("Psp.EnvironmentSegment", pspField.Name);
     }
 
+    // То же для .COM (DS=PSP с самого старта)
     [Fact]
     public void PspRecognition_ComMode_AlsoWorks()
     {
@@ -58,6 +63,7 @@ public class PspTests : BaseTests
         Assert.Equal("Psp.EnvironmentSegment", pspField.Name);
     }
 
+    // Неизвестное смещение [0017h] остаётся MemExpr
     [Fact]
     public void PspRecognition_UnknownOffset_DoesNotReplace()
     {

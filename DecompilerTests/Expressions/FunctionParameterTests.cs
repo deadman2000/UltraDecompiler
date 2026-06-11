@@ -8,6 +8,7 @@ namespace DecompilerTests.Expressions;
 /// </summary>
 public class FunctionParameterTests : BaseTests
 {
+    // push bp; mov bp,sp; [bp+4],[bp+6] → arg0, arg1 в Parameters
     [Fact]
     public void StandardPrologue_TwoParameters_ExposedOnBuilder()
     {
@@ -25,6 +26,7 @@ public class FunctionParameterTests : BaseTests
         Assert.Equal("arg1", expr.Parameters[1].Variable.Name);
     }
 
+    // Чтения [bp+4]/[bp+6] подставляются как Variable arg0/arg1 в регистрах
     [Fact]
     public void StandardPrologue_ParameterReads_UseNamedVariables()
     {
@@ -43,6 +45,7 @@ public class FunctionParameterTests : BaseTests
         Assert.Equal("arg1", bx.Name);
     }
 
+    // enter 4,0 + [bp+4] → один параметр arg0
     [Fact]
     public void EnterPrologue_DetectsParameters()
     {
@@ -56,6 +59,7 @@ public class FunctionParameterTests : BaseTests
         Assert.Equal("arg0", expr.Parameters[0].Variable.Name);
     }
 
+    // [bp+4] без пролога — MemExpr, не параметр
     [Fact]
     public void NoPrologue_NoParameters()
     {
@@ -69,6 +73,7 @@ public class FunctionParameterTests : BaseTests
         Assert.IsType<MemExpr>(ax);
     }
 
+    // [bp-2] после sub sp,2 — локаль varN, не argN
     [Fact]
     public void LocalVariable_BpMinus2_NotTreatedAsParameter()
     {
@@ -89,6 +94,7 @@ public class FunctionParameterTests : BaseTests
             "Локальная переменная должна иметь имя varN или без имени");
     }
 
+    // [bp+0] saved BP и [bp+2] return addr — не параметры вызова
     [Fact]
     public void SavedFrameSlots_BpPlus0And2_NotParameters()
     {
@@ -102,6 +108,7 @@ public class FunctionParameterTests : BaseTests
         Assert.Empty(expr.Parameters);
     }
 
+    // add ax, [bp+4] → SetOperation(..., arg0)
     [Fact]
     public void ParameterUsedInArithmetic_ProducesSetOperationWithVariable()
     {

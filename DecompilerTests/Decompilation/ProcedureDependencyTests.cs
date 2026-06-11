@@ -6,8 +6,10 @@ using UltraDecompiler.Headers;
 
 namespace DecompilerTests.Decompilation;
 
+/// <summary>Граф вызовов, #include и заголовки между процедурами.</summary>
 public class ProcedureDependencyTests : BaseTests
 {
+    // Вызовы внутри if/else — все callees собираются (sub_0010, printf, _disable)
     [Fact]
     public void Collect_FindsCallsInNestedControlFlow()
     {
@@ -25,6 +27,7 @@ public class ProcedureDependencyTests : BaseTests
         Assert.Equal(["_disable", "printf", "sub_0010"], callees);
     }
 
+    // main вызывает sub_0010 и printf → #include "sub_0010.h" и <STDIO.H>
     [Fact]
     public void ResolveIncludes_UserProcedureAndStdioHeader()
     {
@@ -64,6 +67,7 @@ public class ProcedureDependencyTests : BaseTests
         Assert.Contains("\"sub_0010.h\"", includes);
     }
 
+    // В список .c для генерации попадает sub_0010, но не main (точка входа не «вызывается»)
     [Fact]
     public void CollectReferencedUserProcedureNames_SkipsUncalledEntryPoint()
     {
@@ -96,6 +100,7 @@ public class ProcedureDependencyTests : BaseTests
         Assert.DoesNotContain("main", referenced);
     }
 
+    // sub_0010.h: include guard и прототип int sub_0010(int arg0, int arg1);
     [Fact]
     public void FormatHeaderFile_EmitsPrototype()
     {

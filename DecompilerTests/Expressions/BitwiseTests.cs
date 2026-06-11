@@ -7,6 +7,7 @@ namespace DecompilerTests.Expressions;
 /// </summary>
 public class BitwiseTests : BaseTests
 {
+    // and ax, 0Fh: 0xFF & 0x0F → AX=0x0F, свёртка
     [Fact]
     public void DecompileAndExpression()
     {
@@ -24,6 +25,7 @@ public class BitwiseTests : BaseTests
         Assert.Equal(0x0F, ax.Value);
     }
 
+    // or ax, 1: 0x10 | 1 → 0x11
     [Fact]
     public void DecompileOrExpression()
     {
@@ -41,6 +43,7 @@ public class BitwiseTests : BaseTests
         Assert.Equal(0x11, ax.Value);
     }
 
+    // xor ax, 0Fh: 0xFF ^ 0x0F → 0xF0
     [Fact]
     public void DecompileXorExpression()
     {
@@ -58,6 +61,7 @@ public class BitwiseTests : BaseTests
         Assert.Equal(0xF0, ax.Value);
     }
 
+    // not al: ~5 в AL
     [Fact]
     public void DecompileNotExpression()
     {
@@ -76,6 +80,7 @@ public class BitwiseTests : BaseTests
         Assert.Equal(~5, al.Value);
     }
 
+    // neg bx: -5 в BX
     [Fact]
     public void DecompileNegExpression()
     {

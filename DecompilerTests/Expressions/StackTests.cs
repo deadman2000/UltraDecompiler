@@ -9,6 +9,7 @@ namespace DecompilerTests.Expressions;
 /// </summary>
 public class StackTests : BaseTests
 {
+    // push ax — значение на символическом стеке, без Operation
     [Fact]
     public void PushReg16_PlacesValueOnEndStack()
     {
@@ -25,6 +26,7 @@ public class StackTests : BaseTests
         Assert.Equal(0x1234, c.Value);
     }
 
+    // push bx; pop cx — CX получает значение BX
     [Fact]
     public void PushPop_SameRegister_Roundtrip()
     {
@@ -68,6 +70,7 @@ public class StackTests : BaseTests
         Assert.Equal("input", v.Name);
     }
 
+    // LIFO: второй push всплывает в BX, первый — в CX
     [Fact]
     public void MultiplePushPop_PreservesOrder()
     {
@@ -111,6 +114,7 @@ public class StackTests : BaseTests
         Assert.Same(dsVal, esVal);
     }
 
+    // pop при пустом стеке → Variable stackErr
     [Fact]
     public void PopFromEmptyStack_UsesStackErrPlaceholder()
     {

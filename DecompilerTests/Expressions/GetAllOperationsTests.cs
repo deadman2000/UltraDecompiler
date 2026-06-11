@@ -3,8 +3,10 @@ using UltraDecompiler.Decompilation.Operations;
 
 namespace DecompilerTests.Expressions;
 
+/// <summary>Сборка плоского списка IR из CFG: линейный код, if/else, циклы.</summary>
 public class GetAllOperationsTests : BaseTests
 {
+    // Линейный add ax, 2 → один SetOperation, без IfOperation
     [Fact]
     public void GetAllOperations_LinearCode_HasNoIf()
     {
@@ -19,6 +21,7 @@ public class GetAllOperationsTests : BaseTests
         Assert.Single(ops.OfType<SetOperation>());
     }
 
+    // cmp; je → IfOperation с CmpExpr, без else
     [Fact]
     public void GetAllOperations_CmpJe_WrapsBranchesInIf()
     {
@@ -37,6 +40,7 @@ public class GetAllOperationsTests : BaseTests
         Assert.Null(ifOp.ElseBody);
     }
 
+    // if/else с общим merge-блоком — один If с then и else
     [Fact]
     public void GetAllOperations_Diamond_MergesAfterIf()
     {
@@ -63,6 +67,7 @@ public class GetAllOperationsTests : BaseTests
         Assert.Single(ExpressionBuilder.EnumerateNested(ifOp.ElseBody!).OfType<SetOperation>());
     }
 
+    // loop: тело в then, выход из цикла в else
     [Fact]
     public void GetAllOperations_Loop_ExitInElseBranch()
     {

@@ -7,6 +7,7 @@ namespace DecompilerTests.Expressions;
 /// </summary>
 public class VariableStorageTests
 {
+    // PspBase — синглтон _psp с IsInternal
     [Fact]
     public void GetOrCreatePspBase_CreatesOnceAndCaches()
     {
@@ -23,6 +24,7 @@ public class VariableStorageTests
         Assert.Same(first, storage.PspBase);
     }
 
+    // 0x2C → EnvironmentSegment, 0x80 → CommandTailLength, кэш по смещению
     [Fact]
     public void GetOrCreatePspField_CachesPerOffset()
     {
@@ -38,6 +40,7 @@ public class VariableStorageTests
         Assert.Equal("Psp.CommandTailLength", tail.Name);
     }
 
+    // Неизвестное поле → Psp.Field_17
     [Fact]
     public void GetOrCreatePspField_UnknownOffset_CreatesGenericName()
     {
@@ -48,6 +51,7 @@ public class VariableStorageTests
         Assert.Equal("Psp.Field_17", unknown.Name);
     }
 
+    // ActivateStackLocals([-50,-20]) → var1/var2 в порядке объявления
     [Fact]
     public void ActivateStackLocals_CreatesVariablesInDeclarationOrder()
     {
@@ -68,6 +72,7 @@ public class VariableStorageTests
         Assert.Equal(-20, storage.StackLocals[1].Offset);
     }
 
+    // var1 и temp1 — разные счётчики имён
     [Fact]
     public void CreateTempVariable_UsesSeparateDisplayCounter()
     {
@@ -85,6 +90,7 @@ public class VariableStorageTests
         Assert.NotSame(stack, temp);
     }
 
+    // Clear() сбрасывает кэш PSP-переменных
     [Fact]
     public void Clear_ResetsPspState()
     {
@@ -104,6 +110,7 @@ public class VariableStorageTests
         Assert.NotSame(env, env2);
     }
 
+    // Без инициализированного PspBase — подстановка полей невозможна
     [Fact]
     public void TryGetKnownMemoryVariable_ReturnsNull_WhenNoPspBase()
     {
@@ -114,6 +121,7 @@ public class VariableStorageTests
         Assert.Null(result);
     }
 
+    // Сегмент не PSP и адрес не _psp+const → null
     [Fact]
     public void TryGetKnownMemoryVariable_ReturnsNull_WhenSegmentDoesNotMatchAndAddressDoesNotContainBase()
     {
@@ -124,6 +132,7 @@ public class VariableStorageTests
         Assert.Null(result);
     }
 
+    // [_psp+0x2C] → Psp.EnvironmentSegment
     [Fact]
     public void TryGetKnownMemoryVariable_Succeeds_DirectConstWithMatchingSegment()
     {
@@ -136,6 +145,7 @@ public class VariableStorageTests
         Assert.Equal("Psp.EnvironmentSegment", result.Name);
     }
 
+    // _psp + 0x80 → CommandTailLength
     [Fact]
     public void TryGetKnownMemoryVariable_Succeeds_AddressIsPspPlusConst()
     {
@@ -149,6 +159,7 @@ public class VariableStorageTests
         Assert.Equal("Psp.CommandTailLength", result.Name);
     }
 
+    // 0x17 — вне каталога известных полей
     [Fact]
     public void TryGetKnownMemoryVariable_ReturnsNull_ForUnknownOffset()
     {
@@ -159,6 +170,7 @@ public class VariableStorageTests
         Assert.Null(result);
     }
 
+    // [BX] без константного смещения от PSP
     [Fact]
     public void TryGetKnownMemoryVariable_ReturnsNull_WhenNoConstantOffset()
     {

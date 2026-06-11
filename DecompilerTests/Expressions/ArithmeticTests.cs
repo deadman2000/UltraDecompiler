@@ -9,6 +9,7 @@ namespace DecompilerTests.Expressions;
 /// </summary>
 public class ArithmeticTests : BaseTests
 {
+    // add ax, bx при константах 5+7 → AX=12, без SetOperation (свёртка в регистре)
     [Fact]
     public void DecompileSumConstExpression()
     {
@@ -27,6 +28,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal(12, ax.Value);
     }
 
+    // sub ax, bx: 10-3=7, только обновление EndRegisters.AX
     [Fact]
     public void DecompileSubConstExpression()
     {
@@ -45,6 +47,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal(7, ax.Value);
     }
 
+    // inc ax: 5+1=6, свёртка без IR-операции
     [Fact]
     public void DecompileIncAx()
     {
@@ -62,6 +65,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal(6, ax.Value);
     }
 
+    // dec bx: 10-1=9
     [Fact]
     public void DecompileDecBx()
     {
@@ -79,6 +83,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal(9, bx.Value);
     }
 
+    // add cx, dx: 10+20=30 в CX
     [Fact]
     public void DecompileAddToCx()
     {
@@ -99,6 +104,7 @@ public class ArithmeticTests : BaseTests
 
     // ==================== Тесты с символическими переменными (не константы) ====================
 
+    // add bx, ax при prev+7 → SetOperation с Math2(Add), новая Variable в BX
     [Fact]
     public void Add_VariablePlusConst_ProducesMathExprAndNewVariable()
     {
@@ -130,6 +136,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal(set.Dst, resultVar);
     }
 
+    // add ax, bx: 10 + val
     [Fact]
     public void Add_ConstPlusVariable_ProducesMathExpr()
     {
@@ -153,6 +160,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal("val", Assert.IsType<Variable>(math.Second).Name);
     }
 
+    // add ax, dx: a + d
     [Fact]
     public void Add_TwoVariables_ProducesMathWithBothVariables()
     {
@@ -177,6 +185,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal("d", Assert.IsType<Variable>(math.Second).Name);
     }
 
+    // inc ax над переменной → IncOperation, не SetOperation
     [Fact]
     public void Inc_OnVariable_EmitsIncOperation()
     {
@@ -191,6 +200,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal("x", Assert.IsType<Variable>(inc.Target).Name);
     }
 
+    // sub ax, dx: left - right
     [Fact]
     public void Sub_VariableMinusVariable()
     {
@@ -217,6 +227,7 @@ public class ArithmeticTests : BaseTests
 
     // === Новые простые инструкции (XCHG, CBW, ADC/SBB) ===
 
+    // xchg ax, bx меняет символические значения регистров местами
     [Fact]
     public void Xchg_RegReg_SwapsValues()
     {
@@ -238,6 +249,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal("a", Assert.IsType<Variable>(block.EndRegisters.BX).Name);
     }
 
+    // cbw: AL=0xFF → AX=0xFFFF (знаковое расширение)
     [Fact]
     public void Cbw_SignExtend_WhenAlNegative()
     {
@@ -252,6 +264,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal(0xFFFF, (ushort)c.Value); // -1 как int16
     }
 
+    // cwd: AX=0x8000 → DX=0xFFFF
     [Fact]
     public void Cwd_SignExtend_WhenAxNegative()
     {
@@ -273,6 +286,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal(0x8000, (ushort)ax.Value);
     }
 
+    // cwd: AX=0x007F → DX=0
     [Fact]
     public void Cwd_SignExtend_WhenAxPositive()
     {
@@ -291,6 +305,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal(0x007F, ax.Value);
     }
 
+    // cwd над переменной: DX — выражение знакового расширения, AX не меняется
     [Fact]
     public void Cwd_WithVariable_ProducesSignExtendExprInDx()
     {
@@ -314,6 +329,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal("val", ax.Name);
     }
 
+    // adc/sbb не падают и обновляют AX
     [Fact]
     public void Adc_Sbb_DoNotThrow_AndUpdateRegisters()
     {
@@ -328,6 +344,7 @@ public class ArithmeticTests : BaseTests
         Assert.NotNull(expr.Blocks[0].EndRegisters.AX);
     }
 
+    // adc [bp-4], dx — память как назначение, локаль на стеке
     [Fact]
     public void Adc_Memory_BpDisp_DoesNotThrow()
     {
@@ -351,6 +368,7 @@ public class ArithmeticTests : BaseTests
 
     // ==================== MUL / IMUL / DIV / IDIV ====================
 
+    // mul cx: 3*4=12, DX=0, CF=0
     [Fact]
     public void Mul_Const_UpdatesAxDx_AndClearsCf()
     {
@@ -374,6 +392,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal(0, cf.Value);
     }
 
+    // imul cx: low/high в AX/DX, CF через сравнение старшей части
     [Fact]
     public void Imul_Variable_ProducesMulAndHighAndSetsCfAccordingToSignExtend()
     {
@@ -411,6 +430,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal(CmpOperation.Ne, cfCmp.Operation);
     }
 
+    // div cx: 0x17/5 → AX=4, DX=3
     [Fact]
     public void Div_Const_ProducesQuotientAndRemainder()
     {
@@ -431,6 +451,7 @@ public class ArithmeticTests : BaseTests
         Assert.Equal(3, dx.Value);  // 0x17 % 5 = 3
     }
 
+    // idiv cx с переменными — частное и остаток в новых Variable
     [Fact]
     public void Idiv_WithVariable_DoesNotThrow_AndSetsAxDx()
     {

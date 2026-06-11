@@ -9,6 +9,7 @@ namespace DecompilerTests.Expressions;
 /// </summary>
 public class IncDecOperationTests : BaseTests
 {
+    // inc word [bp-2] → IncOperation на стековой локали
     [Fact]
     public void Inc_StackLocal_EmitsIncOperation()
     {
@@ -24,6 +25,7 @@ public class IncDecOperationTests : BaseTests
         Assert.Contains("++", inc.ToCString(asStatement: true));
     }
 
+    // dec word [bp-2] → DecOperation
     [Fact]
     public void Dec_StackLocal_EmitsDecOperation()
     {
@@ -39,6 +41,7 @@ public class IncDecOperationTests : BaseTests
         Assert.Contains("--", dec.ToCString(asStatement: true));
     }
 
+    // add [bp-2], 1 нормализуется в inc локали
     [Fact]
     public void Add_MemoryByOne_EmitsIncOperation()
     {

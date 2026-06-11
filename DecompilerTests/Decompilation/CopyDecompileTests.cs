@@ -6,6 +6,11 @@ namespace DecompilerTests.Decompilation;
 /// <summary>Интеграционные тесты декомпиляции <c>copy.c</c> (указатели, while, строковый литерал).</summary>
 public sealed class CopyDecompileTests
 {
+    // Исходник copy.c: char buf[20], int n=10, char buf2[30], int m=8; strcpy(...); printf.
+    // Ожидаемый фрагмент main.c:
+    //   char var1[20]; int var2; char var3[30]; int var4;
+    //   var2 = 10; var4 = 8;
+    //   sub_0010(var1, "test"); sub_0010(var3, "test3");
     [Fact]
     public void Decompile_Copy_EmitsCharArrayLocal()
     {
@@ -43,6 +48,9 @@ public sealed class CopyDecompileTests
         }
     }
 
+    // Тело strcpy-подобной функции (copy2.c) должно декомпилироваться в цикл по указателям:
+    //   while (*arg1 != 0) { *arg0 = *arg1; arg0++; arg1++; }
+    //   *arg0 = 0;
     [Fact]
     public void Decompile_Copy2_EmitsPointerLoopWithoutTempLocals()
     {
@@ -75,6 +83,8 @@ public sealed class CopyDecompileTests
         }
     }
 
+    // Полный сценарий copy.c: сигнатура sub_*(char*, char*), цикл strcpy в отдельном .c,
+    // в main — массив char (не char*) и литерал "test", а не числовой адрес near-DGROUP.
     [Fact]
     public void Decompile_CopySmall_EmitsPointerLoopAndStringLiteral()
     {

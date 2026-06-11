@@ -6,6 +6,7 @@ namespace DecompilerTests.Decompilation;
 [Trait("Tool", "DosBox")]
 public sealed class QuickCProgramProbeTests
 {
+    // Ручной прогон всех QuickC/PROGRAMS/*.c: компиляция + декомпиляция, сводка в ROUNDTRIP_PROBE.txt
     //[Fact]
     public void ProbeAllPrograms_PrintSummary()
     {

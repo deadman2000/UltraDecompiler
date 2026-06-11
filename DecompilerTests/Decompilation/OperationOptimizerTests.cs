@@ -4,8 +4,10 @@ using UltraDecompiler.PostProcessing;
 
 namespace DecompilerTests.Decompilation;
 
+/// <summary>Оптимизация IR: удаление лишних копий, свёртка temp и безопасная подстановка.</summary>
 public class OperationOptimizerTests
 {
+    // var10 = sub(10,5); var8 = var10; printf("%d", var8) → printf("%d", var10), копия var8 убирается
     [Fact]
     public void Optimize_RemovesUnusedCopyAndCallResult()
     {
@@ -37,6 +39,7 @@ public class OperationOptimizerTests
         Assert.IsType<CallExpr>(copy.Src);
     }
 
+    // var8 = var10; var10 = 2; use(var8) — копию нельзя убирать, var8 ещё хранит старое значение var10
     [Fact]
     public void Optimize_KeepsCopyWhenSourceIsRedefinedBeforeUse()
     {
@@ -59,6 +62,7 @@ public class OperationOptimizerTests
         Assert.Equal(var8, firstUse.Args[0]);
     }
 
+    // var1=42; var2=var1; var3=var2; use(var3) → use(var1), промежуточные копии удаляются
     [Fact]
     public void Optimize_PropagatesCopyChain()
     {
@@ -81,6 +85,7 @@ public class OperationOptimizerTests
         Assert.DoesNotContain(optimized, op => op is SetOperation { Dst.Number: 2 or 3 });
     }
 
+    // return (arg0 + arg1) без промежуточной локали var11
     [Fact]
     public void Optimize_PropagatesExpressionToReturn()
     {
@@ -154,6 +159,7 @@ public class OperationOptimizerTests
         Assert.Equal("(var11 >> 1) & 7", printfArgs[2].ToString());
     }
 
+    // strcpy-цикл без while: arg0++ и arg1++ сворачиваются из temp-переменных
     [Fact]
     public void Optimize_FoldsTempExpressionIntoAssignment_FlatBody()
     {
@@ -179,6 +185,7 @@ public class OperationOptimizerTests
         Assert.Equal("var1 + 1", Assert.IsType<SetOperation>(optimized[2]).Src.ToString());
     }
 
+    // while (*arg1) { *arg0=*arg1; arg0++; arg1++; } — инкременты без temp внутри тела
     [Fact]
     public void Optimize_FoldsTempExpressionIntoAssignment()
     {
@@ -219,6 +226,7 @@ public class OperationOptimizerTests
         Assert.Equal(arg1, addArg1.First);
     }
 
+    // a = a - 1 вместо temp = a-1; a = temp (паттерн dec)
     [Fact]
     public void Optimize_FoldsTempLocalPlusMinusOneIntoSelfAssign()
     {
@@ -241,6 +249,7 @@ public class OperationOptimizerTests
         Assert.Equal(local, math.First);
     }
 
+    // Присваивание стековой локали без дальнейшего использования сохраняется (может быть side-effect)
     [Fact]
     public void Optimize_KeepsUnusedStackLocalAssignment()
     {
@@ -257,6 +266,7 @@ public class OperationOptimizerTests
         Assert.Contains(optimized, op => op is SetOperation { Dst.IsStack: true });
     }
 
+    // Копирование со стековой локали в temp не разворачивается — стек может перезаписаться
     [Fact]
     public void Optimize_DoesNotPropagateCopyFromStackLocal()
     {
@@ -275,6 +285,7 @@ public class OperationOptimizerTests
         Assert.Contains(optimized, op => op is SetOperation { Dst.IsStack: true });
     }
 
+    // var11 = var10+1; var10 = 999; return var11 — нельзя подставлять (var10+1) в return
     [Fact]
     public void Optimize_DoesNotPropagateExpressionToReturnWhenSourceVariableIsRedefined()
     {

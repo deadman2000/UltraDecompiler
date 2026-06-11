@@ -5,8 +5,11 @@ using UltraDecompiler.Decompilation;
 
 namespace DecompilerTests.Decompilation;
 
+/// <summary>Генерация MAKEFILE для пересборки декомпилированных исходников через QCL.</summary>
 public class MakefileGeneratorTests
 {
+    // hello_s.exe: small-модель, stack check, SLIBCE.LIB, без /Gs
+    // Ожидаемый фрагмент MAKEFILE: CFLAGS := /nologo /AS /Od, TARGET := HELLO_S.EXE
     [Fact]
     public void FormatMakefile_HelloSmall_ContainsQuickCBuildRecipe()
     {
@@ -41,6 +44,7 @@ public class MakefileGeneratorTests
         }
     }
 
+    // Compact-модель без проверки стека → флаг /Gs в CFLAGS
     [Fact]
     public void FormatMakefile_StackCheckDisabled_AddsGsFlag()
     {
@@ -70,6 +74,7 @@ public class MakefileGeneratorTests
         }
     }
 
+    // add.c: MAKEFILE должен перечислить main.c, sub_0010.c и SLIBCE.LIB
     [Fact]
     public void Decompile_AddSmall_WritesMakefileWithAllSources()
     {
