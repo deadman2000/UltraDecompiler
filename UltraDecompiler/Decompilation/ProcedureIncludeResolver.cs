@@ -22,6 +22,19 @@ public static class ProcedureIncludeResolver
         var libraryHeaders = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
         var userHeaders = new SortedSet<string>(StringComparer.Ordinal);
 
+        if (procedure.Expressions is not null)
+        {
+            foreach (var (_, variable, _) in procedure.Expressions.Variables.StructLocals)
+            {
+                if (variable.Type?.StructName is { } structName
+                    && catalog.TryGetStructHeader(structName, out var structHeader)
+                    && structHeader is not null)
+                {
+                    libraryHeaders.Add(structHeader);
+                }
+            }
+        }
+
         foreach (var name in calleeNames)
         {
             if (string.Equals(name, procedure.Name, StringComparison.Ordinal))

@@ -113,8 +113,13 @@ public class Decompiler
             operations = OperationOptimizer.Optimize(operations);
             procedure.Callees = ProcedureDependencyCollector.Collect(operations);
             VariableTypeInferrer.Infer(operations, storage, headerCatalog);
+            StructLocalInferrer.Infer(procedure, operations, storage, headerCatalog);
             StackLocalArrayInferrer.Infer(procedure, operations);
             PointerTypeInferrer.Infer(procedure, operations, storage, headerCatalog);
+            operations = VoidCallNormalizer.Normalize(operations, storage, headerCatalog);
+            operations = StructFieldRewriter.Rewrite(procedure, operations, storage, headerCatalog);
+            operations = StructFieldLoadSimplifier.Simplify(procedure, operations);
+            operations = OperationOptimizer.Optimize(operations);
             operations = PointerCompareSimplifier.Simplify(operations);
             operations = WhileLoopRecognizer.Convert(operations);
             operations = CharPtrLiteralMaterializer.MaterializeCalls(operations, storage, parser.Image, imageLayout);

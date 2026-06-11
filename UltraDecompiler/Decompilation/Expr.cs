@@ -91,6 +91,26 @@ public sealed record Variable(
     }
 }
 
+/// <summary>Доступ к полю структуры (<c>base.field</c>).</summary>
+public record MemberExpr(Expr Base, string FieldName) : Expr
+{
+    public override string ToString() => $"{Base}.{FieldName}";
+}
+
+/// <summary>Унарный &amp; для передачи структуры по указателю (<c>&amp;var</c>).</summary>
+public record AddressOfExpr(Expr Operand) : Expr
+{
+    public override int GetPrecedence() => Prec.Unary;
+
+    public override string ToString() => ToString(0);
+
+    public override string ToString(int parentPrec)
+    {
+        var operandStr = Operand.ToString(GetPrecedence());
+        return parentPrec >= GetPrecedence() ? $"(&{operandStr})" : $"&{operandStr}";
+    }
+}
+
 /// <summary>
 /// Константное значение
 /// </summary>

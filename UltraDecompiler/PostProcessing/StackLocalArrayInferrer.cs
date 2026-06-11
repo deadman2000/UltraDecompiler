@@ -30,6 +30,11 @@ public static class StackLocalArrayInferrer
         for (var i = 0; i < sorted.Count; i++)
         {
             var entry = sorted[i];
+            if (entry.Variable.Type?.IsStruct == true)
+            {
+                continue;
+            }
+
             if (!arrayOffsets.Contains(entry.Offset))
             {
                 continue;
@@ -119,7 +124,13 @@ public static class StackLocalArrayInferrer
             return;
         }
 
-        MarkCharArray(locals.First(), allocSize.Value);
+        var only = locals.First();
+        if (only.Type?.IsStruct == true)
+        {
+            return;
+        }
+
+        MarkCharArray(only, allocSize.Value);
     }
 
     private static void MarkCharArray(Variable variable, int allocSize)

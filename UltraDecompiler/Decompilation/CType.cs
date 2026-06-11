@@ -10,13 +10,14 @@ public enum CTypeKind
     Unsigned,
     SizeT,
     Pointer,
+    Struct,
     Float,
     Double,
     Unknown,
 }
 
 /// <summary>Тип C для сигнатуры процедуры.</summary>
-public sealed record CType(CTypeKind Kind, CType? Pointee = null)
+public sealed record CType(CTypeKind Kind, CType? Pointee = null, string? StructName = null)
 {
     public static CType Void { get; } = new(CTypeKind.Void);
 
@@ -31,7 +32,18 @@ public sealed record CType(CTypeKind Kind, CType? Pointee = null)
     /// <summary>Указатель на char (char*), используется для форматных строк printf и т.п.</summary>
     public static CType CharPtr { get; } = new(CTypeKind.Pointer, new CType(CTypeKind.Char));
 
+    /// <summary>Структура из заголовка QuickC (<c>struct name</c>).</summary>
+    public static CType StructType(string name) => new(CTypeKind.Struct, StructName: name);
+
+    /// <summary>Указатель на структуру (<c>struct name*</c>).</summary>
+    public static CType StructPointer(string name) => new(CTypeKind.Pointer, StructType(name));
+
     public bool IsVoid => Kind == CTypeKind.Void;
+
+    public bool IsStruct => Kind == CTypeKind.Struct;
+
+    public bool IsStructPtr =>
+        Kind == CTypeKind.Pointer && Pointee?.Kind == CTypeKind.Struct;
 
     /// <summary>Является ли тип char* (в т.ч. const char* из заголовков).</summary>
     public bool IsCharPtr =>
@@ -52,6 +64,8 @@ public sealed record CType(CTypeKind Kind, CType? Pointee = null)
         CTypeKind.SizeT => "size_t",
         CTypeKind.Float => "float",
         CTypeKind.Double => "double",
+        CTypeKind.Struct => $"struct {StructName}",
+        CTypeKind.Pointer when Pointee?.Kind == CTypeKind.Struct => $"struct {Pointee.StructName}*",
         CTypeKind.Pointer => $"{Pointee ?? new CType(CTypeKind.Unknown)}*",
         CTypeKind.Unknown => "unknown",
         _ => Kind.ToString().ToLowerInvariant(),

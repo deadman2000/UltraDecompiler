@@ -1,4 +1,6 @@
-﻿namespace UltraDecompiler.Decompilation;
+﻿using UltraDecompiler.Headers;
+
+namespace UltraDecompiler.Decompilation;
 
 /// <summary>
 /// Хранилище переменных
@@ -10,6 +12,8 @@ public class VariableStorage
     private readonly Dictionary<int, Variable> _pspFields = new();
     private readonly Dictionary<int, Variable> _stackParameters = new();
     private readonly Dictionary<int, Variable> _stackLocals = new();
+    private readonly List<(int BaseOffset, Variable Variable, StructDefinition Definition)> _structLocals = [];
+    private readonly Dictionary<Variable, (Variable Base, string FieldName)> _mergedFieldLocals = new();
     private int _stackNumber;
     private int _tempNumber;
 
@@ -23,6 +27,8 @@ public class VariableStorage
         _pspFields.Clear();
         _stackParameters.Clear();
         _stackLocals.Clear();
+        _structLocals.Clear();
+        _mergedFieldLocals.Clear();
         StackFrameActive = false;
         _stackNumber = 0;
         _tempNumber = 0;
@@ -147,6 +153,90 @@ public class VariableStorage
             return null;
 
         return _stackLocals.GetValueOrDefault(bpDisplacement);
+    }
+
+    /// <summary>Зарегистрированные на стеке структуры из заголовков.</summary>
+    public IReadOnlyList<(int BaseOffset, Variable Variable, StructDefinition Definition)> StructLocals =>
+        _structLocals;
+
+    /// <summary>
+    /// Объединяет диапазон стековых локалей в одну переменную типа <paramref name="definition"/>.
+    /// </summary>
+    public void ConsolidateStructLocal(int baseOffset, StructDefinition definition)
+    {
+        if (!_stackLocals.TryGetValue(baseOffset, out var baseVariable))
+        {
+            return;
+        }
+
+        baseVariable.Type = definition.CType;
+        baseVariable.ArraySize = null;
+
+        _structLocals.RemoveAll(e => e.BaseOffset == baseOffset);
+        _structLocals.Add((baseOffset, baseVariable, definition));
+
+        var endOffset = baseOffset + definition.Size;
+        var removeKeys = _stackLocals.Keys
+            .Where(k => k >= baseOffset && k < endOffset && k != baseOffset)
+            .ToList();
+
+        foreach (var offset in removeKeys)
+        {
+            if (!_stackLocals.TryGetValue(offset, out var mergedVar))
+            {
+                continue;
+            }
+
+            var fieldOffset = offset - baseOffset;
+            if (definition.TryResolveField(fieldOffset, out var field) && field is not null)
+            {
+                _mergedFieldLocals[mergedVar] = (baseVariable, field.Name);
+            }
+
+            _stackLocals.Remove(offset);
+        }
+    }
+
+    /// <summary>Пытается сопоставить [BP+disp] с полем зарегистрированной структуры.</summary>
+    public bool TryResolveStructFieldAccess(int bpDisplacement, out MemberExpr? member)
+    {
+        member = null;
+        if (!StackFrameActive || bpDisplacement >= 0)
+        {
+            return false;
+        }
+
+        foreach (var (baseOffset, baseVariable, definition) in _structLocals)
+        {
+            if (bpDisplacement < baseOffset || bpDisplacement >= baseOffset + definition.Size)
+            {
+                continue;
+            }
+
+            var fieldOffset = bpDisplacement - baseOffset;
+            if (!definition.TryResolveField(fieldOffset, out var field) || field is null)
+            {
+                continue;
+            }
+
+            member = new MemberExpr(baseVariable, field.Name);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Возвращает поле структуры для ранее объединённого слова локала.</summary>
+    public bool TryGetMergedField(Variable variable, out MemberExpr? member)
+    {
+        if (_mergedFieldLocals.TryGetValue(variable, out var mapped))
+        {
+            member = new MemberExpr(mapped.Base, mapped.FieldName);
+            return true;
+        }
+
+        member = null;
+        return false;
     }
 
     /// <summary>

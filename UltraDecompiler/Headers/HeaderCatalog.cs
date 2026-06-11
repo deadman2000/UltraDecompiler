@@ -10,8 +10,12 @@ public sealed class HeaderCatalog
 {
     private readonly Dictionary<string, ProcedureSignature> _byName = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _headerFileByName = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, StructDefinition> _structsByName = new(StringComparer.Ordinal);
+    private readonly Dictionary<int, List<StructDefinition>> _structsBySize = new();
 
     public IReadOnlyDictionary<string, ProcedureSignature> All => _byName;
+
+    public IReadOnlyDictionary<string, StructDefinition> Structs => _structsByName;
 
     /// <summary>Загружает все <c>*.H</c> из каталога.</summary>
     public static HeaderCatalog Load(string includeDirectory)
@@ -37,11 +41,33 @@ public sealed class HeaderCatalog
     public bool TryGetHeaderFile(string cName, out string? headerFile) =>
         _headerFileByName.TryGetValue(cName, out headerFile);
 
+    public bool TryGetStruct(string structName, out StructDefinition? definition) =>
+        _structsByName.TryGetValue(structName, out definition);
+
+    public bool TryGetStructHeader(string structName, out string? headerFile)
+    {
+        if (_structsByName.TryGetValue(structName, out var definition))
+        {
+            headerFile = definition.HeaderFile;
+            return true;
+        }
+
+        headerFile = null;
+        return false;
+    }
+
+    /// <summary>Возвращает структуры с заданным размером (из INCLUDE).</summary>
+    public IReadOnlyList<StructDefinition> GetStructsBySize(int size) =>
+        _structsBySize.TryGetValue(size, out var list) ? list : [];
+
     private void ParseFile(string path)
     {
         var headerFileName = Path.GetFileName(path);
+        var lines = File.ReadAllLines(path);
 
-        foreach (var line in File.ReadLines(path))
+        ParseStructs(lines, headerFileName);
+
+        foreach (var line in lines)
         {
             if (!TryParseDeclaration(line, out var name, out var returnType, out var parameters, out var isVariadic))
             {
@@ -51,6 +77,132 @@ public sealed class HeaderCatalog
             _byName.TryAdd(name, new ProcedureSignature(returnType, parameters, isVariadic));
             _headerFileByName.TryAdd(name, headerFileName);
         }
+    }
+
+    private void ParseStructs(string[] lines, string headerFileName)
+    {
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var trimmed = StripComments(lines[i]).Trim();
+            if (!trimmed.StartsWith("struct ", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!TryParseStructBlock(lines, ref i, headerFileName, out var definition) || definition is null)
+            {
+                continue;
+            }
+
+            if (_structsByName.ContainsKey(definition.Name))
+            {
+                continue;
+            }
+
+            _structsByName[definition.Name] = definition;
+            if (!_structsBySize.TryGetValue(definition.Size, out var bySize))
+            {
+                bySize = [];
+                _structsBySize[definition.Size] = bySize;
+            }
+
+            bySize.Add(definition);
+        }
+    }
+
+    private static bool TryParseStructBlock(
+        string[] lines,
+        ref int index,
+        string headerFileName,
+        out StructDefinition? definition)
+    {
+        definition = null;
+        var head = StripComments(lines[index]).Trim();
+        var braceIndex = head.IndexOf('{');
+        if (braceIndex < 0)
+        {
+            return false;
+        }
+
+        var namePart = head[..braceIndex].Trim();
+        var nameTokens = Tokenize(namePart).Where(static t => t != "struct").ToList();
+        if (nameTokens.Count != 1 || !Regex.IsMatch(nameTokens[0], @"^[A-Za-z_]\w*$"))
+        {
+            return false;
+        }
+
+        var structName = nameTokens[0];
+        var fields = new List<StructField>();
+        var currentOffset = 0;
+        var body = head[(braceIndex + 1)..].Trim();
+
+        if (!TryParseStructFieldsFromLine(body, ref currentOffset, fields))
+        {
+            while (++index < lines.Length)
+            {
+                var line = StripComments(lines[index]).Trim();
+                if (line.Length == 0)
+                {
+                    continue;
+                }
+
+                if (TryParseStructFieldsFromLine(line, ref currentOffset, fields))
+                {
+                    break;
+                }
+            }
+        }
+
+        if (fields.Count == 0)
+        {
+            return false;
+        }
+
+        definition = new StructDefinition(structName, headerFileName, fields);
+        return true;
+    }
+
+    private static bool TryParseStructFieldsFromLine(string line, ref int currentOffset, List<StructField> fields)
+    {
+        var trimmed = line.Trim();
+        if (trimmed is "};" or "}")
+        {
+            return true;
+        }
+
+        if (trimmed.EndsWith("};", StringComparison.Ordinal))
+        {
+            trimmed = trimmed[..^2].TrimEnd();
+        }
+
+        if (trimmed.EndsWith(';'))
+        {
+            trimmed = trimmed[..^1].Trim();
+        }
+
+        if (trimmed.Length == 0)
+        {
+            return trimmed.EndsWith('}');
+        }
+
+        var tokens = Tokenize(trimmed).Where(static t => !IsIgnoredToken(t)).ToList();
+        if (tokens.Count < 2)
+        {
+            return false;
+        }
+
+        var fieldName = tokens[^1];
+        if (!Regex.IsMatch(fieldName, @"^[A-Za-z_]\w*$"))
+        {
+            return false;
+        }
+
+        var typeTokens = tokens.Take(tokens.Count - 1).ToList();
+        var fieldType = ParseTypeTokens(typeTokens);
+        var field = StructDefinition.CreateField(fieldName, fieldType, currentOffset);
+        fields.Add(field);
+        currentOffset = field.Offset + field.Size;
+        return false;
     }
 
     private static bool TryParseDeclaration(
@@ -97,6 +249,12 @@ public sealed class HeaderCatalog
 
     private static string StripComments(string line)
     {
+        var block = line.IndexOf("/*", StringComparison.Ordinal);
+        if (block >= 0)
+        {
+            line = line[..block];
+        }
+
         var slash = line.IndexOf("//", StringComparison.Ordinal);
         return slash >= 0 ? line[..slash] : line;
     }
@@ -165,19 +323,28 @@ public sealed class HeaderCatalog
         var pointerDepth = tokens.Count(static t => t == "*");
         var typeTokens = tokens.Where(static t => t != "*").ToList();
 
-        CType baseType = CTypeKind.Unknown switch
+        CType baseType;
+        var structIndex = typeTokens.IndexOf("struct");
+        if (structIndex >= 0 && structIndex < typeTokens.Count - 1)
         {
-            _ when typeTokens.Contains("void") => CType.Void,
-            _ when typeTokens.Contains("char") => CType.Char,
-            _ when typeTokens.Contains("int") => CType.Int,
-            _ when typeTokens.Contains("long") => new CType(CTypeKind.Long),
-            _ when typeTokens.Contains("float") => new CType(CTypeKind.Float),
-            _ when typeTokens.Contains("double") => new CType(CTypeKind.Double),
-            _ when typeTokens.Contains("size_t") => new CType(CTypeKind.SizeT),
-            _ when typeTokens.Contains("unsigned") => new CType(CTypeKind.Unsigned),
-            _ when typeTokens.Contains("FILE") => new CType(CTypeKind.Pointer, CType.Int),
-            _ => CType.Int,
-        };
+            baseType = CType.StructType(typeTokens[structIndex + 1]);
+        }
+        else
+        {
+            baseType = CTypeKind.Unknown switch
+            {
+                _ when typeTokens.Contains("void") => CType.Void,
+                _ when typeTokens.Contains("char") => CType.Char,
+                _ when typeTokens.Contains("int") => CType.Int,
+                _ when typeTokens.Contains("long") => new CType(CTypeKind.Long),
+                _ when typeTokens.Contains("float") => new CType(CTypeKind.Float),
+                _ when typeTokens.Contains("double") => new CType(CTypeKind.Double),
+                _ when typeTokens.Contains("size_t") => new CType(CTypeKind.SizeT),
+                _ when typeTokens.Contains("unsigned") => new CType(CTypeKind.Unsigned),
+                _ when typeTokens.Contains("FILE") => new CType(CTypeKind.Pointer, CType.Int),
+                _ => CType.Int,
+            };
+        }
 
         if (baseType.Kind == CTypeKind.Char && pointerDepth == 1)
         {

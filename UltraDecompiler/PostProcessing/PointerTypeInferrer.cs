@@ -102,6 +102,11 @@ public static class PointerTypeInferrer
             return false;
         }
 
+        if (variable.Type is { IsStruct: true })
+        {
+            return false;
+        }
+
         if (variable.Type is { IsCharPtr: true })
         {
             return false;
@@ -164,6 +169,17 @@ public static class PointerTypeInferrer
 
             for (var i = 0; i < signature.Parameters.Count && i < call.Args.Count; i++)
             {
+                if (signature.Parameters[i].Type.IsStructPtr && call.Args[i] is Variable structVar)
+                {
+                    if (signature.Parameters[i].Type.Pointee?.StructName is { } structName)
+                    {
+                        structVar.Type = CType.StructType(structName);
+                        structVar.ArraySize = null;
+                    }
+
+                    continue;
+                }
+
                 if (!signature.Parameters[i].Type.IsCharPtr || call.Args[i] is not Variable variable)
                 {
                     continue;

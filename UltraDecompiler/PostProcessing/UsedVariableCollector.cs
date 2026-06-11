@@ -110,6 +110,12 @@ internal static class UsedVariableCollector
 
         switch (expr)
         {
+            case MemberExpr member:
+                AddFromExpr(member.Base, result);
+                break;
+            case AddressOfExpr addr:
+                AddFromExpr(addr.Operand, result);
+                break;
             case Math1Expr m1:
                 AddFromExpr(m1.Op, result);
                 break;
