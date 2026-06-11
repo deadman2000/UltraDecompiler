@@ -301,6 +301,37 @@ public static class Extensions
         }
 
         /// <summary>
+        /// Эмитит инкремент или декремент операнда.
+        /// Для локальной переменной по [BP+disp] создаёт <see cref="IncOperation"/> / <see cref="DecOperation"/>.
+        /// Иначе — операцию с адресом памяти.
+        /// </summary>
+        public void EmitIncDec(ExprBlock block, Segment segmentOverride, bool isInc)
+        {
+            if (operand.Type != OperandType.Memory)
+                throw new InvalidOperationException("EmitIncDec может вызываться только для memory-операнда");
+
+            if (operand.BaseReg == AddressRegister.BP && operand.IndexReg == AddressRegister.None)
+            {
+                var local = block.Variables.TryGetStackLocal(operand.Value);
+                if (local != null)
+                {
+                    block.Operations.Add(isInc ? new IncOperation(local) : new DecOperation(local));
+                    return;
+                }
+
+                var param = block.Variables.TryGetStackParameter(operand.Value);
+                if (param != null)
+                {
+                    block.Operations.Add(isInc ? new IncOperation(param) : new DecOperation(param));
+                    return;
+                }
+            }
+
+            var (addr, seg) = operand.BuildMemoryReference(block.EndRegisters, segmentOverride);
+            block.Operations.Add(isInc ? new IncOperation(addr, seg) : new DecOperation(addr, seg));
+        }
+
+        /// <summary>
         /// Эмитит запись в память по операнду.
         /// Если это обращение к локальной переменной по [BP + отрицательное_смещение],
         /// создаёт SetOperation на соответствующую Variable (поддержка локалов).

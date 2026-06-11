@@ -9,14 +9,11 @@ int86.c
 jmp.c
 long.c
 mod.c
-mul.c
 peek.c
 port.c
 recur.c
 reg.c
 rot.c
 sjmp.c
-st.c
-strcp.c
 switch.c
 vol.c

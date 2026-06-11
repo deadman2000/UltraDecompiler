@@ -22,6 +22,8 @@ public static class Extensions
                 SetOperation s => FormatSet(s, indent),
                 CallOperation c => FormatCall(c, indent),
                 StoreOperation st => FormatStore(st, indent),
+                IncOperation inc => FormatIncDec(inc.Target, inc.Segment, "++", indent),
+                DecOperation dec => FormatIncDec(dec.Target, dec.Segment, "--", indent),
                 ReturnOperation r => FormatReturn(r, indent),
                 WhileOperation w => FormatWhile(w, indent),
                 ForOperation f => FormatFor(f, indent),
@@ -83,6 +85,22 @@ public static class Extensions
 
         var segPrefix = store.Segment != null ? $"{store.Segment}:" : "";
         return $"{Indent(indent)}{segPrefix}[{store.Address}] = {store.Value}";
+    }
+
+    static string FormatIncDec(Expr target, Expr? segment, string suffix, int indent)
+    {
+        if (target is Variable variable && segment is null)
+        {
+            return $"{Indent(indent)}{variable}{suffix}";
+        }
+
+        if (PointerStoreFormatter.TryFormat(new StoreOperation(target, segment, ConstExpr.Zero), out var lvalue))
+        {
+            return $"{Indent(indent)}{lvalue}{suffix}";
+        }
+
+        var segPrefix = segment != null ? $"{segment}:" : "";
+        return $"{Indent(indent)}{segPrefix}[{target}]{suffix}";
     }
 
     static string FormatWhile(WhileOperation loop, int indent)

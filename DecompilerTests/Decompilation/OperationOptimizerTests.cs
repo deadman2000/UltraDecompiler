@@ -220,6 +220,28 @@ public class OperationOptimizerTests
     }
 
     [Fact]
+    public void Optimize_FoldsTempLocalPlusMinusOneIntoSelfAssign()
+    {
+        var local = new Variable(8) { Name = "a" };
+        var temp = new Variable(10) { Name = "t" };
+
+        var operations = new List<Operation>
+        {
+            new SetOperation(temp, new Math2Expr(Math2Operation.Sub, local, ConstExpr.One)),
+            new SetOperation(local, temp),
+            new ReturnOperation(local),
+        };
+
+        var optimized = OperationOptimizer.Optimize(operations);
+
+        Assert.DoesNotContain(optimized, op => op is SetOperation { Dst.Number: 10 });
+        var ret = Assert.IsType<ReturnOperation>(optimized[^1]);
+        var math = Assert.IsType<Math2Expr>(ret.Value);
+        Assert.Equal(Math2Operation.Sub, math.Operation);
+        Assert.Equal(local, math.First);
+    }
+
+    [Fact]
     public void Optimize_DoesNotPropagateExpressionToReturnWhenSourceVariableIsRedefined()
     {
         var var10 = new Variable(10);

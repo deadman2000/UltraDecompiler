@@ -72,19 +72,13 @@ public class MemoryStoreTests : BaseTests
     }
 
     [Fact]
-    public void Inc_Memory_Destination_ProducesStore()
+    public void Inc_Memory_Destination_ProducesIncOperation()
     {
         // INC word [SI]
         var expr = BuildExpressions("FF 04");
 
-        // Для RMW создаётся SetOperation (вычисленное значение) + StoreOperation
-        Assert.Equal(2, expr.Blocks[0].Operations.Count);
-
-        var setOp = Assert.IsType<SetOperation>(expr.Blocks[0].Operations[0]);
-        Assert.IsType<StoreOperation>(expr.Blocks[0].Operations[1]);
-
-        var math = Assert.IsType<Math2Expr>(setOp.Src);
-        Assert.Equal(Math2Operation.Add, math.Operation);
+        var inc = Assert.IsType<IncOperation>(Assert.Single(expr.Blocks[0].Operations));
+        Assert.NotNull(inc.Segment);
     }
 
     [Fact]

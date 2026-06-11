@@ -178,7 +178,7 @@ public class ArithmeticTests : BaseTests
     }
 
     [Fact]
-    public void Inc_OnVariable_CreatesAddWithOne()
+    public void Inc_OnVariable_EmitsIncOperation()
     {
         var expr = BuildExpressions("40", vars =>   // inc ax
         {
@@ -187,14 +187,8 @@ public class ArithmeticTests : BaseTests
         });
 
         var block = expr.Blocks[0];
-        Assert.Single(block.Operations);
-
-        var set = Assert.IsType<SetOperation>(block.Operations[0]);
-        var math = Assert.IsType<Math2Expr>(set.Src);
-        Assert.Equal(Math2Operation.Add, math.Operation);
-
-        Assert.Equal("x", Assert.IsType<Variable>(math.First).Name);
-        Assert.Equal(1, Assert.IsType<ConstExpr>(math.Second).Value);
+        var inc = Assert.IsType<IncOperation>(Assert.Single(block.Operations));
+        Assert.Equal("x", Assert.IsType<Variable>(inc.Target).Name);
     }
 
     [Fact]

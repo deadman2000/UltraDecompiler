@@ -38,9 +38,39 @@ public class ArithmeticHandler : IInstructionHandler
 
         bool isAdcSbb = instr.Mnemonic == Mnemonic.ADC || instr.Mnemonic == Mnemonic.SBB;
         bool isAddLike = instr.Mnemonic == Mnemonic.ADD || instr.Mnemonic == Mnemonic.ADC;
+        bool isWord = WordArithmeticHelper.IsWordOperation(instr);
+
+        // add/sub word ptr [mem], 1 — постфиксный ++/-- (QuickC для a++/a--).
+        if (!isAdcSbb
+            && srcExpr is ConstExpr imm
+            && WordArithmeticHelper.IsMemoryIncDec(instr, imm, isAddLike, isWord, out bool isIncrement))
+        {
+            var delta = isIncrement ? 1 : -1;
+            Expr incResult = WordArithmeticHelper.ApplySignedDelta(dstCurrent, delta);
+
+            dst.EmitIncDec(block, instr.Segment, isIncrement);
+
+            block.EndRegisters = block.EndRegisters.ApplyArithmeticFlags(incResult);
+
+            if (!isIncrement)
+            {
+                var cfExpr = new CmpExpr(CmpOperation.Ult, dstCurrent, ConstExpr.One);
+                block.EndRegisters = block.EndRegisters with { CF = cfExpr };
+            }
+            else
+            {
+                var cfExpr = new CmpExpr(CmpOperation.Ult, incResult, dstCurrent);
+                block.EndRegisters = block.EndRegisters with { CF = cfExpr };
+            }
+
+            return;
+        }
 
         var baseOp = isAddLike ? Math2Operation.Add : Math2Operation.Sub;
-        Expr result = dstCurrent.Calculate(baseOp, srcExpr);
+        Expr result = srcExpr is ConstExpr srcConst
+                      && WordArithmeticHelper.TryGetSignedDelta(srcConst, isAddLike, isWord, out int signedDelta)
+            ? WordArithmeticHelper.ApplySignedDelta(dstCurrent, signedDelta)
+            : dstCurrent.Calculate(baseOp, srcExpr);
 
         // Для ADC/SBB добавляем/вычитаем CF (только если CF — известная константа 0/1)
         if (isAdcSbb)

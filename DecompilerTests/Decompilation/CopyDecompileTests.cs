@@ -60,8 +60,8 @@ public sealed class CopyDecompileTests
             var copySource = File.ReadAllText(result.OutputFiles.First(p => p.EndsWith("sub_0010.c", StringComparison.Ordinal)));
             Assert.Contains("while (*arg1 != 0)", copySource);
             Assert.Contains("*arg0 = *arg1", copySource);
-            Assert.Contains("arg0 = arg0 + 1", copySource);
-            Assert.Contains("arg1 = arg1 + 1", copySource);
+            Assert.Contains("arg0++", copySource);
+            Assert.Contains("arg1++", copySource);
             Assert.Contains("*arg0 = 0", copySource);
             Assert.DoesNotContain("var10", copySource);
             Assert.DoesNotContain("var11", copySource);
@@ -99,8 +99,8 @@ public sealed class CopyDecompileTests
             var copySource = File.ReadAllText(result.OutputFiles.First(p => p.EndsWith($"{copyProc.Name}.c", StringComparison.Ordinal)));
             Assert.Contains("while (*arg1 != 0)", copySource);
             Assert.Contains("*arg0 = *arg1", copySource);
-            Assert.Contains("arg0 = arg0 + 1", copySource);
-            Assert.Contains("arg1 = arg1 + 1", copySource);
+            Assert.Contains("arg0++", copySource);
+            Assert.Contains("arg1++", copySource);
             Assert.Contains("*arg0 = 0", copySource);
             Assert.DoesNotContain("_psp:[", copySource);
             Assert.DoesNotContain("varSS:[", copySource);

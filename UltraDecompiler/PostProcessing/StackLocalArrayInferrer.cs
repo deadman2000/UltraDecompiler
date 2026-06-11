@@ -132,6 +132,12 @@ public static class StackLocalArrayInferrer
         op switch
         {
             SetOperation set => ExprSubstitution.CollectVariables(set.Src).Concat([set.Dst]),
+            IncOperation { Target: Variable target } => ExprSubstitution.CollectVariables(target).Append(target),
+            DecOperation { Target: Variable target } => ExprSubstitution.CollectVariables(target).Append(target),
+            IncOperation inc => ExprSubstitution.CollectVariables(inc.Target)
+                .Concat(ExprSubstitution.CollectVariables(inc.Segment)),
+            DecOperation dec => ExprSubstitution.CollectVariables(dec.Target)
+                .Concat(ExprSubstitution.CollectVariables(dec.Segment)),
             StoreOperation store => ExprSubstitution.CollectVariables(store.Address)
                 .Concat(ExprSubstitution.CollectVariables(store.Segment))
                 .Concat(ExprSubstitution.CollectVariables(store.Value)),

@@ -42,6 +42,14 @@ internal static class UsedVariableCollector
                 AddFromExpr(store.Segment, result);
                 AddFromExpr(store.Value, result);
                 break;
+            case IncOperation inc:
+                AddFromExpr(inc.Target, result);
+                AddFromExpr(inc.Segment, result);
+                break;
+            case DecOperation dec:
+                AddFromExpr(dec.Target, result);
+                AddFromExpr(dec.Segment, result);
+                break;
             case CallOperation call:
                 foreach (var arg in call.Args)
                 {

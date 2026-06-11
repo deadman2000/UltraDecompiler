@@ -6,7 +6,9 @@ namespace UltraDecompiler.Decompilation.InstructionHandlers;
 /// Важно: на реальном x86 INC/DEC **не затрагивают** флаг CF
 /// (в отличие от ADD/SUB 1). Поэтому мы не трогаем CF здесь.
 /// 
-/// Результат всегда оборачивается в Variable (через SetOperation), если не константа.
+/// Для операнда, соответствующего именованной переменной (локал/параметр по [BP+disp]
+/// или регистр с тем же <see cref="Variable"/>), создаёт <see cref="IncOperation"/> /
+/// <see cref="DecOperation"/>. Иначе — <see cref="SetOperation"/> на временную переменную.
 /// </summary>
 public class IncDecHandler(bool isInc) : IInstructionHandler
 {
@@ -17,6 +19,13 @@ public class IncDecHandler(bool isInc) : IInstructionHandler
 
         var op = isInc ? Math2Operation.Add : Math2Operation.Sub;
         Expr result = current.Calculate(op, ConstExpr.One);
+
+        if (TryEmitIncDec(block, dst, instr.Segment, isInc, current))
+        {
+            block.EndRegisters = UpdateDestination(block, dst, result);
+            block.EndRegisters = block.EndRegisters.ApplyArithmeticFlags(result);
+            return;
+        }
 
         if (result is not ConstExpr)
         {
@@ -44,4 +53,29 @@ public class IncDecHandler(bool isInc) : IInstructionHandler
 
         block.EndRegisters = block.EndRegisters.ApplyArithmeticFlags(result);
     }
+
+    private static bool TryEmitIncDec(ExprBlock block, Operand dst, Segment segment, bool isInc, Expr current)
+    {
+        if (dst.Type == OperandType.Memory)
+        {
+            dst.EmitIncDec(block, segment, isInc);
+            return true;
+        }
+
+        if (current is Variable variable)
+        {
+            block.Operations.Add(isInc ? new IncOperation(variable) : new DecOperation(variable));
+            return true;
+        }
+
+        return false;
+    }
+
+    private static RegisterExpressions UpdateDestination(ExprBlock block, Operand dst, Expr result) =>
+        dst.Type switch
+        {
+            OperandType.Register16 => block.EndRegisters.Set16(dst.AsGpRegister16(), result),
+            OperandType.Register8 => block.EndRegisters.Set8(dst.AsGpRegister8(), result),
+            _ => block.EndRegisters,
+        };
 }

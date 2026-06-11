@@ -28,6 +28,13 @@ public static class OperationOptimizer
 
             for (var i = 0; i < operations.Count; i++)
             {
+                if (TryFoldSelfAssignTempStore(operations, i))
+                {
+                    i = Math.Max(-1, i - 2);
+                    changed = true;
+                    continue;
+                }
+
                 if (operations[i] is not SetOperation set)
                 {
                     continue;
@@ -307,6 +314,10 @@ public static class OperationOptimizer
             StoreOperation store => ExprSubstitution.Contains(store.Address, variable)
                 || ExprSubstitution.Contains(store.Segment, variable)
                 || ExprSubstitution.Contains(store.Value, variable),
+            IncOperation inc => ExprSubstitution.Contains(inc.Target, variable)
+                || ExprSubstitution.Contains(inc.Segment, variable),
+            DecOperation dec => ExprSubstitution.Contains(dec.Target, variable)
+                || ExprSubstitution.Contains(dec.Segment, variable),
             IfOperation branch => ExprSubstitution.Contains(branch.Condition, variable)
                 || branch.ThenBody.Any(op => ReadsVariableOutsideReturn(op, variable))
                 || (branch.ElseBody?.Any(op => ReadsVariableOutsideReturn(op, variable)) ?? false),
@@ -413,6 +424,12 @@ public static class OperationOptimizer
                 ExprSubstitution.Replace(store.Address, from, to),
                 store.Segment is null ? null : ExprSubstitution.Replace(store.Segment, from, to),
                 ExprSubstitution.Replace(store.Value, from, to)),
+            IncOperation inc => new IncOperation(
+                ReplaceIncDecTarget(inc.Target, from, to),
+                inc.Segment is null ? null : ExprSubstitution.Replace(inc.Segment, from, to)),
+            DecOperation dec => new DecOperation(
+                ReplaceIncDecTarget(dec.Target, from, to),
+                dec.Segment is null ? null : ExprSubstitution.Replace(dec.Segment, from, to)),
             ReturnOperation ret => new ReturnOperation(
                 ret.Value is null ? null : ExprSubstitution.Replace(ret.Value, from, to)),
             IfOperation branch => new IfOperation(
@@ -438,6 +455,10 @@ public static class OperationOptimizer
             StoreOperation store => ExprSubstitution.Contains(store.Address, variable)
                 || ExprSubstitution.Contains(store.Segment, variable)
                 || ExprSubstitution.Contains(store.Value, variable),
+            IncOperation inc => ExprSubstitution.Contains(inc.Target, variable)
+                || ExprSubstitution.Contains(inc.Segment, variable),
+            DecOperation dec => ExprSubstitution.Contains(dec.Target, variable)
+                || ExprSubstitution.Contains(dec.Segment, variable),
             ReturnOperation ret => ExprSubstitution.Contains(ret.Value, variable),
             IfOperation branch => ExprSubstitution.Contains(branch.Condition, variable)
                 || branch.ThenBody.Any(op => ReadsVariableDeep(op, variable))
@@ -451,6 +472,38 @@ public static class OperationOptimizer
             _ => false,
         };
 
+    /// <summary>
+    /// <c>temp = local ± 1; local = temp</c> → <c>local = local ± 1</c> (mov/add/mov из QuickC).
+    /// </summary>
+    private static bool TryFoldSelfAssignTempStore(List<Operation> operations, int assignIndex)
+    {
+        if (assignIndex <= 0
+            || operations[assignIndex] is not SetOperation { Src: Variable temp, Dst: Variable dst }
+            || operations[assignIndex - 1] is not SetOperation { Dst: Variable tempDef, Src: Math2Expr math }
+            || tempDef.Number != temp.Number
+            || math.First is not Variable local
+            || local.Number != dst.Number
+            || math.Second is not ConstExpr { Value: 1 }
+            || math.Operation is not (Math2Operation.Add or Math2Operation.Sub))
+        {
+            return false;
+        }
+
+        operations[assignIndex - 1] = new SetOperation(dst, math);
+        operations.RemoveAt(assignIndex);
+        return true;
+    }
+
+    private static Expr ReplaceIncDecTarget(Expr target, Variable from, Expr to)
+    {
+        if (target is Variable variable && variable.Number == from.Number)
+        {
+            return target;
+        }
+
+        return ExprSubstitution.Replace(target, from, to);
+    }
+
     private static bool DefinesVariableDeep(Operation operation, Variable variable) =>
         operation switch
         {
@@ -461,6 +514,8 @@ public static class OperationOptimizer
             ForOperation loop => (loop.Init is not null && DefinesVariableDeep(loop.Init, variable))
                 || loop.Body.Any(op => DefinesVariableDeep(op, variable))
                 || (loop.Iteration is not null && DefinesVariableDeep(loop.Iteration, variable)),
+            IncOperation inc when inc.Target is Variable target => target.Number == variable.Number,
+            DecOperation dec when dec.Target is Variable target => target.Number == variable.Number,
             _ => false,
         };
 }

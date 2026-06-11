@@ -68,7 +68,7 @@ public static class WhileLoopRecognizer
             return false;
         }
 
-        return branch.ThenBody.Any(static op => op is SetOperation or StoreOperation);
+        return branch.ThenBody.Any(static op => op is SetOperation or StoreOperation or IncOperation or DecOperation);
     }
 
     private static bool ConditionUsesCharPointerDeref(Expr condition)
