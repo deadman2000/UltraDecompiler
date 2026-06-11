@@ -236,7 +236,14 @@ public sealed class HeaderCatalog
         }
 
         var head = trimmed[..parenIndex].Trim();
-        var paramList = trimmed[(parenIndex + 1)..^1].Trim();
+        // Закрывающая «)» перед «;» — не часть списка параметров (иначе «(void)» превращается в «void)»).
+        var closeParen = trimmed.LastIndexOf(')');
+        if (closeParen <= parenIndex)
+        {
+            return false;
+        }
+
+        var paramList = trimmed[(parenIndex + 1)..closeParen].Trim();
 
         if (!TrySplitReturnAndName(head, out returnType, out name))
         {

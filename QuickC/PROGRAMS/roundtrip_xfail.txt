@@ -1,7 +1,6 @@
 bits.c
 copy.c
 copy2.c
-enab.c
 fptr.c
 glob.c
 int86.c

@@ -24,6 +24,29 @@ public class QuickCHeaderCatalogTests
         Assert.True(signature.IsVariadic);
     }
 
+    // DOS.H: void _disable(void); void _enable(void); — без параметров
+    [Fact]
+    public void Load_QuickCInclude_DisableEnableHaveNoParameters()
+    {
+        var includeDir = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..", "..", "..", "..", "QuickC", "INCLUDE"));
+
+        var catalog = HeaderCatalog.Load(includeDir);
+
+        Assert.True(catalog.TryGetSignature("_disable", out var disable));
+        Assert.NotNull(disable);
+        Assert.True(disable!.ReturnType.IsVoid);
+        Assert.Empty(disable.Parameters);
+        Assert.False(disable.IsVariadic);
+
+        Assert.True(catalog.TryGetSignature("_enable", out var enable));
+        Assert.NotNull(enable);
+        Assert.True(enable!.ReturnType.IsVoid);
+        Assert.Empty(enable.Parameters);
+        Assert.False(enable.IsVariadic);
+    }
+
     // void perror(const char *); — возвращаемый тип void
     [Fact]
     public void Load_QuickCInclude_PerrorIsVoid()

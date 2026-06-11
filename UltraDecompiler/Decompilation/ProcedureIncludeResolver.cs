@@ -67,7 +67,7 @@ public static class ProcedureIncludeResolver
 
     private static bool ShouldSkipInclude(string name) =>
         StackCheckDetector.IsChkstkName(name)
-        || name is "__exit" or "_disable" or "_enable"
+        || name is "__exit"
         || name.StartsWith("indirect_", StringComparison.Ordinal)
         || name.StartsWith("unknown_", StringComparison.Ordinal)
         || name.StartsWith("far_", StringComparison.Ordinal);
