@@ -33,6 +33,28 @@ public static class OperationOptimizer
                     continue;
                 }
 
+                if (set.Src is Variable tempVar
+                    && TryFindTempExpressionAssignment(operations, i, tempVar, out var exprIndex, out var expr)
+                    && CanFoldTempIntoAssignment(operations, exprIndex, i, set.Dst, expr))
+                {
+                    var assignIndex = i;
+                    operations.RemoveAt(exprIndex);
+                    if (exprIndex < assignIndex)
+                    {
+                        assignIndex--;
+                    }
+
+                    operations[assignIndex] = new SetOperation(set.Dst, expr);
+                    i = assignIndex - 1;
+                    changed = true;
+                    continue;
+                }
+
+                if (IsTailAssignmentForLoopHeader(operations, i, set.Dst))
+                {
+                    continue;
+                }
+
                 if (!IsVariableReadAfter(operations, i, set.Dst))
                 {
                     if (IsVariableUsedInEarlierSetSource(operations, i, set.Dst))
@@ -115,7 +137,7 @@ public static class OperationOptimizer
         var lastReadIndex = FindLastReadIndexInRange(operations, copyIndex, propagateEnd, dst);
         if (lastReadIndex < 0)
         {
-            return true;
+            return !IsTailAssignmentForLoopHeader(operations, copyIndex, dst);
         }
 
         return !DefinesVariableBetween(operations, copyIndex, lastReadIndex, src);
@@ -151,6 +173,82 @@ public static class OperationOptimizer
         }
 
         return last;
+    }
+
+    /// <summary>
+    /// Ищет единственное присваивание <c>temp = expr</c> перед <c>dst = temp</c>.
+    /// </summary>
+    private static bool TryFindTempExpressionAssignment(
+        IReadOnlyList<Operation> operations,
+        int assignIndex,
+        Variable temp,
+        out int exprIndex,
+        out Expr expr)
+    {
+        exprIndex = -1;
+        expr = null!;
+
+        for (var j = assignIndex - 1; j >= 0; j--)
+        {
+            if (operations[j] is not SetOperation candidate
+                || candidate.Dst.Number != temp.Number
+                || !IsFoldableTempExpression(candidate.Src))
+            {
+                continue;
+            }
+
+            if (FindNextDefinitionIndex(operations, j, temp) >= 0)
+            {
+                continue;
+            }
+
+            if (FindLastReadIndexInRange(operations, j, assignIndex + 1, temp) != assignIndex)
+            {
+                continue;
+            }
+
+            exprIndex = j;
+            expr = candidate.Src;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsFoldableTempExpression(Expr expr) =>
+        expr switch
+        {
+            Variable or ConstExpr or StringExpr or CallExpr or ImageOffsetExpr => false,
+            _ => true,
+        };
+
+    private static bool CanFoldTempIntoAssignment(
+        IReadOnlyList<Operation> operations,
+        int exprIndex,
+        int assignIndex,
+        Variable dst,
+        Expr expr)
+    {
+        if (ExprSubstitution.Contains(expr, dst)
+            && DefinesVariableBetween(operations, 0, exprIndex - 1, dst))
+        {
+            return false;
+        }
+
+        foreach (var variable in ExprSubstitution.CollectVariables(expr))
+        {
+            if (variable.Number == dst.Number)
+            {
+                continue;
+            }
+
+            if (DefinesVariableBetween(operations, exprIndex, assignIndex - 1, variable))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -238,6 +336,25 @@ public static class OperationOptimizer
 
     private static bool IsVariableReadAfter(IReadOnlyList<Operation> operations, int defIndex, Variable variable) =>
         FindLastReadIndex(operations, defIndex, variable) >= 0;
+
+    /// <summary>
+    /// Присваивание в конце тела цикла нужно для чтения в начале тела на следующей итерации.
+    /// </summary>
+    private static bool IsTailAssignmentForLoopHeader(
+        IReadOnlyList<Operation> operations,
+        int defIndex,
+        Variable variable)
+    {
+        if (defIndex <= 0
+            || FindLastReadIndex(operations, defIndex, variable) >= 0
+            || DefinesVariableDeep(operations[0], variable)
+            || !ReadsVariableDeep(operations[0], variable))
+        {
+            return false;
+        }
+
+        return !DefinesVariableBetween(operations, 0, defIndex - 1, variable);
+    }
 
     /// <summary>
     /// Переопределение переменной нельзя удалять как мёртвый код, если она участвует

@@ -34,4 +34,17 @@ internal static class Utils
         return Path.GetDirectoryName(Path.GetFullPath(exePath)) ?? ".";
     }
 
+    public static void ClearDirectory(string path)
+    {
+        var di = new DirectoryInfo(path);
+
+        foreach (FileInfo file in di.GetFiles())
+        {
+            file.Delete();
+        }
+        foreach (DirectoryInfo dir in di.GetDirectories())
+        {
+            dir.Delete(true);
+        }
+    }
 }

@@ -79,10 +79,16 @@ public class VariableStorage
         return _stackParameters.GetValueOrDefault(bpDisplacement);
     }
 
+    /// <summary>Локальные переменные стекового кадра [BP+disp], disp &lt; 0.</summary>
+    /// TODO: Избавиться. Хранить признак в Variable
+    public IReadOnlyList<(int Offset, Variable Variable)> StackLocals =>
+        _stackLocals.Select(static kv => (kv.Key, kv.Value)).OrderBy(static e => e.Key).ToList();
+
     /// <summary>
     /// Активирует стековый кадр и создаёт переменные для локальных переменных
     /// по отрицательным смещениям [BP+disp] (disp &lt; 0, обычно -2, -4, ...).
     /// Локальные получают безымянные Variable (будут varN в выводе).
+    /// Порядок создания — от BP к низу стека (убывание offset), как в исходном C.
     /// </summary>
     public IReadOnlyList<Variable> ActivateStackLocals(IEnumerable<int> localOffsets)
     {
@@ -90,7 +96,7 @@ public class VariableStorage
         _stackLocals.Clear();
 
         var result = new List<Variable>();
-        foreach (var offset in localOffsets.OrderBy(o => o))
+        foreach (var offset in localOffsets.OrderDescending())
         {
             if (_stackLocals.ContainsKey(offset))
                 continue;

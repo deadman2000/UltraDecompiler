@@ -78,7 +78,7 @@ public class MakefileGeneratorTests
         {
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(
-                ExeProvider.Get("add.c", MemoryModel.Small),
+                ExeProvider.Get("add.c"),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory);

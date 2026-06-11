@@ -15,7 +15,7 @@ public class DecompilerIntegrationTests
         {
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(
-                ExeProvider.Get("hello.c", MemoryModel.Small),
+                ExeProvider.Get("hello.c", stackCheck: true),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory);
@@ -71,7 +71,7 @@ public class DecompilerIntegrationTests
             var decompiler = new Decompiler();
 
             Assert.Throws<DirectoryNotFoundException>(() => decompiler.Decompile(
-                ExeProvider.Get("hello.c", MemoryModel.Small),
+                ExeProvider.Get("hello.c"),
                 Path.Combine(outputDirectory, "missing-libs"),
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory));
@@ -93,7 +93,7 @@ public class DecompilerIntegrationTests
         {
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(
-                ExeProvider.Get("add.c", MemoryModel.Small),
+                ExeProvider.Get("add.c"),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory);

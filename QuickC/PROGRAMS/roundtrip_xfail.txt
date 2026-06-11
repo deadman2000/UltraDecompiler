@@ -1,5 +1,6 @@
 bits.c
 copy.c
+copy2.c
 dos.c
 enab.c
 fptr.c

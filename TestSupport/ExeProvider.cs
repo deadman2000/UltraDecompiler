@@ -23,9 +23,9 @@ public static class ExeProvider
     /// </param>
     public static string Get(
         string fileName,
-        MemoryModel memoryModel = MemoryModel.Compact,
-        bool stackCheck = true,
-        OptimizationLevel optimization = OptimizationLevel.Enabled,
+        MemoryModel memoryModel = MemoryModel.Small,
+        bool stackCheck = false,
+        OptimizationLevel optimization = OptimizationLevel.Disabled,
         IReadOnlyList<string>? libraries = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
@@ -249,6 +249,10 @@ public static class ExeProvider
                 flags.Add("/Ol");
                 break;
             case OptimizationLevel.Enabled:
+                flags.Add("/Ot");
+                break;
+            case OptimizationLevel.EnabledFull:
+                flags.Add("/Ox");
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(optimization), optimization, null);

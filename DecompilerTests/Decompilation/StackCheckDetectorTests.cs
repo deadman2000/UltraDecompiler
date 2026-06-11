@@ -16,7 +16,7 @@ public class StackCheckDetectorTests
         {
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(
-                ExeProvider.Get("hello.c", MemoryModel.Small),
+                ExeProvider.Get("hello.c", stackCheck: true),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory);
@@ -45,7 +45,7 @@ public class StackCheckDetectorTests
         {
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(
-                ExeProvider.Get("add.c", MemoryModel.Small),
+                ExeProvider.Get("add.c", stackCheck: true),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory);

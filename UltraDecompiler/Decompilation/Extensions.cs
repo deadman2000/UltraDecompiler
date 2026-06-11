@@ -319,7 +319,13 @@ public static class Extensions
                     block.Operations.Add(new SetOperation(local, value));
                     return;
                 }
-                // Для параметров (disp >=4) или [bp+0] — оставляем Store (обычно не пишем в arg)
+
+                var param = block.Variables.TryGetStackParameter(operand.Value);
+                if (param != null)
+                {
+                    block.Operations.Add(new SetOperation(param, value));
+                    return;
+                }
             }
 
             var (addr, seg) = operand.BuildMemoryReference(block.EndRegisters, segmentOverride);

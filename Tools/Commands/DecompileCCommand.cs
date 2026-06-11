@@ -52,6 +52,8 @@ internal static class DecompileCCommand
             var incDirectory = Utils.ResolveIncludeDirectory(incDir);
             var outputDirectory = Utils.ResolveOutputDirectory(exePath, outputDir);
 
+            Utils.ClearDirectory(outputDirectory);
+
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(exePath, libDirectory, incDirectory, outputDirectory, exportGraph: true);
 

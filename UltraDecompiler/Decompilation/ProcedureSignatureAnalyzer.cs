@@ -35,39 +35,81 @@ public static class ProcedureSignatureAnalyzer
 
     private static CType AnalyzeReturnType(IReadOnlyList<Instruction> instructions)
     {
-        var writesAx = false;
-
-        foreach (var instr in instructions)
+        var retIndex = -1;
+        for (var i = instructions.Count - 1; i >= 0; i--)
         {
-            if (WritesToAx(instr))
+            if (instructions[i].Mnemonic == Mnemonic.RET)
             {
-                writesAx = true;
+                retIndex = i;
+                break;
             }
         }
 
-        return writesAx ? CType.Int : CType.Void;
+        if (retIndex < 0)
+        {
+            return CType.Int;
+        }
+
+        // Ищем запись в AX непосредственно перед эпилогом (pop / mov sp,bp / pop bp / ret).
+        for (var i = retIndex - 1; i >= 0; i--)
+        {
+            var instr = instructions[i];
+            if (IsEpilogueInstruction(instr))
+            {
+                continue;
+            }
+
+            if (instr.Mnemonic == Mnemonic.JMP)
+            {
+                continue;
+            }
+
+            if (WritesReturnValueToAx(instr))
+            {
+                return CType.Int;
+            }
+
+            break;
+        }
+
+        return CType.Void;
     }
 
-    private static bool WritesToAx(Instruction instr) =>
-        instr.Mnemonic switch
+    private static bool WritesReturnValueToAx(Instruction instr)
+    {
+        if (!TargetIsAx(instr.Operand1))
         {
-            Mnemonic.MOV when TargetIsAx(instr.Operand1) => true,
-            Mnemonic.XOR when TargetIsAx(instr.Operand1) => true,
-            Mnemonic.ADD or Mnemonic.ADC or Mnemonic.SUB or Mnemonic.SBB
-                or Mnemonic.AND or Mnemonic.OR or Mnemonic.XOR
-                or Mnemonic.NOT or Mnemonic.NEG
+            return false;
+        }
+
+        return instr.Mnemonic switch
+        {
+            Mnemonic.CBW => false,
+            Mnemonic.MOV or Mnemonic.XOR or Mnemonic.ADD or Mnemonic.ADC or Mnemonic.SUB or Mnemonic.SBB
+                or Mnemonic.AND or Mnemonic.OR or Mnemonic.NOT or Mnemonic.NEG
                 or Mnemonic.INC or Mnemonic.DEC
                 or Mnemonic.SAL or Mnemonic.SHR or Mnemonic.SAR
                 or Mnemonic.ROL or Mnemonic.ROR
-                or Mnemonic.CBW => TargetIsAx(instr.Operand1),
-            Mnemonic.POP when TargetIsAx(instr.Operand1) => true,
-            Mnemonic.XCHG when TargetIsAx(instr.Operand1) || TargetIsAx(instr.Operand2) => true,
-            Mnemonic.LEA when TargetIsAx(instr.Operand1) => true,
+                or Mnemonic.POP or Mnemonic.XCHG or Mnemonic.LEA => true,
             _ => false,
         };
+    }
 
     private static bool TargetIsAx(Operand operand) =>
         operand.Type == OperandType.Register16 && operand.AsGpRegister16() == GpRegister16.AX;
+
+    private static bool IsEpilogueInstruction(Instruction instr) =>
+        instr.Mnemonic switch
+        {
+            Mnemonic.POP => true,
+            Mnemonic.MOV when instr.Operand1.Type == OperandType.Register16
+                && instr.Operand1.AsGpRegister16() == GpRegister16.SP
+                && instr.Operand2.Type == OperandType.Register16
+                && instr.Operand2.AsGpRegister16() == GpRegister16.BP => true,
+            Mnemonic.LEAVE => true,
+            Mnemonic.JMP => true,
+            _ => false,
+        };
 
     private static bool HasStandardPrologue(IReadOnlyList<Instruction> instrs)
     {

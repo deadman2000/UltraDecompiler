@@ -1,5 +1,4 @@
 using TestSupport;
-using UltraDecompiler.Compilation;
 using UltraDecompiler.Decompilation;
 
 namespace DecompilerTests.Decompilation;
@@ -12,7 +11,7 @@ public class StringLiteralSubstitutionTests
     [Fact]
     public void Decompile_HelloGs_MaterializesPrintfFormatString()
     {
-        var mainSource = DecompileMainSource(ExeProvider.Get("hello.c", MemoryModel.Small, stackCheck: false));
+        var mainSource = DecompileMainSource(ExeProvider.Get("hello.c"));
 
         Assert.Contains("printf(\"Hello world\\n\")", mainSource);
         Assert.DoesNotContain("printf(618", mainSource);
@@ -22,7 +21,7 @@ public class StringLiteralSubstitutionTests
     [Fact]
     public void Decompile_AddGs_MaterializesPrintfFormatString()
     {
-        var mainSource = DecompileMainSource(ExeProvider.Get("add.c", MemoryModel.Small, stackCheck: false));
+        var mainSource = DecompileMainSource(ExeProvider.Get("add.c"));
 
         Assert.Contains("printf(\"%d\",", mainSource);
         Assert.DoesNotContain("printf(618", mainSource);

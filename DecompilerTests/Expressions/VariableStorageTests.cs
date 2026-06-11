@@ -47,6 +47,21 @@ public class VariableStorageTests
     }
 
     [Fact]
+    public void ActivateStackLocals_CreatesVariablesInDeclarationOrder()
+    {
+        var storage = new VariableStorage();
+
+        var locals = storage.ActivateStackLocals([-50, -20]);
+
+        Assert.Equal(2, locals.Count);
+        Assert.True(locals[0].Number < locals[1].Number);
+        Assert.Same(locals[0], storage.TryGetStackLocal(-20));
+        Assert.Same(locals[1], storage.TryGetStackLocal(-50));
+        Assert.Equal(-50, storage.StackLocals[0].Offset);
+        Assert.Equal(-20, storage.StackLocals[1].Offset);
+    }
+
+    [Fact]
     public void Clear_ResetsPspState()
     {
         var storage = new VariableStorage();

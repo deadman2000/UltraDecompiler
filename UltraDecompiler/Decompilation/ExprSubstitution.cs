@@ -94,6 +94,54 @@ internal static class ExprSubstitution
     }
 
     /// <summary>
+    /// Собирает все обращения к памяти (<see cref="MemExpr"/>) в выражении.
+    /// </summary>
+    public static HashSet<MemExpr> CollectMemExprs(Expr? expr)
+    {
+        var result = new HashSet<MemExpr>();
+        CollectMemExprsRecursive(expr, result);
+        return result;
+    }
+
+    private static void CollectMemExprsRecursive(Expr? expr, HashSet<MemExpr> result)
+    {
+        if (expr is null)
+        {
+            return;
+        }
+
+        if (expr is MemExpr mem)
+        {
+            result.Add(mem);
+            CollectMemExprsRecursive(mem.Address, result);
+            CollectMemExprsRecursive(mem.Segment, result);
+            return;
+        }
+
+        switch (expr)
+        {
+            case Math1Expr m:
+                CollectMemExprsRecursive(m.Op, result);
+                break;
+            case Math2Expr m:
+                CollectMemExprsRecursive(m.First, result);
+                CollectMemExprsRecursive(m.Second, result);
+                break;
+            case CmpExpr cmp:
+                CollectMemExprsRecursive(cmp.Left, result);
+                CollectMemExprsRecursive(cmp.Right, result);
+                break;
+            case CallExpr call:
+                foreach (var arg in call.Args)
+                {
+                    CollectMemExprsRecursive(arg, result);
+                }
+
+                break;
+        }
+    }
+
+    /// <summary>
     /// Проверяет, встречается ли переменная в выражении.
     /// </summary>
     public static bool Contains(Expr? expr, Variable variable)

@@ -107,7 +107,7 @@ public class PointerCodegenTests
         Assert.DoesNotContain("void* var9;", source);
         Assert.DoesNotContain("int var9;", source);
         Assert.DoesNotContain("int _psp;", source);
-        Assert.Contains("var9[0] = 65;", source);
+        Assert.Contains("*var9 = 65;", source);
         Assert.Contains("var9[1] = 0;", source);
         Assert.DoesNotContain("_psp:[var9]", source);
     }

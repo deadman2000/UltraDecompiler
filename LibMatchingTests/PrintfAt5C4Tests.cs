@@ -1,6 +1,5 @@
 using LibParser.Omf;
 using TestSupport;
-using UltraDecompiler.Compilation;
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;
@@ -33,7 +32,7 @@ public class PrintfAt5C4Tests
     public void Match_Printf_At5C4_HelloS()
     {
         const int printfOffset = 0x5C4;
-        var parser = new DosExeParser(ExeProvider.Get("hello.c", MemoryModel.Small));
+        var parser = new DosExeParser(ExeProvider.Get("hello.c", stackCheck: true));
         var lib = OmfLibraryParser.ParseFile(QuickCTestAssets.LibPathOf("SLIBCE.LIB"));
 
         var finderOffset = PrintfOffsetFinder.Find(parser, lib);

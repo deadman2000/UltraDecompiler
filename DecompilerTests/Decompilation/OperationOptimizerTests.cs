@@ -155,6 +155,71 @@ public class OperationOptimizerTests
     }
 
     [Fact]
+    public void Optimize_FoldsTempExpressionIntoAssignment_FlatBody()
+    {
+        var arg0 = new Variable(0);
+        var arg1 = new Variable(1);
+        var var10 = new Variable(10);
+        var var11 = new Variable(11);
+
+        var operations = new List<Operation>
+        {
+            new StoreOperation(new MemExpr(arg0, null), null, new MemExpr(arg1, null)),
+            new SetOperation(var10, new Math2Expr(Math2Operation.Add, arg0, new ConstExpr(1))),
+            new SetOperation(var11, new Math2Expr(Math2Operation.Add, arg1, new ConstExpr(1))),
+            new SetOperation(arg0, var10),
+            new SetOperation(arg1, var11),
+        };
+
+        var optimized = OperationOptimizer.Optimize(operations);
+
+        Assert.True(optimized.Count == 3, string.Join(" | ", optimized));
+        Assert.IsType<StoreOperation>(optimized[0]);
+        Assert.Equal("var0 + 1", Assert.IsType<SetOperation>(optimized[1]).Src.ToString());
+        Assert.Equal("var1 + 1", Assert.IsType<SetOperation>(optimized[2]).Src.ToString());
+    }
+
+    [Fact]
+    public void Optimize_FoldsTempExpressionIntoAssignment()
+    {
+        var arg0 = new Variable(0);
+        var arg1 = new Variable(1);
+        var var10 = new Variable(10);
+        var var11 = new Variable(11);
+
+        var operations = new List<Operation>
+        {
+            new WhileOperation(
+                new CmpExpr(CmpOperation.Ne, new MemExpr(arg1, null), ConstExpr.Zero),
+                [
+                    new StoreOperation(new MemExpr(arg0, null), null, new MemExpr(arg1, null)),
+                    new SetOperation(var10, new Math2Expr(Math2Operation.Add, arg0, new ConstExpr(1))),
+                    new SetOperation(arg0, var10),
+                    new SetOperation(var11, new Math2Expr(Math2Operation.Add, arg1, new ConstExpr(1))),
+                    new SetOperation(arg1, var11),
+                ]),
+        };
+
+        var optimized = OperationOptimizer.Optimize(operations);
+
+        var loop = Assert.IsType<WhileOperation>(optimized[0]);
+        var body = loop.Body.ToList();
+        Assert.Equal(3, body.Count);
+        Assert.IsType<StoreOperation>(body[0]);
+
+        var incArg0 = Assert.IsType<SetOperation>(body[1]);
+        Assert.Equal(arg0, incArg0.Dst);
+        var addArg0 = Assert.IsType<Math2Expr>(incArg0.Src);
+        Assert.Equal(Math2Operation.Add, addArg0.Operation);
+        Assert.Equal(arg0, addArg0.First);
+
+        var incArg1 = Assert.IsType<SetOperation>(body[2]);
+        Assert.Equal(arg1, incArg1.Dst);
+        var addArg1 = Assert.IsType<Math2Expr>(incArg1.Src);
+        Assert.Equal(arg1, addArg1.First);
+    }
+
+    [Fact]
     public void Optimize_DoesNotPropagateExpressionToReturnWhenSourceVariableIsRedefined()
     {
         var var10 = new Variable(10);

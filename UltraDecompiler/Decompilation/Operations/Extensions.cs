@@ -1,5 +1,5 @@
 using System.Text;
-using UltraDecompiler.CodeGeneration;
+using UltraDecompiler.PostProcessing;
 
 namespace UltraDecompiler.Decompilation.Operations;
 

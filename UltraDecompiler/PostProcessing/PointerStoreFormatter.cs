@@ -18,7 +18,11 @@ public static class PointerStoreFormatter
             return false;
         }
 
-        lvalue = index == 0 ? $"{ptr}[0]" : $"{ptr}[{index}]";
+        lvalue = index == 0 && ptr.Type?.IsCharPtr == true
+            ? $"*{ptr}"
+            : index == 0
+                ? $"{ptr}[0]"
+                : $"{ptr}[{index}]";
         return true;
     }
 

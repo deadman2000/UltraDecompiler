@@ -101,13 +101,24 @@ public static class CCodeGenerator
 
         foreach (var variable in locals)
         {
-            sb.AppendLine($"    {variable.DeclaredType} {variable};");
+            sb.AppendLine(FormatLocalDeclaration(variable));
         }
 
         if (locals.Count > 0 && operations.Count > 0)
         {
             sb.AppendLine();
         }
+    }
+
+    private static string FormatLocalDeclaration(Variable variable)
+    {
+        if (variable.ArraySize is int size)
+        {
+            // TODO подставлять тип
+            return $"    char {variable}[{size}];";
+        }
+
+        return $"    {variable.DeclaredType} {variable};";
     }
 
     private static string FormatParameterList(ProcedureSignature signature)

@@ -2,7 +2,23 @@
 
 public enum OptimizationLevel
 {
+    /// <summary>
+    /// /Od
+    /// </summary>
     Disabled,
+
+    /// <summary>
+    /// /Ot
+    /// </summary>
     Enabled,
-    EnableLoop
+
+    /// <summary>
+    /// /Ol
+    /// </summary>
+    EnableLoop,
+
+    /// <summary>
+    /// /Ox
+    /// </summary>
+    EnabledFull,
 }

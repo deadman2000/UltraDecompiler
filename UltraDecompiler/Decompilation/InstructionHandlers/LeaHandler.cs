@@ -16,9 +16,20 @@ public class LeaHandler : IInstructionHandler
         if (instr.Operand1.Type == OperandType.Register16)
         {
             // LEA загружает эффективный адрес (не разыменовывает память).
-            Expr eaExpr = instr.Operand2.Type == OperandType.Memory
-                ? instr.Operand2.GetEffectiveAddress(block.EndRegisters, instr.Segment)
-                : instr.Operand2.GetExpression(block, instr.Segment);
+            Expr eaExpr;
+            if (instr.Operand2.Type == OperandType.Memory
+                && instr.Operand2.BaseReg == AddressRegister.BP
+                && instr.Operand2.IndexReg == AddressRegister.None)
+            {
+                var local = block.Variables.TryGetStackLocal(instr.Operand2.Value);
+                eaExpr = local ?? instr.Operand2.GetEffectiveAddress(block.EndRegisters, instr.Segment);
+            }
+            else
+            {
+                eaExpr = instr.Operand2.Type == OperandType.Memory
+                    ? instr.Operand2.GetEffectiveAddress(block.EndRegisters, instr.Segment)
+                    : instr.Operand2.GetExpression(block, instr.Segment);
+            }
 
             block.EndRegisters = block.EndRegisters.Set16(instr.Operand1.AsGpRegister16(), eaExpr);
         }

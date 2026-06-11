@@ -55,8 +55,13 @@ public record Variable(int Number = 0) : Expr
     /// </summary>
     public CType? Type { get; set; }
 
-    /// <summary>Тип для объявления в C-коде.</summary>
-    public CType DeclaredType => Type ?? CType.Int;
+    /// <summary>
+    /// Размер локального массива на стеке (<c>char buf[N]</c>), если известен из <c>_chkstk</c>.
+    /// </summary>
+    public int? ArraySize { get; set; }
+
+    /// <summary>Тип для объявления в C-коде (без имени; массивы оформляет <see cref="CCodeGenerator"/>).</summary>
+    public string DeclaredType => (Type ?? CType.Int).ToString();
 
     public override string ToString() => Name is not null ? Name : $"var{Number}";
 }
@@ -130,6 +135,11 @@ public record MemExpr(Expr Address, Expr? Segment = null) : Expr
 
     public override string ToString(int parentPrec)
     {
+        if (PointerDerefFormatter.TryFormatLoad(this, out var deref))
+        {
+            return deref;
+        }
+
         string addrStr = Address.ToString(0); // содержимое [] рендерим как самостоятельное выражение
         string segPrefix = Segment is null ? "" : $"{Segment.ToString(Prec.Atom)}:";
 
