@@ -8,7 +8,6 @@ jmp.c
 long.c
 peek.c
 port.c
-recur.c
 reg.c
 rot.c
 sjmp.c

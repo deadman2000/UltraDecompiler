@@ -74,16 +74,19 @@ public class MakefileGeneratorTests
         }
     }
 
-    // add.c: MAKEFILE должен перечислить main.c, sub_0010.c и SLIBCE.LIB
+    // add.c: Makefile и каталог вывода содержат один .c, имя совпадает с EXE (s_gs_od.exe → s_gs_od.c).
     [Fact]
     public void Decompile_AddSmall_WritesMakefileWithAllSources()
     {
         var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
         try
         {
+            var exePath = ExeProvider.Get("add.c");
+            var expectedSource = CCodeGenerator.FormatCombinedSourceFileName(Path.GetFileName(exePath));
+
             var decompiler = new Decompiler();
             var result = decompiler.Decompile(
-                ExeProvider.Get("add.c"),
+                exePath,
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory);
@@ -95,9 +98,11 @@ public class MakefileGeneratorTests
             Assert.True(File.Exists(makefilePath));
 
             var makefile = File.ReadAllText(makefilePath);
-            Assert.Contains("main.c", makefile);
-            Assert.Contains("sub_0010.c", makefile);
+            Assert.Contains($"SRCS   := {expectedSource}", makefile);
             Assert.Contains("SLIBCE.LIB", makefile);
+
+            Assert.True(File.Exists(Path.Combine(outputDirectory, expectedSource)));
+            Assert.DoesNotContain(result.OutputFiles, path => path.EndsWith("main.c", StringComparison.Ordinal));
         }
         finally
         {

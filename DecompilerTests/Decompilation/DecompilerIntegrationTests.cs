@@ -1,4 +1,5 @@
 using TestSupport;
+using UltraDecompiler.CodeGeneration;
 using UltraDecompiler.Compilation;
 using UltraDecompiler.Decompilation;
 using UltraDecompiler.Decompilation.Operations;
@@ -163,7 +164,7 @@ public class DecompilerIntegrationTests
             Assert.Equal(2, printfCall!.Args.Count);
 
             // Проверяем в сгенерированном C, что первый аргумент — char* литерал (а не число/int)
-            var mainSourceForAdd = File.ReadAllText(result.OutputFiles.First(path => path.EndsWith("main.c", StringComparison.Ordinal)));
+            var mainSourceForAdd = DecompileTestHelper.ReadPrimarySource(result);
             Assert.Contains("printf(\"%d\",", mainSourceForAdd);
             Assert.DoesNotContain("printf(618", mainSourceForAdd);
             Assert.DoesNotContain("printf(0x", mainSourceForAdd, StringComparison.OrdinalIgnoreCase);
@@ -186,15 +187,12 @@ public class DecompilerIntegrationTests
             Assert.Contains(mainProc.Callees, static c => c.StartsWith("sub_", StringComparison.Ordinal));
             Assert.Contains(mainProc.Callees, static c => c.Contains("printf", StringComparison.OrdinalIgnoreCase));
 
-            var addHeaderPath = result.OutputFiles.First(path =>
-                path.EndsWith($"{addUserProc.Name}.h", StringComparison.OrdinalIgnoreCase));
-            var addHeader = File.ReadAllText(addHeaderPath);
-            Assert.Contains($"int {addUserProc.Name}(int arg0, int arg1);", addHeader);
-            Assert.DoesNotContain(result.OutputFiles, path => path.EndsWith("main.h", StringComparison.OrdinalIgnoreCase));
-
-            Assert.Contains(result.OutputFiles, path => path.EndsWith("main.c", StringComparison.Ordinal));
-            Assert.Contains($"#include \"{addUserProc.Name}.h\"", mainSourceForAdd);
+            Assert.Contains(result.OutputFiles, path =>
+                path.EndsWith(
+                    CCodeGenerator.FormatCombinedSourceFileName(Path.GetFileName(ExeProvider.Get("add.c"))),
+                    StringComparison.OrdinalIgnoreCase));
             Assert.Contains("#include <STDIO.H>", mainSourceForAdd, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains($"int {addUserProc.Name}(int arg0, int arg1)", mainSourceForAdd);
         }
         finally
         {

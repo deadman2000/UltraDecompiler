@@ -37,6 +37,55 @@ public static class CCodeGenerator
     }
 
     /// <summary>
+    /// Один .c для round-trip: общие <c>#include</c> и все пользовательские функции подряд.
+    /// QuickC 1.0 по-разному раскладывает код при линковке нескольких .obj; единый файл
+    /// даёт побайтовое совпадение с исходной однофайловой сборкой.
+    /// </summary>
+    public static string FormatCombinedCSource(
+        IReadOnlyList<(DisassembledProcedure Procedure, IReadOnlyList<Operation> Operations, IReadOnlyList<string> Includes)> units)
+    {
+        var sb = new StringBuilder();
+        var includes = units
+            .SelectMany(static unit => unit.Includes)
+            .Where(static directive => !directive.StartsWith('"'))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static directive => directive, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var directive in includes)
+        {
+            sb.AppendLine($"#include {directive}");
+        }
+
+        if (includes.Count > 0)
+        {
+            sb.AppendLine();
+        }
+
+        for (var i = 0; i < units.Count; i++)
+        {
+            if (i > 0)
+            {
+                sb.AppendLine();
+            }
+
+            sb.Append(FormatCFunction(units[i].Procedure, units[i].Operations));
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Имя объединённого .c по имени EXE: <c>RECUR_S.EXE</c> → <c>RECUR_S.c</c>.
+    /// Stem должен укладываться в DOS 8.3 (как у типичного <c>*_S.EXE</c> round-trip).
+    /// </summary>
+    public static string FormatCombinedSourceFileName(string exeFileName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(exeFileName);
+        return $"{Path.GetFileNameWithoutExtension(exeFileName)}.c";
+    }
+
+    /// <summary>
     /// Форматирует процедуру (с её сигнатурой) и готовый список операций в текст C-функции.
     /// Добавляет заголовок функции, тело с отступами и закрывающую скобку.
     /// </summary>

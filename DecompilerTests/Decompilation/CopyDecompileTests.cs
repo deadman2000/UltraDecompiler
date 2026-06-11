@@ -25,7 +25,7 @@ public sealed class CopyDecompileTests
 
             Assert.True(result.Success);
 
-            var mainSource = File.ReadAllText(result.OutputFiles.First(p => p.EndsWith("main.c", StringComparison.Ordinal)));
+            var mainSource = DecompileTestHelper.ReadPrimarySource(result);
             Assert.Contains("char var1[20];", mainSource);
             Assert.Contains("int var2;", mainSource);
             Assert.Contains("char var3[30];", mainSource);
@@ -65,7 +65,7 @@ public sealed class CopyDecompileTests
 
             Assert.True(result.Success);
 
-            var copySource = File.ReadAllText(result.OutputFiles.First(p => p.EndsWith("sub_0010.c", StringComparison.Ordinal)));
+            var copySource = DecompileTestHelper.ReadPrimarySource(result);
             Assert.Contains("while (*arg1 != 0)", copySource);
             Assert.Contains("*arg0 = *arg1", copySource);
             Assert.Contains("arg0++", copySource);
@@ -106,7 +106,7 @@ public sealed class CopyDecompileTests
             Assert.True(copyProc.Signature.Parameters[0].Type.IsCharPtr);
             Assert.True(copyProc.Signature.Parameters[1].Type.IsCharPtr);
 
-            var copySource = File.ReadAllText(result.OutputFiles.First(p => p.EndsWith($"{copyProc.Name}.c", StringComparison.Ordinal)));
+            var copySource = DecompileTestHelper.ReadPrimarySource(result);
             Assert.Contains("while (*arg1 != 0)", copySource);
             Assert.Contains("*arg0 = *arg1", copySource);
             Assert.Contains("arg0++", copySource);
@@ -115,7 +115,7 @@ public sealed class CopyDecompileTests
             Assert.DoesNotContain("_psp:[", copySource);
             Assert.DoesNotContain("varSS:[", copySource);
 
-            var mainSource = File.ReadAllText(result.OutputFiles.First(p => p.EndsWith("main.c", StringComparison.Ordinal)));
+            var mainSource = DecompileTestHelper.ReadPrimarySource(result);
             Assert.Contains("char var1[20];", mainSource);
             Assert.DoesNotContain("char* var1", mainSource);
             Assert.Contains("sub_0010(var1, \"test\")", mainSource);

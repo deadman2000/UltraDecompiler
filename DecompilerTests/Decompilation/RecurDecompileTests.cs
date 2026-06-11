@@ -10,7 +10,7 @@ public sealed class RecurDecompileTests
     //   int fact(int n) { if (n <= 1) return 1; return n * fact(n - 1); }
     // Ожидаемый фрагмент sub_0010.c (fact):
     //   if (arg0 <= 1) return 1;
-    //   return arg0 * fact(arg0 - 1);
+    //   return arg0 * sub_0010(arg0 - 1);
     [Fact]
     public void Decompile_Recur_FactFunctionIsValidC()
     {
@@ -24,23 +24,20 @@ public sealed class RecurDecompileTests
                 outputDirectory);
 
             Assert.True(result.Success);
-            var factSource = File.ReadAllText(
-                result.OutputFiles.First(p => p.EndsWith("sub_0010.c", StringComparison.OrdinalIgnoreCase)));
+            var source = DecompileTestHelper.ReadPrimarySource(result);
 
-            Assert.DoesNotContain("div op", factSource);
-            Assert.Contains("if (arg0 <= 1)", factSource);
-            Assert.Contains("return 1", factSource);
-            Assert.Contains("sub_0010(arg0 - 1)", factSource);
-            Assert.Contains("sub_0010(arg0 - 1) * arg0", factSource);
+            Assert.DoesNotContain("div op", source);
+            Assert.Contains("if (arg0 <= 1)", source);
+            Assert.Contains("return 1", source);
+            Assert.Contains("sub_0010(arg0 - 1)", source);
+            Assert.Contains("arg0 * sub_0010(arg0 - 1)", source);
             var factProc = result.Procedures.All.First(p => p.Name == "sub_0010");
             Assert.False(factProc.Signature.ReturnType.IsVoid);
             Assert.Single(factProc.Signature.Parameters);
 
-            var mainSource = File.ReadAllText(
-                result.OutputFiles.First(p => p.EndsWith("main.c", StringComparison.Ordinal)));
-            Assert.Contains("sub_0010(5)", mainSource);
-            Assert.Contains("printf(\"%d\\n\",", mainSource);
-            Assert.DoesNotContain("temp1", mainSource);
+            Assert.Contains("sub_0010(5)", source);
+            Assert.Contains("printf(\"%d\\n\",", source);
+            Assert.DoesNotContain("temp1", source);
         }
         finally
         {

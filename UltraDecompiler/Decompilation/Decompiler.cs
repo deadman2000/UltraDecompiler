@@ -120,6 +120,8 @@ public class Decompiler
             operations = StructFieldRewriter.Rewrite(procedure, operations, storage, headerCatalog);
             operations = StructFieldLoadSimplifier.Simplify(procedure, operations);
             operations = OperationOptimizer.Optimize(operations);
+            operations = CommutativeOperationNormalizer.Normalize(operations);
+            operations = IfElseReturnFlattener.Flatten(operations);
             operations = PointerCompareSimplifier.Simplify(operations);
             operations = WhileLoopRecognizer.Convert(operations);
             operations = CharPtrLiteralMaterializer.MaterializeCalls(operations, storage, parser.Image, imageLayout);
@@ -127,18 +129,21 @@ public class Decompiler
             preparedProcedures.Add((procedure, operations));
         }
 
-        // Заголовки только для пользовательских процедур, вызываемых из других (main и точка входа — без .h).
+        // Заголовки — только при одном .c на процедуру (в объединённом .c прототипы не нужны).
         var referencedUserProcedures = ProcedureDependencyCollector.CollectReferencedUserProcedureNames(
             userProcedures,
             storage);
 
-        foreach (var procedure in userProcedures.Where(p => referencedUserProcedures.Contains(p.Name)))
+        if (preparedProcedures.Count == 1)
         {
-            var headerSource = CCodeGenerator.FormatHeaderFile(procedure);
-            var headerFileName = CCodeGenerator.FormatHeaderFileName(procedure.Name, procedure.Offset);
-            var headerPath = Path.Combine(outputDirectory, headerFileName);
-            File.WriteAllText(headerPath, headerSource, Encoding.ASCII);
-            outputFiles.Add(headerPath);
+            foreach (var procedure in userProcedures.Where(p => referencedUserProcedures.Contains(p.Name)))
+            {
+                var headerSource = CCodeGenerator.FormatHeaderFile(procedure);
+                var headerFileName = CCodeGenerator.FormatHeaderFileName(procedure.Name, procedure.Offset);
+                var headerPath = Path.Combine(outputDirectory, headerFileName);
+                File.WriteAllText(headerPath, headerSource, Encoding.ASCII);
+                outputFiles.Add(headerPath);
+            }
         }
 
         // Выбираем конфигурацию, соответствующую primary (или первую).
@@ -146,8 +151,8 @@ public class Decompiler
             c => string.Equals(c.PrimaryCrtLibrary, resolution.PrimaryLibrary.FileName, StringComparison.OrdinalIgnoreCase))
             ?? resolution.PossibleLibraryConfigurations[0];
 
-        // Исходники с #include на зависимости.
-        var sourceFileNames = new List<string>();
+        // Исходники: одна процедура → отдельный .c; несколько → один .c по имени EXE (round-trip QuickC).
+        var combinedUnits = new List<(DisassembledProcedure Procedure, IReadOnlyList<Operation> Operations, IReadOnlyList<string> Includes)>();
         foreach (var (procedure, operations) in preparedProcedures)
         {
             var includes = ProcedureIncludeResolver.ResolveIncludes(
@@ -156,19 +161,36 @@ public class Decompiler
                 storage,
                 headerCatalog);
 
+            combinedUnits.Add((procedure, operations, includes));
+        }
+
+        List<string> makefileSourceFileNames;
+        if (preparedProcedures.Count > 1)
+        {
+            var combinedFileName = CCodeGenerator.FormatCombinedSourceFileName(Path.GetFileName(exePath));
+            var combinedSource = CCodeGenerator.FormatCombinedCSource(combinedUnits);
+            var combinedPath = Path.Combine(outputDirectory, combinedFileName);
+            File.WriteAllText(combinedPath, combinedSource, Encoding.ASCII);
+            outputFiles.Add(combinedPath);
+            makefileSourceFileNames = [combinedFileName];
+        }
+        else
+        {
+            var (procedure, operations) = preparedProcedures[0];
+            var includes = combinedUnits[0].Includes;
             var source = CCodeGenerator.FormatCSource(procedure, operations, includes);
             var fileName = CCodeGenerator.FormatOutputFileName(procedure.Name, procedure.Offset);
             var filePath = Path.Combine(outputDirectory, fileName);
             File.WriteAllText(filePath, source, Encoding.ASCII);
             outputFiles.Add(filePath);
-            sourceFileNames.Add(fileName);
+            makefileSourceFileNames = [fileName];
         }
 
         var makefilePath = MakefileGenerator.WriteMakefile(
             new MakefileOptions
             {
                 TargetExeFileName = Path.GetFileName(exePath),
-                SourceFileNames = sourceFileNames,
+                SourceFileNames = makefileSourceFileNames,
                 CompilerOptions = compilerOptions,
                 LibraryFileNames = chosenConfig.LibraryFileNames,
                 OutputDirectory = Path.GetFullPath(outputDirectory),

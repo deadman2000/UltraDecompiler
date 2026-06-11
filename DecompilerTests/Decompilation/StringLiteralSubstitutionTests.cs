@@ -44,7 +44,7 @@ public class StringLiteralSubstitutionTests
 
             Assert.True(result.Success);
 
-            var mainPath = result.OutputFiles.First(path => path.EndsWith("main.c", StringComparison.Ordinal));
+            var mainPath = DecompileTestHelper.GetPrimarySourcePath(result);
             return File.ReadAllText(mainPath);
         }
         finally
