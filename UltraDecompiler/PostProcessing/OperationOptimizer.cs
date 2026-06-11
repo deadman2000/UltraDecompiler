@@ -40,7 +40,7 @@ public static class OperationOptimizer
                     continue;
                 }
 
-                if (set.Src is Variable tempVar
+                if (set.Src is Variable { IsTemp: true } tempVar
                     && TryFindTempExpressionAssignment(operations, i, tempVar, out var exprIndex, out var expr)
                     && CanFoldTempIntoAssignment(operations, exprIndex, i, set.Dst, expr))
                 {
@@ -64,6 +64,11 @@ public static class OperationOptimizer
 
                 if (!IsVariableReadAfter(operations, i, set.Dst))
                 {
+                    if (set.Dst.IsStack)
+                    {
+                        continue;
+                    }
+
                     if (IsVariableUsedInEarlierSetSource(operations, i, set.Dst))
                     {
                         continue;
@@ -83,7 +88,8 @@ public static class OperationOptimizer
                     continue;
                 }
 
-                if (set.Src is Variable srcVar
+                if (!set.Dst.IsStack
+                    && set.Src is Variable srcVar
                     && CanPropagateCopy(operations, i, set.Dst, srcVar, GetCopyPropagationEnd(operations, i, set.Dst)))
                 {
                     var propagateEnd = GetCopyPropagationEnd(operations, i, set.Dst);
@@ -94,7 +100,7 @@ public static class OperationOptimizer
                     continue;
                 }
 
-                if (CanPropagateToReturn(operations, i, set))
+                if (!set.Dst.IsStack && CanPropagateToReturn(operations, i, set))
                 {
                     var propagateEnd = GetCopyPropagationEnd(operations, i, set.Dst);
                     SubstituteVariable(operations, i + 1, propagateEnd, set.Dst, set.Src);
@@ -154,7 +160,7 @@ public static class OperationOptimizer
     {
         for (var i = fromIndex + 1; i < operations.Count; i++)
         {
-            if (operations[i] is SetOperation set && set.Dst.Number == variable.Number)
+            if (operations[i] is SetOperation set && ReferenceEquals(set.Dst, variable))
             {
                 return i;
             }
@@ -198,7 +204,8 @@ public static class OperationOptimizer
         for (var j = assignIndex - 1; j >= 0; j--)
         {
             if (operations[j] is not SetOperation candidate
-                || candidate.Dst.Number != temp.Number
+                || !ReferenceEquals(candidate.Dst, temp)
+                || candidate.Dst.IsStack
                 || !IsFoldableTempExpression(candidate.Src))
             {
                 continue;
@@ -222,12 +229,12 @@ public static class OperationOptimizer
         return false;
     }
 
+    /// <summary>
+    /// Выражения, которые можно подставить напрямую вместо пары <c>temp = expr; dst = temp</c>.
+    /// Копии через другую переменную обрабатывает copy propagation; здесь — вызовы и составные выражения.
+    /// </summary>
     private static bool IsFoldableTempExpression(Expr expr) =>
-        expr switch
-        {
-            Variable or ConstExpr or StringExpr or CallExpr or ImageOffsetExpr => false,
-            _ => true,
-        };
+        expr is not (StringExpr or ImageOffsetExpr or Variable);
 
     private static bool CanFoldTempIntoAssignment(
         IReadOnlyList<Operation> operations,
@@ -244,7 +251,7 @@ public static class OperationOptimizer
 
         foreach (var variable in ExprSubstitution.CollectVariables(expr))
         {
-            if (variable.Number == dst.Number)
+            if (ReferenceEquals(variable, dst))
             {
                 continue;
             }
@@ -480,9 +487,9 @@ public static class OperationOptimizer
         if (assignIndex <= 0
             || operations[assignIndex] is not SetOperation { Src: Variable temp, Dst: Variable dst }
             || operations[assignIndex - 1] is not SetOperation { Dst: Variable tempDef, Src: Math2Expr math }
-            || tempDef.Number != temp.Number
+            || !ReferenceEquals(tempDef, temp)
             || math.First is not Variable local
-            || local.Number != dst.Number
+            || !ReferenceEquals(local, dst)
             || math.Second is not ConstExpr { Value: 1 }
             || math.Operation is not (Math2Operation.Add or Math2Operation.Sub))
         {
@@ -496,7 +503,7 @@ public static class OperationOptimizer
 
     private static Expr ReplaceIncDecTarget(Expr target, Variable from, Expr to)
     {
-        if (target is Variable variable && variable.Number == from.Number)
+        if (target is Variable variable && ReferenceEquals(variable, from))
         {
             return target;
         }
@@ -507,15 +514,15 @@ public static class OperationOptimizer
     private static bool DefinesVariableDeep(Operation operation, Variable variable) =>
         operation switch
         {
-            SetOperation set => set.Dst.Number == variable.Number,
+            SetOperation set => ReferenceEquals(set.Dst, variable),
             IfOperation branch => branch.ThenBody.Any(op => DefinesVariableDeep(op, variable))
                 || (branch.ElseBody?.Any(op => DefinesVariableDeep(op, variable)) ?? false),
             WhileOperation loop => loop.Body.Any(op => DefinesVariableDeep(op, variable)),
             ForOperation loop => (loop.Init is not null && DefinesVariableDeep(loop.Init, variable))
                 || loop.Body.Any(op => DefinesVariableDeep(op, variable))
                 || (loop.Iteration is not null && DefinesVariableDeep(loop.Iteration, variable)),
-            IncOperation inc when inc.Target is Variable target => target.Number == variable.Number,
-            DecOperation dec when dec.Target is Variable target => target.Number == variable.Number,
+            IncOperation inc when inc.Target is Variable target => ReferenceEquals(target, variable),
+            DecOperation dec when dec.Target is Variable target => ReferenceEquals(target, variable),
             _ => false,
         };
 }

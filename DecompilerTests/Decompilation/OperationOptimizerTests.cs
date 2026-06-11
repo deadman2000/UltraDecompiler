@@ -159,8 +159,8 @@ public class OperationOptimizerTests
     {
         var arg0 = new Variable(0);
         var arg1 = new Variable(1);
-        var var10 = new Variable(10);
-        var var11 = new Variable(11);
+        var var10 = new Variable(1, IsTemp: true);
+        var var11 = new Variable(2, IsTemp: true);
 
         var operations = new List<Operation>
         {
@@ -184,8 +184,8 @@ public class OperationOptimizerTests
     {
         var arg0 = new Variable(0);
         var arg1 = new Variable(1);
-        var var10 = new Variable(10);
-        var var11 = new Variable(11);
+        var var10 = new Variable(1, IsTemp: true);
+        var var11 = new Variable(2, IsTemp: true);
 
         var operations = new List<Operation>
         {
@@ -222,8 +222,8 @@ public class OperationOptimizerTests
     [Fact]
     public void Optimize_FoldsTempLocalPlusMinusOneIntoSelfAssign()
     {
-        var local = new Variable(8) { Name = "a" };
-        var temp = new Variable(10) { Name = "t" };
+        var local = new Variable(8, Name: "a");
+        var temp = new Variable(10, Name: "t");
 
         var operations = new List<Operation>
         {
@@ -239,6 +239,40 @@ public class OperationOptimizerTests
         var math = Assert.IsType<Math2Expr>(ret.Value);
         Assert.Equal(Math2Operation.Sub, math.Operation);
         Assert.Equal(local, math.First);
+    }
+
+    [Fact]
+    public void Optimize_KeepsUnusedStackLocalAssignment()
+    {
+        var stackLocal = new Variable(1, IsStack: true);
+
+        var operations = new List<Operation>
+        {
+            new SetOperation(stackLocal, new ConstExpr(10)),
+            new ReturnOperation(ConstExpr.Zero),
+        };
+
+        var optimized = OperationOptimizer.Optimize(operations);
+
+        Assert.Contains(optimized, op => op is SetOperation { Dst.IsStack: true });
+    }
+
+    [Fact]
+    public void Optimize_DoesNotPropagateCopyFromStackLocal()
+    {
+        var stackLocal = new Variable(1, IsStack: true);
+        var temp = new Variable(1, IsTemp: true);
+
+        var operations = new List<Operation>
+        {
+            new SetOperation(stackLocal, new ConstExpr(42)),
+            new SetOperation(temp, stackLocal),
+            new CallOperation("use", [temp]),
+        };
+
+        var optimized = OperationOptimizer.Optimize(operations);
+
+        Assert.Contains(optimized, op => op is SetOperation { Dst.IsStack: true });
     }
 
     [Fact]

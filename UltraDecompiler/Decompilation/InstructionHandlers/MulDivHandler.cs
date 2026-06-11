@@ -64,14 +64,14 @@ public class MulDivHandler : IInstructionHandler
 
         if (low is not ConstExpr)
         {
-            var lowV = block.Variables.CreateVariable();
+            var lowV = block.Variables.CreateTempVariable();
             block.Operations.Add(new SetOperation(lowV, low));
             low = lowV;
         }
 
         if (high is not ConstExpr)
         {
-            var highV = block.Variables.CreateVariable();
+            var highV = block.Variables.CreateTempVariable();
             block.Operations.Add(new SetOperation(highV, high));
             high = highV;
         }
@@ -172,14 +172,14 @@ public class MulDivHandler : IInstructionHandler
 
         if (quot is not ConstExpr)
         {
-            var qv = block.Variables.CreateVariable();
+            var qv = block.Variables.CreateTempVariable();
             block.Operations.Add(new SetOperation(qv, quot));
             quot = qv;
         }
 
         if (rem is not ConstExpr)
         {
-            var rv = block.Variables.CreateVariable();
+            var rv = block.Variables.CreateTempVariable();
             block.Operations.Add(new SetOperation(rv, rem));
             rem = rv;
         }

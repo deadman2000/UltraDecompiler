@@ -21,18 +21,18 @@ public sealed class CopyDecompileTests
             Assert.True(result.Success);
 
             var mainSource = File.ReadAllText(result.OutputFiles.First(p => p.EndsWith("main.c", StringComparison.Ordinal)));
-            Assert.Contains("char var8[20];", mainSource);
-            Assert.Contains("int var9;", mainSource);
-            Assert.Contains("char var10[30];", mainSource);
-            Assert.Contains("int var11;", mainSource);
-            Assert.DoesNotContain("char var9[", mainSource);
-            Assert.DoesNotContain("char var11[", mainSource);
-            Assert.Contains("var9 = 10;", mainSource);
-            Assert.Contains("var11 = 8;", mainSource);
-            Assert.Contains("sub_0010(var8, \"test\")", mainSource);
-            Assert.Contains("sub_0010(var10, \"test3\")", mainSource);
-            Assert.Contains("printf(\"%s\\n\", var8)", mainSource);
-            Assert.Contains("printf(\"%d, %d\\n\", var9, var11)", mainSource);
+            Assert.Contains("char var1[20];", mainSource);
+            Assert.Contains("int var2;", mainSource);
+            Assert.Contains("char var3[30];", mainSource);
+            Assert.Contains("int var4;", mainSource);
+            Assert.DoesNotContain("char var2[", mainSource);
+            Assert.DoesNotContain("char var4[", mainSource);
+            Assert.Contains("var2 = 10;", mainSource);
+            Assert.Contains("var4 = 8;", mainSource);
+            Assert.Contains("sub_0010(var1, \"test\")", mainSource);
+            Assert.Contains("sub_0010(var3, \"test3\")", mainSource);
+            Assert.Contains("printf(\"%s\\n\", var1)", mainSource);
+            Assert.Contains("printf(\"%d, %d\\n\", var2, var4)", mainSource);
         }
         finally
         {
@@ -63,8 +63,8 @@ public sealed class CopyDecompileTests
             Assert.Contains("arg0++", copySource);
             Assert.Contains("arg1++", copySource);
             Assert.Contains("*arg0 = 0", copySource);
-            Assert.DoesNotContain("var10", copySource);
-            Assert.DoesNotContain("var11", copySource);
+            Assert.DoesNotContain("temp1", copySource);
+            Assert.DoesNotContain("temp2", copySource);
         }
         finally
         {
@@ -106,10 +106,10 @@ public sealed class CopyDecompileTests
             Assert.DoesNotContain("varSS:[", copySource);
 
             var mainSource = File.ReadAllText(result.OutputFiles.First(p => p.EndsWith("main.c", StringComparison.Ordinal)));
-            Assert.Contains("char var8[20];", mainSource);
-            Assert.DoesNotContain("char* var8", mainSource);
-            Assert.Contains("sub_0010(var8, \"test\")", mainSource);
-            Assert.Contains("printf(\"%s\\n\", var8)", mainSource);
+            Assert.Contains("char var1[20];", mainSource);
+            Assert.DoesNotContain("char* var1", mainSource);
+            Assert.Contains("sub_0010(var1, \"test\")", mainSource);
+            Assert.Contains("printf(\"%s\\n\", var1)", mainSource);
             Assert.DoesNotContain("printf(\"%s\\n\", 655", mainSource);
         }
         finally

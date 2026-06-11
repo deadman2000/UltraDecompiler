@@ -12,7 +12,7 @@ public class PopHandler : IInstructionHandler
     public void Handle(ExprBlock block, Instruction instr)
     {
         var value = block.EndStack.Count == 0
-            ? new Variable() { Name = "stackErr" }
+            ? new Variable(Name: "stackErr")
             : block.EndStack.Pop();
 
         var dst = instr.Operand1;

@@ -62,7 +62,7 @@ public class PointerCodegenTests
         var catalog = HeaderCatalog.Load(includeDir);
 
         var ptrVar = new Variable(9);
-        var pspBase = new Variable(0) { Name = "_psp" };
+        var pspBase = new Variable(Name: "_psp", IsInternal: true);
         var storage = new ProcedureStorage();
         storage.Add(new DisassembledProcedure
         {

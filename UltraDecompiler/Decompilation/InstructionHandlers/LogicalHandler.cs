@@ -47,7 +47,7 @@ public class LogicalHandler : IInstructionHandler
 
         if (result is not ConstExpr)
         {
-            var resultVar = block.Variables.CreateVariable();
+            var resultVar = block.Variables.CreateTempVariable();
             block.Operations.Add(new SetOperation(resultVar, result));
             result = resultVar;
         }

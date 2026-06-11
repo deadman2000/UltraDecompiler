@@ -124,9 +124,9 @@ public record struct RegisterExpressions(
     public static RegisterExpressions InitExe(VariableStorage variables)
     {
         var psp = variables.PspBase;   // каноническая база PSP
-        var initCS = variables.CreateVariable("_initCS");
-        var initSS = variables.CreateVariable("_initSS");
-        var initSP = variables.CreateVariable("_initSP");
+        var initCS = variables.CreateInternalVariable("_initCS");
+        var initSS = variables.CreateInternalVariable("_initSS");
+        var initSP = variables.CreateInternalVariable("_initSP");
 
         var zero = ConstExpr.Zero;
         return new RegisterExpressions(AX: zero,
@@ -146,17 +146,17 @@ public record struct RegisterExpressions(
     public static RegisterExpressions InitProc(VariableStorage variables)
     {
         var zero = ConstExpr.Zero;
-        return new RegisterExpressions(AX: variables.CreateVariable("varAX"),
-                                       BX: variables.CreateVariable("varBX"),
-                                       CX: variables.CreateVariable("varCX"),
-                                       DX: variables.CreateVariable("varDX"),
+        return new RegisterExpressions(AX: variables.CreateInternalVariable("varAX"),
+                                       BX: variables.CreateInternalVariable("varBX"),
+                                       CX: variables.CreateInternalVariable("varCX"),
+                                       DX: variables.CreateInternalVariable("varDX"),
                                        SP: new ConstExpr(0xfffe),
                                        BP: zero,
                                        SI: zero,
                                        DI: zero,
                                        ES: variables.PspBase,
-                                       CS: variables.CreateVariable("varCS"),
-                                       SS: variables.CreateVariable("varSS"),
+                                       CS: variables.CreateInternalVariable("varCS"),
+                                       SS: variables.CreateInternalVariable("varSS"),
                                        DS: variables.PspBase);
     }
 

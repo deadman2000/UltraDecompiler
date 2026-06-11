@@ -10,6 +10,8 @@ public class VariableStorage
     private readonly Dictionary<int, Variable> _pspFields = new();
     private readonly Dictionary<int, Variable> _stackParameters = new();
     private readonly Dictionary<int, Variable> _stackLocals = new();
+    private int _stackNumber;
+    private int _tempNumber;
 
     /// <summary>true, если для функции активирован стандартный стековый кадр (BP-based).</summary>
     public bool StackFrameActive { get; private set; }
@@ -22,18 +24,46 @@ public class VariableStorage
         _stackParameters.Clear();
         _stackLocals.Clear();
         StackFrameActive = false;
+        _stackNumber = 0;
+        _tempNumber = 0;
     }
 
     /// <summary>
-    /// Создает новую переменную
+    /// Создаёт именованную переменную (параметры, поля PSP, переменные строковых циклов и т.п.).
     /// </summary>
     public Variable CreateVariable(string? name = null)
     {
-        var v = new Variable
-        {
-            Number = _variables.Count,
-            Name = name
-        };
+        var v = new Variable(Name: name);
+        _variables.Add(v);
+        return v;
+    }
+
+    /// <summary>
+    /// Создаёт служебную переменную символического выполнения (регистры, PSP, retAddr).
+    /// </summary>
+    public Variable CreateInternalVariable(string name)
+    {
+        var v = new Variable(Number: 0, Name: name, IsInternal: true);
+        _variables.Add(v);
+        return v;
+    }
+
+    /// <summary>
+    /// Создаёт локальную переменную стекового кадра [BP±disp] (<c>varN</c>).
+    /// </summary>
+    public Variable CreateStackVariable()
+    {
+        var v = new Variable(Number: ++_stackNumber, IsStack: true);
+        _variables.Add(v);
+        return v;
+    }
+
+    /// <summary>
+    /// Создаёт временную переменную IR-анализа (<c>tempN</c>).
+    /// </summary>
+    public Variable CreateTempVariable()
+    {
+        var v = new Variable(Number: ++_tempNumber, IsTemp: true);
         _variables.Add(v);
         return v;
     }
@@ -41,7 +71,7 @@ public class VariableStorage
     /// <summary>
     /// Возвращает (или создаёт) каноническую переменную — базу PSP.
     /// </summary>
-    public Variable PspBase => _pspBase ??= CreateVariable("_psp");
+    public Variable PspBase => _pspBase ??= CreateInternalVariable("_psp");
 
     /// <summary>
     /// Активирует стековый кадр и создаёт переменные параметров для указанных смещений [BP+offset].
@@ -80,7 +110,6 @@ public class VariableStorage
     }
 
     /// <summary>Локальные переменные стекового кадра [BP+disp], disp &lt; 0.</summary>
-    /// TODO: Избавиться. Хранить признак в Variable
     public IReadOnlyList<(int Offset, Variable Variable)> StackLocals =>
         _stackLocals.Select(static kv => (kv.Key, kv.Value)).OrderBy(static e => e.Key).ToList();
 
@@ -101,7 +130,7 @@ public class VariableStorage
             if (_stackLocals.ContainsKey(offset))
                 continue;
 
-            var variable = CreateVariable();
+            var variable = CreateStackVariable();
             _stackLocals[offset] = variable;
             result.Add(variable);
         }

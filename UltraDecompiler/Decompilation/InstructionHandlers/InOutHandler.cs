@@ -55,7 +55,7 @@ public class InOutHandler : IInstructionHandler
             var callExpr = new CallExpr(funcName, new[] { portExpr });
 
             // Создаём SetOperation и обновляем AL/AX
-            var resultVar = block.Variables.CreateVariable();
+            var resultVar = block.Variables.CreateTempVariable();
             block.Operations.Add(new SetOperation(resultVar, callExpr));
 
             if (isWord)

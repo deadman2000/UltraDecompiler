@@ -17,6 +17,8 @@ public class VariableStorageTests
 
         Assert.Same(first, second);
         Assert.Equal("_psp", first.Name);
+        Assert.True(first.IsInternal);
+        Assert.Equal(0, first.Number);
         Assert.NotNull(storage.PspBase);
         Assert.Same(first, storage.PspBase);
     }
@@ -54,11 +56,33 @@ public class VariableStorageTests
         var locals = storage.ActivateStackLocals([-50, -20]);
 
         Assert.Equal(2, locals.Count);
-        Assert.True(locals[0].Number < locals[1].Number);
+        Assert.True(locals[0].IsStack);
+        Assert.True(locals[1].IsStack);
+        Assert.Equal(1, locals[0].Number);
+        Assert.Equal(2, locals[1].Number);
+        Assert.Equal("var1", locals[0].ToString());
+        Assert.Equal("var2", locals[1].ToString());
         Assert.Same(locals[0], storage.TryGetStackLocal(-20));
         Assert.Same(locals[1], storage.TryGetStackLocal(-50));
         Assert.Equal(-50, storage.StackLocals[0].Offset);
         Assert.Equal(-20, storage.StackLocals[1].Offset);
+    }
+
+    [Fact]
+    public void CreateTempVariable_UsesSeparateDisplayCounter()
+    {
+        var storage = new VariableStorage();
+
+        var stack = storage.CreateStackVariable();
+        var temp = storage.CreateTempVariable();
+
+        Assert.True(stack.IsStack);
+        Assert.True(temp.IsTemp);
+        Assert.Equal("var1", stack.ToString());
+        Assert.Equal("temp1", temp.ToString());
+        Assert.Equal(1, stack.Number);
+        Assert.Equal(1, temp.Number);
+        Assert.NotSame(stack, temp);
     }
 
     [Fact]
@@ -84,7 +108,7 @@ public class VariableStorageTests
     public void TryGetKnownMemoryVariable_ReturnsNull_WhenNoPspBase()
     {
         var storage = new VariableStorage();
-        var pspVar = new Variable { Name = "_psp" }; // искусственная база
+        var pspVar = new Variable(Name: "_psp", IsInternal: true);
 
         var result = storage.TryGetKnownMemoryVariable(new ConstExpr(0x2C), pspVar);
         Assert.Null(result);
@@ -94,7 +118,7 @@ public class VariableStorageTests
     public void TryGetKnownMemoryVariable_ReturnsNull_WhenSegmentDoesNotMatchAndAddressDoesNotContainBase()
     {
         var storage = new VariableStorage();
-        var otherVar = new Variable { Name = "other" };
+        var otherVar = new Variable(Name: "other");
 
         var result = storage.TryGetKnownMemoryVariable(new ConstExpr(0x2C), otherVar);
         Assert.Null(result);
@@ -140,7 +164,7 @@ public class VariableStorageTests
     {
         var storage = new VariableStorage();
         var psp = storage.PspBase;
-        var bx = new Variable { Name = "BX" };
+        var bx = new Variable(Name: "BX");
 
         // [BX] без константы относительно PSP
         var result = storage.TryGetKnownMemoryVariable(bx, psp);

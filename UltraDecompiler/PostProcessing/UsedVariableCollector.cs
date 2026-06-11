@@ -7,16 +7,31 @@ namespace UltraDecompiler.PostProcessing;
 /// </summary>
 internal static class UsedVariableCollector
 {
+    private static readonly IEqualityComparer<Variable> ByReference = ReferenceEqualityComparer.Instance;
+
     /// <summary>
-    /// Возвращает локальные переменные процедуры в порядке создания (<see cref="Variable.Number"/>).
+    /// Возвращает локальные переменные процедуры для объявления в C.
     /// Параметры функции (<paramref name="parameterVariables"/>) исключаются.
+    /// Все стековые локали (<paramref name="stackVariables"/>) включаются всегда.
     /// </summary>
     public static IReadOnlyList<Variable> Collect(
         IEnumerable<Operation> operations,
-        IEnumerable<Variable> parameterVariables)
+        IEnumerable<Variable> parameterVariables,
+        IEnumerable<Variable>? stackVariables = null)
     {
-        var exclude = new HashSet<int>(parameterVariables.Select(static v => v.Number));
-        var result = new Dictionary<int, Variable>();
+        var exclude = new HashSet<Variable>(parameterVariables, ByReference);
+        var result = new Dictionary<Variable, Variable>(ByReference);
+
+        if (stackVariables is not null)
+        {
+            foreach (var stackVar in stackVariables)
+            {
+                if (!exclude.Contains(stackVar))
+                {
+                    AddVariable(stackVar, result);
+                }
+            }
+        }
 
         foreach (var op in ExpressionBuilder.EnumerateNested(operations))
         {
@@ -24,12 +39,13 @@ internal static class UsedVariableCollector
         }
 
         return result.Values
-            .Where(v => !exclude.Contains(v.Number) && !IsImplicitSegmentVariable(v))
-            .OrderBy(static v => v.Number)
+            .Where(v => !exclude.Contains(v) && v.RequiresCDeclaration)
+            .OrderBy(static v => v.IsStack ? 0 : 1)
+            .ThenBy(static v => v.Number)
             .ToList();
     }
 
-    private static void AddVariablesFromOperation(Operation op, Dictionary<int, Variable> result)
+    private static void AddVariablesFromOperation(Operation op, Dictionary<Variable, Variable> result)
     {
         switch (op)
         {
@@ -79,7 +95,7 @@ internal static class UsedVariableCollector
         }
     }
 
-    private static void AddFromExpr(Expr? expr, Dictionary<int, Variable> result)
+    private static void AddFromExpr(Expr? expr, Dictionary<Variable, Variable> result)
     {
         if (expr is null)
         {
@@ -118,9 +134,6 @@ internal static class UsedVariableCollector
         }
     }
 
-    private static void AddVariable(Variable variable, Dictionary<int, Variable> result) =>
-        result.TryAdd(variable.Number, variable);
-
-    private static bool IsImplicitSegmentVariable(Variable variable) =>
-        variable.Name is "_psp";
+    private static void AddVariable(Variable variable, Dictionary<Variable, Variable> result) =>
+        result.TryAdd(variable, variable);
 }

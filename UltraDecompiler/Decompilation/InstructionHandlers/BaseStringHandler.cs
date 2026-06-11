@@ -119,9 +119,9 @@ public abstract class BaseStringHandler : IInstructionHandler
         }
 
         // Создаём loop-переменные
-        var siLoop = block.Variables.CreateVariable();
-        var diLoop = block.Variables.CreateVariable();
-        var cxLoop = block.Variables.CreateVariable();
+        var siLoop = block.Variables.CreateTempVariable();
+        var diLoop = block.Variables.CreateTempVariable();
+        var cxLoop = block.Variables.CreateTempVariable();
 
         // === Инициализация ПЕРЕД циклом ===
         var initOps = new List<Operation>
@@ -227,9 +227,9 @@ public abstract class BaseStringHandler : IInstructionHandler
         Expr value = BuildStringMemoryRead(block, instr, isSource: true, size);
 
         if (size == 1)
-            ops.Add(new SetOperation(block.Variables.CreateVariable(), value));
+            ops.Add(new SetOperation(block.Variables.CreateTempVariable(), value));
         else
-            ops.Add(new SetOperation(block.Variables.CreateVariable(), value));
+            ops.Add(new SetOperation(block.Variables.CreateTempVariable(), value));
 
         Expr df = block.EndRegisters.DF;
         Expr delta = (df is ConstExpr c && c.Value == 0) ? new ConstExpr(size) : new ConstExpr(-size);
@@ -284,9 +284,9 @@ public abstract class BaseStringHandler : IInstructionHandler
         bool isRepz = instr.Prefix.HasFlag(InstructionPrefix.REPZ);
         Expr expectedZf = isRepz ? ConstExpr.One : ConstExpr.Zero;
 
-        var siLoop = block.Variables.CreateVariable();
-        var diLoop = block.Variables.CreateVariable();
-        var cxLoop = block.Variables.CreateVariable();
+        var siLoop = block.Variables.CreateTempVariable();
+        var diLoop = block.Variables.CreateTempVariable();
+        var cxLoop = block.Variables.CreateTempVariable();
 
         var initOps = new List<Operation>
         {
@@ -318,7 +318,7 @@ public abstract class BaseStringHandler : IInstructionHandler
             CF = new CmpExpr(CmpOperation.Ult, left, right)
         };
 
-        loopBody.Add(new SetOperation(block.Variables.CreateVariable(), equality));
+        loopBody.Add(new SetOperation(block.Variables.CreateTempVariable(), equality));
 
         Expr df = block.EndRegisters.DF;
         Expr delta = (df is ConstExpr c && c.Value == 0)

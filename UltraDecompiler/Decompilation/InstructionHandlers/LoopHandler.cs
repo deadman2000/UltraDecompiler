@@ -29,7 +29,7 @@ public class LoopHandler : IInstructionHandler
         // Создаём именованную переменную для нового значения CX (как для обычной арифметики)
         if (cxNew is not ConstExpr)
         {
-            var cxVar = block.Variables.CreateVariable();
+            var cxVar = block.Variables.CreateTempVariable();
             block.Operations.Add(new SetOperation(cxVar, cxNew));
             cxNew = cxVar;
         }

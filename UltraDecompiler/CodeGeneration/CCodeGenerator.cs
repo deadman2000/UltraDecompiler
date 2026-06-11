@@ -97,7 +97,8 @@ public static class CCodeGenerator
             return;
 
         var parameters = procedure.Expressions.Parameters.Select(static p => p.Variable);
-        var locals = UsedVariableCollector.Collect(operations, parameters);
+        var stackLocals = procedure.Expressions.Variables.StackLocals.Select(static e => e.Variable);
+        var locals = UsedVariableCollector.Collect(operations, parameters, stackLocals);
 
         foreach (var variable in locals)
         {

@@ -104,8 +104,8 @@ public static class StackLocalArrayInferrer
             foreach (var variable in CollectOperationVariables(op))
             {
                 if (paramVars.Contains(variable)
-                    || variable.Name is "_psp" or "retAddr"
-                    || variable.Name?.StartsWith("arg", StringComparison.Ordinal) == true)
+                    || !variable.IsStack
+                    || variable.IsInternal)
                 {
                     continue;
                 }

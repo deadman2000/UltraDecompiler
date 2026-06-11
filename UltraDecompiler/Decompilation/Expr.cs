@@ -42,13 +42,20 @@ static class Prec
 /// <summary>
 /// Переменная
 /// </summary>
-/// <param name="Number">Номер</param>
-public record Variable(int Number = 0) : Expr
+/// <param name="Number">Номер для <c>varN</c>/<c>tempN</c> (1-based; у <see cref="IsInternal"/> всегда 0).</param>
+/// <param name="Name">Имя (параметры, поля PSP, метки строковых циклов).</param>
+/// <param name="IsStack">Локаль стекового кадра [BP±disp].</param>
+/// <param name="IsTemp">Временная переменная IR-анализа.</param>
+/// <param name="IsInternal">Служебная переменная символического выполнения.</param>
+public sealed record Variable(
+    int Number = 0,
+    string? Name = null,
+    bool IsStack = false,
+    bool IsTemp = false,
+    bool IsInternal = false) : Expr
 {
-    /// <summary>
-    /// Имя
-    /// </summary>
-    public string? Name { get; set; }
+    /// <summary>Нужно ли объявление переменной в сгенерированном C-коде.</summary>
+    public bool RequiresCDeclaration => IsStack || (!IsTemp && !IsInternal);
 
     /// <summary>
     /// Выведенный тип C (из сигнатуры вызова или копирования). <see langword="null"/> — <c>int</c>.
@@ -63,7 +70,25 @@ public record Variable(int Number = 0) : Expr
     /// <summary>Тип для объявления в C-коде (без имени; массивы оформляет <see cref="CCodeGenerator"/>).</summary>
     public string DeclaredType => (Type ?? CType.Int).ToString();
 
-    public override string ToString() => Name is not null ? Name : $"var{Number}";
+    public override string ToString()
+    {
+        if (Name is not null)
+        {
+            return Name;
+        }
+
+        if (IsStack)
+        {
+            return $"var{Number}";
+        }
+
+        if (IsTemp)
+        {
+            return $"temp{Number}";
+        }
+
+        return $"var{Number}";
+    }
 }
 
 /// <summary>

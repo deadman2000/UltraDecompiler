@@ -10,7 +10,7 @@ internal static class ExprSubstitution
     /// </summary>
     public static Expr Replace(Expr expr, Variable from, Expr to)
     {
-        if (expr is Variable v && v.Number == from.Number)
+        if (expr is Variable v && ReferenceEquals(v, from))
         {
             return to;
         }
@@ -151,7 +151,7 @@ internal static class ExprSubstitution
             return false;
         }
 
-        if (expr is Variable v && v.Number == variable.Number)
+        if (expr is Variable v && ReferenceEquals(v, variable))
         {
             return true;
         }

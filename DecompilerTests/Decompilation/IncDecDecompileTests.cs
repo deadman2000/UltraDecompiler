@@ -21,13 +21,13 @@ public sealed class IncDecDecompileTests
             var mainSource = File.ReadAllText(
                 result.OutputFiles.First(p => p.EndsWith("main.c", StringComparison.Ordinal)));
 
-            Assert.Contains("var8 = 10", mainSource);
-            Assert.Contains("var8 = var8 + 1", mainSource);
-            Assert.Contains("var8++", mainSource);
-            Assert.Contains("var8 = var8 - 1", mainSource);
-            Assert.Contains("var8--", mainSource);
+            Assert.Contains("var1 = 10", mainSource);
+            Assert.Contains("var1 = var1 + 1", mainSource);
+            Assert.Contains("var1++", mainSource);
+            Assert.Contains("var1 = var1 - 1", mainSource);
+            Assert.Contains("var1--", mainSource);
             Assert.DoesNotContain("65535", mainSource);
-            Assert.DoesNotContain("var10", mainSource);
+            Assert.DoesNotContain("temp1", mainSource);
         }
         finally
         {

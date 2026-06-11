@@ -65,7 +65,7 @@ public partial class ExpressionBuilder
         Variables.Clear();
         var initialRegisters = RegisterExpressions.InitProc(Variables);
         List<Expr> stack = [];
-        stack.Add(Variables.CreateVariable("retAddr"));
+        stack.Add(Variables.CreateInternalVariable("retAddr"));
         RunBuild(graph, initialRegisters, stack, procedures);
     }
 

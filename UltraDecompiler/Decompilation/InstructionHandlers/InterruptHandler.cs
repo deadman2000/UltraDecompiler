@@ -48,7 +48,7 @@ public class InterruptHandler : IInstructionHandler
         {
             // Функция возвращает значение (handle, код ошибки и т.д.) — захватываем в переменную.
             // Это позволяет использовать результат INT 21h в дальнейшем коде.
-            var resultVar = block.Variables.CreateVariable();
+            var resultVar = block.Variables.CreateTempVariable();
             block.Operations.Add(new SetOperation(resultVar, callExpr));
 
             // Символическое значение AX после INT — это результат вызова
