@@ -10,7 +10,9 @@ public abstract class ConditionalJumpHandler : IInstructionHandler
 {
     public void Handle(ExprBlock block, Instruction instr)
     {
-        var condition = BuildCondition(block, instr);
+        var condition = CmpJumpConditions.TryBuild(block, instr.Mnemonic, out var cmpCondition) && cmpCondition is not null
+            ? cmpCondition
+            : BuildCondition(block, instr);
         block.Condition = condition;
         ApplyComparisonSignedness(block, instr.Mnemonic);
     }

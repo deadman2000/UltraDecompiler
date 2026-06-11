@@ -75,6 +75,10 @@ public partial class ExpressionBuilder
                 return;
 
             result.AddRange(block.Operations);
+            if (EndsWithReturn(block.Operations))
+            {
+                return;
+            }
 
             if (block.ConditionalBlock != null && block.Condition != null)
             {
@@ -93,6 +97,17 @@ public partial class ExpressionBuilder
                 }
 
                 result.Add(new IfOperation(block.Condition, thenBody, elseBody));
+
+                if (BranchEndsWithReturn(thenBody) && (elseBody is null || BranchEndsWithReturn(elseBody)))
+                {
+                    if (merge is not null)
+                    {
+                        visited.Add(merge);
+                    }
+
+                    return;
+                }
+
                 block = merge;
                 continue;
             }
@@ -158,4 +173,10 @@ public partial class ExpressionBuilder
 
         return result;
     }
+
+    private static bool EndsWithReturn(IReadOnlyList<Operation> operations) =>
+        operations.Count > 0 && operations[^1] is ReturnOperation;
+
+    private static bool BranchEndsWithReturn(IReadOnlyList<Operation> body) =>
+        body.Any(static op => op is ReturnOperation);
 }

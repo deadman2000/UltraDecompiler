@@ -243,7 +243,7 @@ public class Decompiler
             cfg.BuildFromInstructions(instructions, offset, parser.Image, initRegisters);
 
             var expressions = new ExpressionBuilder();
-            expressions.BuildProc(cfg, storage);
+            expressions.BuildProc(cfg, storage, parser.Image);
 
             var name = offset == initOffset
                 ? MainFunction

@@ -1,3 +1,5 @@
+using UltraDecompiler.PostProcessing;
+
 namespace UltraDecompiler.Decompilation;
 
 /// <summary>
@@ -64,7 +66,7 @@ public static class ProcedureSignatureAnalyzer
                 continue;
             }
 
-            if (WritesReturnValueToAx(instr))
+            if (ProducesIntReturnValue(instr))
             {
                 return CType.Int;
             }
@@ -75,8 +77,13 @@ public static class ProcedureSignatureAnalyzer
         return CType.Void;
     }
 
-    private static bool WritesReturnValueToAx(Instruction instr)
+    private static bool ProducesIntReturnValue(Instruction instr)
     {
+        if (instr.Mnemonic is Mnemonic.MUL or Mnemonic.IMUL or Mnemonic.DIV or Mnemonic.IDIV)
+        {
+            return true;
+        }
+
         if (!TargetIsAx(instr.Operand1))
         {
             return false;
@@ -99,17 +106,7 @@ public static class ProcedureSignatureAnalyzer
         operand.Type == OperandType.Register16 && operand.AsGpRegister16() == GpRegister16.AX;
 
     private static bool IsEpilogueInstruction(Instruction instr) =>
-        instr.Mnemonic switch
-        {
-            Mnemonic.POP => true,
-            Mnemonic.MOV when instr.Operand1.Type == OperandType.Register16
-                && instr.Operand1.AsGpRegister16() == GpRegister16.SP
-                && instr.Operand2.Type == OperandType.Register16
-                && instr.Operand2.AsGpRegister16() == GpRegister16.BP => true,
-            Mnemonic.LEAVE => true,
-            Mnemonic.JMP => true,
-            _ => false,
-        };
+        EpilogueAnalyzer.IsEpilogueInstruction(instr);
 
     private static bool HasStandardPrologue(IReadOnlyList<Instruction> instrs)
     {

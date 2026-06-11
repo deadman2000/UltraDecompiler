@@ -69,11 +69,8 @@ public class FlagModelingTests : BaseTests
             """);
 
         var condBlock = expr.Blocks.First(b => b.ConditionalBlock != null);
-        // JA = !CF & !ZF. Поскольку после CMP у нас есть хорошая модель CF (Ult),
-        // !Ult превращается в Ugt через BoolNot, а общее выражение остаётся составным.
-        // Проверяем, что это Math2Expr с And.
-        var cond = Assert.IsType<Math2Expr>(condBlock.Condition);
-        Assert.Equal(Math2Operation.And, cond.Operation);
+        var cond = Assert.IsType<CmpExpr>(condBlock.Condition);
+        Assert.Equal(CmpOperation.Ugt, cond.Operation);
     }
 
     // sub с заёмом → CF как беззнаковое «меньше»
@@ -221,16 +218,14 @@ public class FlagModelingTests : BaseTests
             """);
 
         var condBlock = expr.Blocks.First(b => b.ConditionalBlock != null);
-        // JBE = CF || ZF. Составное выражение.
-        var cond = Assert.IsType<Math2Expr>(condBlock.Condition);
-        Assert.Equal(Math2Operation.Or, cond.Operation);
+        var cond = Assert.IsType<CmpExpr>(condBlock.Condition);
+        Assert.Equal(CmpOperation.Ule, cond.Operation);
     }
 
     [Fact]
     public void Cmp_Jle_UsesCompoundConditionWithZf()
     {
-        // JLE = ZF || (SF != OF). Пока SF/OF после CMP не моделируются глубоко,
-        // условие будет составным, но не должно быть константой.
+        // После CMP+JLE условие сводится к сравнению операндов (ax <= 3), а не к флагам.
         var expr = BuildExpressions("""
             B8 05 00 ; mov ax, 5
             3D 03 00 ; cmp ax, 3
@@ -240,10 +235,8 @@ public class FlagModelingTests : BaseTests
             """);
 
         var condBlock = expr.Blocks.First(b => b.ConditionalBlock != null);
-        Assert.NotNull(condBlock.Condition);
-        Assert.NotEqual(ConstExpr.One, condBlock.Condition);
-        // Условие должно как минимум использовать ZF
-        Assert.Contains("==", condBlock.Condition.ToString());
+        var cond = Assert.IsType<CmpExpr>(condBlock.Condition);
+        Assert.Equal(CmpOperation.Ule, cond.Operation);
     }
 
     // ==================== TEST + прыжки ====================

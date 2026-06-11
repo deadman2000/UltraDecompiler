@@ -263,7 +263,8 @@ public static class OperationOptimizer
             Math1Expr unary => IsSafeToInlineIntoCall(unary.Op),
             Math2Expr binary => IsSafeToInlineIntoCall(binary.First) && IsSafeToInlineIntoCall(binary.Second),
             CmpExpr cmp => IsSafeToInlineIntoCall(cmp.Left) && IsSafeToInlineIntoCall(cmp.Right),
-            CallExpr or MemExpr or ImageOffsetExpr or AddressOfExpr => false,
+            CallExpr => true,
+            MemExpr or ImageOffsetExpr or AddressOfExpr => false,
             _ => false,
         };
 

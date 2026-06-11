@@ -30,6 +30,26 @@ public class ControlFlowTests : BaseTests
 
     // === Тесты BuildJumpCondition ===
 
+    // cmp [arg], 1; jle — условие arg <= 1, а не только равенство по ZF
+    [Fact]
+    public void ConditionalJump_CmpJle_ProducesLessOrEqualCondition()
+    {
+        var expr = BuildExpressions("""
+            B8 05 00       ; mov ax, 5
+            3D 01 00       ; cmp ax, 1
+            7E 01          ; jle +1
+            90             ; nop fallthrough
+            90             ; nop target
+            """);
+
+        var condBlock = expr.Blocks.FirstOrDefault(b => b.ConditionalBlock != null);
+        Assert.NotNull(condBlock);
+
+        var condition = Assert.IsType<CmpExpr>(condBlock!.Condition);
+        Assert.Equal(CmpOperation.Ule, condition.Operation);
+        Assert.IsType<ConstExpr>(condition.Right);
+    }
+
     [Fact]
     public void ConditionalJump_CmpJe_ProducesEqualityCondition()
     {
@@ -105,9 +125,8 @@ public class ControlFlowTests : BaseTests
         Assert.NotNull(condBlock);
         Assert.NotEqual(ConstExpr.One, condBlock.Condition);
 
-        // JA = !CF && !ZF → составное выражение (Math2 And)
-        var cond = Assert.IsType<Math2Expr>(condBlock.Condition);
-        Assert.Equal(Math2Operation.And, cond.Operation);
+        var cond = Assert.IsType<CmpExpr>(condBlock.Condition);
+        Assert.Equal(CmpOperation.Ugt, cond.Operation);
     }
 
     [Fact]

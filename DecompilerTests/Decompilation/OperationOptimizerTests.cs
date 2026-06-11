@@ -85,6 +85,28 @@ public class OperationOptimizerTests
         Assert.DoesNotContain(optimized, op => op is SetOperation { Dst.Number: 2 or 3 });
     }
 
+    // temp = sub_0010(5); printf("%d", temp) → printf("%d", sub_0010(5))
+    [Fact]
+    public void Optimize_PropagatesCallResultToPrintf()
+    {
+        var temp = new Variable(1, IsTemp: true);
+
+        var operations = new List<Operation>
+        {
+            new SetOperation(temp, new CallExpr("sub_0010", [new ConstExpr(5)])),
+            new CallOperation("printf", [new StringExpr("%d\n"), temp]),
+            new ReturnOperation(new ConstExpr(0)),
+        };
+
+        var optimized = OperationOptimizer.Optimize(operations);
+
+        Assert.Equal(2, optimized.Count);
+        var call = Assert.IsType<CallOperation>(optimized[0]);
+        Assert.Equal("printf", call.Name);
+        Assert.IsType<CallExpr>(call.Args[1]);
+        Assert.DoesNotContain(optimized, op => op is SetOperation { Dst.IsTemp: true });
+    }
+
     // temp1=a%b; temp2=a/b; printf(..., temp1, temp2) → printf(..., a%b, a/b)
     [Fact]
     public void Optimize_PropagatesExpressionToCallArguments()
