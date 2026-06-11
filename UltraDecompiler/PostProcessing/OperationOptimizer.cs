@@ -107,6 +107,21 @@ public static class OperationOptimizer
                     operations.RemoveAt(i);
                     i--;
                     changed = true;
+                    continue;
+                }
+
+                if (set.Dst.IsTemp
+                    && CanPropagateToCall(operations, i, set))
+                {
+                    var lastReadIndex = FindLastReadIndex(operations, i, set.Dst);
+                    if (lastReadIndex >= 0)
+                    {
+                        SubstituteVariableInCallArguments(operations, i + 1, lastReadIndex, set.Dst, set.Src);
+                    }
+
+                    operations.RemoveAt(i);
+                    i--;
+                    changed = true;
                 }
             }
         }
@@ -236,6 +251,22 @@ public static class OperationOptimizer
     private static bool IsFoldableTempExpression(Expr expr) =>
         expr is not (StringExpr or ImageOffsetExpr or Variable);
 
+    /// <summary>
+    /// Выражение безопасно для подстановки в аргументы вызова (без дублирования side-effect и MemExpr).
+    /// </summary>
+    private static bool IsSafeToInlineIntoCall(Expr expr) =>
+        expr switch
+        {
+            Variable v => !v.IsInternal,
+            ConstExpr or StringExpr => true,
+            MemberExpr member => IsSafeToInlineIntoCall(member.Base),
+            Math1Expr unary => IsSafeToInlineIntoCall(unary.Op),
+            Math2Expr binary => IsSafeToInlineIntoCall(binary.First) && IsSafeToInlineIntoCall(binary.Second),
+            CmpExpr cmp => IsSafeToInlineIntoCall(cmp.Left) && IsSafeToInlineIntoCall(cmp.Right),
+            CallExpr or MemExpr or ImageOffsetExpr or AddressOfExpr => false,
+            _ => false,
+        };
+
     private static bool CanFoldTempIntoAssignment(
         IReadOnlyList<Operation> operations,
         int exprIndex,
@@ -295,6 +326,121 @@ public static class OperationOptimizer
 
         return true;
     }
+
+    /// <summary>
+    /// Разрешает подставить <c>temp = expr</c> напрямую в аргументы единственного вызова.
+    /// Не дублируем вызовы с побочными эффектами и сегментные обращения (dos.c и т.п.).
+    /// </summary>
+    private static bool CanPropagateToCall(
+        IReadOnlyList<Operation> operations,
+        int setIndex,
+        SetOperation set)
+    {
+        if (!IsSafeToInlineIntoCall(set.Src)
+            || !IsOnlyUsedInCallArguments(operations, setIndex, set.Dst))
+        {
+            return false;
+        }
+
+        var lastReadIndex = FindLastReadIndex(operations, setIndex, set.Dst);
+        if (lastReadIndex < 0)
+        {
+            return true;
+        }
+
+        foreach (var variable in ExprSubstitution.CollectVariables(set.Src))
+        {
+            if (DefinesVariableBetween(operations, setIndex, lastReadIndex, variable))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsOnlyUsedInCallArguments(
+        IReadOnlyList<Operation> operations,
+        int defIndex,
+        Variable variable)
+    {
+        for (var i = defIndex + 1; i < operations.Count; i++)
+        {
+            if (ReadsVariableOutsideCallArguments(operations[i], variable))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ReadsVariableOutsideCallArguments(Operation operation, Variable variable) =>
+        operation switch
+        {
+            CallOperation => false,
+            SetOperation { Src: CallExpr } set => ReferenceEquals(set.Dst, variable),
+            ReturnOperation => false,
+            SetOperation set => ReferenceEquals(set.Dst, variable)
+                || ExprSubstitution.Contains(set.Src, variable),
+            StoreOperation store => ExprSubstitution.Contains(store.Address, variable)
+                || ExprSubstitution.Contains(store.Segment, variable)
+                || ExprSubstitution.Contains(store.Value, variable),
+            IncOperation inc => ExprSubstitution.Contains(inc.Target, variable)
+                || ExprSubstitution.Contains(inc.Segment, variable),
+            DecOperation dec => ExprSubstitution.Contains(dec.Target, variable)
+                || ExprSubstitution.Contains(dec.Segment, variable),
+            IfOperation branch => ExprSubstitution.Contains(branch.Condition, variable)
+                || branch.ThenBody.Any(op => ReadsVariableOutsideCallArguments(op, variable))
+                || (branch.ElseBody?.Any(op => ReadsVariableOutsideCallArguments(op, variable)) ?? false),
+            WhileOperation loop => ExprSubstitution.Contains(loop.Condition, variable)
+                || loop.Body.Any(op => ReadsVariableOutsideCallArguments(op, variable)),
+            ForOperation loop => (loop.Init is not null && ReadsVariableOutsideCallArguments(loop.Init, variable))
+                || ExprSubstitution.Contains(loop.Condition, variable)
+                || (loop.Iteration is not null && ReadsVariableOutsideCallArguments(loop.Iteration, variable))
+                || loop.Body.Any(op => ReadsVariableOutsideCallArguments(op, variable)),
+            _ => false,
+        };
+
+    private static void SubstituteVariableInCallArguments(
+        List<Operation> operations,
+        int fromIndex,
+        int toInclusive,
+        Variable from,
+        Expr to)
+    {
+        for (var i = fromIndex; i <= toInclusive && i < operations.Count; i++)
+        {
+            operations[i] = SubstituteInCallArguments(operations[i], from, to);
+        }
+    }
+
+    private static Operation SubstituteInCallArguments(Operation operation, Variable from, Expr to) =>
+        operation switch
+        {
+            CallOperation call => new CallOperation(
+                call.Name,
+                call.Args.Select(arg => ExprSubstitution.Replace(arg, from, to)).ToList()),
+            SetOperation { Src: CallExpr call } set => new SetOperation(
+                set.Dst,
+                new CallExpr(call.Name, call.Args.Select(arg => ExprSubstitution.Replace(arg, from, to)).ToList())
+                {
+                    CallState = call.CallState,
+                }),
+            IfOperation branch => new IfOperation(
+                branch.Condition,
+                branch.ThenBody.Select(op => SubstituteInCallArguments(op, from, to)).ToList(),
+                branch.ElseBody?.Select(op => SubstituteInCallArguments(op, from, to)).ToList()),
+            WhileOperation loop => new WhileOperation(
+                loop.Condition,
+                loop.Body.Select(op => SubstituteInCallArguments(op, from, to)).ToList()),
+            ForOperation loop => new ForOperation(
+                loop.Init is not null ? SubstituteInCallArguments(loop.Init, from, to) : null,
+                loop.Condition,
+                loop.Iteration is not null ? SubstituteInCallArguments(loop.Iteration, from, to) : null,
+                loop.Body.Select(op => SubstituteInCallArguments(op, from, to)).ToList()),
+            _ => operation,
+        };
 
     private static bool IsOnlyUsedInReturn(
         IReadOnlyList<Operation> operations,

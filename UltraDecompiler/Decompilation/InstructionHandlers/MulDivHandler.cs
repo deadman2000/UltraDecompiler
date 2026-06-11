@@ -162,10 +162,9 @@ public class MulDivHandler : IInstructionHandler
             VariableSignedness.MarkUnsigned(src);
         }
 
-        int shift = isByte ? 8 : 16;
-        // (high << shift) | low  — символическое представление 16/8-битного "wide" дивиденда
-        Expr shifted = highPart.Calculate(Math2Operation.Shl, new ConstExpr(shift));
-        Expr dividend = shifted.Calculate(Math2Operation.Or, lowPart);
+        // Байт: дивиденд AH:AL; слово со знаком: после CWD достаточно AX (эквивалент (int)AX в C);
+        // беззнаковое слово с DX=0: wide-форма сворачивается в low.
+        Expr dividend = BuildDividend(highPart, lowPart, isByte, isSigned);
 
         Expr quot = dividend.Calculate(Math2Operation.Div, src);
         Expr rem = dividend.Calculate(Math2Operation.Mod, src);
@@ -207,5 +206,25 @@ public class MulDivHandler : IInstructionHandler
         }
 
         // Для DIV/IDIV флаги не определены — не меняем (оставляем предыдущие значения)
+    }
+
+    /// <summary>
+    /// Символический дивиденд DIV/IDIV: AH:AL, DX:AX или упрощённый знаковый AX.
+    /// </summary>
+    private static Expr BuildDividend(Expr highPart, Expr lowPart, bool isByte, bool isSigned)
+    {
+        if (!isByte && isSigned)
+        {
+            return lowPart;
+        }
+
+        if (!isByte && highPart is ConstExpr { Value: 0 })
+        {
+            return lowPart;
+        }
+
+        int shift = isByte ? 8 : 16;
+        Expr shifted = highPart.Calculate(Math2Operation.Shl, new ConstExpr(shift));
+        return shifted.Calculate(Math2Operation.Or, lowPart);
     }
 }

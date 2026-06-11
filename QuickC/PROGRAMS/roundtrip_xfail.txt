@@ -6,7 +6,6 @@ glob.c
 int86.c
 jmp.c
 long.c
-mod.c
 peek.c
 port.c
 recur.c

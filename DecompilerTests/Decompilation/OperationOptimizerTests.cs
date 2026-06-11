@@ -85,6 +85,33 @@ public class OperationOptimizerTests
         Assert.DoesNotContain(optimized, op => op is SetOperation { Dst.Number: 2 or 3 });
     }
 
+    // temp1=a%b; temp2=a/b; printf(..., temp1, temp2) → printf(..., a%b, a/b)
+    [Fact]
+    public void Optimize_PropagatesExpressionToCallArguments()
+    {
+        var a = new Variable(1);
+        var b = new Variable(2);
+        var tempRem = new Variable(1, IsTemp: true);
+        var tempQuot = new Variable(2, IsTemp: true);
+
+        var operations = new List<Operation>
+        {
+            new SetOperation(tempRem, new Math2Expr(Math2Operation.Mod, a, b)),
+            new SetOperation(tempQuot, new Math2Expr(Math2Operation.Div, a, b)),
+            new CallOperation("printf", [new StringExpr("%d %d\n"), tempRem, tempQuot]),
+            new ReturnOperation(new ConstExpr(0)),
+        };
+
+        var optimized = OperationOptimizer.Optimize(operations);
+
+        Assert.Equal(2, optimized.Count);
+        var call = Assert.IsType<CallOperation>(optimized[0]);
+        Assert.Equal("printf", call.Name);
+        Assert.IsType<Math2Expr>(call.Args[1]);
+        Assert.IsType<Math2Expr>(call.Args[2]);
+        Assert.DoesNotContain(optimized, op => op is SetOperation { Dst.IsTemp: true });
+    }
+
     // return (arg0 + arg1) без промежуточной локали var11
     [Fact]
     public void Optimize_PropagatesExpressionToReturn()
