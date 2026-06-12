@@ -102,6 +102,16 @@ public static class PointerTypeInferrer
             return false;
         }
 
+        if (variable.Type is { IsCharPtrPtr: true })
+        {
+            return false;
+        }
+
+        if (variable.Name is "argc")
+        {
+            return false;
+        }
+
         if (variable.Type is { IsStruct: true })
         {
             return false;

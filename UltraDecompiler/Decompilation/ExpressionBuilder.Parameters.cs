@@ -10,6 +10,9 @@ public partial class ExpressionBuilder
     /// </summary>
     public IReadOnlyList<FunctionParameter> Parameters { get; private set; } = [];
 
+    /// <summary>Обновляет список параметров после пост-обработки (например, нормализация main).</summary>
+    internal void SetParameters(IReadOnlyList<FunctionParameter> parameters) => Parameters = parameters;
+
     /// <summary>
     /// Анализирует пролог и обращения к аргументам/локалам на стеке;
     /// создаёт именованные переменные параметров (argN) и локальных переменных (varN).

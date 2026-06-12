@@ -29,11 +29,60 @@ public static class ProcedureSignatureAnalyzer
 
         foreach (var offset in offsets)
         {
-            result.Add(new ProcedureParameter(CType.Int, new StackParameter(offset)));
+            var type = InferParameterType(offset, instructions);
+            result.Add(new ProcedureParameter(type, new StackParameter(offset)));
         }
 
         return result;
     }
+
+    /// <summary>Второй аргумент <c>char</c> часто читают через <c>mov al, [bp+n]</c> или сравнивают как байт.</summary>
+    private static CType InferParameterType(int offset, IReadOnlyList<Instruction> instructions)
+    {
+        if (offset == 6 && UsesByteParameter(instructions, offset))
+        {
+            return CType.Char;
+        }
+
+        return CType.Int;
+    }
+
+    private static bool UsesByteParameter(IReadOnlyList<Instruction> instructions, int offset)
+    {
+        var loadsByteFromStack = false;
+        var comparesByteToMemory = false;
+
+        foreach (var instr in instructions)
+        {
+            if (instr.Mnemonic == Mnemonic.MOV
+                && TargetIsAl(instr.Operand1)
+                && IsBpByteLoad(instr.Operand2, offset))
+            {
+                loadsByteFromStack = true;
+            }
+
+            if (instr.Mnemonic == Mnemonic.CMP
+                && OperandIsAl(instr.Operand2)
+                && instr.Operand1.Type == OperandType.Memory)
+            {
+                comparesByteToMemory = true;
+            }
+        }
+
+        return loadsByteFromStack && comparesByteToMemory;
+    }
+
+    private static bool OperandIsAl(Operand operand) =>
+        operand.Type == OperandType.Register8 && operand.AsGpRegister8() == GpRegister8.AL;
+
+    private static bool TargetIsAl(Operand operand) =>
+        operand.Type == OperandType.Register8 && operand.AsGpRegister8() == GpRegister8.AL;
+
+    private static bool IsBpByteLoad(Operand operand, int offset) =>
+        operand.Type == OperandType.Memory
+        && operand.BaseReg == AddressRegister.BP
+        && operand.IndexReg == AddressRegister.None
+        && operand.Value == offset;
 
     private static CType AnalyzeReturnType(IReadOnlyList<Instruction> instructions)
     {

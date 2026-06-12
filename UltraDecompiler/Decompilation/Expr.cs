@@ -132,6 +132,20 @@ public record ImageOffsetExpr(string BaseName, int Value) : Expr
     public override string ToString() => $"{BaseName} + 0x{Value:X4}";
 }
 
+/// <summary>Символьный литерал QuickC (<c>'a'</c>).</summary>
+public record CharConstExpr(char Value) : Expr
+{
+    public override string ToString() => Value switch
+    {
+        '\\' => "'\\\\'",
+        '\'' => "'\\''",
+        '\n' => "'\\n'",
+        '\r' => "'\\r'",
+        '\t' => "'\\t'",
+        _ => $"'{Value}'",
+    };
+}
+
 /// <summary>
 /// Строковый литерал. Появляется, когда аргумент функции по сигнатуре из заголовка имеет тип char*
 /// (например, форматная строка printf). Создаётся в CallSiteResolver из ConstExpr/ImageOffsetExpr
@@ -335,6 +349,7 @@ public record Math2Expr(Math2Operation Operation, Expr First, Expr Second) : Exp
             Math2Operation.Sub => "-",
             Math2Operation.Shl => "<<",
             Math2Operation.Shr => ">>",
+            Math2Operation.And when LooksLikeBooleanAnd(First, Second) => "&&",
             Math2Operation.And => "&",
             Math2Operation.Or => "|",
             Math2Operation.Xor => "^",
@@ -357,6 +372,12 @@ public record Math2Expr(Math2Operation Operation, Expr First, Expr Second) : Exp
 
         return result;
     }
+
+    private static bool LooksLikeBooleanAnd(Expr left, Expr right) =>
+        IsBooleanLike(left) && IsBooleanLike(right);
+
+    private static bool IsBooleanLike(Expr expr) =>
+        expr is CmpExpr or Math2Expr { Operation: Math2Operation.And };
 }
 
 /// <summary>

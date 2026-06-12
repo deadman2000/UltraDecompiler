@@ -110,6 +110,7 @@ public class Decompiler
             var operations = procedure.Expressions!.GetAllOperations();
             operations = StackCheckDetector.RemoveChkstkCalls(operations);
             operations = OperationOptimizer.Optimize(operations);
+            operations = MainParameterNormalizer.Normalize(procedure, operations);
             procedure.Callees = ProcedureDependencyCollector.Collect(operations);
             VariableTypeInferrer.Infer(operations, storage, headerCatalog);
             StructLocalInferrer.Infer(procedure, operations, storage, headerCatalog);
@@ -123,9 +124,25 @@ public class Decompiler
             operations = IfElseReturnFlattener.Flatten(operations);
             operations = VoidReturnNormalizer.Normalize(procedure, operations);
             operations = PointerCompareSimplifier.Simplify(operations);
+            operations = IfEarlyReturnInverter.Invert(operations);
+            operations = ReturnBranchSwapper.Swap(operations);
+            operations = BooleanPredicateReturnNormalizer.Normalize(procedure, operations);
             operations = WhileLoopRecognizer.Convert(operations);
+            operations = ArgvEnvpLoopSimplifier.Simplify(operations);
+            operations = WhileLoopRecognizer.Convert(operations);
+            operations = ArgvIterationNormalizer.Normalize(operations);
+            operations = ArgvVerboseContinueNormalizer.Normalize(operations);
+            operations = ArgvLoopIncrementHoister.Hoist(operations);
+            operations = ArgvIterationNormalizer.Normalize(operations);
+            operations = ArgvEnvpForLoopRecognizer.Convert(operations);
+            operations = IfElseReturnFlattener.FlattenSingleSidedReturns(operations);
+            operations = CharLiteralMaterializer.Materialize(storage, operations);
+            operations = FlagCallLiteralMaterializer.Materialize(operations);
             operations = CharPtrLiteralMaterializer.MaterializeCalls(operations, storage, parser.Image, imageLayout);
+            operations = ArgvIterationNormalizer.Normalize(operations);
             operations = PointerLoopBodySimplifier.Simplify(operations);
+            operations = OperationOptimizer.Optimize(operations);
+            operations = UnreachableOperationTrimmer.Trim(operations);
             preparedProcedures.Add((procedure, operations));
         }
 

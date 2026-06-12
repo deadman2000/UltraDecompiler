@@ -105,6 +105,64 @@ public class VariableStorage
     }
 
     /// <summary>
+    /// Гарантирует стандартные параметры <c>main</c> на смещениях 4/6/(8) с именами argc/argv/envp.
+    /// </summary>
+    /// <returns>Параметры и отображение старых переменных параметров на обновлённые экземпляры.</returns>
+    public (IReadOnlyList<FunctionParameter> Parameters, IReadOnlyDictionary<Variable, Variable> Renames) EnsureMainParameters(
+        bool includeArgc,
+        bool includeArgv,
+        bool includeEnvp)
+    {
+        StackFrameActive = true;
+
+        var specs = new List<(int Offset, string Name, CType Type)>();
+
+        if (includeArgc)
+        {
+            specs.Add((4, "argc", CType.Int));
+        }
+
+        if (includeArgv)
+        {
+            specs.Add((6, "argv", CType.CharPtrPtr));
+        }
+
+        if (includeEnvp)
+        {
+            specs.Add((8, "envp", CType.CharPtrPtr));
+        }
+
+        var result = new List<FunctionParameter>(specs.Count);
+        var renames = new Dictionary<Variable, Variable>(ReferenceEqualityComparer.Instance);
+
+        foreach (var (offset, name, type) in specs)
+        {
+            Variable variable;
+            if (!_stackParameters.TryGetValue(offset, out var existing))
+            {
+                variable = CreateVariable(name);
+                variable.Type = type;
+                _stackParameters[offset] = variable;
+            }
+            else
+            {
+                variable = existing with { Name = name };
+                variable.Type = type;
+                if (!ReferenceEquals(existing, variable))
+                {
+                    renames[existing] = variable;
+                }
+
+                _stackParameters[offset] = variable;
+            }
+
+            result.Add(new FunctionParameter(offset, variable));
+        }
+
+        return (result, renames);
+    }
+
+    /// <summary>
     /// Возвращает переменную параметра для обращения [BP+disp], если кадр активен.
     /// </summary>
     public Variable? TryGetStackParameter(int bpDisplacement)

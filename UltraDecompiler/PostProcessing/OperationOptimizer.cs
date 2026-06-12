@@ -122,6 +122,22 @@ public static class OperationOptimizer
                     operations.RemoveAt(i);
                     i--;
                     changed = true;
+                    continue;
+                }
+
+                if (set.Dst.IsTemp
+                    && i + 1 < operations.Count
+                    && operations[i + 1] is IfOperation branch
+                    && IsOnlyUsedInIfCondition(branch, set.Dst)
+                    && IsSafeToInlineIntoCall(set.Src))
+                {
+                    operations[i + 1] = new IfOperation(
+                        ExprSubstitution.Replace(branch.Condition, set.Dst, set.Src),
+                        branch.ThenBody,
+                        branch.ElseBody);
+                    operations.RemoveAt(i);
+                    i--;
+                    changed = true;
                 }
             }
         }
@@ -332,6 +348,11 @@ public static class OperationOptimizer
     /// Разрешает подставить <c>temp = expr</c> напрямую в аргументы единственного вызова.
     /// Не дублируем вызовы с побочными эффектами и сегментные обращения (dos.c и т.п.).
     /// </summary>
+    private static bool IsOnlyUsedInIfCondition(IfOperation branch, Variable variable) =>
+        ExprSubstitution.Contains(branch.Condition, variable)
+        && !branch.ThenBody.Any(op => ReadsVariableDeep(op, variable))
+        && !(branch.ElseBody?.Any(op => ReadsVariableDeep(op, variable)) ?? false);
+
     private static bool CanPropagateToCall(
         IReadOnlyList<Operation> operations,
         int setIndex,

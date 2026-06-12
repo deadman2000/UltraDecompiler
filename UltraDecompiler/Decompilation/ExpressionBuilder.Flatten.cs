@@ -83,17 +83,31 @@ public partial class ExpressionBuilder
             if (block.ConditionalBlock != null && block.Condition != null)
             {
                 var merge = FindMerge(block.ConditionalBlock, block.Next);
+                var thenStop = ReferenceEquals(merge, block.ConditionalBlock) ? null : merge;
 
                 var thenBody = new List<Operation>();
-                CollectOperations(block.ConditionalBlock, thenBody, visited, stopBefore: merge);
+                CollectOperations(block.ConditionalBlock, thenBody, visited, stopBefore: thenStop);
 
                 List<Operation>? elseBody = null;
+                var mergeUsedAsElse = false;
                 if (block.Next != null)
                 {
                     var elseOps = new List<Operation>();
                     CollectOperations(block.Next, elseOps, visited, stopBefore: merge);
                     if (elseOps.Count > 0)
+                    {
                         elseBody = elseOps;
+                    }
+                    else if (merge is not null
+                             && !ReferenceEquals(merge, block.ConditionalBlock)
+                             && !IsLoopHeader(block, block.ConditionalBlock)
+                             && MergeIsReturnOnly(merge, visited))
+                    {
+                        elseBody = [];
+                        CollectOperations(merge, elseBody, visited);
+                        visited.Add(merge);
+                        mergeUsedAsElse = true;
+                    }
                 }
 
                 result.Add(new IfOperation(block.Condition, thenBody, elseBody));
@@ -108,8 +122,13 @@ public partial class ExpressionBuilder
                     return;
                 }
 
-                block = merge;
-                continue;
+                if (merge is not null && !mergeUsedAsElse && !visited.Contains(merge))
+                {
+                    block = merge;
+                    continue;
+                }
+
+                return;
             }
 
             block = block.Next;
@@ -132,8 +151,15 @@ public partial class ExpressionBuilder
 
         foreach (var candidate in thenReach)
         {
-            if (!elseReach.Contains(candidate))
+            if (ReferenceEquals(candidate, thenStart))
+            {
                 continue;
+            }
+
+            if (!elseReach.Contains(candidate))
+            {
+                continue;
+            }
 
             int offset = candidate.BasicBlock.StartOffset;
             if (offset < mergeOffset)
@@ -179,4 +205,27 @@ public partial class ExpressionBuilder
 
     private static bool BranchEndsWithReturn(IReadOnlyList<Operation> body) =>
         body.Any(static op => op is ReturnOperation);
+
+    /// <summary>Условие на заголовке цикла: ветка «истина» снова достигает этот блок.</summary>
+    private static bool IsLoopHeader(ExprBlock block, ExprBlock? thenStart)
+    {
+        if (thenStart is null)
+        {
+            return false;
+        }
+
+        return CollectReachable(thenStart).Contains(block);
+    }
+
+    /// <summary>
+    /// Точка слияния — только return (ранний выход), а не эпилог вроде <c>*dst = 0</c> после цикла.
+    /// </summary>
+    private static bool MergeIsReturnOnly(ExprBlock merge, HashSet<ExprBlock> visited)
+    {
+        var probe = new List<Operation>();
+        var probeVisited = new HashSet<ExprBlock>(visited);
+        CollectOperations(merge, probe, probeVisited);
+        return probe.Count > 0 && probe.All(static op => op is ReturnOperation);
+    }
+
 }

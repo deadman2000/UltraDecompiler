@@ -17,7 +17,7 @@ internal static class ExprSubstitution
 
         return expr switch
         {
-            ConstExpr or StringExpr or ImageOffsetExpr => expr,
+            ConstExpr or CharConstExpr or StringExpr or ImageOffsetExpr => expr,
             Variable => expr,
             MemberExpr member => member with { Base = Replace(member.Base, from, to) },
             AddressOfExpr addr => addr with { Operand = Replace(addr.Operand, from, to) },
@@ -172,7 +172,7 @@ internal static class ExprSubstitution
 
         return expr switch
         {
-            ConstExpr or StringExpr or ImageOffsetExpr => false,
+            ConstExpr or CharConstExpr or StringExpr or ImageOffsetExpr => false,
             MemberExpr member => Contains(member.Base, variable),
             AddressOfExpr addr => Contains(addr.Operand, variable),
             Math1Expr m => Contains(m.Op, variable),

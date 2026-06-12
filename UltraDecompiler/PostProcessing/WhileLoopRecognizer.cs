@@ -24,6 +24,17 @@ public static class WhileLoopRecognizer
                 continue;
             }
 
+            if (TryConvertArgcBoundLoop(branch, out var argcLoop, out var tailOps))
+            {
+                operations[i] = argcLoop;
+                if (tailOps is { Count: > 0 })
+                {
+                    operations.InsertRange(i + 1, tailOps);
+                }
+
+                continue;
+            }
+
             if (!ShouldConvertToWhile(branch))
             {
                 continue;
@@ -73,6 +84,12 @@ public static class WhileLoopRecognizer
 
     private static bool ConditionUsesCharPointerDeref(Expr condition)
     {
+        if (CharPtrArrayFormatter.IsArgvEnvpElementAccess(condition)
+            || (condition is CmpExpr cmp && CharPtrArrayFormatter.IsArgvEnvpElementAccess(cmp.Left)))
+        {
+            return true;
+        }
+
         foreach (var mem in ExprSubstitution.CollectMemExprs(condition))
         {
             if (PointerDerefFormatter.IsNearPointerDeref(mem))
@@ -83,4 +100,45 @@ public static class WhileLoopRecognizer
 
         return false;
     }
+
+    /// <summary>
+    /// <c>if (i &gt;= argc) { } else { ... }</c> или <c>if (i &gt;= argc) { exit } else { body }</c>
+    /// → <c>while (i &lt; argc) { body }</c> [+ exit после цикла].
+    /// </summary>
+    private static bool TryConvertArgcBoundLoop(
+        IfOperation branch,
+        out WhileOperation loop,
+        out IReadOnlyList<Operation>? tail)
+    {
+        loop = null!;
+        tail = null;
+
+        if (branch.ElseBody is not { Count: > 0 } body)
+        {
+            return false;
+        }
+
+        if (branch.Condition is not CmpExpr { Operation: CmpOperation.Uge, Left: Variable index, Right: Variable argc }
+            || argc.Name != "argc")
+        {
+            return false;
+        }
+
+        if (IsNopBody(branch.ThenBody))
+        {
+            loop = new WhileOperation(new CmpExpr(CmpOperation.Ult, index, argc), body);
+            return true;
+        }
+
+        if (!branch.ThenBody.Any(static op => op is ReturnOperation))
+        {
+            return false;
+        }
+
+        loop = new WhileOperation(new CmpExpr(CmpOperation.Ult, index, argc), body);
+        tail = branch.ThenBody;
+        return true;
+    }
+
+    private static bool IsNopBody(IReadOnlyList<Operation> body) => body.Count == 0;
 }

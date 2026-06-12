@@ -9,6 +9,18 @@ internal static class UsedVariableCollector
 {
     private static readonly IEqualityComparer<Variable> ByReference = ReferenceEqualityComparer.Instance;
 
+    /// <summary>Собирает все переменные, упомянутые в операциях (включая параметры в условиях).</summary>
+    public static IReadOnlyCollection<Variable> CollectReferenced(IEnumerable<Operation> operations)
+    {
+        var result = new Dictionary<Variable, Variable>(ByReference);
+        foreach (var op in ExpressionBuilder.EnumerateNested(operations))
+        {
+            AddVariablesFromOperation(op, result);
+        }
+
+        return result.Keys;
+    }
+
     /// <summary>
     /// Возвращает локальные переменные процедуры для объявления в C.
     /// Параметры функции (<paramref name="parameterVariables"/>) исключаются.
@@ -136,6 +148,18 @@ internal static class UsedVariableCollector
                 {
                     AddFromExpr(arg, result);
                 }
+                break;
+            case CharPtrArrayFormatter.SyntheticLoadExpr synthetic:
+                if (synthetic.Array is not null)
+                {
+                    AddVariable(synthetic.Array, result);
+                }
+
+                if (synthetic.Index is not null)
+                {
+                    AddVariable(synthetic.Index, result);
+                }
+
                 break;
         }
     }

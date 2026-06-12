@@ -28,6 +28,7 @@ public static class Extensions
                 WhileOperation w => FormatWhile(w, indent),
                 ForOperation f => FormatFor(f, indent),
                 IfOperation i => FormatIf(i, indent),
+                ContinueOperation => FormatContinue(indent),
                 _ => Indent(indent) + op.ToString(),
             };
 
@@ -126,6 +127,8 @@ public static class Extensions
         sb.AppendLine($"{Indent(indent)}}}");
         return sb.ToString();
     }
+
+    static string FormatContinue(int indent) => $"{Indent(indent)}continue";
 
     static string FormatIf(IfOperation branch, int indent)
     {

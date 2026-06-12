@@ -32,6 +32,9 @@ public sealed record CType(CTypeKind Kind, CType? Pointee = null, string? Struct
     /// <summary>Указатель на char (char*), используется для форматных строк printf и т.п.</summary>
     public static CType CharPtr { get; } = new(CTypeKind.Pointer, new CType(CTypeKind.Char));
 
+    /// <summary>Указатель на char* (<c>char **</c>, параметры <c>argv</c>/<c>envp</c> в main).</summary>
+    public static CType CharPtrPtr { get; } = new(CTypeKind.Pointer, CharPtr);
+
     /// <summary>Структура из заголовка QuickC (<c>struct name</c>).</summary>
     public static CType StructType(string name) => new(CTypeKind.Struct, StructName: name);
 
@@ -49,6 +52,10 @@ public sealed record CType(CTypeKind Kind, CType? Pointee = null, string? Struct
     public bool IsCharPtr =>
         (Kind == CTypeKind.Char && Pointee != null) ||
         (Kind == CTypeKind.Pointer && Pointee?.Kind == CTypeKind.Char);
+
+    /// <summary>Является ли тип char** (<c>char *argv[]</c> / <c>char *envp[]</c>).</summary>
+    public bool IsCharPtrPtr =>
+        Kind == CTypeKind.Pointer && Pointee?.IsCharPtr == true;
 
     /// <summary>Является ли тип void*.</summary>
     public bool IsVoidPtr =>

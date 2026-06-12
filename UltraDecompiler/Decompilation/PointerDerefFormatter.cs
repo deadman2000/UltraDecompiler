@@ -1,3 +1,5 @@
+using UltraDecompiler.PostProcessing;
+
 namespace UltraDecompiler.Decompilation;
 
 /// <summary>
@@ -11,6 +13,16 @@ public static class PointerDerefFormatter
     public static bool TryFormatLoad(MemExpr mem, out string formatted)
     {
         formatted = string.Empty;
+
+        if (CharPtrArrayFormatter.TryFormatCharPtrArrayElement(mem, out formatted, out _, out _))
+        {
+            return true;
+        }
+
+        if (CharPtrArrayFormatter.TryFormatCharPtrElement(mem, out formatted, out _, out _))
+        {
+            return true;
+        }
 
         if (!TryGetNearPointerBase(mem, out var ptr))
         {
@@ -35,6 +47,11 @@ public static class PointerDerefFormatter
         ptr = null!;
 
         if (mem.Address is not Variable variable || IsSegmentBase(variable))
+        {
+            return false;
+        }
+
+        if (variable.Type?.IsCharPtrPtr == true)
         {
             return false;
         }

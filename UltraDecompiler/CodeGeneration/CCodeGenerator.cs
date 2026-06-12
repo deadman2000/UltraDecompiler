@@ -95,7 +95,7 @@ public static class CCodeGenerator
     {
         var sb = new StringBuilder();
         var returnType = procedure.Signature.ReturnType.ToString();
-        var parameters = FormatParameterList(procedure.Signature);
+        var parameters = FormatParameterList(procedure);
         sb.AppendLine($"{returnType} {procedure.Name}({parameters})");
         sb.AppendLine("{");
 
@@ -179,14 +179,32 @@ public static class CCodeGenerator
         return $"    {variable.DeclaredType} {variable};";
     }
 
-    private static string FormatParameterList(ProcedureSignature signature)
+    private static string FormatParameterList(DisassembledProcedure procedure)
     {
-        if (signature.Parameters.Count == 0)
+        if (procedure.Signature.Parameters.Count == 0)
         {
             return "void";
         }
 
-        return string.Join(", ", signature.Parameters.Select(static (p, i) => $"{p.Type} arg{i}"));
+        if (procedure.Name == "main")
+        {
+            return FormatMainParameterList(procedure.Signature);
+        }
+
+        return string.Join(
+            ", ",
+            procedure.Signature.Parameters.Select(static (p, i) => $"{p.Type} arg{i}"));
+    }
+
+    private static string FormatMainParameterList(ProcedureSignature signature)
+    {
+        var parts = new List<string> { "int argc", "char *argv[]" };
+        if (signature.Parameters.Count >= 3)
+        {
+            parts.Add("char *envp[]");
+        }
+
+        return string.Join(", ", parts);
     }
 
     /// <summary>
@@ -209,7 +227,7 @@ public static class CCodeGenerator
     public static string FormatHeaderDeclaration(DisassembledProcedure procedure)
     {
         var returnType = procedure.Signature.ReturnType.ToString();
-        var parameters = FormatParameterList(procedure.Signature);
+        var parameters = FormatParameterList(procedure);
         return $"{returnType} {procedure.Name}({parameters});";
     }
 

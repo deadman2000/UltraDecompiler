@@ -43,17 +43,23 @@ public static class PointerCompareSimplifier
 
     private static Expr SimplifyCondition(Expr condition)
     {
-        if (condition is not CmpExpr { Operation: CmpOperation.Ne, Right: ConstExpr { Value: 0 } } cmp)
+        if (condition is not CmpExpr cmp || cmp.Right is not ConstExpr { Value: var constValue })
         {
             return condition;
         }
 
-        if (TryExtractCharPointerLoad(cmp.Left, out var ptrLoad))
+        if (!TryExtractCharPointerLoad(cmp.Left, out var ptrLoad))
         {
-            return new CmpExpr(CmpOperation.Ne, ptrLoad, ConstExpr.Zero);
+            return condition;
         }
 
-        return condition;
+        return cmp.Operation switch
+        {
+            CmpOperation.Ne when constValue == 0 => new CmpExpr(CmpOperation.Ne, ptrLoad, ConstExpr.Zero),
+            CmpOperation.Eq => new CmpExpr(CmpOperation.Eq, ptrLoad, new ConstExpr(constValue & 0xFF)),
+            CmpOperation.Ne => new CmpExpr(CmpOperation.Ne, ptrLoad, new ConstExpr(constValue & 0xFF)),
+            _ => condition,
+        };
     }
 
     private static bool TryExtractCharPointerLoad(Expr expr, out Expr load)
