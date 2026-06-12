@@ -18,7 +18,8 @@ public static class CCodeGenerator
     public static string FormatCSource(
         DisassembledProcedure procedure,
         IReadOnlyList<Operation> operations,
-        IReadOnlyList<string> includeDirectives)
+        IReadOnlyList<string> includeDirectives,
+        IReadOnlyList<Variable>? globals = null)
     {
         var sb = new StringBuilder();
 
@@ -32,6 +33,7 @@ public static class CCodeGenerator
             sb.AppendLine();
         }
 
+        AppendGlobalDeclarations(sb, globals);
         sb.Append(FormatCFunction(procedure, operations));
         return sb.ToString();
     }
@@ -42,7 +44,8 @@ public static class CCodeGenerator
     /// даёт побайтовое совпадение с исходной однофайловой сборкой.
     /// </summary>
     public static string FormatCombinedCSource(
-        IReadOnlyList<(DisassembledProcedure Procedure, IReadOnlyList<Operation> Operations, IReadOnlyList<string> Includes)> units)
+        IReadOnlyList<(DisassembledProcedure Procedure, IReadOnlyList<Operation> Operations, IReadOnlyList<string> Includes)> units,
+        IReadOnlyList<Variable>? globals = null)
     {
         var sb = new StringBuilder();
         var includes = units
@@ -61,6 +64,8 @@ public static class CCodeGenerator
         {
             sb.AppendLine();
         }
+
+        AppendGlobalDeclarations(sb, globals);
 
         for (var i = 0; i < units.Count; i++)
         {
@@ -166,6 +171,27 @@ public static class CCodeGenerator
         {
             sb.AppendLine();
         }
+    }
+
+    private static void AppendGlobalDeclarations(StringBuilder sb, IReadOnlyList<Variable>? globals)
+    {
+        if (globals is not { Count: > 0 })
+        {
+            return;
+        }
+
+        foreach (var global in globals)
+        {
+            sb.AppendLine(FormatGlobalDeclaration(global));
+        }
+
+        sb.AppendLine();
+    }
+
+    private static string FormatGlobalDeclaration(Variable global)
+    {
+        var initializer = global.InitialValue is int value ? $" = {value}" : string.Empty;
+        return $"{global.DeclaredType} {global.Name}{initializer};";
     }
 
     private static string FormatLocalDeclaration(Variable variable)

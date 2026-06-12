@@ -1,6 +1,5 @@
 bits.c
 fptr.c
-glob.c
 int86.c
 jmp.c
 long.c

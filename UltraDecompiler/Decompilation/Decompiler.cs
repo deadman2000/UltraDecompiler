@@ -146,6 +146,15 @@ public class Decompiler
             preparedProcedures.Add((procedure, operations));
         }
 
+        var globalRegistry = new GlobalVariableRegistry();
+        for (var i = 0; i < preparedProcedures.Count; i++)
+        {
+            var (procedure, operations) = preparedProcedures[i];
+            preparedProcedures[i] = (
+                procedure,
+                GlobalVariableMaterializer.Materialize(operations, globalRegistry, parser.Image, imageLayout));
+        }
+
         // Заголовки — только при одном .c на процедуру (в объединённом .c прототипы не нужны).
         var referencedUserProcedures = ProcedureDependencyCollector.CollectReferencedUserProcedureNames(
             userProcedures,
@@ -185,7 +194,7 @@ public class Decompiler
         if (preparedProcedures.Count > 1)
         {
             var combinedFileName = CCodeGenerator.FormatCombinedSourceFileName(Path.GetFileName(exePath));
-            var combinedSource = CCodeGenerator.FormatCombinedCSource(combinedUnits);
+            var combinedSource = CCodeGenerator.FormatCombinedCSource(combinedUnits, globalRegistry.All);
             var combinedPath = Path.Combine(outputDirectory, combinedFileName);
             File.WriteAllText(combinedPath, combinedSource, Encoding.ASCII);
             outputFiles.Add(combinedPath);
@@ -195,7 +204,7 @@ public class Decompiler
         {
             var (procedure, operations) = preparedProcedures[0];
             var includes = combinedUnits[0].Includes;
-            var source = CCodeGenerator.FormatCSource(procedure, operations, includes);
+            var source = CCodeGenerator.FormatCSource(procedure, operations, includes, globalRegistry.All);
             var fileName = CCodeGenerator.FormatOutputFileName(procedure.Name, procedure.Offset);
             var filePath = Path.Combine(outputDirectory, fileName);
             File.WriteAllText(filePath, source, Encoding.ASCII);

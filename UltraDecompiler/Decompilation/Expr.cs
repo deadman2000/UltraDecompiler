@@ -48,15 +48,17 @@ static class Prec
 /// <param name="IsStack">Локаль стекового кадра [BP±disp].</param>
 /// <param name="IsTemp">Временная переменная IR-анализа.</param>
 /// <param name="IsInternal">Служебная переменная символического выполнения.</param>
+/// <param name="IsGlobal">Глобальная переменная DGROUP (объявляется вне функций).</param>
 public sealed record Variable(
     int Number = 0,
     string? Name = null,
     bool IsStack = false,
     bool IsTemp = false,
-    bool IsInternal = false) : Expr
+    bool IsInternal = false,
+    bool IsGlobal = false) : Expr
 {
-    /// <summary>Нужно ли объявление переменной в сгенерированном C-коде.</summary>
-    public bool RequiresCDeclaration => IsStack || (!IsTemp && !IsInternal);
+    /// <summary>Нужно ли объявление переменной в сгенерированном C-коде (локально внутри функции).</summary>
+    public bool RequiresCDeclaration => IsStack || (!IsTemp && !IsInternal && !IsGlobal);
 
     /// <summary>
     /// Выведенный тип C (из сигнатуры вызова или копирования). <see langword="null"/> — <c>int</c>.
@@ -67,6 +69,9 @@ public sealed record Variable(
     /// Размер локального массива на стеке (<c>char buf[N]</c>), если известен из <c>_chkstk</c>.
     /// </summary>
     public int? ArraySize { get; set; }
+
+    /// <summary>Начальное значение глобала (из инициализированного _DATA в образе EXE).</summary>
+    public int? InitialValue { get; set; }
 
     /// <summary>Тип для объявления в C-коде (без имени; массивы оформляет <see cref="CCodeGenerator"/>).</summary>
     public string DeclaredType => (Type ?? CType.Int).ToString();
