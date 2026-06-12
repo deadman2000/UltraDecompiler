@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Linq.Expressions;
 using System.Text;
 using UltraDecompiler.CodeGeneration;
 using UltraDecompiler.Compilation;

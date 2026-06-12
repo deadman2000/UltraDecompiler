@@ -155,7 +155,7 @@ public class DecompilerIntegrationTests
                 .ToArray();
             Assert.Equal(new[] { 5, 10 }, argValues);
 
-            // Проверка variadic: printf в ADD_S.EXE должен иметь 2 аргумента
+            // Проверка variadic: printf в ADD.EXE должен иметь 2 аргумента
             // (адрес форматной строки + результат add, т.е. значение c)
             var printfCall = allCallExprs.FirstOrDefault(c =>
                 c != null &&

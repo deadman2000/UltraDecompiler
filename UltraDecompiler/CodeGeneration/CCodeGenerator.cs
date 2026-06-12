@@ -76,8 +76,8 @@ public static class CCodeGenerator
     }
 
     /// <summary>
-    /// Имя объединённого .c по имени EXE: <c>RECUR_S.EXE</c> → <c>RECUR_S.c</c>.
-    /// Stem должен укладываться в DOS 8.3 (как у типичного <c>*_S.EXE</c> round-trip).
+    /// Имя объединённого .c по имени EXE: <c>RECUR.EXE</c> → <c>RECUR.c</c>.
+    /// Stem должен укладываться в DOS 8.3
     /// </summary>
     public static string FormatCombinedSourceFileName(string exeFileName)
     {

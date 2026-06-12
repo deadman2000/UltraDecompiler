@@ -1,5 +1,4 @@
 using TestSupport;
-using UltraDecompiler.Compilation;
 using UltraDecompiler.Decompilation;
 using UltraDecompiler.Decompilation.Operations;
 using UltraDecompiler.PostProcessing;
@@ -9,7 +8,7 @@ namespace DecompilerTests.Decompilation;
 /// <summary>Детекция /Gs (проверка стека) и удаление вызовов _chkstk из сгенерированного C.</summary>
 public class StackCheckDetectorTests
 {
-    // hello_s.exe со stack check: флаг включён, _chkstk() не попадает в main.c
+    // hello.exe со stack check: флаг включён, _chkstk() не попадает в main.c
     [Fact]
     public void Decompile_HelloSmall_DetectsStackCheckAndRemovesChkstkFromC()
     {
@@ -39,7 +38,7 @@ public class StackCheckDetectorTests
         }
     }
 
-    // add_s.exe: _chkstk убирается из main.c и всех sub_*.c пользователя
+    // add.exe: _chkstk убирается из main.c и всех sub_*.c пользователя
     [Fact]
     public void Decompile_AddSmall_DetectsStackCheckAndRemovesChkstkFromAllUserFunctions()
     {

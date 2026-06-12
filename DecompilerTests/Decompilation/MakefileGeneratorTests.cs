@@ -8,8 +8,8 @@ namespace DecompilerTests.Decompilation;
 /// <summary>Генерация MAKEFILE для пересборки декомпилированных исходников через QCL.</summary>
 public class MakefileGeneratorTests
 {
-    // hello_s.exe: small-модель, stack check, SLIBCE.LIB, без /Gs
-    // Ожидаемый фрагмент MAKEFILE: CFLAGS := /nologo /AS /Od, TARGET := HELLO_S.EXE
+    // hello.exe: small-модель, stack check, SLIBCE.LIB, без /Gs
+    // Ожидаемый фрагмент MAKEFILE: CFLAGS := /nologo /AS /Od, TARGET := HELLO.EXE
     [Fact]
     public void FormatMakefile_HelloSmall_ContainsQuickCBuildRecipe()
     {
@@ -20,7 +20,7 @@ public class MakefileGeneratorTests
         {
             var makefile = MakefileGenerator.FormatMakefile(new MakefileOptions
             {
-                TargetExeFileName = "HELLO_S.EXE",
+                TargetExeFileName = "HELLO.EXE",
                 SourceFileNames = ["main.c"],
                 CompilerOptions = new CompilerOptions
                 {
@@ -32,7 +32,7 @@ public class MakefileGeneratorTests
             });
 
             Assert.Contains("CFLAGS := /nologo /AS /Od", makefile);
-            Assert.Contains("TARGET := HELLO_S.EXE", makefile);
+            Assert.Contains("TARGET := HELLO.EXE", makefile);
             Assert.Contains("SRCS   := main.c", makefile);
             Assert.Contains("SLIBCE.LIB", makefile);
             Assert.Contains("QCL.EXE", makefile);

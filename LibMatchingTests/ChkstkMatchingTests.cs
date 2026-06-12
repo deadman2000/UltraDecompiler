@@ -1,6 +1,5 @@
 using LibParser.Omf;
 using TestSupport;
-using UltraDecompiler.Compilation;
 using UltraDecompiler.Disassembler;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.Parser;

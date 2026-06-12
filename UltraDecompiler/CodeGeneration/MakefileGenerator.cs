@@ -6,7 +6,7 @@ namespace UltraDecompiler.CodeGeneration;
 /// <summary>Параметры генерации Makefile для сборки декомпилированного проекта QuickC.</summary>
 public sealed record MakefileOptions
 {
-    /// <summary>Имя выходного .EXE (например <c>HELLO_S.EXE</c>).</summary>
+    /// <summary>Имя выходного .EXE (например <c>HELLO.EXE</c>).</summary>
     public required string TargetExeFileName { get; init; }
 
     /// <summary>Имена исходных .c файлов в каталоге вывода (без пути).</summary>

@@ -10,7 +10,6 @@ namespace DecompilerTests.Decompilation;
 [Trait("Tool", "DosBox")]
 public sealed class QuickCProgramRoundTripTests
 {
-    private const string MemoryModelSuffix = "S";
     private const string CrtLibrary = "SLIBCE.LIB";
     private const string DecompiledSubdirectory = "OUT";
     private const string CompilerFlags = "/nologo /AS /Gs";
@@ -89,10 +88,10 @@ public sealed class QuickCProgramRoundTripTests
         }
     }
 
-    /// <summary>Имя EXE для small-модели: <c>HELLO_S.EXE</c> (лимит 8.3 на stem).</summary>
+    /// <summary>Имя EXE для small-модели: <c>HELLO.EXE</c> (лимит 8.3 на stem).</summary>
     private static string FormatTargetExeFileName(string baseName)
     {
-        var stem = $"{baseName.ToUpperInvariant()}_{MemoryModelSuffix}";
+        var stem = baseName.ToUpperInvariant();
         Assert.True(
             stem.Length <= 8,
             $"Имя '{stem}.EXE' нарушает ограничение DOS 8.3: stem должен быть не длиннее 8 символов.");

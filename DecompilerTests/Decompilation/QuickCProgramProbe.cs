@@ -126,8 +126,7 @@ internal static class QuickCProgramProbe
 
     private static string FormatTargetExeFileName(string baseName)
     {
-        var stem = $"{baseName.ToUpperInvariant()}_S";
-        return $"{stem}.EXE";
+        return $"{baseName.ToUpperInvariant()}.EXE";
     }
 
     private static string DescribeExeMismatch(byte[] referenceBytes, byte[] rebuiltBytes, string makeOutput)
