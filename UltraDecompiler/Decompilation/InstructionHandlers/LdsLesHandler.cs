@@ -19,6 +19,22 @@ public class LdsLesHandler : IInstructionHandler
             throw new NotImplementedException("LDS/LES с регистром в качестве источника не поддерживается (недопустимая кодировка на 8086)");
         }
 
+        // Far-указатель на стеке: LES/LDS BX, [BP-4] загружает offset в BX и segment в ES/DS.
+        if (instr.Operand2.BaseReg == AddressRegister.BP && instr.Operand2.IndexReg == AddressRegister.None)
+        {
+            var baseDisp = instr.Operand2.Value;
+            var offsetVar = block.Variables.TryGetStackLocal(baseDisp);
+            var segmentVar = block.Variables.TryGetStackLocal(baseDisp + 2);
+            if (offsetVar is not null && segmentVar is not null)
+            {
+                block.Variables.RegisterFarPointerLocal(baseDisp, offsetVar, segmentVar);
+                var segReg = instr.Mnemonic == Mnemonic.LDS ? CpuSegmentRegister.DS : CpuSegmentRegister.ES;
+                block.EndRegisters = block.EndRegisters.Set16(instr.Operand1.AsGpRegister16(), offsetVar);
+                block.EndRegisters = block.EndRegisters.SetSegment(segReg, segmentVar);
+                return;
+            }
+        }
+
         // Адрес в памяти, по которому лежит far-указатель (DWORD: offset + segment)
         var (ptrAddr, ptrSeg) = instr.Operand2.BuildMemoryReference(block.EndRegisters, instr.Segment);
 
@@ -35,7 +51,7 @@ public class LdsLesHandler : IInstructionHandler
         block.EndRegisters = block.EndRegisters.Set16(instr.Operand1.AsGpRegister16(), offsetExpr);
 
         // Выбираем целевой сегментный регистр
-        var segReg = instr.Mnemonic == Mnemonic.LDS ? CpuSegmentRegister.DS : CpuSegmentRegister.ES;
-        block.EndRegisters = block.EndRegisters.SetSegment(segReg, segValue);
+        var targetSegReg = instr.Mnemonic == Mnemonic.LDS ? CpuSegmentRegister.DS : CpuSegmentRegister.ES;
+        block.EndRegisters = block.EndRegisters.SetSegment(targetSegReg, segValue);
     }
 }

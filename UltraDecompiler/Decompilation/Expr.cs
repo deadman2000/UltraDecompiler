@@ -57,8 +57,18 @@ public sealed record Variable(
     bool IsInternal = false,
     bool IsGlobal = false) : Expr
 {
+    /// <summary>Старшее слово far-указателя на стеке (не объявляется отдельно в C).</summary>
+    public bool IsMergedFarPointerSegment { get; set; }
+
+    /// <summary>Сегментная часть far-указателя, загруженная в ES/DS через LES/LDS.</summary>
+    public Variable? FarPointerSegmentVariable { get; set; }
+
+    /// <summary>Инициализатор far-указателя (<c>seg:off</c> в одном 32-битном литерале).</summary>
+    public uint? FarPointerInitializer { get; set; }
+
     /// <summary>Нужно ли объявление переменной в сгенерированном C-коде (локально внутри функции).</summary>
-    public bool RequiresCDeclaration => IsStack || (!IsTemp && !IsInternal && !IsGlobal);
+    public bool RequiresCDeclaration =>
+        !IsMergedFarPointerSegment && (IsStack || (!IsTemp && !IsInternal && !IsGlobal));
 
     /// <summary>
     /// Выведенный тип C (из сигнатуры вызова или копирования). <see langword="null"/> — <c>int</c>.

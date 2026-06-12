@@ -17,7 +17,7 @@ public enum CTypeKind
 }
 
 /// <summary>Тип C для сигнатуры процедуры.</summary>
-public sealed record CType(CTypeKind Kind, CType? Pointee = null, string? StructName = null)
+public sealed record CType(CTypeKind Kind, CType? Pointee = null, string? StructName = null, bool IsFar = false)
 {
     public static CType Void { get; } = new(CTypeKind.Void);
 
@@ -31,6 +31,9 @@ public sealed record CType(CTypeKind Kind, CType? Pointee = null, string? Struct
 
     /// <summary>Указатель на char (char*), используется для форматных строк printf и т.п.</summary>
     public static CType CharPtr { get; } = new(CTypeKind.Pointer, new CType(CTypeKind.Char));
+
+    /// <summary>Дальний указатель на char (<c>char far *</c>, видеопамять и сегментные буферы DOS).</summary>
+    public static CType CharFarPtr { get; } = new(CTypeKind.Pointer, Char, IsFar: true);
 
     /// <summary>Указатель на char* (<c>char **</c>, параметры <c>argv</c>/<c>envp</c> в main).</summary>
     public static CType CharPtrPtr { get; } = new(CTypeKind.Pointer, CharPtr);
@@ -50,8 +53,13 @@ public sealed record CType(CTypeKind Kind, CType? Pointee = null, string? Struct
 
     /// <summary>Является ли тип char* (в т.ч. const char* из заголовков).</summary>
     public bool IsCharPtr =>
-        (Kind == CTypeKind.Char && Pointee != null) ||
-        (Kind == CTypeKind.Pointer && Pointee?.Kind == CTypeKind.Char);
+        !IsFar &&
+        ((Kind == CTypeKind.Char && Pointee != null) ||
+        (Kind == CTypeKind.Pointer && Pointee?.Kind == CTypeKind.Char));
+
+    /// <summary>Является ли тип <c>char far *</c>.</summary>
+    public bool IsCharFarPtr =>
+        IsFar && Kind == CTypeKind.Pointer && Pointee?.Kind == CTypeKind.Char;
 
     /// <summary>Является ли тип char** (<c>char *argv[]</c> / <c>char *envp[]</c>).</summary>
     public bool IsCharPtrPtr =>
@@ -72,6 +80,8 @@ public sealed record CType(CTypeKind Kind, CType? Pointee = null, string? Struct
         CTypeKind.Float => "float",
         CTypeKind.Double => "double",
         CTypeKind.Struct => $"struct {StructName}",
+        CTypeKind.Pointer when IsFar && Pointee?.Kind == CTypeKind.Char => "char far *",
+        CTypeKind.Pointer when IsFar => $"{Pointee ?? new CType(CTypeKind.Unknown)} far *",
         CTypeKind.Pointer when Pointee?.Kind == CTypeKind.Struct => $"struct {Pointee.StructName}*",
         CTypeKind.Pointer => $"{Pointee ?? new CType(CTypeKind.Unknown)}*",
         CTypeKind.Unknown => "unknown",

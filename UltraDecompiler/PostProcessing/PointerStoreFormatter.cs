@@ -12,6 +12,11 @@ public static class PointerStoreFormatter
     /// </summary>
     public static bool TryFormat(StoreOperation store, out string lvalue)
     {
+        if (FarPointerFormatter.TryFormatStore(store, out lvalue))
+        {
+            return true;
+        }
+
         if (!TryGetIndexedPointer(store, out var ptr, out var index))
         {
             lvalue = string.Empty;
@@ -35,7 +40,7 @@ public static class PointerStoreFormatter
         index = 0;
 
         // Near-указатель в small-модели: сегмент (DS/_psp) + смещение в регистре-указателе.
-        if (store.Segment is null)
+        if (store.Segment is null || !PointerDerefFormatter.IsNearDataSegment(store.Segment))
         {
             return false;
         }

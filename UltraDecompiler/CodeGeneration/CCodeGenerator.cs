@@ -202,6 +202,11 @@ public static class CCodeGenerator
             return $"    char {variable}[{size}];";
         }
 
+        if (variable.Type?.IsCharFarPtr == true && variable.FarPointerInitializer is uint initializer)
+        {
+            return $"    char far *{variable} = (char far *)0x{initializer:X8}L;";
+        }
+
         return $"    {variable.DeclaredType} {variable};";
     }
 

@@ -13,6 +13,7 @@ public class VariableStorage
     private readonly Dictionary<int, Variable> _stackParameters = new();
     private readonly Dictionary<int, Variable> _stackLocals = new();
     private readonly List<(int BaseOffset, Variable Variable, StructDefinition Definition)> _structLocals = [];
+    private readonly List<(int BaseOffset, Variable BaseVariable, Variable SegmentVariable)> _farPointerLocals = [];
     private readonly Dictionary<Variable, (Variable Base, string FieldName)> _mergedFieldLocals = new();
     private int _stackNumber;
     private int _tempNumber;
@@ -28,6 +29,7 @@ public class VariableStorage
         _stackParameters.Clear();
         _stackLocals.Clear();
         _structLocals.Clear();
+        _farPointerLocals.Clear();
         _mergedFieldLocals.Clear();
         StackFrameActive = false;
         _stackNumber = 0;
@@ -216,6 +218,33 @@ public class VariableStorage
     /// <summary>Зарегистрированные на стеке структуры из заголовков.</summary>
     public IReadOnlyList<(int BaseOffset, Variable Variable, StructDefinition Definition)> StructLocals =>
         _structLocals;
+
+    /// <summary>Зарегистрированные на стеке far-указатели (<c>char far *</c>).</summary>
+    public IReadOnlyList<(int BaseOffset, Variable BaseVariable, Variable SegmentVariable)> FarPointerLocals =>
+        _farPointerLocals;
+
+    /// <summary>
+    /// Регистрирует пару стековых слов (offset + segment) как один far-указатель.
+    /// </summary>
+    public void RegisterFarPointerLocal(int baseOffset, Variable baseVariable, Variable segmentVariable)
+    {
+        if (_farPointerLocals.Any(e => ReferenceEquals(e.BaseVariable, baseVariable)))
+        {
+            return;
+        }
+
+        baseVariable.Type = CType.CharFarPtr;
+        baseVariable.FarPointerSegmentVariable = segmentVariable;
+        segmentVariable.IsMergedFarPointerSegment = true;
+
+        _farPointerLocals.Add((baseOffset, baseVariable, segmentVariable));
+
+        if (baseOffset + 2 != 0 && _stackLocals.TryGetValue(baseOffset + 2, out var merged) &&
+            ReferenceEquals(merged, segmentVariable))
+        {
+            _stackLocals.Remove(baseOffset + 2);
+        }
+    }
 
     /// <summary>
     /// Объединяет диапазон стековых локалей в одну переменную типа <paramref name="definition"/>.

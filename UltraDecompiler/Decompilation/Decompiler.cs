@@ -116,6 +116,7 @@ public class Decompiler
             StructLocalInferrer.Infer(procedure, operations, storage, headerCatalog);
             StackLocalArrayInferrer.Infer(procedure, operations);
             PointerTypeInferrer.Infer(procedure, operations, storage, headerCatalog);
+            operations = FarPointerLocalInferrer.Infer(procedure, operations);
             operations = VoidCallNormalizer.Normalize(operations, storage, headerCatalog);
             operations = StructFieldRewriter.Rewrite(procedure, operations, storage, headerCatalog);
             operations = StructFieldLoadSimplifier.Simplify(procedure, operations);

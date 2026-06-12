@@ -14,6 +14,11 @@ public static class PointerDerefFormatter
     {
         formatted = string.Empty;
 
+        if (FarPointerFormatter.TryFormatLoad(mem, out formatted))
+        {
+            return true;
+        }
+
         if (CharPtrArrayFormatter.TryFormatCharPtrArrayElement(mem, out formatted, out _, out _))
         {
             return true;
