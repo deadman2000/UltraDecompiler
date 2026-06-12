@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Common;
 using LibParser.Models;
 using LibParser.Omf;
@@ -20,6 +21,8 @@ namespace UltraDecompiler.LibMatching;
 /// </remarks>
 public sealed class LibraryProvider
 {
+    private static readonly ConcurrentDictionary<string, (long Signature, List<OmfLibrary> Libraries)> LoadCache = new();
+
     private readonly List<OmfLibrary> _allLibraries;
     private readonly List<OmfLibrary> _candidates;
     private readonly List<OmfLibrary> _linked = [];
@@ -36,17 +39,26 @@ public sealed class LibraryProvider
     /// </summary>
     public static List<OmfLibrary> LoadLibraries(string libraryDirectory)
     {
-        if (!Directory.Exists(libraryDirectory))
+        var fullPath = Path.GetFullPath(libraryDirectory);
+        var signature = ComputeLibraryDirectorySignature(fullPath);
+
+        if (LoadCache.TryGetValue(fullPath, out var cached) && cached.Signature == signature)
         {
-            throw new DirectoryNotFoundException($"Каталог библиотек не найден: {libraryDirectory}");
+            return cached.Libraries;
+        }
+
+        if (!Directory.Exists(fullPath))
+        {
+            throw new DirectoryNotFoundException($"Каталог библиотек не найден: {fullPath}");
         }
 
         var libraries = new List<OmfLibrary>();
-        foreach (var libraryPath in Directory.EnumerateFiles(libraryDirectory, "*.LIB").OrderBy(static p => p))
+        foreach (var libraryPath in Directory.EnumerateFiles(fullPath, "*.LIB").OrderBy(static p => p))
         {
             libraries.Add(OmfLibraryParser.ParseFile(libraryPath));
         }
 
+        LoadCache[fullPath] = (signature, libraries);
         return libraries;
     }
 
@@ -57,16 +69,7 @@ public sealed class LibraryProvider
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryDirectory);
 
-        if (!Directory.Exists(libraryDirectory))
-        {
-            throw new DirectoryNotFoundException($"Каталог библиотек не найден: {libraryDirectory}");
-        }
-
-        _allLibraries = new List<OmfLibrary>();
-        foreach (var libraryPath in Directory.EnumerateFiles(libraryDirectory, "*.LIB").OrderBy(static p => p))
-        {
-            _allLibraries.Add(OmfLibraryParser.ParseFile(libraryPath));
-        }
+        _allLibraries = LoadLibraries(libraryDirectory);
 
         if (_allLibraries.Count == 0)
         {
@@ -74,6 +77,22 @@ public sealed class LibraryProvider
         }
 
         _candidates = new List<OmfLibrary>(_allLibraries);
+    }
+
+    private static long ComputeLibraryDirectorySignature(string libraryDirectory)
+    {
+        if (!Directory.Exists(libraryDirectory))
+        {
+            return 0;
+        }
+
+        long signature = 0;
+        foreach (var libraryPath in Directory.EnumerateFiles(libraryDirectory, "*.LIB"))
+        {
+            signature ^= File.GetLastWriteTimeUtc(libraryPath).Ticks;
+        }
+
+        return signature;
     }
 
     /// <summary>Все загруженные библиотеки (не сужаются).</summary>

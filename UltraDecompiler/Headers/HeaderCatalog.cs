@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using UltraDecompiler.Decompilation;
 
@@ -8,6 +9,8 @@ namespace UltraDecompiler.Headers;
 /// </summary>
 public sealed class HeaderCatalog
 {
+    private static readonly ConcurrentDictionary<string, (long Signature, HeaderCatalog Catalog)> LoadCache = new();
+
     private readonly Dictionary<string, ProcedureSignature> _byName = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _headerFileByName = new(StringComparer.Ordinal);
     private readonly Dictionary<string, StructDefinition> _structsByName = new(StringComparer.Ordinal);
@@ -19,6 +22,21 @@ public sealed class HeaderCatalog
 
     /// <summary>Загружает все <c>*.H</c> из каталога.</summary>
     public static HeaderCatalog Load(string includeDirectory)
+    {
+        var fullPath = Path.GetFullPath(includeDirectory);
+        var signature = ComputeDirectorySignature(fullPath);
+
+        if (LoadCache.TryGetValue(fullPath, out var cached) && cached.Signature == signature)
+        {
+            return cached.Catalog;
+        }
+
+        var catalog = LoadUncached(fullPath);
+        LoadCache[fullPath] = (signature, catalog);
+        return catalog;
+    }
+
+    private static HeaderCatalog LoadUncached(string includeDirectory)
     {
         var catalog = new HeaderCatalog();
         if (!Directory.Exists(includeDirectory))
@@ -32,6 +50,23 @@ public sealed class HeaderCatalog
         }
 
         return catalog;
+    }
+
+    /// <summary>Сигнатура каталога по времени изменения всех <c>*.H</c> (для инвалидации кэша).</summary>
+    private static long ComputeDirectorySignature(string includeDirectory)
+    {
+        if (!Directory.Exists(includeDirectory))
+        {
+            return 0;
+        }
+
+        long signature = 0;
+        foreach (var path in Directory.EnumerateFiles(includeDirectory, "*.H", SearchOption.AllDirectories))
+        {
+            signature ^= File.GetLastWriteTimeUtc(path).Ticks;
+        }
+
+        return signature;
     }
 
     public bool TryGetSignature(string cName, out ProcedureSignature? signature) =>

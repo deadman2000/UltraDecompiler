@@ -15,20 +15,4 @@
 		<MaxParallelThreads>0</MaxParallelThreads>
 	</xUnit>
 
-	<!-- Coverlet: отчёты покрытия для UltraDecompiler и LibParser -->
-	<DataCollectionRunSettings>
-		<DataCollectors>
-			<DataCollector friendlyName="XPlat Code Coverage">
-				<Configuration>
-					<Format>cobertura,opencover,json</Format>
-					<Include>[UltraDecompiler]*,[LibParser]*</Include>
-					<Exclude>[*Tests]*</Exclude>
-					<ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
-					<IncludeTestAssembly>false</IncludeTestAssembly>
-					<SingleHit>false</SingleHit>
-					<UseSourceLink>true</UseSourceLink>
-				</Configuration>
-			</DataCollector>
-		</DataCollectors>
-	</DataCollectionRunSettings>
 </RunSettings>

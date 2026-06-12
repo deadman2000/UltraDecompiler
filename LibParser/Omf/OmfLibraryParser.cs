@@ -1,15 +1,28 @@
 namespace LibParser.Omf;
 
+using System.Collections.Concurrent;
 using LibParser.Models;
 
 /// <summary>Разбор файлов .LIB формата OMF (Microsoft QuickC / LINK).</summary>
 public static class OmfLibraryParser
 {
+    private static readonly ConcurrentDictionary<string, (long WriteTimeUtcTicks, OmfLibrary Library)> ParseFileCache = new();
+
     /// <summary>Загрузить и разобрать библиотеку из файла.</summary>
     public static OmfLibrary ParseFile(string path)
     {
-        var data = File.ReadAllBytes(path);
-        return Parse(data, Path.GetFileName(path));
+        var fullPath = Path.GetFullPath(path);
+        var writeTimeUtcTicks = File.GetLastWriteTimeUtc(fullPath).Ticks;
+
+        if (ParseFileCache.TryGetValue(fullPath, out var cached) && cached.WriteTimeUtcTicks == writeTimeUtcTicks)
+        {
+            return cached.Library;
+        }
+
+        var data = File.ReadAllBytes(fullPath);
+        var library = Parse(data, Path.GetFileName(fullPath));
+        ParseFileCache[fullPath] = (writeTimeUtcTicks, library);
+        return library;
     }
 
     /// <summary>Разобрать библиотеку из памяти.</summary>
