@@ -47,9 +47,14 @@ public static class VariableTypeInferrer
             return false;
         }
 
+        if (!AssignmentTarget.TryGetVariable(set.Dst, out var dstVar))
+        {
+            return false;
+        }
+
         if (set.Src is Variable srcVar && srcVar.Type is not null)
         {
-            return VariableSignedness.TrySetType(set.Dst, srcVar.Type);
+            return VariableSignedness.TrySetType(dstVar, srcVar.Type);
         }
 
         CType? inferred = set.Src switch
@@ -58,12 +63,12 @@ public static class VariableTypeInferrer
             _ => null,
         };
 
-        if (inferred is null || !ShouldApplyInferredType(set.Dst.Type, inferred))
+        if (inferred is null || !ShouldApplyInferredType(dstVar.Type, inferred))
         {
             return false;
         }
 
-        set.Dst.Type = inferred;
+        dstVar.Type = inferred;
         return true;
     }
 

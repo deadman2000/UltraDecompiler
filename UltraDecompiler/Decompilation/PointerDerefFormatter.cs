@@ -24,6 +24,11 @@ public static class PointerDerefFormatter
             return true;
         }
 
+        if (mem.Address is IncDecExpr incDec && TryFormatIncDecDeref(incDec, out formatted))
+        {
+            return true;
+        }
+
         if (!TryGetNearPointerBase(mem, out var ptr))
         {
             return false;
@@ -45,6 +50,11 @@ public static class PointerDerefFormatter
     public static bool TryGetNearPointerBase(MemExpr mem, out Variable ptr)
     {
         ptr = null!;
+
+        if (mem.Address is IncDecExpr incDec && TryGetIncDecPointerBase(incDec, out ptr))
+        {
+            return true;
+        }
 
         if (mem.Address is not Variable variable || IsSegmentBase(variable))
         {
@@ -87,4 +97,43 @@ public static class PointerDerefFormatter
 
     private static bool IsSegmentBase(Variable variable) =>
         variable.Name is "_psp";
+
+    private static bool TryGetIncDecPointerBase(IncDecExpr incDec, out Variable ptr)
+    {
+        ptr = null!;
+
+        if (incDec.Operand is not Variable variable || IsSegmentBase(variable))
+        {
+            return false;
+        }
+
+        if (variable.Type?.IsCharPtrPtr == true)
+        {
+            return false;
+        }
+
+        ptr = variable;
+        return true;
+    }
+
+    private static bool TryFormatIncDecDeref(IncDecExpr incDec, out string formatted)
+    {
+        formatted = string.Empty;
+
+        if (!TryGetIncDecPointerBase(incDec, out var ptr))
+        {
+            return false;
+        }
+
+        formatted = incDec.Kind switch
+        {
+            IncDecKind.PostInc => $"*{ptr}++",
+            IncDecKind.PreInc => $"*++{ptr}",
+            IncDecKind.PostDec => $"*{ptr}--",
+            IncDecKind.PreDec => $"*--{ptr}",
+            _ => string.Empty,
+        };
+
+        return formatted.Length > 0;
+    }
 }

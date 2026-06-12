@@ -35,14 +35,15 @@ public static class OperationOptimizer
                     continue;
                 }
 
-                if (operations[i] is not SetOperation set)
+                if (operations[i] is not SetOperation set
+                    || !AssignmentTarget.TryGetVariable(set.Dst, out var dstVar))
                 {
                     continue;
                 }
 
                 if (set.Src is Variable { IsTemp: true } tempVar
                     && TryFindTempExpressionAssignment(operations, i, tempVar, out var exprIndex, out var expr)
-                    && CanFoldTempIntoAssignment(operations, exprIndex, i, set.Dst, expr))
+                    && CanFoldTempIntoAssignment(operations, exprIndex, i, dstVar, expr))
                 {
                     var assignIndex = i;
                     operations.RemoveAt(exprIndex);
@@ -57,19 +58,19 @@ public static class OperationOptimizer
                     continue;
                 }
 
-                if (IsTailAssignmentForLoopHeader(operations, i, set.Dst))
+                if (IsTailAssignmentForLoopHeader(operations, i, dstVar))
                 {
                     continue;
                 }
 
-                if (!IsVariableReadAfter(operations, i, set.Dst))
+                if (!IsVariableReadAfter(operations, i, dstVar))
                 {
-                    if (set.Dst.IsStack)
+                    if (dstVar.IsStack)
                     {
                         continue;
                     }
 
-                    if (IsVariableUsedInEarlierSetSource(operations, i, set.Dst))
+                    if (IsVariableUsedInEarlierSetSource(operations, i, dstVar))
                     {
                         continue;
                     }
@@ -88,35 +89,35 @@ public static class OperationOptimizer
                     continue;
                 }
 
-                if (!set.Dst.IsStack
+                if (!dstVar.IsStack
                     && set.Src is Variable srcVar
-                    && CanPropagateCopy(operations, i, set.Dst, srcVar, GetCopyPropagationEnd(operations, i, set.Dst)))
+                    && CanPropagateCopy(operations, i, dstVar, srcVar, GetCopyPropagationEnd(operations, i, dstVar)))
                 {
-                    var propagateEnd = GetCopyPropagationEnd(operations, i, set.Dst);
-                    SubstituteVariable(operations, i + 1, propagateEnd, set.Dst, srcVar);
+                    var propagateEnd = GetCopyPropagationEnd(operations, i, dstVar);
+                    SubstituteVariable(operations, i + 1, propagateEnd, dstVar, srcVar);
                     operations.RemoveAt(i);
                     i--;
                     changed = true;
                     continue;
                 }
 
-                if (!set.Dst.IsStack && CanPropagateToReturn(operations, i, set))
+                if (!dstVar.IsStack && CanPropagateToReturn(operations, i, set))
                 {
-                    var propagateEnd = GetCopyPropagationEnd(operations, i, set.Dst);
-                    SubstituteVariable(operations, i + 1, propagateEnd, set.Dst, set.Src);
+                    var propagateEnd = GetCopyPropagationEnd(operations, i, dstVar);
+                    SubstituteVariable(operations, i + 1, propagateEnd, dstVar, set.Src);
                     operations.RemoveAt(i);
                     i--;
                     changed = true;
                     continue;
                 }
 
-                if (set.Dst.IsTemp
+                if (dstVar.IsTemp
                     && CanPropagateToCall(operations, i, set))
                 {
-                    var lastReadIndex = FindLastReadIndex(operations, i, set.Dst);
+                    var lastReadIndex = FindLastReadIndex(operations, i, dstVar);
                     if (lastReadIndex >= 0)
                     {
-                        SubstituteVariableInCallArguments(operations, i + 1, lastReadIndex, set.Dst, set.Src);
+                        SubstituteVariableInCallArguments(operations, i + 1, lastReadIndex, dstVar, set.Src);
                     }
 
                     operations.RemoveAt(i);
@@ -125,14 +126,14 @@ public static class OperationOptimizer
                     continue;
                 }
 
-                if (set.Dst.IsTemp
+                if (dstVar.IsTemp
                     && i + 1 < operations.Count
                     && operations[i + 1] is IfOperation branch
-                    && IsOnlyUsedInIfCondition(branch, set.Dst)
+                    && IsOnlyUsedInIfCondition(branch, dstVar)
                     && IsSafeToInlineIntoCall(set.Src))
                 {
                     operations[i + 1] = new IfOperation(
-                        ExprSubstitution.Replace(branch.Condition, set.Dst, set.Src),
+                        ExprSubstitution.Replace(branch.Condition, dstVar, set.Src),
                         branch.ThenBody,
                         branch.ElseBody);
                     operations.RemoveAt(i);
@@ -191,7 +192,7 @@ public static class OperationOptimizer
     {
         for (var i = fromIndex + 1; i < operations.Count; i++)
         {
-            if (operations[i] is SetOperation set && ReferenceEquals(set.Dst, variable))
+            if (operations[i] is SetOperation set && AssignmentTarget.DefinesVariable(set.Dst, variable))
             {
                 return i;
             }
@@ -235,8 +236,9 @@ public static class OperationOptimizer
         for (var j = assignIndex - 1; j >= 0; j--)
         {
             if (operations[j] is not SetOperation candidate
-                || !ReferenceEquals(candidate.Dst, temp)
-                || candidate.Dst.IsStack
+                || !AssignmentTarget.TryGetVariable(candidate.Dst, out var candidateDst)
+                || !ReferenceEquals(candidateDst, temp)
+                || candidateDst.IsStack
                 || !IsFoldableTempExpression(candidate.Src))
             {
                 continue;
@@ -280,7 +282,7 @@ public static class OperationOptimizer
             Math2Expr binary => IsSafeToInlineIntoCall(binary.First) && IsSafeToInlineIntoCall(binary.Second),
             CmpExpr cmp => IsSafeToInlineIntoCall(cmp.Left) && IsSafeToInlineIntoCall(cmp.Right),
             CallExpr => true,
-            MemExpr or ImageOffsetExpr or AddressOfExpr => false,
+            IncDecExpr or MemExpr or ImageOffsetExpr or AddressOfExpr => false,
             _ => false,
         };
 
@@ -322,12 +324,13 @@ public static class OperationOptimizer
         int setIndex,
         SetOperation set)
     {
-        if (!IsOnlyUsedInReturn(operations, setIndex, set.Dst))
+        if (!AssignmentTarget.TryGetVariable(set.Dst, out var dstVar)
+            || !IsOnlyUsedInReturn(operations, setIndex, dstVar))
         {
             return false;
         }
 
-        var lastReadIndex = FindLastReadIndex(operations, setIndex, set.Dst);
+        var lastReadIndex = FindLastReadIndex(operations, setIndex, dstVar);
         if (lastReadIndex < 0)
         {
             return true;
@@ -358,13 +361,14 @@ public static class OperationOptimizer
         int setIndex,
         SetOperation set)
     {
-        if (!IsSafeToInlineIntoCall(set.Src)
-            || !IsOnlyUsedInCallArguments(operations, setIndex, set.Dst))
+        if (!AssignmentTarget.TryGetVariable(set.Dst, out var dstVar)
+            || !IsSafeToInlineIntoCall(set.Src)
+            || !IsOnlyUsedInCallArguments(operations, setIndex, dstVar))
         {
             return false;
         }
 
-        var lastReadIndex = FindLastReadIndex(operations, setIndex, set.Dst);
+        var lastReadIndex = FindLastReadIndex(operations, setIndex, dstVar);
         if (lastReadIndex < 0)
         {
             return true;
@@ -401,9 +405,10 @@ public static class OperationOptimizer
         operation switch
         {
             CallOperation => false,
-            SetOperation { Src: CallExpr } set => ReferenceEquals(set.Dst, variable),
+            SetOperation { Src: CallExpr } set => AssignmentTarget.DefinesVariable(set.Dst, variable),
             ReturnOperation => false,
-            SetOperation set => ReferenceEquals(set.Dst, variable)
+            SetOperation set => AssignmentTarget.DefinesVariable(set.Dst, variable)
+                || ExprSubstitution.Contains(set.Dst, variable)
                 || ExprSubstitution.Contains(set.Src, variable),
             StoreOperation store => ExprSubstitution.Contains(store.Address, variable)
                 || ExprSubstitution.Contains(store.Segment, variable)
@@ -626,7 +631,8 @@ public static class OperationOptimizer
     private static bool ReadsVariableDeep(Operation operation, Variable variable) =>
         operation switch
         {
-            SetOperation set => ExprSubstitution.Contains(set.Src, variable),
+            SetOperation set => ExprSubstitution.Contains(set.Dst, variable)
+                || ExprSubstitution.Contains(set.Src, variable),
             CallOperation call => call.Args.Any(arg => ExprSubstitution.Contains(arg, variable)),
             StoreOperation store => ExprSubstitution.Contains(store.Address, variable)
                 || ExprSubstitution.Contains(store.Segment, variable)
@@ -683,7 +689,7 @@ public static class OperationOptimizer
     private static bool DefinesVariableDeep(Operation operation, Variable variable) =>
         operation switch
         {
-            SetOperation set => ReferenceEquals(set.Dst, variable),
+            SetOperation set => AssignmentTarget.DefinesVariable(set.Dst, variable),
             IfOperation branch => branch.ThenBody.Any(op => DefinesVariableDeep(op, variable))
                 || (branch.ElseBody?.Any(op => DefinesVariableDeep(op, variable)) ?? false),
             WhileOperation loop => loop.Body.Any(op => DefinesVariableDeep(op, variable)),

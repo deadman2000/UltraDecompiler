@@ -106,7 +106,7 @@ public static class MainParameterNormalizer
         IReadOnlyDictionary<Variable, Variable> renames) =>
         operation switch
         {
-            SetOperation set => set with { Src = RewriteExpr(set.Src, renames), Dst = Rename(set.Dst, renames) },
+            SetOperation set => set with { Src = RewriteExpr(set.Src, renames), Dst = RewriteExpr(set.Dst, renames) },
             StoreOperation store => store with
             {
                 Address = RewriteExpr(store.Address, renames),
@@ -169,6 +169,7 @@ public static class MainParameterNormalizer
             },
             CallExpr call => call with { Args = call.Args.Select(arg => RewriteExpr(arg, renames)).ToList() },
             MemberExpr member => member with { Base = RewriteExpr(member.Base, renames) },
+            IncDecExpr inc => inc with { Operand = RewriteExpr(inc.Operand, renames) },
             AddressOfExpr addr => addr with { Operand = RewriteExpr(addr.Operand, renames) },
             _ => expr,
         };

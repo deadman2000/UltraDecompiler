@@ -1,5 +1,4 @@
 bits.c
-copy.c
 fptr.c
 glob.c
 int86.c

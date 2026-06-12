@@ -142,7 +142,8 @@ public static class StackLocalArrayInferrer
     private static IEnumerable<Variable> CollectOperationVariables(Operation op) =>
         op switch
         {
-            SetOperation set => ExprSubstitution.CollectVariables(set.Src).Concat([set.Dst]),
+            SetOperation set => ExprSubstitution.CollectVariables(set.Src)
+                .Concat(ExprSubstitution.CollectVariables(set.Dst)),
             IncOperation { Target: Variable target } => ExprSubstitution.CollectVariables(target).Append(target),
             DecOperation { Target: Variable target } => ExprSubstitution.CollectVariables(target).Append(target),
             IncOperation inc => ExprSubstitution.CollectVariables(inc.Target)

@@ -102,7 +102,7 @@ public class InterruptTests : BaseTests
 
         // Результат должен попасть в AX
         var ax = Assert.IsType<Variable>(block.EndRegisters.AX);
-        Assert.Equal(setOp.Dst.Number, ax.Number);
+        Assert.Equal(Assert.IsType<Variable>(setOp.Dst).Number, ax.Number);
     }
 
     [Fact]
@@ -164,6 +164,6 @@ public class InterruptTests : BaseTests
         Assert.True(callExpr.Args.Count >= 3, "dos_read должен получать handle + buffer + count");
 
         var ax = Assert.IsType<Variable>(block.EndRegisters.AX);
-        Assert.Equal(setOp.Dst.Number, ax.Number);
+        Assert.Equal(Assert.IsType<Variable>(setOp.Dst).Number, ax.Number);
     }
 }

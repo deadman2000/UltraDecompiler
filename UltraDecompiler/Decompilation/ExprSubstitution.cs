@@ -20,6 +20,7 @@ internal static class ExprSubstitution
             ConstExpr or CharConstExpr or StringExpr or ImageOffsetExpr => expr,
             Variable => expr,
             MemberExpr member => member with { Base = Replace(member.Base, from, to) },
+            IncDecExpr inc => inc with { Operand = Replace(inc.Operand, from, to) },
             AddressOfExpr addr => addr with { Operand = Replace(addr.Operand, from, to) },
             Math1Expr m => m with { Op = Replace(m.Op, from, to) },
             Math2Expr m => m with
@@ -75,6 +76,9 @@ internal static class ExprSubstitution
                 break;
             case AddressOfExpr addr:
                 CollectVariablesRecursive(addr.Operand, result);
+                break;
+            case IncDecExpr inc:
+                CollectVariablesRecursive(inc.Operand, result);
                 break;
             case Math1Expr m:
                 CollectVariablesRecursive(m.Op, result);
@@ -134,6 +138,9 @@ internal static class ExprSubstitution
             case AddressOfExpr addr:
                 CollectMemExprsRecursive(addr.Operand, result);
                 break;
+            case IncDecExpr inc:
+                CollectMemExprsRecursive(inc.Operand, result);
+                break;
             case Math1Expr m:
                 CollectMemExprsRecursive(m.Op, result);
                 break;
@@ -175,6 +182,7 @@ internal static class ExprSubstitution
             ConstExpr or CharConstExpr or StringExpr or ImageOffsetExpr => false,
             MemberExpr member => Contains(member.Base, variable),
             AddressOfExpr addr => Contains(addr.Operand, variable),
+            IncDecExpr inc => Contains(inc.Operand, variable),
             Math1Expr m => Contains(m.Op, variable),
             Math2Expr m => Contains(m.First, variable) || Contains(m.Second, variable),
             MemExpr mem => Contains(mem.Address, variable) || Contains(mem.Segment, variable),

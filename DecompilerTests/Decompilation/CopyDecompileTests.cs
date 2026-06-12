@@ -108,9 +108,8 @@ public sealed class CopyDecompileTests
 
             var copySource = DecompileTestHelper.ReadPrimarySource(result);
             Assert.Contains("while (*arg1 != 0)", copySource);
-            Assert.Contains("*arg0 = *arg1", copySource);
-            Assert.Contains("arg0++", copySource);
-            Assert.Contains("arg1++", copySource);
+            // copy.c в исходнике использует *dst++ = *src++; QuickC генерирует post-increment ASM.
+            Assert.Contains("*arg0++ = *arg1++", copySource);
             Assert.Contains("*arg0 = 0", copySource);
             Assert.DoesNotContain("_psp:[", copySource);
             Assert.DoesNotContain("varSS:[", copySource);

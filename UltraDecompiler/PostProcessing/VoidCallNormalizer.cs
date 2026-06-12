@@ -20,7 +20,8 @@ public static class VoidCallNormalizer
         HeaderCatalog headers) =>
         op switch
         {
-            SetOperation { Src: CallExpr call } set when set.Dst.IsTemp
+            SetOperation { Src: CallExpr call } set
+                when AssignmentTarget.TryGetVariable(set.Dst, out var dst) && dst.IsTemp
                 && TryGetReturnType(call.Name, storage, headers, out var returnType)
                 && returnType!.IsVoid =>
                 new CallOperation(call.Name, call.Args),

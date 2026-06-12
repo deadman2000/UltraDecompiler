@@ -53,7 +53,7 @@ public class CallTests : BaseTests
 
         // Результат вызова должен находиться в AX
         var ax = Assert.IsType<Variable>(block.EndRegisters.AX);
-        Assert.Equal(setOp.Dst.Number, ax.Number);
+        Assert.Equal(Assert.IsType<Variable>(setOp.Dst).Number, ax.Number);
     }
 
     [Fact]

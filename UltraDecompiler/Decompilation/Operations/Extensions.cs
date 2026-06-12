@@ -60,7 +60,22 @@ public static class Extensions
     static string Indent(int level) => new(' ', level * 4);
 
     static string FormatSet(SetOperation set, int indent) =>
-        $"{Indent(indent)}{set.Dst} = {set.Src}";
+        $"{Indent(indent)}{FormatAssignmentLvalue(set.Dst)} = {set.Src}";
+
+    static string FormatAssignmentLvalue(Expr dst)
+    {
+        if (dst is MemExpr mem && PointerDerefFormatter.TryFormatLoad(mem, out var deref))
+        {
+            return deref;
+        }
+
+        if (PointerStoreFormatter.TryFormat(new StoreOperation(dst, null, ConstExpr.Zero), out var indexed))
+        {
+            return indexed;
+        }
+
+        return dst.ToString();
+    }
 
     static string FormatCall(CallOperation call, int indent)
     {

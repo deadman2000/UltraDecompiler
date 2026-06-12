@@ -35,7 +35,7 @@ public class OperationOptimizerTests
         Assert.Equal(var10, call.Args[1]);
 
         var copy = Assert.IsType<SetOperation>(optimized[0]);
-        Assert.Equal(var10, copy.Dst);
+        Assert.Equal(var10, Assert.IsType<Variable>(copy.Dst));
         Assert.IsType<CallExpr>(copy.Src);
     }
 
@@ -57,7 +57,7 @@ public class OperationOptimizerTests
 
         var optimized = OperationOptimizer.Optimize(operations);
 
-        Assert.Contains(optimized, op => op is SetOperation { Dst.Number: 8 });
+        Assert.Contains(optimized, op => op is SetOperation { Dst: Variable { Number: 8 } });
         var firstUse = optimized.OfType<CallOperation>().First(c => c.Name == "use_first");
         Assert.Equal(var8, firstUse.Args[0]);
     }
@@ -82,7 +82,7 @@ public class OperationOptimizerTests
 
         var use = Assert.IsType<CallOperation>(optimized[^1]);
         Assert.Equal(var1, use.Args[0]);
-        Assert.DoesNotContain(optimized, op => op is SetOperation { Dst.Number: 2 or 3 });
+        Assert.DoesNotContain(optimized, op => op is SetOperation { Dst: Variable { Number: 2 or 3 } });
     }
 
     // temp = sub_0010(5); printf("%d", temp) → printf("%d", sub_0010(5))
@@ -104,7 +104,7 @@ public class OperationOptimizerTests
         var call = Assert.IsType<CallOperation>(optimized[0]);
         Assert.Equal("printf", call.Name);
         Assert.IsType<CallExpr>(call.Args[1]);
-        Assert.DoesNotContain(optimized, op => op is SetOperation { Dst.IsTemp: true });
+        Assert.DoesNotContain(optimized, op => op is SetOperation { Dst: Variable { IsTemp: true } });
     }
 
     // temp1=a%b; temp2=a/b; printf(..., temp1, temp2) → printf(..., a%b, a/b)
@@ -131,7 +131,7 @@ public class OperationOptimizerTests
         Assert.Equal("printf", call.Name);
         Assert.IsType<Math2Expr>(call.Args[1]);
         Assert.IsType<Math2Expr>(call.Args[2]);
-        Assert.DoesNotContain(optimized, op => op is SetOperation { Dst.IsTemp: true });
+        Assert.DoesNotContain(optimized, op => op is SetOperation { Dst: Variable { IsTemp: true } });
     }
 
     // return (arg0 + arg1) без промежуточной локали var11
@@ -291,7 +291,7 @@ public class OperationOptimizerTests
 
         var optimized = OperationOptimizer.Optimize(operations);
 
-        Assert.DoesNotContain(optimized, op => op is SetOperation { Dst.Number: 10 });
+        Assert.DoesNotContain(optimized, op => op is SetOperation { Dst: Variable { Number: 10 } });
         var ret = Assert.IsType<ReturnOperation>(optimized[^1]);
         var math = Assert.IsType<Math2Expr>(ret.Value);
         Assert.Equal(Math2Operation.Sub, math.Operation);
@@ -312,7 +312,7 @@ public class OperationOptimizerTests
 
         var optimized = OperationOptimizer.Optimize(operations);
 
-        Assert.Contains(optimized, op => op is SetOperation { Dst.IsStack: true });
+        Assert.Contains(optimized, op => op is SetOperation { Dst: Variable { IsStack: true } });
     }
 
     // Копирование со стековой локали в temp не разворачивается — стек может перезаписаться
@@ -331,7 +331,7 @@ public class OperationOptimizerTests
 
         var optimized = OperationOptimizer.Optimize(operations);
 
-        Assert.Contains(optimized, op => op is SetOperation { Dst.IsStack: true });
+        Assert.Contains(optimized, op => op is SetOperation { Dst: Variable { IsStack: true } });
     }
 
     // var11 = var10+1; var10 = 999; return var11 — нельзя подставлять (var10+1) в return
@@ -350,7 +350,7 @@ public class OperationOptimizerTests
 
         var optimized = OperationOptimizer.Optimize(operations);
 
-        Assert.Contains(optimized, op => op is SetOperation { Dst.Number: 11 });
+        Assert.Contains(optimized, op => op is SetOperation { Dst: Variable { Number: 11 } });
         var ret = Assert.IsType<ReturnOperation>(optimized[^1]);
         Assert.Equal(var11, ret.Value);
     }

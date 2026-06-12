@@ -62,7 +62,7 @@ internal static class UsedVariableCollector
         switch (op)
         {
             case SetOperation set:
-                AddVariable(set.Dst, result);
+                AddFromExpr(set.Dst, result);
                 AddFromExpr(set.Src, result);
                 break;
             case StoreOperation store:

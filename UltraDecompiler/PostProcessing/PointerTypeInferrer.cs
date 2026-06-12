@@ -47,10 +47,12 @@ public static class PointerTypeInferrer
                 => TryUpgradeToCharPtr(ptr),
             SetOperation { Src: MemExpr mem } when PointerDerefFormatter.TryGetNearPointerBase(mem, out var ptr)
                 => TryUpgradeToCharPtr(ptr),
-            SetOperation { Src: Math2Expr { Operation: Math2Operation.Add, First: Variable src } }
-                when src.Type?.IsCharPtr == true => TryUpgradeToCharPtr(((SetOperation)op).Dst),
-            SetOperation { Src: Math2Expr { Operation: Math2Operation.Add, Second: Variable src2 } }
-                when src2.Type?.IsCharPtr == true => TryUpgradeToCharPtr(((SetOperation)op).Dst),
+            SetOperation { Src: Math2Expr { Operation: Math2Operation.Add, First: Variable src }, Dst: var dst }
+                when src.Type?.IsCharPtr == true && AssignmentTarget.TryGetVariable(dst, out var dstVar)
+                => TryUpgradeToCharPtr(dstVar),
+            SetOperation { Src: Math2Expr { Operation: Math2Operation.Add, Second: Variable src2 }, Dst: var dst }
+                when src2.Type?.IsCharPtr == true && AssignmentTarget.TryGetVariable(dst, out var dstVar)
+                => TryUpgradeToCharPtr(dstVar),
             IfOperation branch => InferFromExpr(branch.Condition)
                 || branch.ThenBody.Any(InferFromOperation)
                 || (branch.ElseBody?.Any(InferFromOperation) ?? false),

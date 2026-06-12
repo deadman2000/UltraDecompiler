@@ -29,6 +29,7 @@ public abstract partial record Expr
 static class Prec
 {
     public const int Atom = 100;      // переменные, константы, вызовы, обращения к памяти
+    public const int Postfix = 16;    // x++, x--
     public const int Unary = 15;      // -x, !x
     public const int MulDiv = 14;     // * / %
     public const int AddSub = 13;     // + -
@@ -95,6 +96,38 @@ public sealed record Variable(
 public record MemberExpr(Expr Base, string FieldName) : Expr
 {
     public override string ToString() => $"{Base}.{FieldName}";
+}
+
+/// <summary>Префиксный или постфиксный инкремент/декремент (<c>ptr++</c>, <c>*ptr++</c> через <see cref="MemExpr"/>).</summary>
+public record IncDecExpr(IncDecKind Kind, Expr Operand) : Expr
+{
+    public override int GetPrecedence() =>
+        Kind is IncDecKind.PreInc or IncDecKind.PreDec ? Prec.Unary : Prec.Postfix;
+
+    public override string ToString() => ToString(0);
+
+    public override string ToString(int parentPrec)
+    {
+        var operandPrec = Kind is IncDecKind.PreInc or IncDecKind.PreDec ? Prec.Unary : Prec.Postfix;
+        var operandStr = Operand.ToString(operandPrec);
+        return Kind switch
+        {
+            IncDecKind.PreInc => $"++{operandStr}",
+            IncDecKind.PostInc => $"{operandStr}++",
+            IncDecKind.PreDec => $"--{operandStr}",
+            IncDecKind.PostDec => $"{operandStr}--",
+            _ => throw new InvalidOperationException(),
+        };
+    }
+}
+
+/// <summary>Вид инкремента/декремента в <see cref="IncDecExpr"/>.</summary>
+public enum IncDecKind
+{
+    PreInc,
+    PostInc,
+    PreDec,
+    PostDec,
 }
 
 /// <summary>Унарный &amp; для передачи структуры по указателю (<c>&amp;var</c>).</summary>

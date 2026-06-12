@@ -8,6 +8,16 @@ void copy(char *dst, char *src)
     *dst = 0;
 }
 
+void copy2(char *dst, char *src)
+{
+    while (*src) {
+        *dst = *src;
+        dst++;
+        src++;
+    }
+    *dst = 0;
+}
+
 int main(void)
 {
     char buf[20];
@@ -17,8 +27,8 @@ int main(void)
 
     copy(buf, "test");
     copy(buf2, "test3");
+    copy2(buf2, "test3");
     printf("%s\n", buf);
-    printf("%d, %d\n", a, b);
 
     return 0;
 }
