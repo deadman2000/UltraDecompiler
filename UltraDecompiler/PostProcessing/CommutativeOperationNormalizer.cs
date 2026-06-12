@@ -41,7 +41,8 @@ public static class CommutativeOperationNormalizer
                 call.Name,
                 call.Args.Select(NormalizeExpr).ToList()),
             ReturnOperation ret => new ReturnOperation(
-                ret.Value is null ? null : NormalizeExpr(ret.Value)),
+                ret.Value is null ? null : NormalizeExpr(ret.Value),
+                ret.IsExplicit),
             IfOperation branch => new IfOperation(
                 NormalizeExpr(branch.Condition),
                 NormalizeList(branch.ThenBody.ToList()),

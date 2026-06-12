@@ -186,7 +186,8 @@ public static class StructFieldLoadSimplifier
                 call.Name,
                 call.Args.Select(arg => ReplaceExpr(arg, replacements)).ToList()),
             ReturnOperation ret => new ReturnOperation(
-                ret.Value is null ? null : ReplaceExpr(ret.Value, replacements)),
+                ret.Value is null ? null : ReplaceExpr(ret.Value, replacements),
+                ret.IsExplicit),
             IfOperation branch => new IfOperation(
                 ReplaceExpr(branch.Condition, replacements),
                 RewriteList(branch.ThenBody, replacements),

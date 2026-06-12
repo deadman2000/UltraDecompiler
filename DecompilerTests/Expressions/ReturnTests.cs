@@ -51,6 +51,68 @@ public class ReturnTests : BaseTests
         Assert.NotNull(retOp.Value);
     }
 
+    // void foo_ret: JMP на эпилог → ReturnOperation с IsExplicit (явный return в QuickC)
+    [Fact]
+    public void JmpToEpilogue_ProducesExplicitReturnOperation()
+    {
+        var expr = BuildProcExpressions("""
+            55          ; push bp
+            8B EC       ; mov bp, sp
+            57          ; push di
+            56          ; push si
+            E9 00 00    ; jmp epilogue
+            5E          ; pop si
+            5F          ; pop di
+            8B E5       ; mov sp, bp
+            5D          ; pop bp
+            C3          ; ret
+            """);
+
+        var retOp = expr.Blocks
+            .SelectMany(static b => b.Operations)
+            .OfType<ReturnOperation>()
+            .Single(static r => r.IsExplicit);
+
+        Assert.True(retOp.IsExplicit);
+    }
+
+    // void foo(flag){ if(flag){} }: jcc и fall-through jmp в один эпилог → merge, не явный return
+    [Fact]
+    public void MergeJmpToEpilogue_IsImplicitReturnOperation()
+    {
+        var expr = BuildProcExpressions("""
+            55          ; push bp
+            8B EC       ; mov bp, sp
+            83 7E 04 00 ; cmp [bp+4], 0
+            75 03       ; jne epilogue
+            E9 00 00    ; jmp epilogue
+            5E          ; pop si
+            5F          ; pop di
+            8B E5       ; mov sp, bp
+            5D          ; pop bp
+            C3          ; ret
+            """);
+
+        Assert.DoesNotContain(
+            expr.GetAllOperations().OfType<ReturnOperation>(),
+            static r => r.IsExplicit);
+    }
+
+    // void foo: линейный RET без JMP → ReturnOperation неявный (без return в C)
+    [Fact]
+    public void LinearRet_ProducesImplicitReturnOperation()
+    {
+        var expr = BuildExpressions("""
+            55          ; push bp
+            8B EC       ; mov bp, sp
+            5D          ; pop bp
+            C3          ; ret
+            """);
+
+        var retOp = Assert.IsType<ReturnOperation>(expr.Blocks[0].Operations[^1]);
+        Assert.False(retOp.IsExplicit);
+    }
+
     // ret без явного mov ax — ReturnOperation с текущим (init) AX
     [Fact]
     public void RetWithoutAxTouch_StillProducesReturnOperation_WithCurrentAx()

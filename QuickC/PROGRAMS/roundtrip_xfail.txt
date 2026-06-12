@@ -1,13 +1,11 @@
 bits.c
 copy.c
-copy2.c
 fptr.c
 glob.c
 int86.c
 jmp.c
 long.c
 peek.c
-port.c
 reg.c
 rot.c
 sjmp.c

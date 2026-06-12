@@ -5,4 +5,10 @@ namespace UltraDecompiler.Decompilation.Operations;
 /// Value содержит символическое выражение, которое находилось в AX на момент выполнения RET.
 /// При генерации C-кода значение используется или игнорируется в зависимости от ReturnType сигнатуры процедуры (void — bare return;).
 /// </summary>
-public sealed record ReturnOperation(Expr? Value) : Operation;
+/// <param name="Value">Символическое значение AX на момент выхода.</param>
+/// <param name="IsExplicit">
+/// Для void: <see langword="true"/>, если выход оформлен как явный <c>return;</c> в исходнике QuickC
+/// (переход JMP на общий эпилог); <see langword="false"/> при линейном fall-through к RET.
+/// Для не-void всегда игнорируется при кодогенерации.
+/// </param>
+public sealed record ReturnOperation(Expr? Value, bool IsExplicit = false) : Operation;

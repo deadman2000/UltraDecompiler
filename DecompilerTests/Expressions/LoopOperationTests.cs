@@ -49,7 +49,7 @@ public class LoopOperationTests
         var ifOp = new IfOperation(ConstExpr.One, Array.Empty<Operation>());
         string result = ifOp.ToCString();
 
-        Assert.Contains("; // empty body", result);
+        Assert.Matches(@"{\s+;", result);
     }
 
     [Fact]
@@ -61,7 +61,6 @@ public class LoopOperationTests
 
         Assert.Contains("var1 = 1;", result);
         Assert.DoesNotContain("else", result);
-        Assert.DoesNotContain("; // empty body", result);
     }
 
     // while (var != 0) { [var2] = var3; }
@@ -112,7 +111,7 @@ public class LoopOperationTests
 
         string result = loop.ToCString();
 
-        Assert.Contains("; // empty body", result);
+        Assert.Matches(@"{\s+;", result);
     }
 
     [Fact]

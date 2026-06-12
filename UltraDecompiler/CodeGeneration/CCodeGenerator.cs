@@ -111,9 +111,17 @@ public static class CCodeGenerator
             {
                 if (operation is ReturnOperation retOp)
                 {
-                    // Для void — всегда голый return, даже если ReturnOperation несёт значение AX.
-                    // Это гарантирует корректный C-код. Value из AX сохраняется в IR для анализа/тестов.
-                    if (procedure.Signature.ReturnType.IsVoid || retOp.Value == null)
+                    if (procedure.Signature.ReturnType.IsVoid)
+                    {
+                        // QuickC: void без return в исходнике выходит линейным RET; явный return — JMP на эпилог.
+                        if (!retOp.IsExplicit)
+                        {
+                            continue;
+                        }
+
+                        sb.AppendLine("    return;");
+                    }
+                    else if (retOp.Value == null)
                     {
                         sb.AppendLine("    return;");
                     }

@@ -36,6 +36,15 @@ public abstract class BaseTests
         return decompiler;
     }
 
+    /// <summary>Строит IR процедуры с <see cref="ExpressionBuilder.BuildProc"/> (включая TailReturnInserter).</summary>
+    protected static ExpressionBuilder BuildProcExpressions(string hex)
+    {
+        var graph = GetGraph(hex);
+        var decompiler = new ExpressionBuilder();
+        decompiler.BuildProc(graph, procedures: null);
+        return decompiler;
+    }
+
     protected static ExpressionBuilder BuildExpressions(
         string hex,
         IReadOnlyDictionary<int, string> knownProcedures,

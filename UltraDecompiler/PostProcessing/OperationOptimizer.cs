@@ -585,7 +585,8 @@ public static class OperationOptimizer
                 ReplaceIncDecTarget(dec.Target, from, to),
                 dec.Segment is null ? null : ExprSubstitution.Replace(dec.Segment, from, to)),
             ReturnOperation ret => new ReturnOperation(
-                ret.Value is null ? null : ExprSubstitution.Replace(ret.Value, from, to)),
+                ret.Value is null ? null : ExprSubstitution.Replace(ret.Value, from, to),
+                ret.IsExplicit),
             IfOperation branch => new IfOperation(
                 ExprSubstitution.Replace(branch.Condition, from, to),
                 branch.ThenBody.Select(op => SubstituteInOperation(op, from, to)).ToList(),

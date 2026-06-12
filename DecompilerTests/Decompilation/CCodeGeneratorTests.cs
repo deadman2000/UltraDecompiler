@@ -76,6 +76,53 @@ public class CCodeGeneratorTests : BaseTests
         Assert.Contains("if (var3 == 0)", source);
     }
 
+    // void без явного return в QuickC: линейный RET → ReturnOperation не печатается
+    [Fact]
+    public void FormatCFunction_VoidImplicitReturn_OmitsBareReturn()
+    {
+        var expr = BuildExpressions("C3");
+
+        var procedure = new DisassembledProcedure
+        {
+            Offset = 0,
+            Instructions = [],
+            Expressions = expr,
+            Name = "foo",
+            IsLibrary = false,
+            Signature = new ProcedureSignature(CType.Void, []),
+        };
+
+        var source = CCodeGenerator.FormatCFunction(
+            procedure,
+            [new ReturnOperation(ConstExpr.Zero)]);
+
+        Assert.DoesNotContain("return", source);
+        Assert.Contains("void foo(void)", source);
+    }
+
+    // void с явным return в QuickC: JMP на эпилог → голый return в C
+    [Fact]
+    public void FormatCFunction_VoidExplicitReturn_EmitsBareReturn()
+    {
+        var expr = BuildExpressions("C3");
+
+        var procedure = new DisassembledProcedure
+        {
+            Offset = 0,
+            Instructions = [],
+            Expressions = expr,
+            Name = "foo_ret",
+            IsLibrary = false,
+            Signature = new ProcedureSignature(CType.Void, []),
+        };
+
+        var source = CCodeGenerator.FormatCFunction(
+            procedure,
+            [new ReturnOperation(ConstExpr.Zero, IsExplicit: true)]);
+
+        Assert.Contains("    return;", source);
+    }
+
     // Пустое тело void-функции — нет блока int varN;, только комментарий-заглушка
     [Fact]
     public void FormatCFunction_NoLocals_NoDeclarationBlock()

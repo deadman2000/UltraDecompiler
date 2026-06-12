@@ -121,6 +121,7 @@ public class Decompiler
             operations = OperationOptimizer.Optimize(operations);
             operations = CommutativeOperationNormalizer.Normalize(operations);
             operations = IfElseReturnFlattener.Flatten(operations);
+            operations = VoidReturnNormalizer.Normalize(procedure, operations);
             operations = PointerCompareSimplifier.Simplify(operations);
             operations = WhileLoopRecognizer.Convert(operations);
             operations = CharPtrLiteralMaterializer.MaterializeCalls(operations, storage, parser.Image, imageLayout);

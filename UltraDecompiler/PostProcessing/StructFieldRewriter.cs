@@ -55,7 +55,8 @@ public static class StructFieldRewriter
                 call.Name,
                 RewriteCallArgs(call.Name, call.Args, variables, storage, headers)),
             ReturnOperation ret => new ReturnOperation(
-                ret.Value is null ? null : RewriteExpr(ret.Value, variables)),
+                ret.Value is null ? null : RewriteExpr(ret.Value, variables),
+                ret.IsExplicit),
             IfOperation branch => new IfOperation(
                 RewriteExpr(branch.Condition, variables),
                 RewriteList(branch.ThenBody, variables, storage, headers),

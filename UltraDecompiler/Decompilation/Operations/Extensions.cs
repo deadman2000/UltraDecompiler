@@ -150,7 +150,7 @@ public static class Extensions
     {
         if (body.Count == 0)
         {
-            sb.AppendLine($"{Indent(indent + 1)}; // empty body");
+            sb.AppendLine($"{Indent(indent + 1)};");
             return;
         }
 
