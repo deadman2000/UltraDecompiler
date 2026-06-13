@@ -119,6 +119,7 @@ public class Decompiler
             PointerTypeInferrer.Infer(procedure, operations, storage, headerCatalog);
             SignednessInferrer.Infer(procedure, operations);
             VariableTypeInferrer.Infer(operations, storage, headerCatalog);
+            FarPointerStackPairInferrer.Infer(procedure, operations);
             operations = FarPointerLocalInferrer.Infer(procedure, operations);
             operations = VoidCallNormalizer.Normalize(operations, storage, headerCatalog);
             operations = StructFieldRewriter.Rewrite(procedure, operations, storage, headerCatalog);

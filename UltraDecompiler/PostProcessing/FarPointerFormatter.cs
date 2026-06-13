@@ -19,9 +19,7 @@ public static class FarPointerFormatter
             return false;
         }
 
-        lvalue = index == 0
-            ? $"*{farPtr}"
-            : $"{farPtr}[{index}]";
+        lvalue = FormatIndexed(farPtr, index);
         return true;
     }
 
@@ -37,16 +35,22 @@ public static class FarPointerFormatter
             return false;
         }
 
-        formatted = index == 0
-            ? $"*{farPtr}"
-            : $"{farPtr}[{index}]";
+        formatted = FormatIndexed(farPtr, index);
         return true;
     }
 
-    private static bool TryGetFarPointerBase(StoreOperation store, out Variable farPtr, out int index)
+    private static string FormatIndexed(Variable farPtr, Expr? index) =>
+        index switch
+        {
+            null or ConstExpr { Value: 0 } => $"*{farPtr}",
+            ConstExpr constant => $"{farPtr}[{constant.Value}]",
+            _ => $"{farPtr}[{index}]",
+        };
+
+    private static bool TryGetFarPointerBase(StoreOperation store, out Variable farPtr, out Expr? index)
     {
         farPtr = null!;
-        index = 0;
+        index = null;
 
         if (store.Segment is not Variable segmentVar)
         {
@@ -60,10 +64,9 @@ public static class FarPointerFormatter
                 return true;
 
             case Math2Expr { Operation: Math2Operation.Add } add
-                when TryExtractPointerIndex(add, out var indexedPtr, out var offset)
+                when TryExtractPointerIndex(add, out var indexedPtr, out index)
                 && IsFarPointerPair(indexedPtr, segmentVar):
                 farPtr = indexedPtr;
-                index = offset;
                 return true;
 
             default:
@@ -71,10 +74,10 @@ public static class FarPointerFormatter
         }
     }
 
-    private static bool TryGetFarPointerBase(MemExpr mem, out Variable farPtr, out int index)
+    private static bool TryGetFarPointerBase(MemExpr mem, out Variable farPtr, out Expr? index)
     {
         farPtr = null!;
-        index = 0;
+        index = null;
 
         if (mem.Segment is not Variable segmentVar)
         {
@@ -88,10 +91,9 @@ public static class FarPointerFormatter
                 return true;
 
             case Math2Expr { Operation: Math2Operation.Add } add
-                when TryExtractPointerIndex(add, out var indexedPtr, out var offset)
+                when TryExtractPointerIndex(add, out var indexedPtr, out index)
                 && IsFarPointerPair(indexedPtr, segmentVar):
                 farPtr = indexedPtr;
-                index = offset;
                 return true;
 
             default:
@@ -103,22 +105,36 @@ public static class FarPointerFormatter
         offsetVar.Type?.IsCharFarPtr == true
         && ReferenceEquals(offsetVar.FarPointerSegmentVariable, segmentVar);
 
-    private static bool TryExtractPointerIndex(Math2Expr add, out Variable ptr, out int index)
+    private static bool TryExtractPointerIndex(Math2Expr add, out Variable ptr, out Expr? index)
     {
         ptr = null!;
-        index = 0;
+        index = null;
 
         if (add.First is Variable first && add.Second is ConstExpr offset)
         {
             ptr = first;
-            index = offset.Value;
+            index = offset.Value == 0 ? null : offset;
             return true;
         }
 
         if (add.Second is Variable second && add.First is ConstExpr offset2)
         {
             ptr = second;
-            index = offset2.Value;
+            index = offset2.Value == 0 ? null : offset2;
+            return true;
+        }
+
+        if (add.First is Variable firstVar && add.Second is not Variable { IsTemp: false })
+        {
+            ptr = firstVar;
+            index = add.Second;
+            return true;
+        }
+
+        if (add.Second is Variable secondVar && add.First is not Variable { IsTemp: false })
+        {
+            ptr = secondVar;
+            index = add.First;
             return true;
         }
 

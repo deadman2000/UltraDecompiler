@@ -102,8 +102,8 @@ public static class WhileLoopRecognizer
     }
 
     /// <summary>
-    /// <c>if (i &gt;= argc) { } else { ... }</c> или <c>if (i &gt;= argc) { exit } else { body }</c>
-    /// → <c>while (i &lt; argc) { body }</c> [+ exit после цикла].
+    /// <c>if (i &gt;= bound) { } else { ... }</c> или <c>if (i &gt;= bound) { exit } else { body; i++ }</c>
+    /// → <c>while (i &lt; bound) { body }</c> [+ exit после цикла].
     /// </summary>
     private static bool TryConvertArgcBoundLoop(
         IfOperation branch,
@@ -118,27 +118,81 @@ public static class WhileLoopRecognizer
             return false;
         }
 
-        if (branch.Condition is not CmpExpr { Operation: CmpOperation.Uge, Left: Variable index, Right: Variable argc }
-            || argc.Name != "argc")
+        if (branch.Condition is not CmpExpr { Operation: CmpOperation.Uge, Left: Variable index, Right: Expr bound })
         {
             return false;
         }
 
-        if (IsNopBody(branch.ThenBody))
+        if (bound is Variable { Name: "argc" })
         {
-            loop = new WhileOperation(new CmpExpr(CmpOperation.Ult, index, argc), body);
+            if (IsNopBody(branch.ThenBody))
+            {
+                loop = new WhileOperation(new CmpExpr(CmpOperation.Ult, index, bound), body);
+                return true;
+            }
+
+            if (!branch.ThenBody.Any(static op => op is ReturnOperation))
+            {
+                return false;
+            }
+
+            loop = new WhileOperation(new CmpExpr(CmpOperation.Ult, index, bound), body);
+            tail = branch.ThenBody;
             return true;
         }
 
-        if (!branch.ThenBody.Any(static op => op is ReturnOperation))
+        if (bound is not ConstExpr)
         {
             return false;
         }
 
-        loop = new WhileOperation(new CmpExpr(CmpOperation.Ult, index, argc), body);
+        if (!TryMatchIndexIncrement(body, out var incrementIndex) || !SameVariable(incrementIndex, index))
+        {
+            return false;
+        }
+
+        var whileCondition = new CmpExpr(CmpOperation.Ult, index, bound);
+
+        if (IsNopBody(branch.ThenBody))
+        {
+            loop = new WhileOperation(whileCondition, body);
+            return true;
+        }
+
+        if (!branch.ThenBody.Any(static op => op is ReturnOperation or CallOperation))
+        {
+            return false;
+        }
+
+        loop = new WhileOperation(whileCondition, body);
         tail = branch.ThenBody;
         return true;
     }
+
+    private static bool TryMatchIndexIncrement(IReadOnlyList<Operation> body, out Variable index)
+    {
+        index = null!;
+
+        return body[^1] switch
+        {
+            IncOperation { Target: Variable target } => AssignIndex(target, out index),
+            SetOperation
+            {
+                Dst: Variable dst,
+                Src: Math2Expr { Operation: Math2Operation.Add, First: Variable addIndex, Second: ConstExpr { Value: 1 } },
+            } when SameVariable(dst, addIndex) => AssignIndex(dst, out index),
+            _ => false,
+        };
+    }
+
+    private static bool AssignIndex(Variable candidate, out Variable index)
+    {
+        index = candidate;
+        return true;
+    }
+
+    private static bool SameVariable(Variable left, Variable right) =>
+        left.Name == right.Name;
 
     private static bool IsNopBody(IReadOnlyList<Operation> body) => body.Count == 0;
 }

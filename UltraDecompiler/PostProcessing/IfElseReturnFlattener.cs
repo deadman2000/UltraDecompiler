@@ -29,7 +29,7 @@ public static class IfElseReturnFlattener
                 && branch.ElseBody is { Count: > 0 } elseBody
                 && BranchEndsWithReturn(branch.ThenBody)
                 && (flattenSingleSidedReturn
-                    ? !IsArgcLoopExitIf(branch)
+                    ? !IsCounterLoopExitIf(branch)
                     : BranchEndsWithReturn(elseBody)))
             {
                 result.Add(new IfOperation(
@@ -76,8 +76,19 @@ public static class IfElseReturnFlattener
     private static bool BranchEndsWithReturn(IReadOnlyList<Operation> body) =>
         body.Any(static op => op is ReturnOperation);
 
-    private static bool IsArgcLoopExitIf(IfOperation branch) =>
-        branch.Condition is CmpExpr { Operation: CmpOperation.Uge, Right: Variable { Name: "argc" } };
+    private static bool IsCounterLoopExitIf(IfOperation branch)
+    {
+        if (branch.Condition is not CmpExpr { Operation: CmpOperation.Uge, Left: Variable, Right: ConstExpr or Variable { Name: "argc" } })
+        {
+            return false;
+        }
+
+        return branch.ElseBody is { Count: > 0 }
+            && branch.ElseBody[^1] is IncOperation or SetOperation
+            {
+                Src: Math2Expr { Operation: Math2Operation.Add, Second: ConstExpr { Value: 1 } },
+            };
+    }
 
     /// <summary>
     /// <c>if (p) { body } else { return 0; }</c> → <c>if (p) { body } return 0;</c> для malloc/free.

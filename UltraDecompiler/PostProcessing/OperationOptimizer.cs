@@ -35,6 +35,20 @@ public static class OperationOptimizer
                     continue;
                 }
 
+                if (TryFoldTempIntoStoreAddress(operations, i))
+                {
+                    i = Math.Max(-1, i - 1);
+                    changed = true;
+                    continue;
+                }
+
+                if (TrySubstituteTempInNextOperation(operations, i))
+                {
+                    i = Math.Max(-1, i - 1);
+                    changed = true;
+                    continue;
+                }
+
                 if (operations[i] is not SetOperation set
                     || !AssignmentTarget.TryGetVariable(set.Dst, out var dstVar))
                 {
@@ -652,6 +666,88 @@ public static class OperationOptimizer
                 || (loop.Iteration is not null && ReadsVariableDeep(loop.Iteration, variable))
                 || loop.Body.Any(op => ReadsVariableDeep(op, variable)),
             _ => false,
+        };
+
+    /// <summary>
+    /// <c>temp = expr; seg:[temp] = v</c> → <c>seg:[expr] = v</c>, если temp больше нигде не читается.
+    /// </summary>
+    private static bool TryFoldTempIntoStoreAddress(List<Operation> operations, int tempAssignIndex)
+    {
+        if (tempAssignIndex + 1 >= operations.Count
+            || operations[tempAssignIndex] is not SetOperation { Dst: Variable temp, Src: var addressExpr }
+            || !temp.IsTemp
+            || operations[tempAssignIndex + 1] is not StoreOperation store
+            || !ReferenceEquals(store.Address, temp))
+        {
+            return false;
+        }
+
+        if (FindLastReadIndexInRange(operations, tempAssignIndex, tempAssignIndex + 2, temp) != tempAssignIndex + 1)
+        {
+            return false;
+        }
+
+        operations[tempAssignIndex + 1] = store with { Address = addressExpr };
+        operations.RemoveAt(tempAssignIndex);
+        return true;
+    }
+
+    /// <summary>
+    /// Подставляет <c>temp = expr</c> в следующую операцию, если temp больше нигде не используется.
+    /// </summary>
+    private static bool TrySubstituteTempInNextOperation(List<Operation> operations, int tempAssignIndex)
+    {
+        if (tempAssignIndex + 1 >= operations.Count
+            || operations[tempAssignIndex] is not SetOperation { Dst: Variable temp, Src: var expr }
+            || !temp.IsTemp
+            || operations[tempAssignIndex + 1] is not StoreOperation)
+        {
+            return false;
+        }
+
+        if (FindLastReadIndexInRange(operations, tempAssignIndex, tempAssignIndex + 2, temp) != tempAssignIndex + 1)
+        {
+            return false;
+        }
+
+        operations[tempAssignIndex + 1] = SubstituteVariableDeep(operations[tempAssignIndex + 1], temp, expr);
+        operations.RemoveAt(tempAssignIndex);
+        return true;
+    }
+
+    private static Operation SubstituteVariableDeep(Operation operation, Variable from, Expr to) =>
+        operation switch
+        {
+            SetOperation set => set with
+            {
+                Dst = ExprSubstitution.Replace(set.Dst, from, to),
+                Src = ExprSubstitution.Replace(set.Src, from, to),
+            },
+            StoreOperation store => store with
+            {
+                Address = ExprSubstitution.Replace(store.Address, from, to),
+                Segment = store.Segment is null ? null : ExprSubstitution.Replace(store.Segment, from, to),
+                Value = ExprSubstitution.Replace(store.Value, from, to),
+            },
+            IfOperation branch => branch with
+            {
+                Condition = ExprSubstitution.Replace(branch.Condition, from, to),
+                ThenBody = branch.ThenBody.Select(op => SubstituteVariableDeep(op, from, to)).ToList(),
+                ElseBody = branch.ElseBody?.Select(op => SubstituteVariableDeep(op, from, to)).ToList(),
+            },
+            WhileOperation loop => loop with
+            {
+                Condition = ExprSubstitution.Replace(loop.Condition, from, to),
+                Body = loop.Body.Select(op => SubstituteVariableDeep(op, from, to)).ToList(),
+            },
+            ForOperation loop => loop with
+            {
+                Init = loop.Init is null ? null : SubstituteVariableDeep(loop.Init, from, to),
+                Condition = loop.Condition is null ? null : ExprSubstitution.Replace(loop.Condition, from, to),
+                Iteration = loop.Iteration is null ? null : SubstituteVariableDeep(loop.Iteration, from, to),
+                Body = loop.Body.Select(op => SubstituteVariableDeep(op, from, to)).ToList(),
+            },
+            _ => operation,
         };
 
     /// <summary>

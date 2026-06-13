@@ -83,6 +83,18 @@ public static class ArgvEnvpForLoopRecognizer
             return true;
         }
 
+        if (loop.Condition is CmpExpr { Operation: CmpOperation.Ult, Left: Variable boundIndex, Right: ConstExpr }
+            && SameVariable(boundIndex, index))
+        {
+            initValue = 0;
+            forLoop = new ForOperation(
+                new SetOperation(index, ConstExpr.Zero),
+                loop.Condition,
+                new IncOperation(index),
+                body);
+            return true;
+        }
+
         if (loop.Condition is not CmpExpr cmp
             || cmp.Left is not CharPtrArrayFormatter.SyntheticLoadExpr element
             || element.Index is not Variable indexVar

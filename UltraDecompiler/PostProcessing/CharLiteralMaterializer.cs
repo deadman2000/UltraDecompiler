@@ -39,11 +39,27 @@ public static class CharLiteralMaterializer
                 loop.Iteration is not null ? MaterializeNested(loop.Iteration, storage) : null,
                 MaterializeList(loop.Body.ToList(), storage)),
             SetOperation set => new SetOperation(set.Dst, MaterializeExpr(set.Src, null)),
+            StoreOperation store when FarPointerFormatter.TryFormatStore(store, out _) => new StoreOperation(
+                store.Address,
+                store.Segment,
+                MaterializeStoreValue(store.Value)),
             CallOperation call => new CallOperation(
                 call.Name,
                 MaterializeCallArgs(call.Name, call.Args, storage)),
             _ => operation,
         };
+
+    private static Expr MaterializeStoreValue(Expr value)
+    {
+        if (value is ConstExpr { Value: var storeValue }
+            && TryToCharLiteral(storeValue, out var literal)
+            && storeValue is >= ' ' and <= '~')
+        {
+            return literal;
+        }
+
+        return MaterializeExpr(value, null);
+    }
 
     private static IReadOnlyList<Expr> MaterializeCallArgs(
         string calleeName,
@@ -115,7 +131,10 @@ public static class CharLiteralMaterializer
 
     private static CmpExpr MaterializeCmp(CmpExpr cmp)
     {
-        if (cmp.Right is ConstExpr { Value: var value } && TryToCharLiteral(value, out var literal))
+        if (cmp.Right is ConstExpr { Value: var value }
+            && cmp.Left is Variable left
+            && left.Type?.Kind == CTypeKind.Char
+            && TryToCharLiteral(value, out var literal))
         {
             return cmp with { Right = literal };
         }
