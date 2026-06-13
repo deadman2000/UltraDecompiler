@@ -1,3 +1,4 @@
+using UltraDecompiler.Headers;
 using UltraDecompiler.PostProcessing;
 
 namespace UltraDecompiler.Decompilation;
@@ -25,12 +26,36 @@ public static class ProcedureSignatureAnalyzer
         }
 
         var offsets = CollectParameterOffsets(instructions);
+        if (LongRuntimeHelpers.UsesLongArithmetic(instructions, new ProcedureStorage()))
+        {
+            return BuildLongParameters(offsets);
+        }
+
         var result = new List<ProcedureParameter>(offsets.Count);
 
         foreach (var offset in offsets)
         {
             var type = InferParameterType(offset, instructions);
             result.Add(new ProcedureParameter(type, new StackParameter(offset)));
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<ProcedureParameter> BuildLongParameters(IReadOnlyList<int> offsets)
+    {
+        var result = new List<ProcedureParameter>();
+        for (var i = 0; i < offsets.Count; i++)
+        {
+            var offset = offsets[i];
+            if (i + 1 < offsets.Count && offsets[i + 1] == offset + 2)
+            {
+                result.Add(new ProcedureParameter(CType.Long, new StackParameter(offset)));
+                i++;
+                continue;
+            }
+
+            result.Add(new ProcedureParameter(CType.Int, new StackParameter(offset)));
         }
 
         return result;
@@ -117,13 +142,36 @@ public static class ProcedureSignatureAnalyzer
 
             if (ProducesIntReturnValue(instr))
             {
-                return CType.Int;
+                return LongRuntimeHelpers.UsesLongArithmetic(instructions, new ProcedureStorage())
+                    && UsesLongReturnValue(instructions)
+                    ? CType.Long
+                    : CType.Int;
             }
 
             break;
         }
 
         return CType.Void;
+    }
+
+    private static bool UsesLongReturnValue(IReadOnlyList<Instruction> instructions) =>
+        LongRuntimeHelpers.CollectLongReturnOperands(instructions).Count > 0
+        || HasLegacyLongReturnPattern(instructions);
+
+    private static bool HasLegacyLongReturnPattern(IReadOnlyList<Instruction> instructions)
+    {
+        for (var i = 0; i < instructions.Count - 3; i++)
+        {
+            if (instructions[i].Mnemonic == Mnemonic.ADD
+                && instructions[i + 1].Mnemonic == Mnemonic.ADC
+                && instructions[i + 2].Mnemonic == Mnemonic.MOV
+                && instructions[i + 3].Mnemonic == Mnemonic.MOV)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool ProducesIntReturnValue(Instruction instr)

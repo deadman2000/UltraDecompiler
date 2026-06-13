@@ -60,6 +60,9 @@ public sealed record Variable(
     /// <summary>Старшее слово far-указателя на стеке (не объявляется отдельно в C).</summary>
     public bool IsMergedFarPointerSegment { get; set; }
 
+    /// <summary>Старшее слово <c>long</c> на стеке (не объявляется отдельно в C).</summary>
+    public bool IsMergedLongHigh { get; set; }
+
     /// <summary>Сегментная часть far-указателя, загруженная в ES/DS через LES/LDS.</summary>
     public Variable? FarPointerSegmentVariable { get; set; }
 
@@ -68,7 +71,9 @@ public sealed record Variable(
 
     /// <summary>Нужно ли объявление переменной в сгенерированном C-коде (локально внутри функции).</summary>
     public bool RequiresCDeclaration =>
-        !IsMergedFarPointerSegment && (IsStack || (!IsTemp && !IsInternal && !IsGlobal));
+        !IsMergedFarPointerSegment
+        && !IsMergedLongHigh
+        && (IsStack || (!IsTemp && !IsInternal && !IsGlobal));
 
     /// <summary>
     /// Выведенный тип C (из сигнатуры вызова или копирования). <see langword="null"/> — <c>int</c>.

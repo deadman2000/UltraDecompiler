@@ -113,6 +113,7 @@ public class Decompiler
             operations = MainParameterNormalizer.Normalize(procedure, operations);
             procedure.Callees = ProcedureDependencyCollector.Collect(operations);
             VariableTypeInferrer.Infer(operations, storage, headerCatalog);
+            operations = LongTypeInferrer.Infer(procedure, operations, storage);
             StructLocalInferrer.Infer(procedure, operations, storage, headerCatalog);
             StackLocalArrayInferrer.Infer(procedure, operations);
             PointerTypeInferrer.Infer(procedure, operations, storage, headerCatalog);
@@ -144,6 +145,7 @@ public class Decompiler
             operations = PointerLoopBodySimplifier.Simplify(operations);
             operations = OperationOptimizer.Optimize(operations);
             operations = UnreachableOperationTrimmer.Trim(operations);
+            operations = LongTypeInferrer.RewriteCallArguments(operations, storage);
             preparedProcedures.Add((procedure, operations));
         }
 

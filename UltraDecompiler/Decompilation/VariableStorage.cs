@@ -14,6 +14,7 @@ public class VariableStorage
     private readonly Dictionary<int, Variable> _stackLocals = new();
     private readonly List<(int BaseOffset, Variable Variable, StructDefinition Definition)> _structLocals = [];
     private readonly List<(int BaseOffset, Variable BaseVariable, Variable SegmentVariable)> _farPointerLocals = [];
+    private readonly List<(int BaseOffset, Variable LowVariable, Variable HighVariable)> _longLocals = [];
     private readonly Dictionary<Variable, (Variable Base, string FieldName)> _mergedFieldLocals = new();
     private int _stackNumber;
     private int _tempNumber;
@@ -30,6 +31,7 @@ public class VariableStorage
         _stackLocals.Clear();
         _structLocals.Clear();
         _farPointerLocals.Clear();
+        _longLocals.Clear();
         _mergedFieldLocals.Clear();
         StackFrameActive = false;
         _stackNumber = 0;
@@ -175,6 +177,10 @@ public class VariableStorage
         return _stackParameters.GetValueOrDefault(bpDisplacement);
     }
 
+    /// <summary>Обновляет переменную параметра после переименования/объединения long.</summary>
+    public void RenameStackParameter(int offset, Variable variable) =>
+        _stackParameters[offset] = variable;
+
     /// <summary>Локальные переменные стекового кадра [BP+disp], disp &lt; 0.</summary>
     public IReadOnlyList<(int Offset, Variable Variable)> StackLocals =>
         _stackLocals.Select(static kv => (kv.Key, kv.Value)).OrderBy(static e => e.Key).ToList();
@@ -223,6 +229,10 @@ public class VariableStorage
     public IReadOnlyList<(int BaseOffset, Variable BaseVariable, Variable SegmentVariable)> FarPointerLocals =>
         _farPointerLocals;
 
+    /// <summary>Зарегистрированные на стеке переменные типа <c>long</c>.</summary>
+    public IReadOnlyList<(int BaseOffset, Variable LowVariable, Variable HighVariable)> LongLocals =>
+        _longLocals;
+
     /// <summary>
     /// Регистрирует пару стековых слов (offset + segment) как один far-указатель.
     /// </summary>
@@ -244,6 +254,59 @@ public class VariableStorage
         {
             _stackLocals.Remove(baseOffset + 2);
         }
+    }
+
+    /// <summary>
+    /// Регистрирует пару стековых слов (low + high) как одну переменную <c>long</c>.
+    /// </summary>
+    public void RegisterLongLocal(int baseOffset, Variable lowVariable, Variable highVariable)
+    {
+        if (_longLocals.Any(e => ReferenceEquals(e.LowVariable, lowVariable)))
+        {
+            return;
+        }
+
+        lowVariable.Type = CType.Long;
+        highVariable.IsMergedLongHigh = true;
+
+        _longLocals.Add((baseOffset, lowVariable, highVariable));
+
+        if (baseOffset + 2 != 0 && _stackLocals.TryGetValue(baseOffset + 2, out var merged) &&
+            ReferenceEquals(merged, highVariable))
+        {
+            _stackLocals.Remove(baseOffset + 2);
+        }
+    }
+
+    /// <summary>Удаляет неиспользуемую long-локаль после свёртки сдвигов в IR.</summary>
+    public void RemoveLongLocal(int baseOffset, Variable lowVariable, Variable highVariable)
+    {
+        _longLocals.RemoveAll(e => ReferenceEquals(e.LowVariable, lowVariable));
+        _stackLocals.Remove(baseOffset);
+        if (baseOffset + 2 != 0)
+        {
+            _stackLocals.Remove(baseOffset + 2);
+        }
+
+        highVariable.IsMergedLongHigh = false;
+        if (lowVariable.Type?.Kind == CTypeKind.Long)
+        {
+            lowVariable.Type = CType.Int;
+        }
+    }
+
+    /// <summary>Удаляет стековую локаль по смещению [BP+n].</summary>
+    public void RemoveStackLocal(int bpDisplacement) => _stackLocals.Remove(bpDisplacement);
+
+    /// <summary>
+    /// Объединяет пару параметров стека в один <c>long</c> и удаляет старшее слово из карты параметров.
+    /// </summary>
+    public void RegisterLongParameter(int baseOffset, Variable lowVariable, Variable highVariable)
+    {
+        lowVariable.Type = CType.Long;
+        highVariable.IsMergedLongHigh = true;
+        _stackParameters[baseOffset] = lowVariable;
+        _stackParameters.Remove(baseOffset + 2);
     }
 
     /// <summary>

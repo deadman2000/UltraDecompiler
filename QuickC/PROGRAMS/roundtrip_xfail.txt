@@ -1,7 +1,5 @@
 bits.c
 jmp.c
-long.c
-reg.c
 rot.c
 sjmp.c
 switch.c

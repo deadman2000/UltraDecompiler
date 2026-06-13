@@ -79,8 +79,35 @@ public static class Extensions
 
     static string FormatCall(CallOperation call, int indent)
     {
-        var args = string.Join(", ", call.Args);
-        return $"{Indent(indent)}{call.Name}({args})";
+        var args = TrimPrintfArguments(call.Name, call.Args);
+        var argsText = string.Join(", ", args);
+        return $"{Indent(indent)}{call.Name}({argsText})";
+    }
+
+    static IReadOnlyList<Expr> TrimPrintfArguments(string name, IReadOnlyList<Expr> args)
+    {
+        if (args.Count < 2
+            || !string.Equals(name, "printf", StringComparison.Ordinal)
+            || args[0] is not StringExpr format
+            || !format.Value.Contains("%ld", StringComparison.Ordinal))
+        {
+            return args;
+        }
+
+        var result = new List<Expr>(args);
+        while (result.Count > 2 && result[^1] is ConstExpr { Value: 0 })
+        {
+            result.RemoveAt(result.Count - 1);
+        }
+
+        if (result.Count >= 3
+            && result[1] is CallExpr
+            && result[2] is ConstExpr { Value: 0 })
+        {
+            result.RemoveAt(2);
+        }
+
+        return result;
     }
 
     static string FormatReturn(ReturnOperation ret, int indent)

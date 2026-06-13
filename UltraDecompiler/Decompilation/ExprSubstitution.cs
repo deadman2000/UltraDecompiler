@@ -42,6 +42,11 @@ internal static class ExprSubstitution
             {
                 Args = call.Args.Select(arg => Replace(arg, from, to)).ToList(),
             },
+            LongExpr longExpr => longExpr with
+            {
+                Low = Replace(longExpr.Low, from, to),
+                High = Replace(longExpr.High, from, to),
+            },
             _ => expr,
         };
     }
@@ -101,6 +106,10 @@ internal static class ExprSubstitution
                     CollectVariablesRecursive(arg, result);
                 }
 
+                break;
+            case LongExpr longExpr:
+                CollectVariablesRecursive(longExpr.Low, result);
+                CollectVariablesRecursive(longExpr.High, result);
                 break;
         }
     }

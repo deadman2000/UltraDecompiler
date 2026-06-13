@@ -23,6 +23,9 @@ public sealed record CType(CTypeKind Kind, CType? Pointee = null, string? Struct
 
     public static CType Int { get; } = new(CTypeKind.Int);
 
+    /// <summary>32-битный знаковый тип <c>long</c> (QuickC / MSC).</summary>
+    public static CType Long { get; } = new(CTypeKind.Long);
+
     /// <summary>Беззнаковый 16-битный тип (<c>unsigned</c> / <c>unsigned int</c> в QuickC).</summary>
     public static CType UnsignedInt { get; } = new(CTypeKind.Unsigned);
 

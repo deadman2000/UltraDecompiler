@@ -145,6 +145,14 @@ public static class CallSiteResolver
             Expr arg;
             switch (param.Location)
             {
+                case StackParameter when param.Type.Kind == CTypeKind.Long:
+                    {
+                        var low = stackIdx < stackSource.Count ? stackSource[stackIdx++] : ConstExpr.Zero;
+                        var high = stackIdx < stackSource.Count ? stackSource[stackIdx++] : ConstExpr.Zero;
+                        arg = LongExpr.FromWords(low, high);
+                        break;
+                    }
+
                 case StackParameter:
                     arg = stackIdx < stackSource.Count ? stackSource[stackIdx++] : ConstExpr.Zero;
                     break;
