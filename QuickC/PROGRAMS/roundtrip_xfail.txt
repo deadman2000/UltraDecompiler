@@ -1,6 +1,5 @@
 bits.c
 jmp.c
-rot.c
 sjmp.c
 switch.c
 vol.c
