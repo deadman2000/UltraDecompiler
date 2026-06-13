@@ -39,7 +39,7 @@ public static class StructFieldRewriter
         op switch
         {
             SetOperation set => new SetOperation(
-                set.Dst,
+                RewriteSetTarget(set.Dst, variables),
                 RewriteExpr(set.Src, variables)),
             StoreOperation store => new StoreOperation(
                 RewriteExpr(store.Address, variables),
@@ -87,18 +87,58 @@ public static class StructFieldRewriter
         var result = new List<Expr>(args.Count);
         for (var i = 0; i < args.Count; i++)
         {
-            var rewritten = RewriteExpr(args[i], variables);
             if (i < signature.Parameters.Count
                 && signature.Parameters[i].Type.IsStructPtr
-                && rewritten is Variable { Type.IsStruct: true } structVar)
+                && args[i] is Variable { Type.IsStruct: true } structVar)
             {
-                rewritten = new AddressOfExpr(structVar);
+                result.Add(new AddressOfExpr(structVar));
+                continue;
             }
 
-            result.Add(rewritten);
+            result.Add(RewriteExpr(args[i], variables));
         }
 
         return result;
+    }
+
+    private static Expr RewriteSetTarget(Expr dst, VariableStorage variables)
+    {
+        if (dst is not Variable variable)
+        {
+            return RewriteExpr(dst, variables);
+        }
+
+        if (variables.TryGetMergedField(variable, out var member) && member is not null)
+        {
+            return member;
+        }
+
+        if (TryResolveStructBaseField(variable, variables, out member) && member is not null)
+        {
+            return member;
+        }
+
+        return variable;
+    }
+
+    private static bool TryResolveStructBaseField(Variable variable, VariableStorage variables, out MemberExpr? member)
+    {
+        member = null;
+
+        foreach (var (baseOffset, baseVariable, _) in variables.StructLocals)
+        {
+            if (!ReferenceEquals(baseVariable, variable))
+            {
+                continue;
+            }
+
+            if (variables.TryResolveStructFieldAccess(baseOffset, out member) && member is not null)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static Expr RewriteExpr(Expr expr, VariableStorage variables) =>
@@ -121,7 +161,12 @@ public static class StructFieldRewriter
             {
                 Args = call.Args.Select(arg => RewriteExpr(arg, variables)).ToList(),
             },
-            AddressOfExpr addr => addr with { Operand = RewriteExpr(addr.Operand, variables) },
+            AddressOfExpr addr => addr with
+            {
+                Operand = addr.Operand is Variable structVar
+                    ? structVar
+                    : RewriteExpr(addr.Operand, variables),
+            },
             MemberExpr member => member with { Base = RewriteExpr(member.Base, variables) },
             _ => expr,
         };
@@ -129,6 +174,11 @@ public static class StructFieldRewriter
     private static Expr RewriteVariable(Variable variable, VariableStorage variables)
     {
         if (variables.TryGetMergedField(variable, out var member) && member is not null)
+        {
+            return member;
+        }
+
+        if (TryResolveStructBaseField(variable, variables, out member) && member is not null)
         {
             return member;
         }

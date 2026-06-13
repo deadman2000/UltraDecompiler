@@ -17,7 +17,7 @@ public enum CTypeKind
 }
 
 /// <summary>Тип C для сигнатуры процедуры.</summary>
-public sealed record CType(CTypeKind Kind, CType? Pointee = null, string? StructName = null, bool IsFar = false)
+public sealed record CType(CTypeKind Kind, CType? Pointee = null, string? StructName = null, bool IsFar = false, bool IsUnion = false)
 {
     public static CType Void { get; } = new(CTypeKind.Void);
 
@@ -41,8 +41,14 @@ public sealed record CType(CTypeKind Kind, CType? Pointee = null, string? Struct
     /// <summary>Структура из заголовка QuickC (<c>struct name</c>).</summary>
     public static CType StructType(string name) => new(CTypeKind.Struct, StructName: name);
 
+    /// <summary>Объединение из заголовка QuickC (<c>union name</c>).</summary>
+    public static CType UnionType(string name) => new(CTypeKind.Struct, StructName: name, IsUnion: true);
+
     /// <summary>Указатель на структуру (<c>struct name*</c>).</summary>
     public static CType StructPointer(string name) => new(CTypeKind.Pointer, StructType(name));
+
+    /// <summary>Указатель на union (<c>union name*</c>).</summary>
+    public static CType UnionPointer(string name) => new(CTypeKind.Pointer, UnionType(name));
 
     public bool IsVoid => Kind == CTypeKind.Void;
 
@@ -79,9 +85,11 @@ public sealed record CType(CTypeKind Kind, CType? Pointee = null, string? Struct
         CTypeKind.SizeT => "size_t",
         CTypeKind.Float => "float",
         CTypeKind.Double => "double",
+        CTypeKind.Struct when IsUnion => $"union {StructName}",
         CTypeKind.Struct => $"struct {StructName}",
         CTypeKind.Pointer when IsFar && Pointee?.Kind == CTypeKind.Char => "char far *",
         CTypeKind.Pointer when IsFar => $"{Pointee ?? new CType(CTypeKind.Unknown)} far *",
+        CTypeKind.Pointer when Pointee is { Kind: CTypeKind.Struct, IsUnion: true } => $"union {Pointee.StructName}*",
         CTypeKind.Pointer when Pointee?.Kind == CTypeKind.Struct => $"struct {Pointee.StructName}*",
         CTypeKind.Pointer => $"{Pointee ?? new CType(CTypeKind.Unknown)}*",
         CTypeKind.Unknown => "unknown",

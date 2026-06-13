@@ -101,6 +101,7 @@ public sealed class HeaderCatalog
         var lines = File.ReadAllLines(path);
 
         ParseStructs(lines, headerFileName);
+        ParseUnions(lines, headerFileName);
 
         foreach (var line in lines)
         {
@@ -129,20 +130,161 @@ public sealed class HeaderCatalog
                 continue;
             }
 
-            if (_structsByName.ContainsKey(definition.Name))
+            RegisterTypeDefinition(definition);
+        }
+    }
+
+    private void ParseUnions(string[] lines, string headerFileName)
+    {
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var trimmed = StripComments(lines[i]).Trim();
+            if (!trimmed.StartsWith("union ", StringComparison.Ordinal))
             {
                 continue;
             }
 
-            _structsByName[definition.Name] = definition;
-            if (!_structsBySize.TryGetValue(definition.Size, out var bySize))
+            if (!TryParseUnionBlock(lines, ref i, headerFileName, out var definition) || definition is null)
             {
-                bySize = [];
-                _structsBySize[definition.Size] = bySize;
+                continue;
             }
 
-            bySize.Add(definition);
+            RegisterTypeDefinition(definition);
         }
+    }
+
+    private void RegisterTypeDefinition(StructDefinition definition)
+    {
+        if (_structsByName.ContainsKey(definition.Name))
+        {
+            return;
+        }
+
+        _structsByName[definition.Name] = definition;
+        if (!_structsBySize.TryGetValue(definition.Size, out var bySize))
+        {
+            bySize = [];
+            _structsBySize[definition.Size] = bySize;
+        }
+
+        bySize.Add(definition);
+    }
+
+    private bool TryParseUnionBlock(
+        string[] lines,
+        ref int index,
+        string headerFileName,
+        out StructDefinition? definition)
+    {
+        definition = null;
+        var head = StripComments(lines[index]).Trim();
+        var braceIndex = head.IndexOf('{');
+        if (braceIndex < 0)
+        {
+            return false;
+        }
+
+        var namePart = head[..braceIndex].Trim();
+        var nameTokens = Tokenize(namePart).Where(static t => t != "union").ToList();
+        if (nameTokens.Count != 1 || !Regex.IsMatch(nameTokens[0], @"^[A-Za-z_]\w*$"))
+        {
+            return false;
+        }
+
+        var unionName = nameTokens[0];
+        var fields = new List<StructField>();
+        var maxMemberSize = 0;
+        var body = head[(braceIndex + 1)..].Trim();
+
+        if (!TryParseUnionMembersFromLine(body, fields, ref maxMemberSize))
+        {
+            while (++index < lines.Length)
+            {
+                var line = StripComments(lines[index]).Trim();
+                if (line.Length == 0)
+                {
+                    continue;
+                }
+
+                if (TryParseUnionMembersFromLine(line, fields, ref maxMemberSize))
+                {
+                    break;
+                }
+            }
+        }
+
+        if (fields.Count == 0 || maxMemberSize <= 0)
+        {
+            return false;
+        }
+
+        definition = new StructDefinition(unionName, headerFileName, fields, isUnion: true, sizeOverride: maxMemberSize);
+        return true;
+    }
+
+    private bool TryParseUnionMembersFromLine(string line, List<StructField> fields, ref int maxMemberSize)
+    {
+        var trimmed = line.Trim();
+        if (trimmed is "};" or "}")
+        {
+            return true;
+        }
+
+        if (trimmed.EndsWith("};", StringComparison.Ordinal))
+        {
+            trimmed = trimmed[..^2].TrimEnd();
+        }
+
+        if (trimmed.EndsWith(';'))
+        {
+            trimmed = trimmed[..^1].Trim();
+        }
+
+        if (trimmed.Length == 0)
+        {
+            return trimmed.EndsWith('}');
+        }
+
+        var tokens = Tokenize(trimmed).Where(static t => !IsIgnoredToken(t)).ToList();
+        if (tokens.Count < 3)
+        {
+            return false;
+        }
+
+        var memberName = tokens[^1];
+        if (!Regex.IsMatch(memberName, @"^[A-Za-z_]\w*$"))
+        {
+            return false;
+        }
+
+        var typeKeywordIndex = tokens.IndexOf("struct");
+        if (typeKeywordIndex < 0 || typeKeywordIndex >= tokens.Count - 2)
+        {
+            return false;
+        }
+
+        var nestedTypeName = tokens[typeKeywordIndex + 1];
+        if (!_structsByName.TryGetValue(nestedTypeName, out var nestedDefinition) || nestedDefinition is null)
+        {
+            return false;
+        }
+
+        foreach (var nestedField in nestedDefinition.Fields)
+        {
+            if (fields.Any(existing => existing.Offset == nestedField.Offset))
+            {
+                continue;
+            }
+
+            fields.Add(new StructField(
+                $"{memberName}.{nestedField.Name}",
+                nestedField.Type,
+                nestedField.Offset,
+                nestedField.Size));
+        }
+
+        maxMemberSize = Math.Max(maxMemberSize, nestedDefinition.Size);
+        return false;
     }
 
     private static bool TryParseStructBlock(
@@ -257,6 +399,7 @@ public sealed class HeaderCatalog
             trimmed.StartsWith('#') ||
             trimmed.StartsWith("typedef", StringComparison.Ordinal) ||
             trimmed.StartsWith("struct", StringComparison.Ordinal) ||
+            trimmed.StartsWith("union", StringComparison.Ordinal) ||
             trimmed.StartsWith("enum", StringComparison.Ordinal) ||
             trimmed.StartsWith("extern", StringComparison.Ordinal) ||
             !trimmed.EndsWith(';'))
@@ -367,9 +510,14 @@ public sealed class HeaderCatalog
 
         CType baseType;
         var structIndex = typeTokens.IndexOf("struct");
+        var unionIndex = typeTokens.IndexOf("union");
         if (structIndex >= 0 && structIndex < typeTokens.Count - 1)
         {
             baseType = CType.StructType(typeTokens[structIndex + 1]);
+        }
+        else if (unionIndex >= 0 && unionIndex < typeTokens.Count - 1)
+        {
+            baseType = CType.UnionType(typeTokens[unionIndex + 1]);
         }
         else
         {

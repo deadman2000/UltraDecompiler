@@ -12,17 +12,26 @@ public sealed record StructField(string Name, CType Type, int Offset, int Size);
 /// <summary>Описание <c>struct</c> из INCLUDE/*.H (раскладка полей как у QuickC).</summary>
 public sealed class StructDefinition
 {
-    public StructDefinition(string name, string headerFile, IReadOnlyList<StructField> fields)
+    public StructDefinition(
+        string name,
+        string headerFile,
+        IReadOnlyList<StructField> fields,
+        bool isUnion = false,
+        int? sizeOverride = null)
     {
         Name = name;
         HeaderFile = headerFile;
         Fields = fields;
-        Size = ComputeSize(fields);
+        IsUnion = isUnion;
+        Size = sizeOverride ?? ComputeSize(fields);
         _fieldByOffset = fields.ToDictionary(static f => f.Offset);
     }
 
     /// <summary>Имя типа (<c>dosdate_t</c>).</summary>
     public string Name { get; }
+
+    /// <summary>true для <c>union</c> из заголовка QuickC (<c>REGS</c> и т.п.).</summary>
+    public bool IsUnion { get; }
 
     /// <summary>Файл заголовка (<c>DOS.H</c>).</summary>
     public string HeaderFile { get; }
@@ -36,10 +45,10 @@ public sealed class StructDefinition
     private readonly Dictionary<int, StructField> _fieldByOffset;
 
     /// <summary>Тип C для объявления переменной.</summary>
-    public CType CType => CType.StructType(Name);
+    public CType CType => IsUnion ? CType.UnionType(Name) : CType.StructType(Name);
 
-    /// <summary>Указатель на структуру (<c>struct name*</c>).</summary>
-    public CType PointerType => CType.StructPointer(Name);
+    /// <summary>Указатель на структуру или union.</summary>
+    public CType PointerType => IsUnion ? CType.UnionPointer(Name) : CType.StructPointer(Name);
 
     public bool TryGetFieldAtOffset(int offset, out StructField? field) =>
         _fieldByOffset.TryGetValue(offset, out field);

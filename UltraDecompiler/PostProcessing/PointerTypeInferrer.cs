@@ -183,12 +183,18 @@ public static class PointerTypeInferrer
             {
                 if (signature.Parameters[i].Type.IsStructPtr && call.Args[i] is Variable structVar)
                 {
-                    if (signature.Parameters[i].Type.Pointee?.StructName is { } structName)
+                    if (signature.Parameters[i].Type.Pointee?.StructName is { } structName
+                        && headers.TryGetStruct(structName, out var definition)
+                        && definition is not null)
                     {
-                        structVar.Type = CType.StructType(structName);
-                        structVar.ArraySize = null;
+                        structVar.Type = definition.CType;
+                    }
+                    else if (signature.Parameters[i].Type.Pointee?.StructName is { } fallbackName)
+                    {
+                        structVar.Type = CType.StructType(fallbackName);
                     }
 
+                    structVar.ArraySize = null;
                     continue;
                 }
 

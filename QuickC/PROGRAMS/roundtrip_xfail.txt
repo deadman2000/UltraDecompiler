@@ -1,5 +1,4 @@
 bits.c
-int86.c
 jmp.c
 long.c
 reg.c
