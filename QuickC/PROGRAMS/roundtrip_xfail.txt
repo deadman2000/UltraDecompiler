@@ -2,7 +2,6 @@ bits.c
 int86.c
 jmp.c
 long.c
-peek.c
 reg.c
 rot.c
 sjmp.c
