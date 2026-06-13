@@ -14,7 +14,7 @@ namespace UltraDecompiler.LibMatching;
 /// </summary>
 /// <remarks>
 /// Decompiler использует только высокоуровневый API:
-/// - конструктор с путём к папке библиотек,
+/// - конструктор с путём к папке библиотек и необязательным списком конкретных .LIB,
 /// - TryResolveMain для получения адреса main и информации о вариантах библиотек,
 /// - TryMatchProcedure для сопоставления других процедур (с автоматическим narrowing кандидатов).
 /// Вся сложная логика MatchEntryPoint / NarrowBy* / ResolveAll* / PickPreferred / ConfirmAstart спрятана внутри.
@@ -34,15 +34,20 @@ public sealed class LibraryProvider
     public const string Crt0ModuleName = "crt0";
 
     /// <summary>
-    /// Загружает все .LIB из указанного каталога (в алфавитном порядке имён файлов).
+    /// Загружает .LIB из указанного каталога (в алфавитном порядке имён файлов).
+    /// Если задан <paramref name="libraryFileNames"/>, парсятся только перечисленные файлы
+    /// (имя или полный путь) — это ускоряет декомпиляцию, когда набор библиотек известен заранее.
     /// Эквивалент прежнего LibMatcher.LoadLibraries.
     /// </summary>
-    public static List<OmfLibrary> LoadLibraries(string libraryDirectory)
+    public static List<OmfLibrary> LoadLibraries(
+        string libraryDirectory,
+        IReadOnlyList<string>? libraryFileNames = null)
     {
         var fullPath = Path.GetFullPath(libraryDirectory);
-        var signature = ComputeLibraryDirectorySignature(fullPath);
+        var cacheKey = BuildLoadCacheKey(fullPath, libraryFileNames);
+        var signature = ComputeLibraryDirectorySignature(fullPath, libraryFileNames);
 
-        if (LoadCache.TryGetValue(fullPath, out var cached) && cached.Signature == signature)
+        if (LoadCache.TryGetValue(cacheKey, out var cached) && cached.Signature == signature)
         {
             return cached.Libraries;
         }
@@ -52,34 +57,93 @@ public sealed class LibraryProvider
             throw new DirectoryNotFoundException($"Каталог библиотек не найден: {fullPath}");
         }
 
-        var libraries = new List<OmfLibrary>();
-        foreach (var libraryPath in Directory.EnumerateFiles(fullPath, "*.LIB").OrderBy(static p => p))
+        var libraryPaths = ResolveLibraryPaths(fullPath, libraryFileNames);
+        if (libraryPaths.Count == 0)
+        {
+            throw new DirectoryNotFoundException(
+                libraryFileNames is { Count: > 0 }
+                    ? $"Не найдено ни одного из указанных файлов *.LIB в {fullPath}."
+                    : $"В каталоге {fullPath} не найдено файлов *.LIB.");
+        }
+
+        var libraries = new List<OmfLibrary>(libraryPaths.Count);
+        foreach (var libraryPath in libraryPaths)
         {
             libraries.Add(OmfLibraryParser.ParseFile(libraryPath));
         }
 
-        LoadCache[fullPath] = (signature, libraries);
+        LoadCache[cacheKey] = (signature, libraries);
         return libraries;
     }
 
     /// <summary>
-    /// Создаёт провайдер и загружает все *.LIB из указанного каталога (в алфавитном порядке).
+    /// Создаёт провайдер и загружает *.LIB из указанного каталога (в алфавитном порядке).
+    /// Если задан <paramref name="libraryFileNames"/>, загружаются только перечисленные файлы.
     /// </summary>
-    public LibraryProvider(string libraryDirectory)
+    public LibraryProvider(string libraryDirectory, IReadOnlyList<string>? libraryFileNames = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryDirectory);
 
-        _allLibraries = LoadLibraries(libraryDirectory);
-
-        if (_allLibraries.Count == 0)
-        {
-            throw new DirectoryNotFoundException($"В каталоге {libraryDirectory} не найдено файлов *.LIB.");
-        }
-
+        _allLibraries = LoadLibraries(libraryDirectory, libraryFileNames);
         _candidates = new List<OmfLibrary>(_allLibraries);
     }
 
-    private static long ComputeLibraryDirectorySignature(string libraryDirectory)
+    private static string BuildLoadCacheKey(string libraryDirectory, IReadOnlyList<string>? libraryFileNames)
+    {
+        if (libraryFileNames is null or { Count: 0 })
+        {
+            return libraryDirectory;
+        }
+
+        return libraryDirectory + "|" + string.Join(
+            "|",
+            libraryFileNames.OrderBy(static n => n, StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static List<string> ResolveLibraryPaths(
+        string libraryDirectory,
+        IReadOnlyList<string>? libraryFileNames)
+    {
+        if (libraryFileNames is null or { Count: 0 })
+        {
+            return Directory.EnumerateFiles(libraryDirectory, "*.LIB")
+                .OrderBy(static p => p, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        return libraryFileNames
+            .Select(name => ResolveLibraryPath(libraryDirectory, name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static p => p, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static string ResolveLibraryPath(string libraryDirectory, string libraryFileName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(libraryFileName);
+
+        if (Path.IsPathRooted(libraryFileName))
+        {
+            if (!File.Exists(libraryFileName))
+            {
+                throw new FileNotFoundException($"Файл библиотеки не найден: {libraryFileName}", libraryFileName);
+            }
+
+            return Path.GetFullPath(libraryFileName);
+        }
+
+        var path = Path.Combine(libraryDirectory, Path.GetFileName(libraryFileName));
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException($"Файл библиотеки не найден: {path}", path);
+        }
+
+        return path;
+    }
+
+    private static long ComputeLibraryDirectorySignature(
+        string libraryDirectory,
+        IReadOnlyList<string>? libraryFileNames = null)
     {
         if (!Directory.Exists(libraryDirectory))
         {
@@ -87,7 +151,7 @@ public sealed class LibraryProvider
         }
 
         long signature = 0;
-        foreach (var libraryPath in Directory.EnumerateFiles(libraryDirectory, "*.LIB"))
+        foreach (var libraryPath in ResolveLibraryPaths(libraryDirectory, libraryFileNames))
         {
             signature ^= File.GetLastWriteTimeUtc(libraryPath).Ticks;
         }

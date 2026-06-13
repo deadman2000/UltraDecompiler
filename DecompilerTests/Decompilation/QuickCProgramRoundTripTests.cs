@@ -5,16 +5,15 @@ using UltraDecompiler.Decompilation;
 namespace DecompilerTests.Decompilation;
 
 /// <summary>
-/// Сквозной round-trip: исходник → QCL → декомпиляция → MAKE → побайтовое сравнение EXE.
+/// Сквозной round-trip: ExeProvider → декомпиляция → MAKE → побайтовое сравнение EXE.
 /// </summary>
 [Trait("Tool", "DosBox")]
 public sealed class QuickCProgramRoundTripTests
 {
     private const string CrtLibrary = "SLIBCE.LIB";
     private const string DecompiledSubdirectory = "OUT";
-    private const string CompilerFlags = "/nologo /AS /Gs";
 
-    // Для каждого PROGRAMS/*.c: QCL → EXE → Decompiler → MAKE → побайтовое сравнение с оригиналом.
+    // Для каждого PROGRAMS/*.c: ExeProvider → Decompiler → MAKE → побайтовое сравнение с эталоном.
     // Требует DOSBox с QuickC; при отсутствии — тест падает с InvalidOperationException.
     [Theory]
     [MemberData(nameof(QuickCProgramCases.SourceFileMemberData), MemberType = typeof(QuickCProgramCases))]
@@ -25,39 +24,29 @@ public sealed class QuickCProgramRoundTripTests
             throw new InvalidOperationException();
         }
 
-        var sourcePath = QuickCTestAssets.ProgramsPathOf(sourceFileName);
-        Assert.True(File.Exists(sourcePath), $"Исходник не найден: {sourcePath}");
-
-        var baseName = Path.GetFileNameWithoutExtension(sourceFileName);
-        var targetExeFileName = FormatTargetExeFileName(baseName);
+        var builtExePath = ExeProvider.Get(sourceFileName, libraries: [CrtLibrary]);
+        var targetExeFileName = FormatTargetExeFileName(Path.GetFileNameWithoutExtension(sourceFileName));
         var workspaceId = CreateWorkspaceId();
         var workspaceDirectory = Path.Combine(QuickCTestAssets.RoundTripWorkRoot, workspaceId);
         var decompiledDirectory = Path.Combine(workspaceDirectory, DecompiledSubdirectory);
         var referenceExePath = Path.Combine(workspaceDirectory, targetExeFileName);
         var rebuiltExePath = Path.Combine(decompiledDirectory, targetExeFileName);
-        var dosWorkspacePath = $@"C:\QuickC\RT\{workspaceId}";
-        var dosDecompiledPath = $@"{dosWorkspacePath}\{DecompiledSubdirectory}";
+        var dosDecompiledPath = $@"C:\QuickC\RT\{workspaceId}\{DecompiledSubdirectory}";
 
         Directory.CreateDirectory(workspaceDirectory);
+        Directory.CreateDirectory(decompiledDirectory);
 
         try
         {
-            File.Copy(sourcePath, Path.Combine(workspaceDirectory, sourceFileName), overwrite: true);
-
-            var compileResult = DosBoxQuickCRunner.Run(
-                $@"CD {dosWorkspacePath}",
-                $"QCL {CompilerFlags} {sourceFileName} /Fe{targetExeFileName} {CrtLibrary}");
-
-            Assert.True(
-                File.Exists(referenceExePath),
-                $"QCL не создал {targetExeFileName}.{Environment.NewLine}{compileResult.Output}");
+            File.Copy(builtExePath, referenceExePath, overwrite: true);
 
             var decompiler = new Decompiler();
             var decompileResult = decompiler.Decompile(
                 referenceExePath,
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
-                decompiledDirectory);
+                decompiledDirectory,
+                libraryFileNames: [CrtLibrary]);
 
             Assert.True(decompileResult.Success, "Декомпиляция завершилась неуспешно.");
             Assert.Contains(
@@ -88,7 +77,7 @@ public sealed class QuickCProgramRoundTripTests
         }
     }
 
-    /// <summary>Имя EXE для small-модели: <c>HELLO.EXE</c> (лимит 8.3 на stem).</summary>
+    /// <summary>Имя EXE по имени исходника: <c>hello.c</c> → <c>HELLO.EXE</c> (лимит 8.3 на stem).</summary>
     private static string FormatTargetExeFileName(string baseName)
     {
         var stem = baseName.ToUpperInvariant();

@@ -6,11 +6,11 @@ namespace DecompilerTests.Decompilation;
 /// <summary>Интеграционные тесты декомпиляции <c>copy.c</c> (указатели, while, строковый литерал).</summary>
 public sealed class CopyDecompileTests
 {
-    // Исходник copy.c: char buf[20], int n=10, char buf2[30], int m=8; strcpy(...); printf.
+    // Исходник copy.c: char buf[20], int a=10, char buf2[30], int b=8; copy/copy2; printf("%s\n", buf).
     // Ожидаемый фрагмент main.c:
     //   char var1[20]; int var2; char var3[30]; int var4;
     //   var2 = 10; var4 = 8;
-    //   sub_0010(var1, "test"); sub_0010(var3, "test3");
+    //   sub_0010(var1, "test"); sub_0010(var3, "test3"); sub_0048(var3, "test3");
     [Fact]
     public void Decompile_Copy_EmitsCharArrayLocal()
     {
@@ -21,7 +21,8 @@ public sealed class CopyDecompileTests
                 ExeProvider.Get("copy.c"),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+                outputDirectory,
+                libraryFileNames: ["SLIBCE.LIB"]);
 
             Assert.True(result.Success);
 
@@ -36,8 +37,8 @@ public sealed class CopyDecompileTests
             Assert.Contains("var4 = 8;", mainSource);
             Assert.Contains("sub_0010(var1, \"test\")", mainSource);
             Assert.Contains("sub_0010(var3, \"test3\")", mainSource);
+            Assert.Contains("sub_0048(var3, \"test3\")", mainSource);
             Assert.Contains("printf(\"%s\\n\", var1)", mainSource);
-            Assert.Contains("printf(\"%d, %d\\n\", var2, var4)", mainSource);
         }
         finally
         {
@@ -48,7 +49,7 @@ public sealed class CopyDecompileTests
         }
     }
 
-    // Тело strcpy-подобной функции (copy2.c) должно декомпилироваться в цикл по указателям:
+    // Функция copy2 в copy.c (sub_0048) должна декомпилироваться в цикл по указателям:
     //   while (*arg1 != 0) { *arg0 = *arg1; arg0++; arg1++; }
     //   *arg0 = 0;
     [Fact]
@@ -58,14 +59,16 @@ public sealed class CopyDecompileTests
         try
         {
             var result = new Decompiler().Decompile(
-                ExeProvider.Get("copy2.c"),
+                ExeProvider.Get("copy.c"),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+                outputDirectory,
+                libraryFileNames: ["SLIBCE.LIB"]);
 
             Assert.True(result.Success);
 
             var copySource = DecompileTestHelper.ReadPrimarySource(result);
+            Assert.Contains("void sub_0048(char* arg0, char* arg1)", copySource);
             Assert.Contains("while (*arg1 != 0)", copySource);
             Assert.Contains("*arg0 = *arg1", copySource);
             Assert.Contains("arg0++", copySource);
@@ -95,7 +98,8 @@ public sealed class CopyDecompileTests
                 ExeProvider.Get("copy.c"),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+                outputDirectory,
+                libraryFileNames: ["SLIBCE.LIB"]);
 
             Assert.True(result.Success);
 

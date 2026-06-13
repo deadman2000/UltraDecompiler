@@ -22,12 +22,17 @@ public class Decompiler
     /// Декомпилирует EXE/COM: находит <c>_main</c>, рекурсивно собирает функции,
     /// сопоставляет runtime с .LIB и сохраняет пользовательский код в <paramref name="outputDirectory"/>.
     /// </summary>
+    /// <param name="libraryFileNames">
+    /// Необязательный список имён или путей к конкретным .LIB для сопоставления.
+    /// Если не задан, загружаются все *.LIB из <paramref name="libraryDirectory"/>.
+    /// </param>
     public DecompileResult Decompile(
         string exePath,
         string libraryDirectory,
         string includeDirectory,
         string outputDirectory,
-        bool exportGraph = false)
+        bool exportGraph = false,
+        IReadOnlyList<string>? libraryFileNames = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(exePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryDirectory);
@@ -38,7 +43,7 @@ public class Decompiler
         var initRegisters = parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe;
         var entryPoint = (int)parser.EntryPointOffset;
 
-        var provider = new LibraryProvider(libraryDirectory);
+        var provider = new LibraryProvider(libraryDirectory, libraryFileNames);
 
         if (!provider.TryResolveMain(
                 parser.Image,
