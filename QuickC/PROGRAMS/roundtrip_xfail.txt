@@ -1,3 +1,11 @@
 bits.c
 jmp.c
 sjmp.c
+cmpas.c
+dowhl.c
+enum.c
+fncp.c
+forln.c
+land.c
+tern.c
+uion.c
