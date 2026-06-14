@@ -45,9 +45,13 @@ internal static class DecompilePipeline
         expressions.Build(cfg, parser.IsCom);
 
         var operations = expressions.GetAllOperations();
+
+        // Детектируем уровень оптимизации по дизассемблированным инструкциям (для корректного выбора профиля и вывода).
+        var optimizationLevel = OptimizationLevelDetector.DetectFromInstructions(disassembler.Instructions);
         var compilerOptions = new CompilerOptions
         {
             StackCheckingEnabled = StackCheckDetector.AnalyzeFromOperations(operations),
+            OptimizationLevel = optimizationLevel,
         };
         var profile = DecompilationProfileRegistry.GetProfile(compilerOptions.OptimizationLevel);
         var diagnosticCtx = new PostProcessContext

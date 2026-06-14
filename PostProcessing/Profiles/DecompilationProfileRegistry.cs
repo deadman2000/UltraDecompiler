@@ -9,12 +9,12 @@ public static class DecompilationProfileRegistry
 {
     /// <summary>
     /// Возвращает профиль для заданного уровня оптимизации.
-    /// Пока для всех уровней кроме <see cref="OptimizationLevel.Disabled"/> — заглушка оптимизированного профиля.
+    /// Для оптимизированных уровней возвращает QuickCOptimizedProfile с точным уровнем (для правильного CompilerOptions и Makefile).
     /// </summary>
     public static IDecompilationProfile GetProfile(OptimizationLevel level) =>
         level switch
         {
             OptimizationLevel.Disabled => QuickCUnoptimizedProfile.Instance,
-            _ => QuickCOptimizedProfile.Instance,
+            _ => QuickCOptimizedFullProfile.Instance,
         };
 }

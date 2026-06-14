@@ -99,23 +99,8 @@ public static class StackCheckDetector
         return false;
     }
 
-    private static int SkipPrologue(IReadOnlyList<Instruction> instructions)
-    {
-        if (instructions[0].Mnemonic == Mnemonic.ENTER)
-        {
-            return 1;
-        }
-
-        for (var i = 0; i < instructions.Count - 1; i++)
-        {
-            if (IsPushBp(instructions[i]) && IsMovBpSp(instructions[i + 1]))
-            {
-                return i + 2;
-            }
-        }
-
-        return 0;
-    }
+    private static int SkipPrologue(IReadOnlyList<Instruction> instructions) =>
+        PrologueDetector.SkipPrologue(instructions);
 
     private static bool IsMovAxImmediate(Instruction instruction) =>
         instruction.Mnemonic == Mnemonic.MOV
@@ -123,17 +108,7 @@ public static class StackCheckDetector
         && instruction.Operand1.AsGpRegister16() == GpRegister16.AX
         && instruction.Operand2.Type == OperandType.Immediate16;
 
-    private static bool IsPushBp(Instruction instruction) =>
-        instruction.Mnemonic == Mnemonic.PUSH
-        && instruction.Operand1.Type == OperandType.Register16
-        && instruction.Operand1.AsGpRegister16() == GpRegister16.BP;
-
-    private static bool IsMovBpSp(Instruction instruction) =>
-        instruction.Mnemonic == Mnemonic.MOV
-        && instruction.Operand1.Type == OperandType.Register16
-        && instruction.Operand1.AsGpRegister16() == GpRegister16.BP
-        && instruction.Operand2.Type == OperandType.Register16
-        && instruction.Operand2.AsGpRegister16() == GpRegister16.SP;
+    // IsPushBp / IsMovBpSp делегированы в PrologueDetector (shared логика).
 
     private static List<Operation> FilterList(IReadOnlyList<Operation> operations)
     {

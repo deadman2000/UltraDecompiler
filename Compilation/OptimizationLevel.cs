@@ -1,4 +1,8 @@
-﻿namespace UltraDecompiler.Compilation;
+﻿using Common;
+using UltraDecompiler.Disassembler;
+using UltraDecompiler.Disassembly.Disassembler;
+
+namespace UltraDecompiler.Compilation;
 
 /// <summary>Уровень оптимизации QuickC (<c>/Od</c>, <c>/Ot</c>, <c>/Ol</c>, <c>/Ox</c>).</summary>
 public enum OptimizationLevel
@@ -40,4 +44,49 @@ public static class OptimizationLevelDetector
             OptimizationLevel.EnabledFull => "максимальная (/Ox)",
             _ => throw new ArgumentOutOfRangeException(nameof(level), level, null),
         };
+
+    /// <summary>
+    /// Детектирует уровень оптимизации по списку инструкций процедуры (main или user-функции).
+    /// Эвристика: наличие стандартного пролога QuickC (push bp; mov bp, sp или enter) характерно для /Od.
+    /// При наличии пролога возвращает <see cref="OptimizationLevel.Disabled"/>, иначе — <see cref="OptimizationLevel.EnabledFull"/>.
+    /// </summary>
+    public static OptimizationLevel DetectFromInstructions(IReadOnlyList<Instruction> instructions)
+    {
+        if (instructions == null || instructions.Count == 0)
+        {
+            return OptimizationLevel.Disabled;
+        }
+
+        // Используем общий детектор пролога (shared с остальным кодом).
+        return PrologueDetector.HasStandardPrologue(instructions)
+            ? OptimizationLevel.Disabled
+            : OptimizationLevel.EnabledFull;
+    }
+
+    /// <summary>
+    /// Детектирует уровень оптимизации по образу, таблице релокаций и смещению точки входа/ main.
+    /// Выполняет лёгкий дизассемблинг только целевой процедуры (без построения CFG/IR).
+    /// </summary>
+    public static OptimizationLevel Detect(
+        byte[] image,
+        RelocationTable relocationTable,
+        int offset,
+        RegisterState initState)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        ArgumentNullException.ThrowIfNull(relocationTable);
+
+        if (offset < 0 || offset >= image.Length)
+        {
+            return OptimizationLevel.Disabled;
+        }
+
+        var instructions = X86Disassembler.Disassemble(
+            image,
+            relocationTable,
+            offset,
+            initState);
+
+        return DetectFromInstructions(instructions);
+    }
 }
