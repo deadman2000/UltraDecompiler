@@ -55,6 +55,13 @@ public partial class ExpressionBuilder
                     if (f.Iteration != null)
                         yield return f.Iteration;
                     break;
+                case SwitchOperation s:
+                    foreach (var switchCase in s.Cases)
+                    {
+                        foreach (var nested in EnumerateNested(switchCase.Body))
+                            yield return nested;
+                    }
+                    break;
             }
         }
     }
@@ -63,7 +70,7 @@ public partial class ExpressionBuilder
     /// Рекурсивно собирает операции, начиная с <paramref name="block"/>, до <paramref name="stopBefore"/>
     /// или до повторного посещения блока (точка слияния / обратное ребро цикла).
     /// </summary>
-    private static void CollectOperations(
+    private void CollectOperations(
         ExprBlock? block,
         List<Operation> result,
         HashSet<ExprBlock> visited,
@@ -73,6 +80,17 @@ public partial class ExpressionBuilder
         {
             if (!visited.Add(block))
                 return;
+
+            if (_switchByEntry.TryGetValue(block.BasicBlock.StartOffset, out var switchPattern))
+            {
+                CollectQuickCSwitch(block, switchPattern, result, visited);
+                if (!_blocksByOffset.TryGetValue(switchPattern.MergeOffset, out block))
+                {
+                    return;
+                }
+
+                continue;
+            }
 
             result.AddRange(block.Operations);
             if (EndsWithReturn(block.Operations))
@@ -220,7 +238,7 @@ public partial class ExpressionBuilder
     /// <summary>
     /// Точка слияния — только return (ранний выход), а не эпилог вроде <c>*dst = 0</c> после цикла.
     /// </summary>
-    private static bool MergeIsReturnOnly(ExprBlock merge, HashSet<ExprBlock> visited)
+    private bool MergeIsReturnOnly(ExprBlock merge, HashSet<ExprBlock> visited)
     {
         var probe = new List<Operation>();
         var probeVisited = new HashSet<ExprBlock>(visited);

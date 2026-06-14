@@ -104,6 +104,9 @@ internal static class UsedVariableCollector
             case IfOperation branch:
                 AddFromExpr(branch.Condition, result);
                 break;
+            case SwitchOperation sw:
+                AddFromExpr(sw.Discriminant, result);
+                break;
         }
     }
 

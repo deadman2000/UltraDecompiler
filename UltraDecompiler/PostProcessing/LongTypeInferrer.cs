@@ -567,6 +567,9 @@ public static class LongTypeInferrer
             {
                 Body = forLoop.Body.Select(o => RewriteCallOperationArgs(o, storage)).ToList(),
             },
+            SwitchOperation sw => OperationTreeMapper.MapSwitchBodies(
+                sw,
+                bodies => bodies.Select(o => RewriteCallOperationArgs(o, storage)).ToList()),
             _ => op,
         };
     }
@@ -728,6 +731,9 @@ public static class LongTypeInferrer
             {
                 Body = forLoop.Body.Select(o => RewriteNestedOperation(o, shiftReplacements)).ToList(),
             },
+            SwitchOperation sw => OperationTreeMapper.MapSwitchBodies(
+                sw,
+                bodies => bodies.Select(o => RewriteNestedOperation(o, shiftReplacements)).ToList()),
             ReturnOperation ret => ret with
             {
                 Value = ret.Value is null ? null : ReplaceShiftCalls(ret.Value, shiftReplacements),

@@ -39,6 +39,9 @@ public static class PointerLoopBodySimplifier
                 loop.Condition,
                 loop.Iteration is not null ? SimplifyNested(loop.Iteration) : null,
                 SimplifyList(loop.Body.ToList())),
+            SwitchOperation sw => OperationTreeMapper.MapSwitchBodies(
+                sw,
+                bodies => SimplifyList(bodies.ToList())),
             _ => operation,
         };
 

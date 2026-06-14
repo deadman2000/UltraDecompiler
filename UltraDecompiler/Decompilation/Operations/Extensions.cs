@@ -28,11 +28,12 @@ public static class Extensions
                 WhileOperation w => FormatWhile(w, indent),
                 ForOperation f => FormatFor(f, indent),
                 IfOperation i => FormatIf(i, indent),
+                SwitchOperation s => FormatSwitch(s, indent),
                 ContinueOperation => FormatContinue(indent),
                 _ => Indent(indent) + op.ToString(),
             };
 
-            if (asStatement && op is not (WhileOperation or ForOperation or IfOperation))
+            if (asStatement && op is not (WhileOperation or ForOperation or IfOperation or SwitchOperation))
             {
                 return text + ";";
             }
@@ -46,7 +47,7 @@ public static class Extensions
         public void AppendToCString(StringBuilder sb, int indent = 0, bool asStatement = false)
         {
             string text = op.ToCString(indent, asStatement);
-            if (op is WhileOperation or ForOperation or IfOperation)
+            if (op is WhileOperation or ForOperation or IfOperation or SwitchOperation)
             {
                 sb.Append(text);
             }
@@ -188,6 +189,30 @@ public static class Extensions
             sb.AppendLine($"{Indent(indent)}}}");
         }
 
+        return sb.ToString();
+    }
+
+    static string FormatSwitch(SwitchOperation sw, int indent)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"{Indent(indent)}switch ({sw.Discriminant})");
+        sb.AppendLine($"{Indent(indent)}{{");
+        foreach (var switchCase in sw.Cases)
+        {
+            if (switchCase.Value is ConstExpr value)
+            {
+                sb.AppendLine($"{Indent(indent + 1)}case {value.Value}:");
+            }
+            else
+            {
+                sb.AppendLine($"{Indent(indent + 1)}default:");
+            }
+
+            AppendBody(sb, switchCase.Body, indent + 1);
+            sb.AppendLine($"{Indent(indent + 1)}break;");
+        }
+
+        sb.AppendLine($"{Indent(indent)}}}");
         return sb.ToString();
     }
 

@@ -3,6 +3,29 @@
 int main(void)
 {
     int x = 3;
+	
+    if (x != 1)
+    {
+        if (x != 2)
+        {
+            if (x != 3)
+            {
+                printf("other\n");
+            }
+            else
+            {
+                printf("three\n");
+            }
+        }
+        else
+        {
+            printf("two\n");
+        }
+    }
+    else
+    {
+        printf("one\n");
+    }
 
     switch (x) {
     case 1:

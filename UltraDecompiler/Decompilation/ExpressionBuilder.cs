@@ -146,6 +146,8 @@ public partial class ExpressionBuilder
             }
         }
 
+        AnalyzeQuickCSwitches(graph.Blocks);
+
         // Отдельный этап после основного symbolic execution: разрешение вызовов по ProcedureStorage.
         if (procedures != null)
         {

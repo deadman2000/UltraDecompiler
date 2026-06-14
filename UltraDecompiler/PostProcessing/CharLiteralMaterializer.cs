@@ -38,6 +38,9 @@ public static class CharLiteralMaterializer
                 MaterializeExpr(loop.Condition, null),
                 loop.Iteration is not null ? MaterializeNested(loop.Iteration, storage) : null,
                 MaterializeList(loop.Body.ToList(), storage)),
+            SwitchOperation sw => OperationTreeMapper.MapSwitchBodies(
+                sw,
+                bodies => MaterializeList(bodies.ToList(), storage)),
             SetOperation set => new SetOperation(set.Dst, MaterializeExpr(set.Src, null)),
             StoreOperation store when FarPointerFormatter.TryFormatStore(store, out _) => new StoreOperation(
                 store.Address,

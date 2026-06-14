@@ -37,6 +37,9 @@ public static class FlagCallLiteralMaterializer
                 MaterializeExpr(loop.Condition),
                 loop.Iteration is not null ? MaterializeNested(loop.Iteration) : null,
                 MaterializeList(loop.Body.ToList())),
+            SwitchOperation sw => OperationTreeMapper.MapSwitchBodies(
+                sw,
+                bodies => MaterializeList(bodies.ToList())),
             CallOperation call => MaterializeCall(call),
             SetOperation set => new SetOperation(set.Dst, MaterializeExpr(set.Src)),
             _ => operation,

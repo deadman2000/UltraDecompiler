@@ -173,6 +173,9 @@ public static class OperationOptimizer
                 loop.Condition,
                 loop.Iteration is not null ? OptimizeNested(loop.Iteration) : null,
                 OptimizeList(loop.Body.ToList())),
+            SwitchOperation sw => OperationTreeMapper.MapSwitchBodies(
+                sw,
+                bodies => OptimizeList(bodies.ToList())),
             _ => operation,
         };
 
@@ -440,6 +443,10 @@ public static class OperationOptimizer
                 || ExprSubstitution.Contains(loop.Condition, variable)
                 || (loop.Iteration is not null && ReadsVariableOutsideCallArguments(loop.Iteration, variable))
                 || loop.Body.Any(op => ReadsVariableOutsideCallArguments(op, variable)),
+            SwitchOperation sw => OperationTreeMapper.SwitchUsesVariable(
+                sw,
+                variable,
+                ReadsVariableOutsideCallArguments),
             _ => false,
         };
 
@@ -480,6 +487,9 @@ public static class OperationOptimizer
                 loop.Condition,
                 loop.Iteration is not null ? SubstituteInCallArguments(loop.Iteration, from, to) : null,
                 loop.Body.Select(op => SubstituteInCallArguments(op, from, to)).ToList()),
+            SwitchOperation sw => OperationTreeMapper.MapSwitchBodies(
+                sw,
+                bodies => bodies.Select(op => SubstituteInCallArguments(op, from, to)).ToList()),
             _ => operation,
         };
 
@@ -521,6 +531,10 @@ public static class OperationOptimizer
                 || ExprSubstitution.Contains(loop.Condition, variable)
                 || (loop.Iteration is not null && ReadsVariableOutsideReturn(loop.Iteration, variable))
                 || loop.Body.Any(op => ReadsVariableOutsideReturn(op, variable)),
+            SwitchOperation sw => OperationTreeMapper.SwitchUsesVariable(
+                sw,
+                variable,
+                ReadsVariableOutsideReturn),
             _ => false,
         };
 
@@ -639,6 +653,11 @@ public static class OperationOptimizer
                 loop.Condition is null ? null : ExprSubstitution.Replace(loop.Condition, from, to),
                 loop.Iteration is not null ? SubstituteInOperation(loop.Iteration, from, to) : null,
                 loop.Body.Select(op => SubstituteInOperation(op, from, to)).ToList()),
+            SwitchOperation sw => new SwitchOperation(
+                ExprSubstitution.Replace(sw.Discriminant, from, to),
+                sw.Cases.Select(c => new SwitchCase(
+                    c.Value,
+                    c.Body.Select(op => SubstituteInOperation(op, from, to)).ToList())).ToList()),
             _ => operation,
         };
 
@@ -665,6 +684,10 @@ public static class OperationOptimizer
                 || ExprSubstitution.Contains(loop.Condition, variable)
                 || (loop.Iteration is not null && ReadsVariableDeep(loop.Iteration, variable))
                 || loop.Body.Any(op => ReadsVariableDeep(op, variable)),
+            SwitchOperation sw => OperationTreeMapper.SwitchUsesVariable(
+                sw,
+                variable,
+                ReadsVariableDeep),
             _ => false,
         };
 
@@ -747,6 +770,11 @@ public static class OperationOptimizer
                 Iteration = loop.Iteration is null ? null : SubstituteVariableDeep(loop.Iteration, from, to),
                 Body = loop.Body.Select(op => SubstituteVariableDeep(op, from, to)).ToList(),
             },
+            SwitchOperation sw => new SwitchOperation(
+                ExprSubstitution.Replace(sw.Discriminant, from, to),
+                sw.Cases.Select(c => new SwitchCase(
+                    c.Value,
+                    c.Body.Select(op => SubstituteVariableDeep(op, from, to)).ToList())).ToList()),
             _ => operation,
         };
 
@@ -792,6 +820,7 @@ public static class OperationOptimizer
             ForOperation loop => (loop.Init is not null && DefinesVariableDeep(loop.Init, variable))
                 || loop.Body.Any(op => DefinesVariableDeep(op, variable))
                 || (loop.Iteration is not null && DefinesVariableDeep(loop.Iteration, variable)),
+            SwitchOperation sw => sw.Cases.Any(c => c.Body.Any(op => DefinesVariableDeep(op, variable))),
             IncOperation inc when inc.Target is Variable target => ReferenceEquals(target, variable),
             DecOperation dec when dec.Target is Variable target => ReferenceEquals(target, variable),
             _ => false,

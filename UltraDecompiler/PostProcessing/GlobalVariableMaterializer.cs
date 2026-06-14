@@ -85,6 +85,11 @@ public static class GlobalVariableMaterializer
                 loop.Condition is null ? null : MaterializeExpr(loop.Condition, registry, image, layout),
                 loop.Iteration is null ? null : MaterializeNested(loop.Iteration, registry, image, layout),
                 Materialize(loop.Body, registry, image, layout)),
+            SwitchOperation sw => new SwitchOperation(
+                MaterializeExpr(sw.Discriminant, registry, image, layout),
+                sw.Cases.Select(c => new SwitchCase(
+                    c.Value,
+                    Materialize(c.Body, registry, image, layout))).ToList()),
             _ => operation,
         };
 

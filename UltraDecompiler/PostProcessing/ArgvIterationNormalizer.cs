@@ -51,6 +51,9 @@ public static class ArgvIterationNormalizer
                 forLoop.Condition,
                 forLoop.Iteration is not null ? NormalizeNested(forLoop.Iteration) : null,
                 NormalizeList(forLoop.Body.ToList())),
+            SwitchOperation sw => OperationTreeMapper.MapSwitchBodies(
+                sw,
+                bodies => NormalizeList(bodies.ToList())),
             _ => operation,
         };
 

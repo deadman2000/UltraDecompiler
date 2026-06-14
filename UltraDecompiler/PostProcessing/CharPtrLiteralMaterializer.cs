@@ -58,6 +58,9 @@ public static class CharPtrLiteralMaterializer
                 loop.Condition,
                 loop.Iteration is not null ? MaterializeNested(loop.Iteration, storage, image, layout) : null,
                 MaterializeList(loop.Body.ToList(), storage, image, layout)),
+            SwitchOperation sw => OperationTreeMapper.MapSwitchBodies(
+                sw,
+                bodies => MaterializeList(bodies.ToList(), storage, image, layout)),
             _ => operation,
         };
 
