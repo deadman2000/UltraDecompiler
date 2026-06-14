@@ -1,4 +1,4 @@
-using UltraDecompiler.Ir.Expressions;
+using UltraDecompiler.Ir.Builder.Patterns;
 using UltraDecompiler.Ir.Helpers;
 
 namespace UltraDecompiler.Ir.InstructionHandlers;
@@ -13,8 +13,19 @@ public class PushHandler : IInstructionHandler
 {
     public void Handle(ExprBlock block, Instruction instr)
     {
-        var expr = instr.Operand1.GetExpression(block, instr.Segment);
+        var expr = ResolvePushExpression(block, instr);
         block.PushExprsByOffset[instr.Offset] = expr;
         block.EndStack.Push(expr);
+    }
+
+    private static Expr ResolvePushExpression(ExprBlock block, Instruction instr)
+    {
+        if (instr.Operand1.Type == OperandType.Register16
+            && StackLocalPushArgPattern.TryResolveRegisterPush(block, instr, out var localExpr))
+        {
+            return localExpr;
+        }
+
+        return instr.Operand1.GetExpression(block, instr.Segment);
     }
 }

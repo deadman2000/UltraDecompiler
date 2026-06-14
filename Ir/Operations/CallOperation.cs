@@ -1,6 +1,4 @@
-﻿using UltraDecompiler.Decompilation;
-
-namespace UltraDecompiler.Ir.Operations;
+﻿namespace UltraDecompiler.Ir.Operations;
 
 /// <summary>
 /// Вызов функции (без использования возвращаемого значения).

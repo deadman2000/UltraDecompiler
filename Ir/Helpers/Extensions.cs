@@ -1,7 +1,4 @@
-﻿using UltraDecompiler.Decompilation;
-using UltraDecompiler.Ir.Expressions;
-
-namespace UltraDecompiler.Ir.Helpers;
+﻿namespace UltraDecompiler.Ir.Helpers;
 
 public static class Extensions
 {

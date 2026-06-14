@@ -1,5 +1,3 @@
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Ir.Expressions;
 using UltraDecompiler.Ir.Variables;
 
 namespace UltraDecompiler.Ir.InstructionHandlers;

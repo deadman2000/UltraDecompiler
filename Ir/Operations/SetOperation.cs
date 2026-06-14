@@ -1,6 +1,4 @@
-﻿using UltraDecompiler.Decompilation;
-
-namespace UltraDecompiler.Ir.Operations;
+﻿namespace UltraDecompiler.Ir.Operations;
 
 /// <summary>
 /// Присваивание: простая переменная, разыменование указателя или выражение с инкрементом в lvalue.

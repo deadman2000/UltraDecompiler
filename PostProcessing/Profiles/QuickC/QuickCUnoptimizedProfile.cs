@@ -122,6 +122,9 @@ public sealed class QuickCUnoptimizedProfile : IDecompilationProfile
             nameof(CommutativeOperationNormalizer),
             static (_, ops) => CommutativeOperationNormalizer.Normalize(ops)),
         new DelegatePostProcessPass(
+            nameof(IncDecSequenceNormalizer),
+            static (_, ops) => IncDecSequenceNormalizer.Normalize(ops)),
+        new DelegatePostProcessPass(
             nameof(ShiftCountSimplifier),
             static (_, ops) => ShiftCountSimplifier.Simplify(ops)),
         new DelegatePostProcessPass(

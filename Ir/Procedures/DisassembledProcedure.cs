@@ -1,4 +1,4 @@
-using UltraDecompiler.Decompilation;
+using UltraDecompiler.Ir.Builder;
 using UltraDecompiler.LibMatching;
 
 namespace UltraDecompiler.Ir.Procedures;

@@ -1,6 +1,4 @@
-﻿using UltraDecompiler.Decompilation;
-
-namespace UltraDecompiler.Ir.InstructionHandlers;
+﻿namespace UltraDecompiler.Ir.InstructionHandlers;
 
 public static class Handlers
 {

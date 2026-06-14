@@ -1,4 +1,3 @@
-using UltraDecompiler.Decompilation;
 using UltraDecompiler.Disassembly.Parser;
 
 namespace UltraDecompiler.Ir.Helpers;

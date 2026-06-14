@@ -20,7 +20,7 @@ public sealed class LongDecompileTests
         try
         {
             var result = new Decompiler().Decompile(
-                QuickCTestAssets.ProgramsPathOf("LONG.EXE"),
+                ExeProvider.Get("long.c"),
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 outputDirectory);

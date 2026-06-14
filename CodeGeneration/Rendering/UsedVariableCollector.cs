@@ -1,3 +1,5 @@
+using UltraDecompiler.Ir.Builder;
+
 namespace UltraDecompiler.CodeGeneration.Rendering;
 
 /// <summary>
@@ -22,7 +24,8 @@ public static class UsedVariableCollector
     /// <summary>
     /// Возвращает локальные переменные процедуры для объявления в C.
     /// Параметры функции (<paramref name="parameterVariables"/>) исключаются.
-    /// Все стековые локали (<paramref name="stackVariables"/>) включаются всегда.
+    /// Стековые локали включаются только если они упомянуты в IR или требуют объявления
+    /// (far-указатель с инициализатором, массив на стеке).
     /// </summary>
     public static IReadOnlyList<Variable> Collect(
         IEnumerable<Operation> operations,
@@ -32,20 +35,27 @@ public static class UsedVariableCollector
         var exclude = new HashSet<Variable>(parameterVariables, ByReference);
         var result = new Dictionary<Variable, Variable>(ByReference);
 
+        foreach (var op in ExpressionBuilder.EnumerateNested(operations))
+        {
+            AddVariablesFromOperation(op, result);
+        }
+
         if (stackVariables is not null)
         {
             foreach (var stackVar in stackVariables)
             {
-                if (!exclude.Contains(stackVar))
+                if (exclude.Contains(stackVar) || !stackVar.RequiresCDeclaration)
+                {
+                    continue;
+                }
+
+                if (stackVar.FarPointerInitializer is not null
+                    || stackVar.ArraySize is not null
+                    || result.ContainsKey(stackVar))
                 {
                     AddVariable(stackVar, result);
                 }
             }
-        }
-
-        foreach (var op in ExpressionBuilder.EnumerateNested(operations))
-        {
-            AddVariablesFromOperation(op, result);
         }
 
         return result.Values

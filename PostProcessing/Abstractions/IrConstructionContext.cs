@@ -1,4 +1,5 @@
 using UltraDecompiler.Disassembly.Graph;
+using UltraDecompiler.Ir.Builder;
 
 namespace UltraDecompiler.PostProcessing.Abstractions;
 

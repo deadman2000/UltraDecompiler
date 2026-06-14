@@ -1,4 +1,3 @@
-using UltraDecompiler.Ir.Expressions;
 using UltraDecompiler.Ir.Interrupts;
 
 namespace UltraDecompiler.Ir.InstructionHandlers;

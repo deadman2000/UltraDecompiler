@@ -1,6 +1,6 @@
 using UltraDecompiler.Disassembly.Graph;
 
-namespace UltraDecompiler.Disassembler;
+namespace UltraDecompiler.Disassembly.Disassembler;
 
 /// <summary>
 /// Общий детектор стандартного пролога кадра стека QuickC (push bp; mov bp, sp или enter).

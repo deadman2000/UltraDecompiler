@@ -1,4 +1,5 @@
 using UltraDecompiler.PostProcessing.Epilogue;
+using UltraDecompiler.PostProcessing.Helpers;
 
 namespace UltraDecompiler.Decompilation;
 

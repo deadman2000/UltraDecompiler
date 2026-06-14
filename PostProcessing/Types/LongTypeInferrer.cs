@@ -1,4 +1,5 @@
 using UltraDecompiler.Ir.Helpers;
+using UltraDecompiler.PostProcessing.Helpers;
 using UltraDecompiler.PostProcessing.Infrastructure;
 
 namespace UltraDecompiler.PostProcessing.Types;

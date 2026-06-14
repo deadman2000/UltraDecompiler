@@ -1,6 +1,4 @@
-using UltraDecompiler.Ir.Expressions;
-
-namespace UltraDecompiler.Decompilation;
+namespace UltraDecompiler.Ir.Builder;
 
 public partial class ExpressionBuilder
 {
@@ -103,10 +101,37 @@ public partial class ExpressionBuilder
             if (block.ConditionalBlock != null && block.Condition != null)
             {
                 var merge = FindMerge(block.ConditionalBlock, block.Next);
+
+                if (block.Next is not null && ShouldConvertLoopHeader(block))
+                {
+                    var loopBody = new List<Operation>();
+                    CollectOperations(block.Next, loopBody, visited, stopBefore: block);
+                    result.Add(new WhileOperation(InvertCondition(block.Condition), loopBody));
+
+                    if (block.ConditionalBlock is not null)
+                    {
+                        var exitOps = new List<Operation>();
+                        CollectOperations(block.ConditionalBlock, exitOps, visited, stopBefore: merge);
+                        result.AddRange(exitOps);
+                    }
+
+                    if (merge is not null && !visited.Contains(merge))
+                    {
+                        block = merge;
+                        continue;
+                    }
+
+                    return;
+                }
+
                 var thenStop = ReferenceEquals(merge, block.ConditionalBlock) ? null : merge;
 
                 var thenBody = new List<Operation>();
                 CollectOperations(block.ConditionalBlock, thenBody, visited, stopBefore: thenStop);
+                if (!ShouldConvertLoopHeader(block))
+                {
+                    AppendEpilogueReturnIfNeeded(block.ConditionalBlock, merge, thenBody, visited);
+                }
 
                 List<Operation>? elseBody = null;
                 var mergeUsedAsElse = false;
@@ -226,6 +251,67 @@ public partial class ExpressionBuilder
     private static bool BranchEndsWithReturn(IReadOnlyList<Operation> body) =>
         body.Any(static op => op is ReturnOperation);
 
+    private static bool ShouldConvertLoopHeader(ExprBlock block)
+    {
+        if (block.Next is null || !IsLoopHeader(block, block.Next))
+        {
+            return false;
+        }
+
+        if (IsArgcBoundLoopHeader(block.Condition))
+        {
+            return false;
+        }
+
+        return ConditionUsesCharPointerDeref(block.Condition)
+            || LoopBodyAdvancesPointer(block.Next);
+    }
+
+    private static bool IsArgcBoundLoopHeader(Expr condition) =>
+        condition is CmpExpr { Operation: CmpOperation.Uge or CmpOperation.Ugt, Right: Variable { Name: "argc" } }
+        || condition is CmpExpr { Operation: CmpOperation.Uge or CmpOperation.Ugt, Left: Variable { Name: "argc" } };
+
+    private static bool LoopBodyAdvancesPointer(ExprBlock bodyStart)
+    {
+        var ops = new List<Operation>();
+        var visited = new HashSet<ExprBlock>();
+        CollectOperationsStatic(bodyStart, ops, visited, stopBefore: null, maxBlocks: 8);
+        return ops.Any(static op => op is IncOperation or DecOperation);
+    }
+
+    private static bool ConditionUsesCharPointerDeref(Expr condition)
+    {
+        foreach (var mem in ExprSubstitution.CollectMemExprs(condition))
+        {
+            if (mem.Address is Variable or Math2Expr)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void CollectOperationsStatic(
+        ExprBlock? block,
+        List<Operation> result,
+        HashSet<ExprBlock> visited,
+        ExprBlock? stopBefore,
+        int maxBlocks)
+    {
+        var count = 0;
+        while (block is not null && block != stopBefore && count++ < maxBlocks)
+        {
+            if (!visited.Add(block))
+            {
+                return;
+            }
+
+            result.AddRange(block.Operations);
+            block = block.Next;
+        }
+    }
+
     /// <summary>Условие на заголовке цикла: ветка «истина» снова достигает этот блок.</summary>
     private static bool IsLoopHeader(ExprBlock block, ExprBlock? thenStart)
     {
@@ -247,5 +333,91 @@ public partial class ExpressionBuilder
         CollectOperations(merge, probe, probeVisited);
         return probe.Count > 0 && probe.All(static op => op is ReturnOperation);
     }
+
+    private void AppendEpilogueReturnIfNeeded(
+        ExprBlock? bodyStart,
+        ExprBlock? merge,
+        List<Operation> body,
+        HashSet<ExprBlock> visited)
+    {
+        if (bodyStart is null || merge is null || body.Any(static op => op is ReturnOperation))
+        {
+            return;
+        }
+
+        if (!IsInlineEpilogueMerge(merge))
+        {
+            return;
+        }
+
+        var lastBlock = FindLastCollectedBlock(bodyStart, merge, visited);
+        if (lastBlock is null)
+        {
+            return;
+        }
+
+        var returnValue = lastBlock.EndRegisters.Get16(GpRegister16.AX);
+        body.Add(new ReturnOperation(returnValue, IsExplicit: true));
+    }
+
+    private static ExprBlock? FindLastCollectedBlock(ExprBlock? start, ExprBlock stopBefore, HashSet<ExprBlock> visited)
+    {
+        ExprBlock? last = null;
+        var block = start;
+        var localSeen = new HashSet<ExprBlock>();
+
+        while (block is not null && block != stopBefore)
+        {
+            if (!visited.Contains(block) || !localSeen.Add(block))
+            {
+                break;
+            }
+
+            last = block;
+            block = block.Next;
+        }
+
+        return last;
+    }
+
+    private static bool IsInlineEpilogueMerge(ExprBlock merge)
+    {
+        var instructions = merge.BasicBlock.Instructions;
+        if (instructions.Count == 0 || !instructions[^1].IsReturn)
+        {
+            return false;
+        }
+
+        foreach (var instr in instructions)
+        {
+            if (instr.IsReturn)
+            {
+                continue;
+            }
+
+            if (instr.Mnemonic is not (Mnemonic.POP or Mnemonic.MOV or Mnemonic.LEAVE or Mnemonic.JMP))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static Expr InvertCondition(Expr condition) =>
+        condition switch
+        {
+            CmpExpr cmp => cmp.Operation switch
+            {
+                CmpOperation.Eq => cmp with { Operation = CmpOperation.Ne },
+                CmpOperation.Ne => cmp with { Operation = CmpOperation.Eq },
+                CmpOperation.Ult => cmp with { Operation = CmpOperation.Uge },
+                CmpOperation.Ule => cmp with { Operation = CmpOperation.Ugt },
+                CmpOperation.Ugt => cmp with { Operation = CmpOperation.Ule },
+                CmpOperation.Uge => cmp with { Operation = CmpOperation.Ult },
+                _ => cmp,
+            },
+            _ => condition,
+        };
 
 }

@@ -1,6 +1,4 @@
-﻿using UltraDecompiler.Ir.Expressions;
-
-namespace UltraDecompiler.Ir.InstructionHandlers;
+﻿namespace UltraDecompiler.Ir.InstructionHandlers;
 
 public interface IInstructionHandler
 {

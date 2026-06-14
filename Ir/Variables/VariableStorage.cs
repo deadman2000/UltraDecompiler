@@ -1,6 +1,4 @@
-﻿using UltraDecompiler.Decompilation;
-
-namespace UltraDecompiler.Ir.Variables;
+﻿namespace UltraDecompiler.Ir.Variables;
 
 /// <summary>
 /// Хранилище переменных

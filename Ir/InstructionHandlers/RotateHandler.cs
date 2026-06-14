@@ -1,6 +1,4 @@
-﻿using UltraDecompiler.Decompilation;
-using UltraDecompiler.Ir.Expressions;
-using UltraDecompiler.Ir.Helpers;
+﻿using UltraDecompiler.Ir.Helpers;
 
 namespace UltraDecompiler.Ir.InstructionHandlers;
 

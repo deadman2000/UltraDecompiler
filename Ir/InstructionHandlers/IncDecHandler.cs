@@ -1,5 +1,3 @@
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Ir.Expressions;
 using UltraDecompiler.Ir.Helpers;
 
 namespace UltraDecompiler.Ir.InstructionHandlers;
@@ -66,8 +64,14 @@ public class IncDecHandler(bool isInc) : IInstructionHandler
             return true;
         }
 
-        if (current is Variable variable)
+        if (current is Variable variable && !variable.IsInternal && !variable.IsTemp)
         {
+            // inc/dec регистра со стековой копией локали — часть Ox mov [local],reg, не var++.
+            if (dst.Type is OperandType.Register16 or OperandType.Register8 && variable.IsStack)
+            {
+                return false;
+            }
+
             block.Operations.Add(isInc ? new IncOperation(variable) : new DecOperation(variable));
             return true;
         }

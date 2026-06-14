@@ -134,6 +134,12 @@ public static class OperationOptimizer
                         SubstituteVariableInCallArguments(operations, i + 1, lastReadIndex, dstVar, set.Src);
                     }
 
+                    // Не удаляем temp, если подстановка не сняла все использования (иначе temp1 в printf).
+                    if (IsVariableReadAfter(operations, i, dstVar))
+                    {
+                        continue;
+                    }
+
                     operations.RemoveAt(i);
                     i--;
                     changed = true;

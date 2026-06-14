@@ -1,5 +1,3 @@
-using UltraDecompiler.Decompilation;
-
 namespace UltraDecompiler.Ir.Switch;
 
 /// <summary>Одна ветка switch, восстановленная из ассемблера QuickC.</summary>

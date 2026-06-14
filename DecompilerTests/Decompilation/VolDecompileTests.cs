@@ -1,4 +1,5 @@
 using TestSupport;
+using UltraDecompiler.Compilation;
 
 namespace DecompilerTests.Decompilation;
 
@@ -37,6 +38,37 @@ public sealed class VolDecompileTests
             Assert.DoesNotContain("temp", source);
             Assert.DoesNotContain("varSS:[", source);
             Assert.DoesNotContain(":var", source);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    // QuickC/PROGRAMS/vol.c с /Ox: один unsigned-счётчик, индексация << 1, без лишних стековых локалей.
+    [Fact]
+    public void Decompile_VolOx_EmitsUnsignedIndexedLoopWithoutExtraLocals()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var result = new Decompiler().Decompile(
+                ExeProvider.Get("vol.c", optimization: OptimizationLevel.EnabledFull),
+                QuickCTestAssets.LibDirectory,
+                QuickCTestAssets.IncludeDirectory,
+                outputDirectory);
+
+            Assert.True(result.Success);
+
+            var source = DecompileTestHelper.ReadPrimarySource(result);
+            Assert.Contains("unsigned", source);
+            Assert.Contains("<< 1", source);
+            Assert.DoesNotContain("return;", source);
+            Assert.DoesNotContain("*var2 = 'X'", source);
+            Assert.DoesNotContain("int var3", source);
         }
         finally
         {

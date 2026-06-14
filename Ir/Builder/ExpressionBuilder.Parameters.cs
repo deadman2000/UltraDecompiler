@@ -1,4 +1,4 @@
-namespace UltraDecompiler.Decompilation;
+namespace UltraDecompiler.Ir.Builder;
 
 public partial class ExpressionBuilder
 {

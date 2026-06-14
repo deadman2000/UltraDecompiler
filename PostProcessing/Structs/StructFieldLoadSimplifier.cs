@@ -1,3 +1,5 @@
+using UltraDecompiler.Ir.Builder;
+
 namespace UltraDecompiler.PostProcessing.Structs;
 
 /// <summary>

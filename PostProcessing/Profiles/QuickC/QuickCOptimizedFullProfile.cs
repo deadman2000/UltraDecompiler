@@ -1,5 +1,6 @@
 using UltraDecompiler.Compilation;
 using UltraDecompiler.PostProcessing.Abstractions;
+using UltraDecompiler.PostProcessing.Epilogue;
 using UltraDecompiler.PostProcessing.Literals;
 using UltraDecompiler.PostProcessing.Loops;
 using UltraDecompiler.PostProcessing.Normalization;
@@ -122,8 +123,26 @@ public sealed class QuickCOptimizedFullProfile : IDecompilationProfile
             nameof(CommutativeOperationNormalizer),
             static (_, ops) => CommutativeOperationNormalizer.Normalize(ops)),
         new DelegatePostProcessPass(
+            nameof(IncDecSequenceNormalizer),
+            static (_, ops) => IncDecSequenceNormalizer.Normalize(ops)),
+        new DelegatePostProcessPass(
             nameof(ShiftCountSimplifier),
             static (_, ops) => ShiftCountSimplifier.Simplify(ops)),
+        new DelegatePostProcessPass(
+            nameof(IfElseReturnFlattener),
+            static (_, ops) => IfElseReturnFlattener.Flatten(ops)),
+        new DelegatePostProcessPass(
+            nameof(VoidReturnNormalizer),
+            static (ctx, ops) => VoidReturnNormalizer.Normalize(ctx.Procedure, ops)),
+        new DelegatePostProcessPass(
+            nameof(IfEarlyReturnInverter),
+            static (_, ops) => IfEarlyReturnInverter.Invert(ops)),
+        new DelegatePostProcessPass(
+            nameof(ReturnBranchSwapper),
+            static (_, ops) => ReturnBranchSwapper.Swap(ops)),
+        new DelegatePostProcessPass(
+            nameof(BooleanPredicateReturnNormalizer),
+            static (ctx, ops) => BooleanPredicateReturnNormalizer.Normalize(ctx.Procedure, ops)),
         new DelegatePostProcessPass(
             nameof(PointerCompareSimplifier),
             static (_, ops) => PointerCompareSimplifier.Simplify(ops)),
@@ -141,11 +160,20 @@ public sealed class QuickCOptimizedFullProfile : IDecompilationProfile
             nameof(WhileLoopRecognizer),
             static (_, ops) => WhileLoopRecognizer.Convert(ops)),
         new DelegatePostProcessPass(
+            nameof(CounterLoopRecognizer),
+            static (_, ops) => CounterLoopRecognizer.Convert(ops)),
+        new DelegatePostProcessPass(
+            nameof(OxRegisterCounterLoopRecognizer),
+            static (ctx, ops) => OxRegisterCounterLoopRecognizer.Convert(ctx.Procedure, ops)),
+        new DelegatePostProcessPass(
             nameof(ArgvEnvpLoopSimplifier),
             static (_, ops) => ArgvEnvpLoopSimplifier.Simplify(ops)),
         new DelegatePostProcessPass(
             "WhileLoopRecognizer (2nd)",
             static (_, ops) => WhileLoopRecognizer.Convert(ops)),
+        new DelegatePostProcessPass(
+            "CounterLoopRecognizer (2nd)",
+            static (_, ops) => CounterLoopRecognizer.Convert(ops)),
         new DelegatePostProcessPass(
             nameof(ArgvIterationNormalizer),
             static (_, ops) => ArgvIterationNormalizer.Normalize(ops)),
@@ -161,6 +189,12 @@ public sealed class QuickCOptimizedFullProfile : IDecompilationProfile
         new DelegatePostProcessPass(
             nameof(ArgvEnvpForLoopRecognizer),
             static (_, ops) => ArgvEnvpForLoopRecognizer.Convert(ops)),
+        new DelegatePostProcessPass(
+            nameof(IfElseReturnFlattener.FlattenSingleSidedReturns),
+            static (_, ops) => IfElseReturnFlattener.FlattenSingleSidedReturns(ops)),
+        new DelegatePostProcessPass(
+            nameof(NullGuardSequenceNormalizer),
+            static (_, ops) => NullGuardSequenceNormalizer.Normalize(ops)),
         new DelegatePostProcessPass(
             nameof(PointerLoopBodySimplifier),
             static (_, ops) => PointerLoopBodySimplifier.Simplify(ops)),

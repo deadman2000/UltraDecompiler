@@ -1,6 +1,6 @@
 using UltraDecompiler.LibMatching;
 
-namespace UltraDecompiler.PostProcessing;
+namespace UltraDecompiler.PostProcessing.Helpers;
 
 /// <summary>Тип long-операции QuickC, восстанавливаемой из ассемблера.</summary>
 public enum LongArithmeticKind

@@ -1,5 +1,3 @@
-using UltraDecompiler.Decompilation;
-
 namespace UltraDecompiler.Ir.Switch;
 
 /// <summary>
@@ -180,24 +178,23 @@ public static class QuickCSwitchDetector
 
             previousValue = constant;
 
-            if (!TryGetNextInstruction(cmpInstruction, instructionByOffset, out var jneInstruction)
-                || jneInstruction.Mnemonic != Mnemonic.JNE
-                || jneInstruction.JumpTarget <= cmpInstruction.Offset)
+            if (TryParseOxJeCase(cmpInstruction, instructionByOffset, out var oxCaseTarget, out var nextCmpOffset))
             {
-                return false;
+                TrackDispatcherBlock(dispatcherBlockOffsets, blockByOffset, cmpInstruction.Offset);
+                cases.Add((constant, oxCaseTarget));
+                offset = nextCmpOffset;
+                continue;
             }
 
-            if (!TryGetNextInstruction(jneInstruction, instructionByOffset, out var caseJumpInstruction)
-                || caseJumpInstruction.Mnemonic != Mnemonic.JMP
-                || caseJumpInstruction.JumpTarget >= cmpInstruction.Offset)
+            if (!TryParseOdJneJmpCase(cmpInstruction, instructionByOffset, out var odCaseTarget, out var odNextOffset))
             {
                 return false;
             }
 
             TrackDispatcherBlock(dispatcherBlockOffsets, blockByOffset, cmpInstruction.Offset);
 
-            cases.Add((constant, caseJumpInstruction.JumpTarget));
-            offset = jneInstruction.JumpTarget;
+            cases.Add((constant, odCaseTarget));
+            offset = odNextOffset;
         }
 
         if (cases.Count == 0
@@ -322,6 +319,59 @@ public static class QuickCSwitchDetector
 
         register = instruction.Operand1.AsGpRegister16();
         immediate = instruction.Operand2.Value;
+        return true;
+    }
+
+    private static bool TryParseOxJeCase(
+        Instruction cmpInstruction,
+        IReadOnlyDictionary<int, Instruction> instructionByOffset,
+        out int caseTarget,
+        out int nextCmpOffset)
+    {
+        caseTarget = -1;
+        nextCmpOffset = -1;
+
+        if (!TryGetNextInstruction(cmpInstruction, instructionByOffset, out var branchInstruction))
+        {
+            return false;
+        }
+
+        if (branchInstruction.Mnemonic != Mnemonic.JE
+            || branchInstruction.JumpTarget >= cmpInstruction.Offset)
+        {
+            return false;
+        }
+
+        caseTarget = branchInstruction.JumpTarget;
+        nextCmpOffset = branchInstruction.Offset + branchInstruction.Size;
+        return true;
+    }
+
+    private static bool TryParseOdJneJmpCase(
+        Instruction cmpInstruction,
+        IReadOnlyDictionary<int, Instruction> instructionByOffset,
+        out int caseTarget,
+        out int nextCmpOffset)
+    {
+        caseTarget = -1;
+        nextCmpOffset = -1;
+
+        if (!TryGetNextInstruction(cmpInstruction, instructionByOffset, out var jneInstruction)
+            || jneInstruction.Mnemonic != Mnemonic.JNE
+            || jneInstruction.JumpTarget <= cmpInstruction.Offset)
+        {
+            return false;
+        }
+
+        if (!TryGetNextInstruction(jneInstruction, instructionByOffset, out var caseJumpInstruction)
+            || caseJumpInstruction.Mnemonic != Mnemonic.JMP
+            || caseJumpInstruction.JumpTarget >= cmpInstruction.Offset)
+        {
+            return false;
+        }
+
+        caseTarget = caseJumpInstruction.JumpTarget;
+        nextCmpOffset = jneInstruction.JumpTarget;
         return true;
     }
 

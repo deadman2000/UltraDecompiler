@@ -1,7 +1,6 @@
 using System.Text;
-using UltraDecompiler.Ir.Expressions;
 
-namespace UltraDecompiler.Decompilation;
+namespace UltraDecompiler.Ir.Builder;
 
 public partial class ExpressionBuilder
 {

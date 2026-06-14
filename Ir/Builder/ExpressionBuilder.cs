@@ -1,9 +1,9 @@
 using System.Diagnostics;
-using UltraDecompiler.Ir.Expressions;
+using UltraDecompiler.Ir.Builder.Patterns;
 using UltraDecompiler.Ir.InstructionHandlers;
 using UltraDecompiler.Ir.Variables;
 
-namespace UltraDecompiler.Decompilation;
+namespace UltraDecompiler.Ir.Builder;
 
 /// <summary>
 /// Основной класс декомпилятора.
@@ -218,6 +218,8 @@ public partial class ExpressionBuilder
                 return block;
             }
         }
+
+        QuickCPatternAnalyzer.Apply(block);
 
         // Если дошли сюда — блок не закончился явным прыжком/возвратом.
         if (block.BasicBlock.ConditionalBlock != null && block.Condition == null)

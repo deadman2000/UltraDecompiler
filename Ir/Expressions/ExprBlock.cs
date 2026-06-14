@@ -1,5 +1,4 @@
-﻿using UltraDecompiler.Decompilation;
-using UltraDecompiler.Ir.Variables;
+﻿using UltraDecompiler.Ir.Variables;
 
 namespace UltraDecompiler.Ir.Expressions;
 

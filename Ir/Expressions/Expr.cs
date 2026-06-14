@@ -2,7 +2,7 @@
 using UltraDecompiler.Ir.Calls;
 using UltraDecompiler.Ir.Helpers;
 
-namespace UltraDecompiler.Decompilation;
+namespace UltraDecompiler.Ir.Expressions;
 
 /// <summary>
 /// Базовый класс выражений

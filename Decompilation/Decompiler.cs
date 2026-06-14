@@ -3,10 +3,10 @@ using System.Text;
 using UltraDecompiler.CodeGeneration;
 using UltraDecompiler.Compilation;
 using UltraDecompiler.Disassembly.Parser;
+using UltraDecompiler.Ir.Builder;
 using UltraDecompiler.Ir.Helpers;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.PostProcessing.Abstractions;
-using UltraDecompiler.PostProcessing.Epilogue;
 using UltraDecompiler.PostProcessing.Literals;
 using UltraDecompiler.PostProcessing.Profiles;
 using UltraDecompiler.PostProcessing.Stack;
@@ -72,7 +72,7 @@ public class Decompiler
             mainOffset,
             tempProfile);
 
-        var optimizationLevel = DetectOptimizationLevelFromStorage(tempStorage);
+        var optimizationLevel = OptimizationLevelHeuristics.DetectFromUserProcedures(tempStorage.All);
 
         var irProfile = DecompilationProfileRegistry.GetProfile(optimizationLevel);
         var storage = ReferenceEquals(irProfile, tempProfile)
@@ -408,58 +408,5 @@ public class Decompiler
         };
         proc.Start();
         proc.WaitForExit();
-    }
-
-    /// <summary>
-    /// Определяет уровень оптимизации по доле пользовательских процедур со стандартным прологом BP
-    /// и наличию хвостовых JMP в общий эпилог (характерно именно для /Od QuickC).
-    /// </summary>
-    private static OptimizationLevel DetectOptimizationLevelFromStorage(ProcedureStorage storage)
-    {
-        var userProcs = storage.All.Where(static p => !p.IsLibrary).ToList();
-        if (userProcs.Count == 0)
-            return OptimizationLevel.Disabled;
-
-        var withProlog = userProcs.Count(static p =>
-            PrologueDetector.HasStandardPrologue(p.Instructions));
-
-        bool hasOdTailEpilogJmp = false;
-        foreach (var p in userProcs)
-        {
-            var instrs = p.Instructions;
-            for (int i = 0; i < instrs.Count; i++)
-            {
-                var instr = instrs[i];
-                if (!instr.IsUnconditionalJump)
-                    continue;
-
-                int tgt = instr.JumpTarget;
-                if (tgt < 0)
-                    continue;
-
-                // Найти хвост по смещению в линейном списке инструкций процедуры
-                int tailStart = -1;
-                for (int j = 0; j < instrs.Count; j++)
-                {
-                    if (instrs[j].Offset == tgt) { tailStart = j; break; }
-                }
-                if (tailStart < 0)
-                    continue;
-
-                // Slice от tailStart; ToArray() даёт IReadOnlyList с совместимым элементом Instruction
-                if (EpilogueAnalyzer.IsEpilogueTailBlock(instrs.Skip(tailStart).ToArray()))
-                {
-                    hasOdTailEpilogJmp = true;
-                    break;
-                }
-            }
-            if (hasOdTailEpilogJmp)
-                break;
-        }
-
-        // Сильный и характерный сигнал /Od QuickC: хвостовые JMP на общий эпилог (tail-return паттерн).
-        // /Ox обычно использует прямые RET и не создаёт такие JMP в эпилоги.
-        // Если сигнал найден хотя бы в одной user-процедуре — Disabled, иначе EnabledFull.
-        return hasOdTailEpilogJmp ? OptimizationLevel.Disabled : OptimizationLevel.EnabledFull;
     }
 }
