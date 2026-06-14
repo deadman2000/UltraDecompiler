@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <WarningsAsErrors>true</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Common\Common.csproj" />
+    <ProjectReference Include="..\Compilation\UltraDecompiler.Compilation.csproj" />
+    <ProjectReference Include="..\Disassembly\UltraDecompiler.Disassembly.csproj" />
+    <ProjectReference Include="..\LibParser\LibParser.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="LibMatchingTests" />
+  </ItemGroup>
+
+</Project>

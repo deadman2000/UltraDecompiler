@@ -1,8 +1,8 @@
 using TestSupport;
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Decompilation.Operations;
-using UltraDecompiler.PostProcessing;
-using Operation = UltraDecompiler.Decompilation.Operations.Operation;
+using UltraDecompiler.PostProcessing.Epilogue;
+using UltraDecompiler.PostProcessing.Normalization;
+using UltraDecompiler.PostProcessing.Stack;
+using Operation = UltraDecompiler.Ir.Operations.Operation;
 
 namespace DecompilerTests.Decompilation;
 

@@ -1,6 +1,4 @@
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Disassembler;
-using UltraDecompiler.PostProcessing;
+using UltraDecompiler.PostProcessing.Stack;
 
 namespace DecompilerTests.PostProcessing;
 

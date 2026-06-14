@@ -1,5 +1,4 @@
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Disassembler;
+using UltraDecompiler.Ir.Expressions;
 
 namespace DecompilerTests.Registers;
 

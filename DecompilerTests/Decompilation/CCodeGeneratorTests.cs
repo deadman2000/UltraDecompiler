@@ -1,6 +1,5 @@
 using UltraDecompiler.CodeGeneration;
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Decompilation.Operations;
+using UltraDecompiler.Ir.Operations;
 
 namespace DecompilerTests.Decompilation;
 
@@ -37,7 +36,7 @@ public class CCodeGeneratorTests : BaseTests
             ]),
         };
 
-        var source = CCodeGenerator.FormatCFunction(procedure, expr.GetAllOperations());
+        var source = CCodeGenerator.FormatCFunction(procedure.ToCodegenModel(), expr.GetAllOperations());
 
         Assert.Contains("int copy_arg(int arg0)", source);
         Assert.DoesNotContain("    int arg0;", source);
@@ -70,7 +69,7 @@ public class CCodeGeneratorTests : BaseTests
                 [new ReturnOperation(new ConstExpr(0))]),
         };
 
-        var source = CCodeGenerator.FormatCFunction(procedure, operations);
+        var source = CCodeGenerator.FormatCFunction(procedure.ToCodegenModel(), operations);
 
         Assert.Contains("    int var3;", source);
         Assert.Contains("if (var3 == 0)", source);
@@ -93,7 +92,7 @@ public class CCodeGeneratorTests : BaseTests
         };
 
         var source = CCodeGenerator.FormatCFunction(
-            procedure,
+            procedure.ToCodegenModel(),
             [new ReturnOperation(ConstExpr.Zero)]);
 
         Assert.DoesNotContain("return", source);
@@ -117,7 +116,7 @@ public class CCodeGeneratorTests : BaseTests
         };
 
         var source = CCodeGenerator.FormatCFunction(
-            procedure,
+            procedure.ToCodegenModel(),
             [new ReturnOperation(ConstExpr.Zero, IsExplicit: true)]);
 
         Assert.Contains("    return;", source);
@@ -139,7 +138,7 @@ public class CCodeGeneratorTests : BaseTests
             Signature = new ProcedureSignature(CType.Void, []),
         };
 
-        var source = CCodeGenerator.FormatCFunction(procedure, []);
+        var source = CCodeGenerator.FormatCFunction(procedure.ToCodegenModel(), []);
 
         Assert.DoesNotContain("    int ", source);
         Assert.Contains("    ;", source);

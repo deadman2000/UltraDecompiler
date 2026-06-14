@@ -1,12 +1,10 @@
 using System.Diagnostics;
 using System.Text;
+using UltraDecompiler.CodeGeneration.Rendering;
 using UltraDecompiler.Compilation;
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Decompilation.Operations;
-using UltraDecompiler.Disassembler;
-using UltraDecompiler.Graph;
-using UltraDecompiler.Parser;
-using UltraDecompiler.PostProcessing;
+using UltraDecompiler.PostProcessing.Abstractions;
+using UltraDecompiler.PostProcessing.Profiles;
+using UltraDecompiler.PostProcessing.Stack;
 
 namespace Tools;
 
@@ -51,13 +49,24 @@ internal static class DecompilePipeline
         {
             StackCheckingEnabled = StackCheckDetector.AnalyzeFromOperations(operations),
         };
-        var filteredOperations = OperationOptimizer.Optimize(
-            StackCheckDetector.RemoveChkstkCalls(operations));
+        var profile = DecompilationProfileRegistry.GetProfile(compilerOptions.OptimizationLevel);
+        var diagnosticCtx = new PostProcessContext
+        {
+            Procedure = new DisassembledProcedure { Offset = startOffset, Instructions = [], Name = "diagnostic" },
+            Storage = new ProcedureStorage(),
+            HeaderCatalog = HeaderCatalog.Empty,
+            Image = parser.Image,
+        };
+
+        foreach (var pass in profile.GetDiagnosticPasses())
+        {
+            operations = pass.Apply(diagnosticCtx, operations);
+        }
 
         Console.WriteLine(compilerOptions);
         Console.WriteLine();
 
-        foreach (var op in filteredOperations)
+        foreach (var op in operations)
         {
             var line = new StringBuilder();
             op.AppendToCString(line, asStatement: true);

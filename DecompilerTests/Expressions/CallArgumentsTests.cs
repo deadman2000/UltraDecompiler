@@ -1,6 +1,4 @@
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Decompilation.Operations;
-using UltraDecompiler.Headers;
+using UltraDecompiler.Ir.Operations;
 
 namespace DecompilerTests.Expressions;
 
@@ -15,7 +13,7 @@ public class CallArgumentsTests : BaseTests
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "QuickC", "INCLUDE"));
         var catalog = HeaderCatalog.Load(includeDir);
-        Assert.True(catalog.TryGetSignature("printf", out var printfSig));
+        Assert.True(catalog.TryGetProcedureSignature("printf", out var printfSig));
         Assert.NotNull(printfSig);
         Assert.True(printfSig!.IsVariadic);
         Assert.True(printfSig.Parameters.Count >= 1, "printf должен иметь хотя бы 1 параметр (формат)");
@@ -60,7 +58,7 @@ public class CallArgumentsTests : BaseTests
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "QuickC", "INCLUDE"));
         var catalog = HeaderCatalog.Load(includeDir);
-        Assert.True(catalog.TryGetSignature("printf", out var printfSig));
+        Assert.True(catalog.TryGetProcedureSignature("printf", out var printfSig));
         Assert.NotNull(printfSig);
 
         var storage = new ProcedureStorage();
@@ -113,7 +111,7 @@ public class CallArgumentsTests : BaseTests
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "QuickC", "INCLUDE"));
         var catalog = HeaderCatalog.Load(includeDir);
-        Assert.True(catalog.TryGetSignature("perror", out var perrorSig));
+        Assert.True(catalog.TryGetProcedureSignature("perror", out var perrorSig));
         Assert.NotNull(perrorSig);
         Assert.True(perrorSig!.ReturnType.IsVoid);
 
@@ -143,7 +141,8 @@ public class CallArgumentsTests : BaseTests
     {
         var graph = GetGraph(hex);
         var decompiler = new ExpressionBuilder();
-        decompiler.Build(graph, isCom, procedures);
+        decompiler.Build(graph, isCom);
+        CallSiteResolver.ResolveBlocks(decompiler.Blocks, procedures);
         return decompiler;
     }
 }

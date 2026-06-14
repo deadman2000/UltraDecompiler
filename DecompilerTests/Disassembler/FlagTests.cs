@@ -1,5 +1,3 @@
-using UltraDecompiler.Disassembler;
-
 namespace DecompilerTests.Disassembler;
 
 /// <summary>

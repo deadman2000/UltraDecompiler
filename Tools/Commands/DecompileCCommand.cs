@@ -1,6 +1,5 @@
 using McMaster.Extensions.CommandLineUtils;
 using UltraDecompiler.CodeGeneration;
-using UltraDecompiler.Decompilation;
 
 namespace Tools.Commands;
 

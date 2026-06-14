@@ -1,6 +1,4 @@
-﻿using UltraDecompiler.Disassembler;
-
-namespace DecompilerTests.Disassembler;
+﻿namespace DecompilerTests.Disassembler;
 
 public class PrefixesTests : BaseTests
 {

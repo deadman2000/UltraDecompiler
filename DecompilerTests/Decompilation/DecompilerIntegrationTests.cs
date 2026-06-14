@@ -1,8 +1,7 @@
 using TestSupport;
 using UltraDecompiler.CodeGeneration;
 using UltraDecompiler.Compilation;
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Decompilation.Operations;
+using UltraDecompiler.Ir.Operations;
 
 namespace DecompilerTests.Decompilation;
 

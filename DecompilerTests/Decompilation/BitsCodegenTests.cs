@@ -1,6 +1,4 @@
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Decompilation.Operations;
-using UltraDecompiler.Headers;
+using UltraDecompiler.Ir.Operations;
 
 namespace DecompilerTests.Decompilation;
 
@@ -19,7 +17,7 @@ public class BitsCodegenTests : BaseTests
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "QuickC", "INCLUDE"));
         var catalog = HeaderCatalog.Load(includeDir);
-        Assert.True(catalog.TryGetSignature("printf", out var printfSig));
+        Assert.True(catalog.TryGetProcedureSignature("printf", out var printfSig));
 
         var storage = new ProcedureStorage();
         storage.Add(new DisassembledProcedure
@@ -74,7 +72,8 @@ public class BitsCodegenTests : BaseTests
     {
         var graph = GetGraph(hex);
         var decompiler = new ExpressionBuilder();
-        decompiler.BuildProc(graph, storage);
+        decompiler.BuildProc(graph);
+        CallSiteResolver.ResolveBlocks(decompiler.Blocks, storage);
         return decompiler;
     }
 }

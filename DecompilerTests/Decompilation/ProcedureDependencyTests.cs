@@ -1,8 +1,6 @@
 using TestSupport;
 using UltraDecompiler.CodeGeneration;
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Decompilation.Operations;
-using UltraDecompiler.Headers;
+using UltraDecompiler.Ir.Operations;
 
 namespace DecompilerTests.Decompilation;
 
@@ -117,7 +115,7 @@ public class ProcedureDependencyTests : BaseTests
             ]),
         };
 
-        var header = CCodeGenerator.FormatHeaderFile(procedure);
+        var header = CCodeGenerator.FormatHeaderFile(procedure.ToCodegenModel());
 
         Assert.Contains("int sub_0010(int arg0, int arg1);", header);
         Assert.Contains("#ifndef SUB_0010_H", header);

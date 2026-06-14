@@ -1,8 +1,6 @@
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Decompilation.Operations;
-using UltraDecompiler.Disassembler;
-using UltraDecompiler.Headers;
-using UltraDecompiler.PostProcessing;
+using UltraDecompiler.Ir.Expressions;
+using UltraDecompiler.Ir.Operations;
+using UltraDecompiler.PostProcessing.Types;
 
 namespace DecompilerTests.Expressions;
 

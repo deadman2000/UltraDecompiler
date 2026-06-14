@@ -24,17 +24,48 @@
 
 ## Структура решения
 
-| Проект | Назначение |
-|--------|------------|
-| `UltraDecompiler` | Ядро: парсер EXE/COM, дизассемблер, CFG, ExpressionBuilder, LibMatching, PostProcessing, CodeGeneration, Headers, Compilation |
-| `Common` | Общие типы: `RelocationTable`, `RelocationEntry` (используются ядром и LibParser) |
-| `LibParser` | Разбор OMF `.LIB` Microsoft QuickC (модули, сегменты, FIXUPP, словарь символов) |
-| `Tools` | CLI (`udc`): `decompile`, `decompile-main`, `decompile-c`, `lib`, `disasm`, `sandbox` |
-| `TestSupport` | Общие хелперы тестов: DOSBox + QuickC round-trip, пути к `QuickC/`, сборка эталонных EXE |
-| `DecompilerTests` | Тесты ядра (дизассемблер, IR, регистры, CFG, кодогенерация, round-trip) |
-| `LibParserTests` / `LibMatchingTests` | Тесты парсера библиотек и сопоставления (эталонные `.LIB` и `.EXE` из `QuickC/`) |
+| Проект | Путь | Назначение |
+|--------|------|------------|
+| `UltraDecompiler.Disassembly` | `Disassembly/` | `Parser/`, `Disassembler/`, `Graph/`, `Common/` (Ansi) |
+| `UltraDecompiler.Ir` | `Ir/Decompilation/` | `Expressions/`, `Operations/`, `InstructionHandlers/`, `ExpressionBuilder/`, `Procedures/`, … |
+| `UltraDecompiler.Headers` | `Headers/` | `HeaderCatalog`, `HeaderFunction`, `CType`, `StructDefinition` |
+| `UltraDecompiler.LibMatching` | `LibMatching/` | сопоставление тел функций с `.LIB` |
+| `UltraDecompiler.Compilation` | `Compilation/` | `CompilerOptions`, `MemoryModel`, `OptimizationLevel` |
+| `UltraDecompiler.PostProcessing` | `PostProcessing/` | pass-ы IR по каталогам (`Epilogue/`, `Stack/`, `Types/`, `Loops/`, …), `Helpers/LongRuntimeHelpers`, профили (`Abstractions/`, `Profiles/QuickC/`) |
+| `UltraDecompiler.CodeGeneration` | `CodeGeneration/` | `CCodeGenerator`, `MakefileGenerator`, `Rendering/` (`RenderExpr`, `ToCString`) |
+| `UltraDecompiler.Decompilation` | `Decompilation/` | `Decompiler`, резолверы, `CallSiteResolver`, оркестрация |
+| `Common` | `Common/` | `RelocationTable`, `RelocationEntry` |
+| `LibParser` | `LibParser/` | разбор OMF `.LIB` Microsoft QuickC |
+| `Tools` | `Tools/` | CLI (`udc`) |
+| `TestSupport` | `TestSupport/` | DOSBox + QuickC round-trip |
+| `DecompilerTests` | `DecompilerTests/` | тесты ядра |
+| `LibParserTests` / `LibMatchingTests` | | тесты парсера и LibMatching |
 
 Решение: `UltraDecompiler.slnx`.
+
+### Граф зависимостей сборок
+
+```
+Common, LibParser, Compilation (leaf)
+Disassembly → Common
+Ir → Disassembly, Headers, LibMatching
+LibMatching → Common, Compilation, Disassembly, LibParser
+PostProcessing → Ir, Headers, Disassembly, CodeGeneration
+CodeGeneration → Ir, Compilation
+Decompilation → все выше + LibParser
+Tools → Decompilation
+TestSupport → Decompilation, Compilation
+```
+
+### Профили декомпиляции
+
+Эвристики QuickC `/Od` инкапсулированы в `QuickCUnoptimizedProfile`; заглушка `QuickCOptimizedProfile` — точка расширения для `/Ot`/`/Ox`.
+
+- `IDecompilationProfile`, `IPostProcessPass`, `PostProcessContext`, `IrConstructionContext` — `PostProcessing/Abstractions/`
+- `DecompilationProfileRegistry.GetProfile(OptimizationLevel)` — выбор профиля
+- `ApplyIrConstructionPasses` — после `ExpressionBuilder.BuildProc` (`TailReturnInserter`)
+- `GetProcedurePasses()` — полная цепочка post-processing в `Decompiler`
+- `GetDiagnosticPasses()` — урезанный набор для `Tools/DecompilePipeline`
 
 ---
 
@@ -60,14 +91,14 @@ DosExeParser
   → CCodeGenerator + MakefileGenerator      # *.c, *.h, Makefile
 ```
 
-### 1. Parser (`UltraDecompiler/Parser/`)
+### 1. Parser (`Disassembly/Parser/`)
 - `DosExeParser.cs` — загрузка и парсинг MZ .EXE и plain .COM файлов.
 - Читает таблицу релокаций MZ и строит `RelocationTable`; образ **не патчится** — релокации помечаются символически при декодировании операндов.
 - `ExeImageLayout.cs` — раскладка сегментов образа (DGROUP, строковые литералы).
 - Определяет точку входа.
 - Различает `IsCom` (разная инициализация регистров на входе).
 
-### 2. Disassembler (`UltraDecompiler/Disassembler/`)
+### 2. Disassembler (`Disassembly/Disassembler/`)
 - `X86Disassembler.cs` — рекурсивный дизассемблер с отслеживанием регистров (`RegisterState`). Статический `Disassemble()` — линейное извлечение тела функции для LibMatching.
 - `Common/RelocationTable.cs` — помечает 16-битные слова образа как символические смещения (`TryGetOffsetName`); имена попадают в операнды инструкций и далее в IR.
 - Использует BFS + `DisassembleBranch` для корректного разбора переходов.
@@ -78,14 +109,28 @@ DosExeParser
 
 **Важно:** дизассемблер передаёт `RegisterState` между блоками — это улучшает качество разбора косвенных переходов.
 
-### 3. Graph (`UltraDecompiler/Graph/`)
+### 3. Graph (`Disassembly/Graph/`)
 - `ControlFlowGraph.cs` + `BasicBlock.cs` — построение CFG.
 - Умеет **разбивать блоки** при переходе в середину существующего блока (`GetBlock`).
 - Строит `NextBlock` / `ConditionalBlock`.
 - Есть экспорт в DOT (`SaveDot`) для визуализации (требует Graphviz `dot`).
 
-### 4. Decompilation (`UltraDecompiler/Decompilation/`)
-Это сердце проекта — **символическое выполнение**.
+### 4. IR (`Ir/Decompilation/`)
+
+Каталоги (namespace: `UltraDecompiler.Ir.Decompilation` или `UltraDecompiler.Decompilation` для `ExpressionBuilder`):
+
+| Каталог | Содержимое |
+|---------|------------|
+| `Expressions/` | `Expr`, `LongExpr`, `SyntheticLoadExpr`, `RegisterExpressions`, `ExprBlock`, `ExprSubstitution` |
+| `Operations/` | `SetOperation`, `IfOperation`, `ForOperation`, `ReturnOperation`, … |
+| `InstructionHandlers/` | обработчики инструкций x86 (`MovHandler`, `ArithmeticHandler`, …) |
+| `ExpressionBuilder/` | `ExpressionBuilder` + partial (`Parameters`, `Dot`, `Flatten`, `Switch`) |
+| `Procedures/` | `DisassembledProcedure`, `ProcedureStorage`, `ProcedureSignature`, `ProcedureParameter`, параметры |
+| `Calls/` | `CallState`, `CallSiteArgumentResolver` |
+| `Variables/` | `VariableStorage`, `VariableSignedness`, `AssignmentTarget` |
+| `Switch/` | `QuickCSwitchDetector`, `QuickCSwitchPattern` |
+| `Interrupts/` | `DosInterruptHelper` |
+| `Helpers/` | `WordArithmeticHelper`, `StringLiteralMaterializer`, `Extensions` |
 
 - `ExpressionBuilder.cs` — BFS по блокам CFG + symbolic execution. Обработка инструкций делегирована в `InstructionHandlers/` (словарь `Handlers.Get(mnemonic)`).
 - `RegisterExpressions.cs` — ключевая структура. Моделирует состояние всех регистров (включая 8/16-битное алиасинг AX/AH/AL и т.д.) как **символические выражения**.
@@ -96,18 +141,17 @@ DosExeParser
   - `Math1Expr` / `Math2Expr` (Neg/Not, Add/Sub/And/Or/Xor/Shl/Shr)
   - `CmpExpr` (Eq, Ne, Ult/Ule/Ugt/Uge) — для моделирования флагов
   - `CallExpr`
-- `Operations/` — side-effect операции IR: `SetOperation`, `CallOperation`, `StoreOperation`, `WhileOperation`, `ForOperation`, `IfOperation`, `ReturnOperation`, `IncOperation`, `DecOperation`.
-- `Operations/Extensions.cs` — `ToCString` / `AppendToCString`: форматирование IR в синтаксис C.
+- `CodeGeneration/Rendering/RenderingExtensions.cs` — extension `expr.RenderExpr()`, `op.ToCString()` / `op.AppendToCString()` (IR не знает синтаксис C).
 - `ExprBlock.cs` — результат для одного BasicBlock (Operations + Condition + ссылки на следующие блоки).
 - `VariableStorage.cs` + `PspKnownFields` — отслеживание переменных + распознавание обращений к PSP (Program Segment Prefix).
 - `ExpressionBuilder.Parameters.cs` — восстановление входных параметров функции: пролог `push bp; mov bp, sp` / `ENTER`, смещения `[BP+4]`, `[BP+6]`, … → `arg0`, `arg1`.
 - `DosInterruptHelper.cs` — преобразование INT 21h в вызовы (`dos_open`, `dos_print_string` и т.д.) на основе `msdos.h`.
-- `Decompiler.cs` — оркестратор полной декомпиляции (сбор процедур, post-processing, запись файлов).
-- `DisassembledProcedure.cs` / `ProcedureStorage` — хранилище процедур (пользовательских и библиотечных).
-- `CallSiteResolver.cs`, `ProcedureSignatureResolver.cs`, `ProcedureIncludeResolver.cs` — разрешение вызовов, сигнатур и `#include`.
-- `ProcedureSignatureAnalyzer.cs`, `CType.cs` — анализ сигнатур и типы C.
+- `Decompiler.cs` — оркестратор полной декомпиляции (`Decompilation/`).
+- `DisassembledProcedure.cs` / `ProcedureStorage` — в `Ir/Decompilation/Procedures/` (используются и в PostProcessing).
+- `CallSiteResolver.cs`, `ProcedureSignatureResolver.cs` — в `Decompilation/`.
+- `ProcedureSignatureAnalyzer.cs` — в `Decompilation/`; `ProcedureSignature`, `ProcedureParameter` — в `Ir/Procedures/`; `CType.cs` — в `Headers/`.
 
-**Ключевой принцип ExpressionBuilder:**
+**Символическое выполнение** — ядро IR:
 > MOV/LEA просто обновляют символическое состояние регистров.  
 > Настоящие `SetOperation`/`StoreOperation` создаются **только** для арифметики, логики, сдвигов, записи в память и вызовов.
 
@@ -115,8 +159,25 @@ DosExeParser
 
 Обработчики инструкций (`InstructionHandlers/`): по одному классу на семейство (`MovHandler`, `ArithmeticHandler`, `MovsHandler`, `RotateHandler`, …). При добавлении новой инструкции — декодер + `Instruction.Registers` + новый/существующий handler + тесты.
 
-### 5. PostProcessing (`UltraDecompiler/PostProcessing/`)
-Проходы над IR перед кодогенерацией (вызываются из `Decompiler` и частично из `DecompilePipeline`):
+### 5. PostProcessing (`PostProcessing/`)
+
+Каталоги pass-ов (namespace везде `UltraDecompiler.PostProcessing`):
+
+| Каталог | Содержимое |
+|---------|------------|
+| `Abstractions/` | `IPostProcessPass`, `IDecompilationProfile`, контексты |
+| `Profiles/QuickC/` | `QuickCUnoptimizedProfile`, `QuickCOptimizedProfile`, `DecompilationProfileRegistry` |
+| `Helpers/` | `LongRuntimeHelpers` (long-арифметика runtime QuickC) |
+| `Epilogue/` | `TailReturnInserter`, `EpilogueAnalyzer`, return/branch normalizers |
+| `Stack/` | `StackCheckDetector`, `StackLocalArrayInferrer`, `StackFrameAllocationHelper` |
+| `Types/` | inferrer-ы типов, указателей, `MainParameterNormalizer` |
+| `Loops/` | `WhileLoopRecognizer`, `Argv*`, `PointerLoopBodySimplifier` |
+| `Literals/` | materializer-ы литералов, `GlobalVariableRegistry` |
+| `Structs/` | `StructFieldRewriter`, `StructFieldLoadSimplifier` |
+| `Normalization/` | `OperationOptimizer`, `VoidCallNormalizer`, … |
+| `Infrastructure/` | `OperationTreeMapper` |
+
+Проходы над IR перед кодогенерацией (вызываются из `Decompiler` через профиль и частично из `DecompilePipeline`):
 
 - `OperationOptimizer`, `StackCheckDetector` — удаление `__chkstk`, оптимизация IR.
 - `VariableTypeInferrer`, `PointerTypeInferrer`, `VariableSignedness` — типы переменных и указателей.
@@ -127,15 +188,18 @@ DosExeParser
 - `CharPtrLiteralMaterializer` — подстановка строковых литералов для `char*`.
 - `EpilogueAnalyzer` — распознавание эпилога QuickC.
 
-### 6. CodeGeneration (`UltraDecompiler/CodeGeneration/`)
-- `CCodeGenerator.cs` — форматирование `*.c` / `*.h` (одна процедура или объединённый файл для round-trip).
+### 6. CodeGeneration (`CodeGeneration/`)
+- `CCodeGenerator.cs` — форматирование `*.c` / `*.h`; принимает `ProcedureCodegenModel` (не `DisassembledProcedure`).
 - `MakefileGenerator.cs` — `Makefile` с флагами QuickC (`/AS`, `/Gs`, модель памяти, набор `.LIB`).
+- `Rendering/CExprRenderer.cs`, `Rendering/COperationRenderer.cs` — рендер IR в C.
 
-### 7. Headers (`UltraDecompiler/Headers/`)
-- `HeaderCatalog.cs` — разбор заголовков QuickC (`QuickC/INCLUDE/`, `assets/QuickC/`) для сигнатур runtime и структур.
-- `StructDefinition.cs` — описание struct/union из заголовков.
+### 7. Headers (`Headers/`)
+- `HeaderCatalog.cs` — разбор заголовков QuickC (`QuickC/INCLUDE/`, `assets/QuickC/`) для pass-ов и резолверов.
+- `HeaderFunction.cs` — сигнатура функции из `.H` (типы без привязки к стеку IR).
+- `StructDefinition.cs`, `CType.cs` — описание struct/union и типы C.
+- Преобразование `HeaderFunction` → `ProcedureSignature` — `Ir/Procedures/HeaderFunctionExtensions.cs`.
 
-### 8. Compilation (`UltraDecompiler/Compilation/`)
+### 8. Compilation (`Compilation/`)
 - `CompilerOptions.cs`, `MemoryModel.cs`, `MemoryModelDetector` — модель памяти и флаги QCL для Makefile.
 - `OptimizationLevel.cs` — уровень оптимизации (зарезервировано).
 
@@ -146,7 +210,7 @@ DosExeParser
 - `Omf/OmfFixupNameResolver.cs` — имена целей FIXUPP (EXTDEF, SEGDEF).
 - Подробности формата: `LibParser/OMF.md`, API: `LibParser/Readme.md`.
 
-### 10. LibMatching (`UltraDecompiler/LibMatching/`)
+### 10. LibMatching (`LibMatching/`)
 Код сопоставления живёт в ядре (не в отдельной сборке).
 
 - `LibraryProvider.cs` — единая точка входа: загрузка `.LIB`, `TryResolveMain`, `TryMatchProcedure`, сужение кандидатов.

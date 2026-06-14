@@ -1,5 +1,4 @@
 using McMaster.Extensions.CommandLineUtils;
-using UltraDecompiler.Parser;
 
 namespace Tools.Commands;
 

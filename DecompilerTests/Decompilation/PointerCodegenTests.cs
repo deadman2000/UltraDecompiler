@@ -1,8 +1,6 @@
 using UltraDecompiler.CodeGeneration;
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Decompilation.Operations;
-using UltraDecompiler.Headers;
-using UltraDecompiler.PostProcessing;
+using UltraDecompiler.Ir.Operations;
+using UltraDecompiler.PostProcessing.Types;
 
 namespace DecompilerTests.Decompilation;
 
@@ -19,11 +17,11 @@ public class PointerCodegenTests
 
         var catalog = HeaderCatalog.Load(includeDir);
 
-        Assert.True(catalog.TryGetSignature("malloc", out var signature));
-        Assert.NotNull(signature);
-        Assert.Equal(CTypeKind.Pointer, signature!.ReturnType.Kind);
-        Assert.Equal(CTypeKind.Void, signature.ReturnType.Pointee?.Kind);
-        Assert.Equal("void*", signature.ReturnType.ToString());
+        Assert.True(catalog.TryGetFunction("malloc", out var function));
+        Assert.NotNull(function);
+        Assert.Equal(CTypeKind.Pointer, function!.ReturnType.Kind);
+        Assert.Equal(CTypeKind.Void, function.ReturnType.Pointee?.Kind);
+        Assert.Equal("void*", function.ReturnType.ToString());
     }
 
     // var = malloc(32) → тип локали void*, а не int
@@ -43,7 +41,7 @@ public class PointerCodegenTests
             Instructions = [],
             Name = "malloc",
             IsLibrary = true,
-            Signature = catalog.All["malloc"],
+            Signature = catalog.All["malloc"].ToProcedureSignature(),
         });
 
         var operations = new List<Operation>
@@ -80,7 +78,7 @@ public class PointerCodegenTests
             Instructions = [],
             Name = "malloc",
             IsLibrary = true,
-            Signature = catalog.All["malloc"],
+            Signature = catalog.All["malloc"].ToProcedureSignature(),
         });
 
         var operations = new List<Operation>
@@ -111,7 +109,7 @@ public class PointerCodegenTests
             Signature = new ProcedureSignature(CType.Int, []),
         };
 
-        var source = CCodeGenerator.FormatCFunction(procedure, operations);
+        var source = CCodeGenerator.FormatCFunction(procedure.ToCodegenModel(), operations);
 
         Assert.Contains("char* var9;", source);
         Assert.DoesNotContain("void* var9;", source);
@@ -131,7 +129,7 @@ public class PointerCodegenTests
             "..", "..", "..", "..", "QuickC", "INCLUDE"));
         var catalog = HeaderCatalog.Load(includeDir);
 
-        if (!catalog.TryGetSignature("strcpy", out var strcpySig) || strcpySig is null)
+        if (!catalog.TryGetFunction("strcpy", out var strcpyFunction) || strcpyFunction is null)
         {
             return;
         }

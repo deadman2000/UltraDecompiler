@@ -1,7 +1,4 @@
 ﻿using McMaster.Extensions.CommandLineUtils;
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Disassembler;
-using UltraDecompiler.Graph;
 
 namespace Tools.Commands;
 

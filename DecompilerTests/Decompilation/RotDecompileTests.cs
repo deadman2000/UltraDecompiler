@@ -1,5 +1,4 @@
 using TestSupport;
-using UltraDecompiler.Decompilation;
 
 namespace DecompilerTests.Decompilation;
 

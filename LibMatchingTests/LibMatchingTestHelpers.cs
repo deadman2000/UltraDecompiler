@@ -1,6 +1,5 @@
 using Common;
 using LibParser.Models;
-using UltraDecompiler.Disassembler;
 
 namespace LibMatchingTests;
 

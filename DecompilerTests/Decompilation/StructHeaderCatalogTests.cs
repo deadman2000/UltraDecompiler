@@ -1,4 +1,3 @@
-using UltraDecompiler.Headers;
 
 namespace DecompilerTests.Decompilation;
 
@@ -33,13 +32,13 @@ public class StructHeaderCatalogTests
 
         var catalog = HeaderCatalog.Load(includeDir);
 
-        Assert.True(catalog.TryGetSignature("int86", out var signature));
-        Assert.NotNull(signature);
-        Assert.Equal(3, signature!.Parameters.Count);
-        Assert.True(signature.Parameters[1].Type.IsStructPtr);
-        Assert.True(signature.Parameters[2].Type.IsStructPtr);
-        Assert.Equal("REGS", signature.Parameters[1].Type.Pointee?.StructName);
-        Assert.True(signature.Parameters[1].Type.Pointee?.IsUnion);
+        Assert.True(catalog.TryGetFunction("int86", out var function));
+        Assert.NotNull(function);
+        Assert.Equal(3, function!.Parameters.Count);
+        Assert.True(function.Parameters[1].Type.IsStructPtr);
+        Assert.True(function.Parameters[2].Type.IsStructPtr);
+        Assert.Equal("REGS", function.Parameters[1].Type.Pointee?.StructName);
+        Assert.True(function.Parameters[1].Type.Pointee?.IsUnion);
     }
 
     // union REGS из DOS.H: 14 байт, поля WORDREGS с префиксом x. (ax, bx, …).
@@ -70,9 +69,9 @@ public class StructHeaderCatalogTests
 
         var catalog = HeaderCatalog.Load(includeDir);
 
-        Assert.True(catalog.TryGetSignature("_dos_getdate", out var signature));
-        Assert.NotNull(signature);
-        Assert.True(signature!.Parameters[0].Type.IsStructPtr);
-        Assert.Equal("dosdate_t", signature.Parameters[0].Type.Pointee?.StructName);
+        Assert.True(catalog.TryGetFunction("_dos_getdate", out var function));
+        Assert.NotNull(function);
+        Assert.True(function!.Parameters[0].Type.IsStructPtr);
+        Assert.Equal("dosdate_t", function.Parameters[0].Type.Pointee?.StructName);
     }
 }

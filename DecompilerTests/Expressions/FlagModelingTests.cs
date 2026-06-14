@@ -1,5 +1,4 @@
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Decompilation.Operations;
+using UltraDecompiler.Ir.Operations;
 
 namespace DecompilerTests.Expressions;
 
@@ -152,7 +151,7 @@ public class FlagModelingTests : BaseTests
             """);
 
         // Блок с STD
-        var firstBlock = expr.Blocks.First(b => b.BasicBlock.Instructions.Any(i => i.Mnemonic == UltraDecompiler.Disassembler.Mnemonic.STD));
+        var firstBlock = expr.Blocks.First(b => b.BasicBlock.Instructions.Any(i => i.Mnemonic == Mnemonic.STD));
         Assert.Equal(ConstExpr.One, firstBlock.EndRegisters.DF);
 
         // Следующий блок должен унаследовать DF = 1

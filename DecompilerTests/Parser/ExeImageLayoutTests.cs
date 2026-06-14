@@ -1,6 +1,5 @@
 using TestSupport;
 using UltraDecompiler.Compilation;
-using UltraDecompiler.Parser;
 
 namespace DecompilerTests.Parser;
 

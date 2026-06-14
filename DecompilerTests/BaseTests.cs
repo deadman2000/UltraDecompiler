@@ -1,6 +1,7 @@
-﻿using UltraDecompiler.Decompilation;
-using UltraDecompiler.Disassembler;
-using UltraDecompiler.Graph;
+﻿using UltraDecompiler.Compilation;
+using UltraDecompiler.Ir.Expressions;
+using UltraDecompiler.PostProcessing.Abstractions;
+using UltraDecompiler.PostProcessing.Profiles;
 
 namespace DecompilerTests;
 
@@ -36,12 +37,28 @@ public abstract class BaseTests
         return decompiler;
     }
 
-    /// <summary>Строит IR процедуры с <see cref="ExpressionBuilder.BuildProc"/> (включая TailReturnInserter).</summary>
+    /// <summary>Строит IR процедуры с <see cref="ExpressionBuilder.BuildProc"/> и IR-construction pass-ами профиля.</summary>
     protected static ExpressionBuilder BuildProcExpressions(string hex)
     {
         var graph = GetGraph(hex);
         var decompiler = new ExpressionBuilder();
-        decompiler.BuildProc(graph, procedures: null);
+        decompiler.BuildProc(graph);
+
+        var procedure = new DisassembledProcedure
+        {
+            Offset = 0,
+            Instructions = [],
+            Name = "test_proc",
+        };
+        DecompilationProfileRegistry
+            .GetProfile(OptimizationLevel.Disabled)
+            .ApplyIrConstructionPasses(new IrConstructionContext
+            {
+                Builder = decompiler,
+                Graph = graph,
+                Procedure = procedure,
+            });
+
         return decompiler;
     }
 
@@ -52,8 +69,9 @@ public abstract class BaseTests
     {
         var graph = GetGraph(hex);
         var decompiler = new ExpressionBuilder();
-        ProcedureStorage procedures = new();
+        decompiler.Build(graph, isCom);
 
+        ProcedureStorage procedures = new();
         foreach (var kv in knownProcedures)
         {
             procedures.Add(new DisassembledProcedure()
@@ -64,7 +82,7 @@ public abstract class BaseTests
             });
         }
 
-        decompiler.Build(graph, isCom, procedures);
+        CallSiteResolver.ResolveBlocks(decompiler.Blocks, procedures);
         return decompiler;
     }
 

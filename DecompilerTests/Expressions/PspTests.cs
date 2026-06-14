@@ -1,6 +1,4 @@
-﻿using UltraDecompiler.Decompilation;
-
-namespace DecompilerTests.Expressions;
+﻿namespace DecompilerTests.Expressions;
 
 /// <summary>Распознавание обращений к полям PSP (DS=сегмент PSP).</summary>
 public class PspTests : BaseTests

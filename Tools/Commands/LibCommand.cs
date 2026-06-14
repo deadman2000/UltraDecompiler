@@ -1,7 +1,6 @@
 using LibParser.Models;
 using LibParser.Omf;
 using McMaster.Extensions.CommandLineUtils;
-using UltraDecompiler.Disassembler;
 
 namespace Tools.Commands;
 

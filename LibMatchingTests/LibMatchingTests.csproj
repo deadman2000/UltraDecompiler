@@ -16,7 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TestSupport\TestSupport.csproj" />
-    <ProjectReference Include="..\UltraDecompiler\UltraDecompiler.csproj" />
+    <ProjectReference Include="..\LibMatching\UltraDecompiler.LibMatching.csproj" />
   </ItemGroup>
 
   <ItemGroup>

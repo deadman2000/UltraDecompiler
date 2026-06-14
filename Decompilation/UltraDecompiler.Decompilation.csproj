@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <WarningsAsErrors>true</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CodeGeneration\UltraDecompiler.CodeGeneration.csproj" />
+    <ProjectReference Include="..\Compilation\UltraDecompiler.Compilation.csproj" />
+    <ProjectReference Include="..\Disassembly\UltraDecompiler.Disassembly.csproj" />
+    <ProjectReference Include="..\Headers\UltraDecompiler.Headers.csproj" />
+    <ProjectReference Include="..\Ir\UltraDecompiler.Ir.csproj" />
+    <ProjectReference Include="..\LibMatching\UltraDecompiler.LibMatching.csproj" />
+    <ProjectReference Include="..\PostProcessing\UltraDecompiler.PostProcessing.csproj" />
+    <ProjectReference Include="..\Common\Common.csproj" />
+    <ProjectReference Include="..\LibParser\LibParser.csproj" />
+  </ItemGroup>
+
+</Project>

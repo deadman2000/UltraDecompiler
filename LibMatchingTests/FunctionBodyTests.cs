@@ -1,5 +1,4 @@
 using Common;
-using UltraDecompiler.Disassembler;
 using UltraDecompiler.LibMatching;
 
 namespace LibMatchingTests;

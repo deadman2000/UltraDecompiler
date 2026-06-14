@@ -1,5 +1,3 @@
-using UltraDecompiler.Decompilation;
-
 namespace DecompilerTests.Decompilation;
 
 /// <summary>Реестр процедур: синтетические имена sub_* и поиск по смещению.</summary>

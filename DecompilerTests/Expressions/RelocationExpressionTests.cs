@@ -1,7 +1,4 @@
 using Common;
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Disassembler;
-using UltraDecompiler.Graph;
 
 namespace DecompilerTests.Expressions;
 

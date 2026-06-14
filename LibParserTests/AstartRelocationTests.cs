@@ -1,5 +1,5 @@
 using LibParser.Omf;
-using UltraDecompiler.Disassembler;
+using UltraDecompiler.Disassembly.Disassembler;
 
 namespace LibParserTests;
 

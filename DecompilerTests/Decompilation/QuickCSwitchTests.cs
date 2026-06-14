@@ -1,7 +1,6 @@
 using TestSupport;
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Decompilation.Operations;
-using UltraDecompiler.Disassembler;
+using UltraDecompiler.Ir.Operations;
+using UltraDecompiler.Ir.Switch;
 
 namespace DecompilerTests.Decompilation;
 
@@ -14,7 +13,7 @@ public sealed class QuickCSwitchTests : BaseTests
     public void GetAllOperations_SwitchExe_RecognizesOnlyQuickCSwitchPattern()
     {
         var builtExePath = ExeProvider.Get("switch.c", libraries: ["SLIBCE.LIB"]);
-        var parser = new UltraDecompiler.Parser.DosExeParser(builtExePath);
+        var parser = new UltraDecompiler.Disassembly.Parser.DosExeParser(builtExePath);
         var provider = new UltraDecompiler.LibMatching.LibraryProvider(
             QuickCTestAssets.LibDirectory,
             ["SLIBCE.LIB"]);
@@ -28,9 +27,9 @@ public sealed class QuickCSwitchTests : BaseTests
                 (int)parser.EntryPointOffset,
                 out var resolution));
 
-        var disassembler = new UltraDecompiler.Disassembler.X86Disassembler(parser.Image, parser.RelocationTable);
+        var disassembler = new X86Disassembler(parser.Image, parser.RelocationTable);
         disassembler.Disassemble(resolution.MainOffset, initRegisters);
-        var cfg = new UltraDecompiler.Graph.ControlFlowGraph();
+        var cfg = new ControlFlowGraph();
         cfg.Build(disassembler, resolution.MainOffset, initRegisters);
 
         var patterns = QuickCSwitchDetector.Detect(cfg.Blocks);

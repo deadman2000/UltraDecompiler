@@ -1,6 +1,5 @@
-using UltraDecompiler.Decompilation;
-using UltraDecompiler.Decompilation.Operations;
-using UltraDecompiler.PostProcessing;
+using UltraDecompiler.Ir.Operations;
+using UltraDecompiler.PostProcessing.Types;
 
 namespace DecompilerTests.PostProcessing;
 

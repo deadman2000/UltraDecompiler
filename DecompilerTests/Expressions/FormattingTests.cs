@@ -1,6 +1,4 @@
-﻿using UltraDecompiler.Decompilation;
-
-namespace DecompilerTests.Expressions;
+﻿namespace DecompilerTests.Expressions;
 
 /// <summary>
 /// Тесты генерации строк

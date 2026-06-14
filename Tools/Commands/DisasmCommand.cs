@@ -1,7 +1,5 @@
 using McMaster.Extensions.CommandLineUtils;
-using UltraDecompiler.Disassembler;
 using UltraDecompiler.LibMatching;
-using UltraDecompiler.Parser;
 
 namespace Tools.Commands;
 
