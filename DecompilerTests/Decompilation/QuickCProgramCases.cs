@@ -40,4 +40,24 @@ internal static class QuickCProgramCases
             .Where(static line => line.Length > 0 && !line.StartsWith('#'))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// Возвращает данные для всех исходных файлов <c>*.c</c> из <c>QuickC/PROGRAMS</c>,
+    /// включая программы, помеченные в roundtrip_xfail.txt.
+    /// Используется для тестов эвристик (определение уровня оптимизации, модели памяти и т.д.),
+    /// где не требуется полный round-trip (MAKE + побайтовое совпадение EXE).
+    /// </summary>
+    public static IEnumerable<object[]> AllSourceFileMemberData()
+    {
+        if (!Directory.Exists(QuickCTestAssets.ProgramsDirectory))
+        {
+            yield break;
+        }
+
+        foreach (var path in Directory.EnumerateFiles(QuickCTestAssets.ProgramsDirectory, "*.c"))
+        {
+            var fileName = Path.GetFileName(path);
+            yield return [fileName];
+        }
+    }
 }

@@ -62,4 +62,75 @@ public sealed class OptimizationLevelHeuristicsTests
             }
         }
     }
+
+    // Для каждой программы из QuickC/PROGRAMS/*.c (включая xfail roundtrip) проверяем,
+    // что сборка с /Od приводит к определению OptimizationLevel.Disabled через эвристики.
+    // Проверка выполняется через полный путь Decompiler.Decompile → CompilerOptions,
+    // как это происходит в реальном использовании (Decompiler вызывает OptimizationLevelHeuristics).
+    [Theory]
+    [MemberData(nameof(QuickCProgramCases.AllSourceFileMemberData), MemberType = typeof(QuickCProgramCases))]
+    [Trait("Tool", "DosBox")]
+    public void Decompile_AllPrograms_Od_PreservesDisabledOptimizationLevel(string sourceFileName)
+    {
+        RunDecompileAndAssertOptimizationLevel(
+            sourceFileName,
+            buildOptimization: OptimizationLevel.Disabled,
+            expected: OptimizationLevel.Disabled);
+    }
+
+    // Для каждой программы из QuickC/PROGRAMS/*.c проверяем,
+    // что сборка с /Ox (/EnabledFull) приводит к определению OptimizationLevel.EnabledFull.
+    // Эвристики должны распознать отсутствие хвостовых эпилогов /Od, наличие register-counter loops,
+    // imul или низкий процент tail-epilog-jumps.
+    [Theory]
+    [MemberData(nameof(QuickCProgramCases.AllSourceFileMemberData), MemberType = typeof(QuickCProgramCases))]
+    [Trait("Tool", "DosBox")]
+    public void Decompile_AllPrograms_Ox_PreservesEnabledFullOptimizationLevel(string sourceFileName)
+    {
+        RunDecompileAndAssertOptimizationLevel(
+            sourceFileName,
+            buildOptimization: OptimizationLevel.EnabledFull,
+            expected: OptimizationLevel.EnabledFull);
+    }
+
+    private static void RunDecompileAndAssertOptimizationLevel(
+        string sourceFileName,
+        OptimizationLevel buildOptimization,
+        OptimizationLevel expected)
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            // Собираем (или берём из кэша) EXE с указанным уровнем оптимизации.
+            // Передаём SLIBCE.LIB для консистентности с round-trip тестами и реальными примерами.
+            var exePath = ExeProvider.Get(
+                sourceFileName,
+                libraries: ["SLIBCE.LIB"],
+                optimization: buildOptimization);
+
+            var result = new Decompiler().Decompile(
+                exePath,
+                QuickCTestAssets.LibDirectory,
+                QuickCTestAssets.IncludeDirectory,
+                outputDirectory,
+                libraryFileNames: ["SLIBCE.LIB"]);
+
+            Assert.True(
+                result.Success,
+                $"Декомпиляция программы '{sourceFileName}' (сборка с {buildOptimization}) завершилась неуспешно. " +
+                "Эвристика уровня оптимизации вызывается только при успешном разборе main/user-процедур.");
+
+            Assert.Equal(
+                expected,
+                result.CompilerOptions.OptimizationLevel);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
 }
