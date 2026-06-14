@@ -1,5 +1,6 @@
 using TestSupport;
 using UltraDecompiler.CodeGeneration;
+using UltraDecompiler.Compilation;
 
 namespace DecompilerTests.Decompilation;
 
@@ -14,16 +15,33 @@ public sealed class QuickCProgramRoundTripTests
 
     // Для каждого PROGRAMS/*.c: ExeProvider → Decompiler → MAKE → побайтовое сравнение с эталоном.
     // Требует DOSBox с QuickC; при отсутствии — тест падает с InvalidOperationException.
+    // Прогон для неоптимизированных сборок (/Od) — основной сценарий QuickCUnoptimizedProfile.
     [Theory]
     [MemberData(nameof(QuickCProgramCases.SourceFileMemberData), MemberType = typeof(QuickCProgramCases))]
     public void RoundTrip_CompileDecompileRebuild_MatchesOriginalExe(string sourceFileName)
+    {
+        RunRoundTrip(sourceFileName, OptimizationLevel.Disabled);
+    }
+
+    // Аналогичный round-trip, но для максимально оптимизированных сборок QuickC (/Ox).
+    // Собираем оригинал с /Ox, декомпилируем с QuickCOptimizedProfile (без Od-специфичных проходов),
+    // генерируем Makefile с /Ox и проверяем побайтовое совпадение после MAKE.
+    // Многие программы с /Ox могут не проходить (xfail в roundtrip_xfail.txt отсеиваются общим фильтром).
+    [Theory]
+    [MemberData(nameof(QuickCProgramCases.SourceFileMemberData), MemberType = typeof(QuickCProgramCases))]
+    public void RoundTrip_CompileDecompileRebuild_MatchesOriginalExe_Ox(string sourceFileName)
+    {
+        RunRoundTrip(sourceFileName, OptimizationLevel.EnabledFull);
+    }
+
+    private void RunRoundTrip(string sourceFileName, OptimizationLevel optimizationLevel)
     {
         if (!DosBoxQuickCAssets.IsDosBoxAvailable)
         {
             throw new InvalidOperationException();
         }
 
-        var builtExePath = ExeProvider.Get(sourceFileName, libraries: [CrtLibrary]);
+        var builtExePath = ExeProvider.Get(sourceFileName, libraries: [CrtLibrary], optimization: optimizationLevel);
         var targetExeFileName = FormatTargetExeFileName(Path.GetFileNameWithoutExtension(sourceFileName));
         var workspaceId = CreateWorkspaceId();
         var workspaceDirectory = Path.Combine(QuickCTestAssets.RoundTripWorkRoot, workspaceId);
@@ -51,6 +69,9 @@ public sealed class QuickCProgramRoundTripTests
             Assert.Contains(
                 Path.Combine(decompiledDirectory, MakefileGenerator.FileName),
                 decompileResult.OutputFiles);
+
+            // Проверяем, что в возвращённых CompilerOptions уровень оптимизации сохранён (для генерации правильного Makefile).
+            Assert.Equal(optimizationLevel, decompileResult.CompilerOptions.OptimizationLevel);
 
             var makeResult = DosBoxQuickCRunner.Run(
                 $@"CD {dosDecompiledPath}",

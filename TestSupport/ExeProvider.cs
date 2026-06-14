@@ -90,6 +90,7 @@ public static class ExeProvider
             OptimizationLevel.Disabled => "od",
             OptimizationLevel.Enabled => "o",
             OptimizationLevel.EnableLoop => "ol",
+            OptimizationLevel.EnabledFull => "ox",
             _ => throw new ArgumentOutOfRangeException(nameof(optimization), optimization, null),
         };
         var librariesTag = FormatLibrariesTag(libraries);
