@@ -253,7 +253,7 @@ public partial class ExpressionBuilder
 
     private static bool ShouldConvertLoopHeader(ExprBlock block)
     {
-        if (block.Next is null || !IsLoopHeader(block, block.Next))
+        if (block.Next is null || block.Condition is null || !IsLoopHeader(block, block.Next))
         {
             return false;
         }
