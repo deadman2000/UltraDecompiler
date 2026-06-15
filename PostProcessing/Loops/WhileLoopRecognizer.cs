@@ -77,6 +77,12 @@ public static class WhileLoopRecognizer
             return false;
         }
 
+        // Не конвертируем if, тело которого содержит только вызовы и return
+        if (branch.ThenBody.All(static op => op is CallOperation or ReturnOperation or SetOperation { Src: CallExpr }))
+        {
+            return false;
+        }
+
         return branch.ThenBody.Any(static op => op is SetOperation or StoreOperation or IncOperation or DecOperation);
     }
 

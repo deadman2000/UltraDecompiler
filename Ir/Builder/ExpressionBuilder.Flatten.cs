@@ -253,7 +253,13 @@ public partial class ExpressionBuilder
 
     private static bool ShouldConvertLoopHeader(ExprBlock block)
     {
-        if (block.Next is null || block.Condition is null || !IsLoopHeader(block, block.Next))
+        if (block.Next is null || block.Condition is null)
+        {
+            return false;
+        }
+
+        var isLoopHeader = IsLoopHeader(block, block.Next);
+        if (!isLoopHeader)
         {
             return false;
         }
@@ -263,8 +269,39 @@ public partial class ExpressionBuilder
             return false;
         }
 
+        // Не конвертируем if, условие которого — простая временная переменная
+        // (это обработка флагов внутри цикла, а не заголовок цикла)
+        if (IsTempVariableCondition(block.Condition))
+        {
+            return false;
+        }
+
         return ConditionUsesCharPointerDeref(block.Condition)
             || LoopBodyAdvancesPointer(block.Next);
+    }
+
+    private static bool IsTempVariableCondition(Expr condition)
+    {
+        // Проверяем, что условие — это сравнение временной переменной с константой
+        // вида temp5 == 0 или temp5 != 0
+        if (condition is not CmpExpr cmp)
+        {
+            return false;
+        }
+
+        // Проверяем левую часть
+        if (cmp.Left is Variable var && var.IsTemp)
+        {
+            return true;
+        }
+
+        // Проверяем правую часть
+        if (cmp.Right is Variable var2 && var2.IsTemp)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private static bool IsArgcBoundLoopHeader(Expr condition) =>
