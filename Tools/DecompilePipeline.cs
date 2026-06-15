@@ -41,13 +41,14 @@ internal static class DecompilePipeline
         var cfg = new ControlFlowGraph();
         cfg.Build(disassembler, startOffset, initRegisterState);
 
-        var expressions = new ExpressionBuilder();
+        // Детектируем уровень оптимизации по дизассемблированным инструкциям (для корректного выбора профиля и вывода).
+        var optimizationLevel = OptimizationLevelDetector.DetectFromInstructions(disassembler.Instructions);
+
+        var expressions = ExpressionBuilder.Create(optimizationLevel);
         expressions.Build(cfg, parser.IsCom);
 
         var operations = expressions.GetAllOperations();
 
-        // Детектируем уровень оптимизации по дизассемблированным инструкциям (для корректного выбора профиля и вывода).
-        var optimizationLevel = OptimizationLevelDetector.DetectFromInstructions(disassembler.Instructions);
         var compilerOptions = new CompilerOptions
         {
             StackCheckingEnabled = StackCheckDetector.AnalyzeFromOperations(operations),

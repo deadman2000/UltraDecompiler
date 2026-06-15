@@ -1,5 +1,4 @@
 using TestSupport;
-using UltraDecompiler.Ir.Operations;
 using UltraDecompiler.Ir.Switch;
 
 namespace DecompilerTests.Decompilation;

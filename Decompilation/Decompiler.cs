@@ -3,7 +3,6 @@ using System.Text;
 using UltraDecompiler.CodeGeneration;
 using UltraDecompiler.Compilation;
 using UltraDecompiler.Disassembly.Parser;
-using UltraDecompiler.Ir.Builder;
 using UltraDecompiler.Ir.Helpers;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.PostProcessing.Abstractions;
@@ -61,23 +60,25 @@ public class Decompiler
 
         var mainOffset = resolution.MainOffset;
 
-        // Собираем процедуры сначала с "безопасным" профилем (без TailReturnInserter),
-        // чтобы получить сырые Instructions всех user-функций для точной детекции оптимизации.
-        // Для /Od затем пересоберём с правильным профилем (один дополнительный проход — дёшево).
-        var tempProfile = DecompilationProfileRegistry.GetProfile(OptimizationLevel.Enabled);
-        var tempStorage = CollectProcedures(
+        // Сначала собираем только инструкции (без IR) для детекции оптимизации
+        var instructionsMap = CollectInstructions(
             parser,
             provider,
             initRegisters,
-            mainOffset,
-            tempProfile);
+            mainOffset);
 
-        var optimizationLevel = OptimizationLevelHeuristics.DetectFromUserProcedures(tempStorage.All);
+        // Детектируем уровень оптимизации по сырым инструкциям
+        var optimizationLevel = OptimizationLevelHeuristics.DetectFromInstructionsMap(instructionsMap);
 
+        // Теперь строим IR один раз с правильным профилем
         var irProfile = DecompilationProfileRegistry.GetProfile(optimizationLevel);
-        var storage = ReferenceEquals(irProfile, tempProfile)
-            ? tempStorage
-            : CollectProcedures(parser, provider, initRegisters, mainOffset, irProfile);
+        var storage = BuildIrForProcedures(
+            parser,
+            provider,
+            initRegisters,
+            irProfile,
+            optimizationLevel,
+            instructionsMap);
 
         if (exportGraph)
         {
@@ -243,24 +244,24 @@ public class Decompiler
         };
     }
 
-    private ProcedureStorage CollectProcedures(
+    /// <summary>
+    /// Собирает только инструкции всех процедур (без IR) для детекции оптимизации.
+    /// </summary>
+    private static Dictionary<int, (IReadOnlyList<Instruction> Instructions, bool IsLibrary, string? Name)> CollectInstructions(
         DosExeParser parser,
         LibraryProvider provider,
         RegisterState initRegisters,
-        int initOffset,
-        IDecompilationProfile profile)
+        int initOffset)
     {
-        var storage = new ProcedureStorage();
+        var instructionsMap = new Dictionary<int, (IReadOnlyList<Instruction>, bool, string?)>();
         var pending = new Queue<int>();
         pending.Enqueue(initOffset);
 
-        // Очередь для рекурсивного разбора функций, начиная с entry (в т.ч. library match),
-        // добавляем "заглушки" (stub) в storage. Expressions будут заполнены позже, когда мы их разберём.
         while (pending.Count > 0)
         {
             var offset = pending.Dequeue();
 
-            if (storage.Contains(offset))
+            if (instructionsMap.ContainsKey(offset))
                 continue;
 
             var instructions = X86Disassembler.Disassemble(
@@ -272,44 +273,81 @@ public class Decompiler
             if (instructions.Count == 0)
                 continue;
 
-            // Проверяем library match до разбора — экономит время provider
+            // Проверяем library match
             var libraryMatch = provider.TryMatchProcedure(
                 parser.Image,
                 parser.RelocationTable,
                 offset,
                 initRegisters);
 
-            DisassembledProcedure proc;
             if (libraryMatch is not null)
             {
-                proc = new DisassembledProcedure
+                instructionsMap[offset] = (
+                    instructions,
+                    true,
+                    LinkerSymbolNames.ToCName(libraryMatch.SymbolName));
+                continue;
+            }
+
+            var name = offset == initOffset ? MainFunction : $"sub_{offset:X4}";
+            instructionsMap[offset] = (instructions, false, name);
+
+            EnqueueExternalTargets(instructions, pending);
+        }
+
+        return instructionsMap;
+    }
+
+    /// <summary>
+    /// Строит IR для всех процедур на основе заранее собранных инструкций.
+    /// </summary>
+    private ProcedureStorage BuildIrForProcedures(
+        DosExeParser parser,
+        LibraryProvider provider,
+        RegisterState initRegisters,
+        IDecompilationProfile profile,
+        OptimizationLevel optimizationLevel,
+        Dictionary<int, (IReadOnlyList<Instruction> Instructions, bool IsLibrary, string? Name)> instructionsMap)
+    {
+        var storage = new ProcedureStorage();
+
+        foreach (var (offset, (instructions, isLibrary, name)) in instructionsMap)
+        {
+            if (isLibrary)
+            {
+                var libraryMatch = provider.TryMatchProcedure(
+                    parser.Image,
+                    parser.RelocationTable,
+                    offset,
+                    initRegisters);
+
+                if (libraryMatch is not null)
                 {
-                    Offset = offset,
-                    Instructions = instructions,
-                    Name = LinkerSymbolNames.ToCName(libraryMatch.SymbolName),
-                    IsLibrary = true,
-                    LibraryMatch = libraryMatch,
-                };
-                storage.Add(proc);
-                // Для library не разбираем и не ставим в очередь (не enqueue)
+                    var libraryProc = new DisassembledProcedure
+                    {
+                        Offset = offset,
+                        Instructions = instructions,
+                        Name = name!,
+                        IsLibrary = true,
+                        LibraryMatch = libraryMatch,
+                    };
+                    storage.Add(libraryProc);
+                }
                 continue;
             }
 
             var cfg = new ControlFlowGraph();
             cfg.BuildFromInstructions(instructions, offset, initRegisters);
 
-            var expressions = new ExpressionBuilder();
+            var expressions = ExpressionBuilder.Create(optimizationLevel);
             expressions.BuildProc(cfg);
 
-            var name = offset == initOffset
-                ? MainFunction
-                : $"sub_{offset:X4}";
-            proc = new DisassembledProcedure
+            var userProc = new DisassembledProcedure
             {
                 Offset = offset,
                 Instructions = instructions,
                 Expressions = expressions,
-                Name = name,
+                Name = name!,
                 IsLibrary = false,
             };
 
@@ -317,12 +355,10 @@ public class Decompiler
             {
                 Builder = expressions,
                 Graph = cfg,
-                Procedure = proc,
+                Procedure = userProc,
             });
 
-            storage.Add(proc);
-
-            EnqueueExternalTargets(instructions, pending);
+            storage.Add(userProc);
         }
 
         return storage;

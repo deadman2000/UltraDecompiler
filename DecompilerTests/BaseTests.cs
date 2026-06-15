@@ -1,5 +1,4 @@
 ﻿using UltraDecompiler.Compilation;
-using UltraDecompiler.Ir.Expressions;
 using UltraDecompiler.PostProcessing.Abstractions;
 using UltraDecompiler.PostProcessing.Profiles;
 

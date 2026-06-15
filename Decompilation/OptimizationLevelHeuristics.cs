@@ -11,6 +11,57 @@ public static class OptimizationLevelHeuristics
     private const double OdTailEpilogRatioThreshold = 0.6;
 
     /// <summary>
+    /// Определяет <c>/Od</c> vs <c>/Ox</c> по карте инструкций (без построения IR).
+    /// </summary>
+    /// <param name="instructionsMap">
+    /// Словарь: offset → (Instructions, IsLibrary, Name).
+    /// </param>
+    public static OptimizationLevel DetectFromInstructionsMap(
+        Dictionary<int, (IReadOnlyList<Instruction> Instructions, bool IsLibrary, string? Name)> instructionsMap)
+    {
+        var userInstructions = instructionsMap
+            .Where(static kvp => !kvp.Value.IsLibrary)
+            .Select(static kvp => kvp.Value.Instructions)
+            .ToList();
+
+        if (userInstructions.Count == 0)
+        {
+            return OptimizationLevel.Disabled;
+        }
+
+        if (userInstructions.Any(static instr => HasOxRegisterCounterLoopPattern(instr)))
+        {
+            return OptimizationLevel.EnabledFull;
+        }
+
+        var mainInstructions = instructionsMap
+            .Where(static kvp =>
+                !kvp.Value.IsLibrary &&
+                (string.Equals(kvp.Value.Name, "main", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(kvp.Value.Name, "_main", StringComparison.OrdinalIgnoreCase)))
+            .Select(static kvp => kvp.Value.Instructions)
+            .FirstOrDefault();
+
+        if (mainInstructions is not null && HasTailEpilogJump(mainInstructions))
+        {
+            return OptimizationLevel.Disabled;
+        }
+
+        if (userInstructions.Any(static instr =>
+                !HasTailEpilogJump(instr) && HasImulInstruction(instr)))
+        {
+            return OptimizationLevel.EnabledFull;
+        }
+
+        var tailEpilogCount = userInstructions.Count(static instr => HasTailEpilogJump(instr));
+        var ratio = (double)tailEpilogCount / userInstructions.Count;
+
+        return ratio >= OdTailEpilogRatioThreshold
+            ? OptimizationLevel.Disabled
+            : OptimizationLevel.EnabledFull;
+    }
+
+    /// <summary>
     /// Определяет <c>/Od</c> vs <c>/Ox</c> по паттернам выхода из функций.
     /// </summary>
     public static OptimizationLevel DetectFromUserProcedures(IEnumerable<DisassembledProcedure> procedures)

@@ -1,5 +1,3 @@
-using UltraDecompiler.Ir.Operations;
-
 namespace DecompilerTests.Decompilation;
 
 /// <summary>

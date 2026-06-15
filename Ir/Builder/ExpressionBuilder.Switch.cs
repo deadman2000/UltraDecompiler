@@ -4,25 +4,9 @@ namespace UltraDecompiler.Ir.Builder;
 
 public partial class ExpressionBuilder
 {
-    private readonly Dictionary<int, ExprBlock> _blocksByOffset = [];
-    private readonly Dictionary<int, QuickCSwitchPattern> _switchByEntry = [];
-
-    private void AnalyzeQuickCSwitches(IReadOnlyList<BasicBlock> blocks)
-    {
-        _blocksByOffset.Clear();
-        _switchByEntry.Clear();
-
-        foreach (var block in Blocks)
-        {
-            _blocksByOffset[block.BasicBlock.StartOffset] = block;
-        }
-
-        foreach (var pattern in QuickCSwitchDetector.Detect(blocks))
-        {
-            _switchByEntry[pattern.EntryOffset] = pattern;
-        }
-    }
-
+    /// <summary>
+    /// Собирает операции switch-конструкции и добавляет их в результат.
+    /// </summary>
     private void CollectQuickCSwitch(
         ExprBlock entryBlock,
         QuickCSwitchPattern pattern,

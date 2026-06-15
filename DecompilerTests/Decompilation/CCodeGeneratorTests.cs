@@ -1,5 +1,4 @@
 using UltraDecompiler.CodeGeneration;
-using UltraDecompiler.Ir.Operations;
 
 namespace DecompilerTests.Decompilation;
 

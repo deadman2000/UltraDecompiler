@@ -1,6 +1,4 @@
-﻿using UltraDecompiler.Ir.Operations;
-
-namespace DecompilerTests.Expressions;
+﻿namespace DecompilerTests.Expressions;
 
 /// <summary>FPU-инструкции пока игнорируются в IR (не порождают Set/Store).</summary>
 public class FpuTests : BaseTests

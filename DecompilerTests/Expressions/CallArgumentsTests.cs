@@ -1,5 +1,3 @@
-using UltraDecompiler.Ir.Operations;
-
 namespace DecompilerTests.Expressions;
 
 /// <summary>Тесты подстановки аргументов CALL по сигнатуре из ProcedureStorage.</summary>

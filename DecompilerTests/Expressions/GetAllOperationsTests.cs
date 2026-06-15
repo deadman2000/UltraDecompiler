@@ -1,7 +1,4 @@
-﻿using UltraDecompiler.Ir.Expressions;
-using UltraDecompiler.Ir.Operations;
-
-namespace DecompilerTests.Expressions;
+﻿namespace DecompilerTests.Expressions;
 
 /// <summary>Сборка плоского списка IR из CFG: линейный код, if/else, циклы.</summary>
 public class GetAllOperationsTests : BaseTests

@@ -220,7 +220,7 @@ public partial class ExpressionBuilder
     /// <summary>
     /// Все блоки, достижимые по <see cref="ExprBlock.Next"/> и <see cref="ExprBlock.ConditionalBlock"/>.
     /// </summary>
-    private static HashSet<ExprBlock> CollectReachable(ExprBlock? start)
+    protected static HashSet<ExprBlock> CollectReachable(ExprBlock? start)
     {
         var result = new HashSet<ExprBlock>();
         if (start == null)
@@ -251,7 +251,11 @@ public partial class ExpressionBuilder
     private static bool BranchEndsWithReturn(IReadOnlyList<Operation> body) =>
         body.Any(static op => op is ReturnOperation);
 
-    private static bool ShouldConvertLoopHeader(ExprBlock block)
+    /// <summary>
+    /// Определяет, следует ли конвертировать заголовок цикла в WhileOperation.
+    /// Переопределяется в профилях для разной эвристики (/Od vs /Ox).
+    /// </summary>
+    protected virtual bool ShouldConvertLoopHeader(ExprBlock block)
     {
         if (block.Next is null || block.Condition is null)
         {
@@ -280,7 +284,12 @@ public partial class ExpressionBuilder
             || LoopBodyAdvancesPointer(block.Next);
     }
 
-    private static bool IsTempVariableCondition(Expr condition)
+    /// <summary>
+    /// Проверяет, является ли условие сравнением временной переменной с константой
+    /// (например, temp5 == 0 или temp5 != 0). Такие условия обычно обрабатывают флаги
+    /// внутри цикла, а не являются заголовком цикла.
+    /// </summary>
+    protected static bool IsTempVariableCondition(Expr condition)
     {
         // Проверяем, что условие — это сравнение временной переменной с константой
         // вида temp5 == 0 или temp5 != 0
@@ -304,11 +313,18 @@ public partial class ExpressionBuilder
         return false;
     }
 
-    private static bool IsArgcBoundLoopHeader(Expr condition) =>
+    /// <summary>
+    /// Проверяет, является ли условие циклом по argc (такие циклы не конвертируем).
+    /// </summary>
+    protected static bool IsArgcBoundLoopHeader(Expr condition) =>
         condition is CmpExpr { Operation: CmpOperation.Uge or CmpOperation.Ugt, Right: Variable { Name: "argc" } }
         || condition is CmpExpr { Operation: CmpOperation.Uge or CmpOperation.Ugt, Left: Variable { Name: "argc" } };
 
-    private static bool LoopBodyAdvancesPointer(ExprBlock bodyStart)
+    /// <summary>
+    /// Проверяет, содержит ли тело цикла операции инкремента/декремента (признак цикла по указателю).
+    /// Переопределяется в профилях для разной эвристики.
+    /// </summary>
+    protected virtual bool LoopBodyAdvancesPointer(ExprBlock bodyStart)
     {
         var ops = new List<Operation>();
         var visited = new HashSet<ExprBlock>();
@@ -316,7 +332,10 @@ public partial class ExpressionBuilder
         return ops.Any(static op => op is IncOperation or DecOperation);
     }
 
-    private static bool ConditionUsesCharPointerDeref(Expr condition)
+    /// <summary>
+    /// Проверяет, использует ли условие разыменование указателя (признак цикла по строке/массиву).
+    /// </summary>
+    protected static bool ConditionUsesCharPointerDeref(Expr condition)
     {
         foreach (var mem in ExprSubstitution.CollectMemExprs(condition))
         {
@@ -329,7 +348,11 @@ public partial class ExpressionBuilder
         return false;
     }
 
-    private static void CollectOperationsStatic(
+    /// <summary>
+    /// Собирает операции из блока с ограничением на количество блоков.
+    /// Используется в эвристиках распознавания циклов.
+    /// </summary>
+    protected static void CollectOperationsStatic(
         ExprBlock? block,
         List<Operation> result,
         HashSet<ExprBlock> visited,
@@ -350,7 +373,7 @@ public partial class ExpressionBuilder
     }
 
     /// <summary>Условие на заголовке цикла: ветка «истина» снова достигает этот блок.</summary>
-    private static bool IsLoopHeader(ExprBlock block, ExprBlock? thenStart)
+    protected virtual bool IsLoopHeader(ExprBlock block, ExprBlock? thenStart)
     {
         if (thenStart is null)
         {

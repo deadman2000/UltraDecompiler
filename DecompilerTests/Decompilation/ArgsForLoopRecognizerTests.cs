@@ -1,4 +1,3 @@
-using UltraDecompiler.Ir.Operations;
 using UltraDecompiler.PostProcessing.Loops;
 
 namespace DecompilerTests.Decompilation;

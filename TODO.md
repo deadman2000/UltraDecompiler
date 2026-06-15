@@ -1,6 +1,6 @@
 # TODO — Задачи проекта
 
-Список нереализованного и требующего доработки. Реализованное описано в [AGENTS.md](./AGENTS.md). Отчёт по round-trip: `QuickC/PROGRAMS/ROUNDTRIP_REPORT.md`.
+Список нереализованного и требующего доработки. Реализованное описано в [AGENTS.md](./AGENTS.md). Известные сбои round-trip — `QuickC/PROGRAMS/roundtrip_xfail.txt`.
 
 **Цель:** C-код в стиле Microsoft QuickC 1.0 с побайтовым round-trip для типичных программ.
 
@@ -13,18 +13,28 @@
 
 ---
 
+## 0. Оптимизация QuickC (`/Ot`, `/Ol`, `/Ox`)
+
+- Различать `/Ot` и `/Ol` от `/Ox` (сейчас все ненулевые уровни → `EnabledFull` и opt-профиль)
+- Расширить `ExpressionBuilderQuickCOpt`: паттерны аргументов в регистрах, inline-эпилоги, switch без Od-таблиц
+- Эвристики детекции для смешанных EXE (часть функций `/Od`, часть `/Ox`)
+- Round-trip для `/Ox`-сборок (`vol.c` и др.)
+
+---
+
 ## 1. Инструкции / ExpressionBuilder
 
 - IR для `DAA/DAS/AAA/AAS`, `PUSHF/POPF/LAHF/SAHF`
 - `RCL/RCR` (ротации с CF)
 - `ROL/ROR` с динамическим счётчиком через CL (`RotateHandler`)
-- `JP/JNP` (JPE/JPO) — нужно отслеживание PF
+- `JP/JNP` (JPE/JPO) — отслеживание PF
 - `ENTER` с level > 0 (редко в QuickC)
 - Косвенный `INT` (`InterruptHandler`)
 - Неподдерживаемые комбинации операндов (память/сегменты) в арифметике, сдвигах, логике
 - Строковые: полировка флагов после REPZ/REPNZ CMPS/SCAS
 - Строковые: сегментные префиксы внутри REP
 - Строковые: идиоматический C (`memset`, `_fmemset`, `memcpy`, `strcpy` вместо сырого `WhileOperation`)
+- `ExpressionBuilder.CreateExprBlock`: слияние состояния при входе в блок из нескольких предшественников
 
 ---
 
@@ -35,7 +45,7 @@
 - Ускорить `LibrarySymbolFinder` (сейчас линейный перебор образа)
 - Call graph для именования произвольных `sub_XXXX`
 - Полный разбор модулей вроде CLIBFP
-- Сопоставление long-helper'ов (`__aNlrem`, `__aNlshl`, …) и корректный набор `.LIB` в Makefile (`mod.c`, `long.c`)
+- Сопоставление long-helper'ов (`__aNlrem`, `__aNlshl`, …) и корректный набор `.LIB` в Makefile
 
 ---
 
@@ -52,8 +62,8 @@
 ## 4. Моделирование памяти
 
 - Анализ кучи и глобальных данных
-- Far-указатели и сегментная адресация → валидный C (сейчас `seg:[disp]`; `fptr.c`, `vol.c`, `copy.c`)
-- Объединить Address + Segment в `StoreOperation` (`StoreOperation.cs`)
+- Far-указатели и сегментная адресация → валидный C (`fptr.c`, `vol.c`, `copy.c`)
+- Объединить Address + Segment в `StoreOperation`
 
 ---
 
@@ -66,32 +76,44 @@
 
 ## 6. Code Generation
 
-- `MemExpr`/сегменты → валидный C (категория 2.1 в `ROUNDTRIP_REPORT.md`)
-- Материализация строковых литералов (`printf` с адресом вместо `"..."`; `copy.c`)
-- Убрать сырой IR в выводе (`div op` в `jmp.c`, `recur.c`)
-- Раскрывать `WhileOperation` и деление в идиоматический C
+- Bitfield-структуры → валидный C (`bits.c`)
+- Тернарный оператор `?:` (`tern.c`)
+- `enum` / `union` в генерируемом C (`enum.c`, `uion.c`)
+- `do-while`, сложные `for` (`dowhl.c`, `forln.c`)
+- Логические выражения `&&` / `||` (`land.c`)
+- Сравнения и присваивания в нестандартных формах (`cmpas.c`)
+- Указатели на функции (`fncp.c`)
+- Убрать сырой IR в выводе (`jmp.c`, `sjmp.c`)
 - `DosInterruptHelper`: реальные структуры (`find_t` и др.) вместо заглушек
 - `int86`, `union REGS`, DOS-структуры из заголовков
-- Побайтовое совпадение EXE при семантически верном C (категория 3 в `ROUNDTRIP_REPORT`)
+- Побайтовое совпадение EXE при семантически верном C (оставшиеся xfail)
 
 ---
 
 ## 7. Прочее
 
 - `ControlFlowGraph.cs`: проверка return у CALL, построение процедур
-- Полноценное восстановление типов (сейчас в основном 16-битные целые + указатели + частичные struct)
+- Полноценное восстановление типов
 - `ExpressionBuilder.cs`: слияние состояния при входе в блок из нескольких предшественников
 - Полноценная эмуляция FPU (сейчас thunk'и через `NopHandler`)
 
 ---
 
-## 8. Round-trip (из `roundtrip_xfail.txt`)
+## 8. Round-trip (`roundtrip_xfail.txt`)
 
-| Категория | Файлы |
-|-----------|-------|
-| Невалидный C | `copy.c`, `copy2.c`, `fptr.c`, `glob.c`, `jmp.c`, `recur.c`, `vol.c`, `sjmp.c` |
-| Линковка | `mod.c`, `long.c` |
-| Байты не совпадают | `switch.c`, `bits.c`, `dos.c`, `enab.c`, `int86.c`, `mul.c`, `peek.c`, `port.c`, `reg.c`, `rot.c`, `st.c`, `strcp.c` |
+| Файл | Вероятная причина |
+|------|-------------------|
+| `bits.c` | bitfield-структуры |
+| `jmp.c` | goto / нетипичный CFG |
+| `sjmp.c` | switch + goto |
+| `cmpas.c` | сравнения / присваивания |
+| `dowhl.c` | do-while |
+| `enum.c` | enum |
+| `fncp.c` | указатели на функции |
+| `forln.c` | for с `long` |
+| `land.c` | логические `&&` / `||` |
+| `tern.c` | тернарный `?:` |
+| `uion.c` | union |
 
 ---
 
@@ -101,5 +123,4 @@
 - Восстановление имён переменных
 - Больше DOS-вызовов (`msdos.h`, `intdos`, `int86`)
 - Именование `sub_XXXX` по цепочке вызовов
-
----
+- Отдельные профили для `/Ot` и `/Ol`

@@ -1,13 +1,12 @@
 using System.Diagnostics;
-using UltraDecompiler.Ir.Builder.Patterns;
+using UltraDecompiler.Compilation;
 using UltraDecompiler.Ir.InstructionHandlers;
+using UltraDecompiler.Ir.Switch;
 using UltraDecompiler.Ir.Variables;
 
 namespace UltraDecompiler.Ir.Builder;
 
 /// <summary>
-/// Основной класс декомпилятора.
-/// 
 /// Выполняет преобразование потока инструкций x86 (через CFG) в высокоуровневые
 /// выражения и операции (SetOperation, Math1Expr, Math2Expr и т.д.).
 /// </summary>
@@ -17,9 +16,23 @@ public partial class ExpressionBuilder
     private readonly Queue<ExprBlock> _queue = new();
     private ExprBlock? _entryBlock;
 
+    // Поля для распознавания switch-паттернов (используются в ExpressionBuilderQuickCUnopt)
+    protected readonly Dictionary<int, ExprBlock> _blocksByOffset = [];
+    protected readonly Dictionary<int, QuickCSwitchPattern> _switchByEntry = [];
+
     public List<ExprBlock> Blocks { get; } = [];
 
     public VariableStorage Variables { get; } = new();
+
+    public static ExpressionBuilder Create(OptimizationLevel optimization)
+    {
+        return optimization switch
+        {
+            OptimizationLevel.Disabled => new ExpressionBuilderQuickCUnopt(),
+            OptimizationLevel.Enabled or OptimizationLevel.EnableLoop or OptimizationLevel.EnabledFull => new ExpressionBuilderQuickCOpt(),
+            _ => throw new NotImplementedException(),
+        };
+    }
 
     /// <summary>
     /// Выполняет декомпиляцию всего графа потока управления.
@@ -136,7 +149,7 @@ public partial class ExpressionBuilder
             }
         }
 
-        AnalyzeQuickCSwitches(graph.Blocks);
+        AnalyzeSwitchPatterns(graph.Blocks);
     }
 
     private void CreateExprBlock(BasicBlock block, in RegisterExpressions registers, IEnumerable<Expr> stack)
@@ -174,7 +187,7 @@ public partial class ExpressionBuilder
     /// В конце работы метод сохраняет финальное состояние регистров в
     /// exprBlock.EndRegisters.
     /// </summary>
-    private static ExprBlock GenerateCode(ExprBlock block)
+    private ExprBlock GenerateCode(ExprBlock block)
     {
         // Начинаем обработку блока с копии InitRegisters.
         block.EndRegisters = block.InitRegisters;
@@ -219,7 +232,7 @@ public partial class ExpressionBuilder
             }
         }
 
-        QuickCPatternAnalyzer.Apply(block);
+        ApplyBlockPatterns(block);
 
         // Если дошли сюда — блок не закончился явным прыжком/возвратом.
         if (block.BasicBlock.ConditionalBlock != null && block.Condition == null)
@@ -229,5 +242,36 @@ public partial class ExpressionBuilder
         }
 
         return block;
+    }
+
+    /// <summary>
+    /// Применяет профиле-зависимые паттерны к блоку после обработки всех инструкций.
+    /// Вызывается в конце <see cref="GenerateCode"/> для каждого блока.
+    /// </summary>
+    /// <param name="block">Блок, к которому применяются паттерны</param>
+    protected virtual void ApplyBlockPatterns(ExprBlock block)
+    {
+        // Базовая реализация — пустая (для оптимизированного кода)
+    }
+
+    /// <summary>
+    /// Анализирует и распознаёт switch-паттерны в графе потока управления.
+    /// Вызывается после завершения обхода всех блоков.
+    /// </summary>
+    /// <param name="blocks">Все блоки графа</param>
+    protected virtual void AnalyzeSwitchPatterns(IReadOnlyList<BasicBlock> blocks)
+    {
+        _blocksByOffset.Clear();
+        _switchByEntry.Clear();
+
+        foreach (var block in Blocks)
+        {
+            _blocksByOffset[block.BasicBlock.StartOffset] = block;
+        }
+
+        foreach (var pattern in QuickCSwitchDetector.Detect(blocks))
+        {
+            _switchByEntry[pattern.EntryOffset] = pattern;
+        }
     }
 }
