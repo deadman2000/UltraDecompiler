@@ -92,7 +92,7 @@ public partial class ExpressionBuilder
     }
 
     /// <summary>
-    /// Общая логика построения (BFS + linking). Clears должны быть сделаны вызывающим кодом.
+    /// Общая логика построения (BFS + linking).
     /// </summary>
     private void RunBuild(
         ControlFlowGraph graph,
@@ -189,6 +189,8 @@ public partial class ExpressionBuilder
     /// </summary>
     private ExprBlock GenerateCode(ExprBlock block)
     {
+        Debug.Assert(block.BasicBlock.EndOffset != -1);
+
         // Начинаем обработку блока с копии InitRegisters.
         block.EndRegisters = block.InitRegisters;
 

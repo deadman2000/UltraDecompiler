@@ -37,6 +37,7 @@ internal static class Utils
     public static void ClearDirectory(string path)
     {
         var di = new DirectoryInfo(path);
+        di.Create();
 
         foreach (FileInfo file in di.GetFiles())
         {

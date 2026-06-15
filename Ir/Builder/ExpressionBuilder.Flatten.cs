@@ -102,28 +102,6 @@ public partial class ExpressionBuilder
             {
                 var merge = FindMerge(block.ConditionalBlock, block.Next);
 
-                if (block.Next is not null && ShouldConvertLoopHeader(block))
-                {
-                    var loopBody = new List<Operation>();
-                    CollectOperations(block.Next, loopBody, visited, stopBefore: block);
-                    result.Add(new WhileOperation(InvertCondition(block.Condition), loopBody));
-
-                    if (block.ConditionalBlock is not null)
-                    {
-                        var exitOps = new List<Operation>();
-                        CollectOperations(block.ConditionalBlock, exitOps, visited, stopBefore: merge);
-                        result.AddRange(exitOps);
-                    }
-
-                    if (merge is not null && !visited.Contains(merge))
-                    {
-                        block = merge;
-                        continue;
-                    }
-
-                    return;
-                }
-
                 var thenStop = ReferenceEquals(merge, block.ConditionalBlock) ? null : merge;
 
                 var thenBody = new List<Operation>();
@@ -463,21 +441,4 @@ public partial class ExpressionBuilder
 
         return true;
     }
-
-    private static Expr InvertCondition(Expr condition) =>
-        condition switch
-        {
-            CmpExpr cmp => cmp.Operation switch
-            {
-                CmpOperation.Eq => cmp with { Operation = CmpOperation.Ne },
-                CmpOperation.Ne => cmp with { Operation = CmpOperation.Eq },
-                CmpOperation.Ult => cmp with { Operation = CmpOperation.Uge },
-                CmpOperation.Ule => cmp with { Operation = CmpOperation.Ugt },
-                CmpOperation.Ugt => cmp with { Operation = CmpOperation.Ule },
-                CmpOperation.Uge => cmp with { Operation = CmpOperation.Ult },
-                _ => cmp,
-            },
-            _ => condition,
-        };
-
 }

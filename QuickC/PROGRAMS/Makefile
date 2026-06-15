@@ -1,5 +1,5 @@
 CC     := qcl
-CFLAGS := /nologo /AS /Gs /Od
+CFLAGS := /nologo /AS /Gs /Ox
 LIBS   := SLIBCE.LIB LIBH.LIB
 
 SRCS := $(wildcard *.c)

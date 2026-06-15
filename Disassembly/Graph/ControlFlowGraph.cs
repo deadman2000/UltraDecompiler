@@ -73,11 +73,11 @@ public class ControlFlowGraph
                 }
             }
 
-            if (isBreak)
-                continue;
-
             var lastInstr = block.Instructions[^1];
             block.EndOffset = lastInstr.Offset;
+
+            if (isBreak)
+                continue;
 
             if (lastInstr.IsConditionalJump || lastInstr.IsUnconditionalJump)
             {
@@ -145,7 +145,6 @@ public class ControlFlowGraph
             Blocks.Add(block);
             EntryBlock ??= block;
 
-            var isBreak = false;
             var current = offset;
 
             while (allowed.Contains(current))
@@ -156,7 +155,6 @@ public class ControlFlowGraph
                         ?? throw new InvalidOperationException($"CFG: блок 0x{current:X} не найден.");
 
                     block.NextBlock = nextBlock;
-                    isBreak = true;
                     break;
                 }
 
@@ -202,11 +200,6 @@ public class ControlFlowGraph
                 current = instr.Offset + instr.Size;
             }
 
-            if (isBreak)
-            {
-                continue;
-            }
-
             if (block.Instructions.Count == 0)
             {
                 continue;
@@ -227,6 +220,7 @@ public class ControlFlowGraph
     /// </summary>
     private void BuildEdges()
     {
+        Debug.Assert(Blocks.All(b => b.EndOffset != -1));
         _blockByOffset = Blocks.ToDictionary(b => b.StartOffset);
 
         // Число блоков может меняться, поэтому используем for
@@ -264,6 +258,7 @@ public class ControlFlowGraph
         }
 
         _blockByOffset = null;
+        Debug.Assert(Blocks.All(b => b.EndOffset != -1));
     }
 
     private BasicBlock? GetBlock(int offset)
@@ -280,7 +275,7 @@ public class ControlFlowGraph
         {
             // Target jump за пределами текущей процедуры или на не-инструкцию (редко, но возможно для tail-jmp в crt0).
             // Не фатально — NextBlock/ConditionalBlock останется null.
-            System.Diagnostics.Debug.WriteLine($"CFG: block target not found in current proc: 0x{offset:X4}");
+            Debug.WriteLine($"CFG: block target not found in current proc: 0x{offset:X4}");
             return null;
         }
 

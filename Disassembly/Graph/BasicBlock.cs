@@ -6,7 +6,8 @@ namespace UltraDecompiler.Disassembly.Graph;
 public class BasicBlock
 {
     public int StartOffset { get; set; }
-    public int EndOffset { get; set; }
+
+    public int EndOffset { get; set; } = -1;
 
     public List<Instruction> Instructions { get; set; } = [];
 
