@@ -22,6 +22,7 @@ public static class COperationRenderer
             IfOperation i => FormatIf(i, indent),
             SwitchOperation s => FormatSwitch(s, indent),
             ContinueOperation => FormatContinue(indent),
+            BreakOperation => FormatBreak(indent),
             _ => Indent(indent) + op.ToString(),
         };
 
@@ -175,6 +176,8 @@ public static class COperationRenderer
     }
 
     static string FormatContinue(int indent) => $"{Indent(indent)}continue";
+
+    static string FormatBreak(int indent) => $"{Indent(indent)}break";
 
     static string FormatIf(IfOperation branch, int indent)
     {

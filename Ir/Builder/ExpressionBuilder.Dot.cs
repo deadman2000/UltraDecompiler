@@ -103,6 +103,7 @@ public partial class ExpressionBuilder
             IncOperation inc => $"{inc.Target}++",
             DecOperation dec => $"{dec.Target}--",
             ContinueOperation => "continue",
+            BreakOperation => "break",
             _ => op.ToString() ?? string.Empty,
         };
 
