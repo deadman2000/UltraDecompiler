@@ -23,10 +23,12 @@ public static class COperationRenderer
             SwitchOperation s => FormatSwitch(s, indent),
             ContinueOperation => FormatContinue(indent),
             BreakOperation => FormatBreak(indent),
+            GotoOperation g => FormatGoto(g, indent),
+            LabelOperation l => FormatLabel(l, indent),
             _ => Indent(indent) + op.ToString(),
         };
 
-        if (asStatement && op is not (WhileOperation or ForOperation or IfOperation or SwitchOperation))
+        if (asStatement && op is not (WhileOperation or ForOperation or IfOperation or SwitchOperation or LabelOperation))
         {
             return text + ";";
         }
@@ -178,6 +180,10 @@ public static class COperationRenderer
     static string FormatContinue(int indent) => $"{Indent(indent)}continue";
 
     static string FormatBreak(int indent) => $"{Indent(indent)}break";
+
+    static string FormatGoto(GotoOperation g, int indent) => $"{Indent(indent)}goto {g.Label}";
+
+    static string FormatLabel(LabelOperation l, int indent) => $"{Indent(indent)}{l.Label}:";
 
     static string FormatIf(IfOperation branch, int indent)
     {
