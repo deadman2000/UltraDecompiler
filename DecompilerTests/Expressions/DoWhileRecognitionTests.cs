@@ -18,9 +18,8 @@ public class DoWhileRecognitionTests : BaseTests
             """);
 
         var ops = builder.GetAllOperations();
-        var loop = Assert.Single(ops.OfType<ForOperation>());
-        Assert.IsType<SetOperation>(loop.Init);
-        Assert.IsType<DecOperation>(loop.Iteration);
-        Assert.Contains(loop.Body, op => op is SetOperation);
+        // По аналитике: bottom-tested (do {..} while) -> DoWhileOperation, обновления в теле.
+        var loop = Assert.Single(ops.OfType<DoWhileOperation>());
+        Assert.IsType<CmpExpr>(loop.Condition);
     }
 }

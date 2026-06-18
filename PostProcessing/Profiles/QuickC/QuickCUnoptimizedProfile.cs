@@ -37,6 +37,9 @@ public sealed class QuickCUnoptimizedProfile : IDecompilationProfile
         new DelegatePostProcessPass(
             nameof(OperationOptimizer),
             static (_, ops) => OperationOptimizer.Optimize(ops)),
+        new DelegatePostProcessPass(
+            nameof(TempVariableEliminator),
+            static (_, ops) => TempVariableEliminator.Eliminate(ops)),
     ];
 
     private static readonly IReadOnlyList<IPostProcessPass> ProcedurePasses =
@@ -117,6 +120,9 @@ public sealed class QuickCUnoptimizedProfile : IDecompilationProfile
         new DelegatePostProcessPass(
             "OperationOptimizer (2nd)",
             static (_, ops) => OperationOptimizer.Optimize(ops)),
+        new DelegatePostProcessPass(
+            nameof(TempVariableEliminator),
+            static (_, ops) => TempVariableEliminator.Eliminate(ops)),
         new DelegatePostProcessPass(
             nameof(ShiftCountSimplifier),
             static (_, ops) => ShiftCountSimplifier.Simplify(ops)),

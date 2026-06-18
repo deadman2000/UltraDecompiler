@@ -12,6 +12,8 @@ namespace UltraDecompiler.Ir.InstructionHandlers;
 /// 
 /// Сейчас SAR трактуется как SHR — это упрощение (QuickC редко использует арифметический сдвиг
 /// в местах, критичных для знака).
+/// 
+/// SAL/SHL с операндом 1 распознаётся как умножение на 2 (x << 1 → x * 2).
 /// </summary>
 public class ShiftHandler(Math2Operation shiftOp, bool? signedShift = null) : IInstructionHandler
 {
@@ -33,7 +35,27 @@ public class ShiftHandler(Math2Operation shiftOp, bool? signedShift = null) : II
             VariableSignedness.MarkUnsigned(dstCurrent);
         }
 
-        Expr result = dstCurrent.Calculate(shiftOp, srcExpr);
+        // SAL/SHL reg, 1 → умножение на 2 (для распознавания i = i * 2 в циклах)
+        Expr result;
+        if (shiftOp == Math2Operation.Shl && srcExpr is ConstExpr { Value: 1 })
+        {
+            // Создаём умножение на 2 вместо сдвига
+            var mulExpr = new Math2Expr(Math2Operation.Mul, dstCurrent, new ConstExpr(2));
+
+            // Сворачиваем константы
+            if (dstCurrent is ConstExpr { Value: var dstVal })
+            {
+                result = new ConstExpr((ushort)(dstVal * 2));
+            }
+            else
+            {
+                result = mulExpr;
+            }
+        }
+        else
+        {
+            result = dstCurrent.Calculate(shiftOp, srcExpr);
+        }
 
         if (result is not ConstExpr)
         {

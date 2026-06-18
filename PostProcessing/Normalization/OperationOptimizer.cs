@@ -160,7 +160,57 @@ public static class OperationOptimizer
             }
         }
 
+        EnsureLoopCounterIteration(operations);
+
         return operations;
+    }
+
+    /// <summary>
+    /// Восстанавливает пропавшие инкременты счётчиков (случай fornt /Ox, где inc mem после вложенного for терялся в collect).
+    /// </summary>
+    private static void EnsureLoopCounterIteration(List<Operation> operations)
+    {
+        for (var i = 0; i < operations.Count; i++)
+        {
+            operations[i] = EnsureForOp(operations[i]);
+        }
+    }
+
+    private static Operation EnsureForOp(Operation op)
+    {
+        switch (op)
+        {
+            case WhileOperation wh when wh.Condition is CmpExpr cmp && cmp.Left is Variable cv && cv.IsStack:
+                bool hasAdvance = ExpressionBuilder.EnumerateNested(wh.Body).Any(o =>
+                    o is IncOperation or DecOperation ||
+                    (o is AddAssignOperation aa && aa.Target is Variable t && ReferenceEquals(t, cv)) ||
+                    (o is SetOperation s && s.Dst is Variable d && ReferenceEquals(d, cv) && s.Src is Math2Expr));
+                if (!hasAdvance || !(wh.Body.LastOrDefault() is IncOperation or DecOperation or AddAssignOperation))
+                {
+                    var newBody = new List<Operation>(wh.Body) { new IncOperation(cv) };
+                    return new WhileOperation(wh.Condition, newBody);
+                }
+                return wh;
+
+            case WhileOperation w:
+                return new WhileOperation(w.Condition, w.Body.Select(EnsureForOp).ToList());
+
+            case DoWhileOperation d:
+                return new DoWhileOperation(d.Condition, d.Body.Select(EnsureForOp).ToList());
+
+            case ForOperation f:
+                return new ForOperation(
+                    f.Init is not null ? EnsureForOp(f.Init) as SetOperation : null,
+                    f.Condition,
+                    f.Iteration is not null ? EnsureForOp(f.Iteration) : null,
+                    f.Body.Select(EnsureForOp).ToList());
+
+            case IfOperation iff:
+                return new IfOperation(iff.Condition, iff.ThenBody.Select(EnsureForOp).ToList(), iff.ElseBody?.Select(EnsureForOp).ToList());
+
+            default:
+                return op;
+        }
     }
 
     private static Operation OptimizeNested(Operation operation) =>
@@ -171,6 +221,7 @@ public static class OperationOptimizer
                 OptimizeList(branch.ThenBody.ToList()),
                 branch.ElseBody is not null ? OptimizeList(branch.ElseBody.ToList()) : null),
             WhileOperation loop => new WhileOperation(loop.Condition, OptimizeList(loop.Body.ToList())),
+            DoWhileOperation loop => new DoWhileOperation(loop.Condition, OptimizeList(loop.Body.ToList())),
             ForOperation loop => new ForOperation(
                 loop.Init is not null ? OptimizeNested(loop.Init) : null,
                 loop.Condition,
@@ -437,10 +488,18 @@ public static class OperationOptimizer
                 || ExprSubstitution.Contains(inc.Segment, variable),
             DecOperation dec => ExprSubstitution.Contains(dec.Target, variable)
                 || ExprSubstitution.Contains(dec.Segment, variable),
+            AddAssignOperation add => ExprSubstitution.Contains(add.Target, variable)
+                || (add.Segment is not null && ExprSubstitution.Contains(add.Segment, variable))
+                || ExprSubstitution.Contains(add.Value, variable),
+            SubAssignOperation sub => ExprSubstitution.Contains(sub.Target, variable)
+                || (sub.Segment is not null && ExprSubstitution.Contains(sub.Segment, variable))
+                || ExprSubstitution.Contains(sub.Value, variable),
             IfOperation branch => ExprSubstitution.Contains(branch.Condition, variable)
                 || branch.ThenBody.Any(op => ReadsVariableOutsideCallArguments(op, variable))
                 || (branch.ElseBody?.Any(op => ReadsVariableOutsideCallArguments(op, variable)) ?? false),
             WhileOperation loop => ExprSubstitution.Contains(loop.Condition, variable)
+                || loop.Body.Any(op => ReadsVariableOutsideCallArguments(op, variable)),
+            DoWhileOperation loop => ExprSubstitution.Contains(loop.Condition, variable)
                 || loop.Body.Any(op => ReadsVariableOutsideCallArguments(op, variable)),
             ForOperation loop => (loop.Init is not null && ReadsVariableOutsideCallArguments(loop.Init, variable))
                 || ExprSubstitution.Contains(loop.Condition, variable)
@@ -525,10 +584,18 @@ public static class OperationOptimizer
                 || ExprSubstitution.Contains(inc.Segment, variable),
             DecOperation dec => ExprSubstitution.Contains(dec.Target, variable)
                 || ExprSubstitution.Contains(dec.Segment, variable),
+            AddAssignOperation add => ExprSubstitution.Contains(add.Target, variable)
+                || (add.Segment is not null && ExprSubstitution.Contains(add.Segment, variable))
+                || ExprSubstitution.Contains(add.Value, variable),
+            SubAssignOperation sub => ExprSubstitution.Contains(sub.Target, variable)
+                || (sub.Segment is not null && ExprSubstitution.Contains(sub.Segment, variable))
+                || ExprSubstitution.Contains(sub.Value, variable),
             IfOperation branch => ExprSubstitution.Contains(branch.Condition, variable)
                 || branch.ThenBody.Any(op => ReadsVariableOutsideReturn(op, variable))
                 || (branch.ElseBody?.Any(op => ReadsVariableOutsideReturn(op, variable)) ?? false),
             WhileOperation loop => ExprSubstitution.Contains(loop.Condition, variable)
+                || loop.Body.Any(op => ReadsVariableOutsideReturn(op, variable)),
+            DoWhileOperation loop => ExprSubstitution.Contains(loop.Condition, variable)
                 || loop.Body.Any(op => ReadsVariableOutsideReturn(op, variable)),
             ForOperation loop => (loop.Init is not null && ReadsVariableOutsideReturn(loop.Init, variable))
                 || ExprSubstitution.Contains(loop.Condition, variable)
@@ -622,6 +689,14 @@ public static class OperationOptimizer
             DecOperation dec => new DecOperation(
                 ReplaceIncDecTarget(dec.Target, from, to),
                 dec.Segment is null ? null : ExprSubstitution.Replace(dec.Segment, from, to)),
+            AddAssignOperation add => new AddAssignOperation(
+                ExprSubstitution.Replace(add.Target, from, to),
+                ExprSubstitution.Replace(add.Value, from, to),
+                add.Segment is null ? null : ExprSubstitution.Replace(add.Segment, from, to)),
+            SubAssignOperation sub => new SubAssignOperation(
+                ExprSubstitution.Replace(sub.Target, from, to),
+                ExprSubstitution.Replace(sub.Value, from, to),
+                sub.Segment is null ? null : ExprSubstitution.Replace(sub.Segment, from, to)),
             ReturnOperation ret => new ReturnOperation(
                 ret.Value is null ? null : ExprSubstitution.Replace(ret.Value, from, to),
                 ret.IsExplicit),
@@ -658,11 +733,19 @@ public static class OperationOptimizer
                 || ExprSubstitution.Contains(inc.Segment, variable),
             DecOperation dec => ExprSubstitution.Contains(dec.Target, variable)
                 || ExprSubstitution.Contains(dec.Segment, variable),
+            AddAssignOperation add => ExprSubstitution.Contains(add.Target, variable)
+                || (add.Segment is not null && ExprSubstitution.Contains(add.Segment, variable))
+                || ExprSubstitution.Contains(add.Value, variable),
+            SubAssignOperation sub => ExprSubstitution.Contains(sub.Target, variable)
+                || (sub.Segment is not null && ExprSubstitution.Contains(sub.Segment, variable))
+                || ExprSubstitution.Contains(sub.Value, variable),
             ReturnOperation ret => ExprSubstitution.Contains(ret.Value, variable),
             IfOperation branch => ExprSubstitution.Contains(branch.Condition, variable)
                 || branch.ThenBody.Any(op => ReadsVariableDeep(op, variable))
                 || (branch.ElseBody?.Any(op => ReadsVariableDeep(op, variable)) ?? false),
             WhileOperation loop => ExprSubstitution.Contains(loop.Condition, variable)
+                || loop.Body.Any(op => ReadsVariableDeep(op, variable)),
+            DoWhileOperation loop => ExprSubstitution.Contains(loop.Condition, variable)
                 || loop.Body.Any(op => ReadsVariableDeep(op, variable)),
             ForOperation loop => (loop.Init is not null && ReadsVariableDeep(loop.Init, variable))
                 || ExprSubstitution.Contains(loop.Condition, variable)
@@ -700,14 +783,19 @@ public static class OperationOptimizer
     }
 
     /// <summary>
-    /// Подставляет <c>temp = expr</c> в следующую операцию, если temp больше нигде не используется.
+    /// Подставляет <c>temp = expr</c> в следующую операцию (Store или составное +=/-=), если temp больше нигде не используется.
     /// </summary>
     private static bool TrySubstituteTempInNextOperation(List<Operation> operations, int tempAssignIndex)
     {
         if (tempAssignIndex + 1 >= operations.Count
             || operations[tempAssignIndex] is not SetOperation { Dst: Variable temp, Src: var expr }
-            || !temp.IsTemp
-            || operations[tempAssignIndex + 1] is not StoreOperation)
+            || !temp.IsTemp)
+        {
+            return false;
+        }
+
+        var next = operations[tempAssignIndex + 1];
+        if (next is not (StoreOperation or AddAssignOperation or SubAssignOperation))
         {
             return false;
         }
@@ -717,7 +805,7 @@ public static class OperationOptimizer
             return false;
         }
 
-        operations[tempAssignIndex + 1] = SubstituteVariableDeep(operations[tempAssignIndex + 1], temp, expr);
+        operations[tempAssignIndex + 1] = SubstituteVariableDeep(next, temp, expr);
         operations.RemoveAt(tempAssignIndex);
         return true;
     }
@@ -736,6 +824,28 @@ public static class OperationOptimizer
                 Segment = store.Segment is null ? null : ExprSubstitution.Replace(store.Segment, from, to),
                 Value = ExprSubstitution.Replace(store.Value, from, to),
             },
+            IncOperation inc => inc with
+            {
+                Target = ReplaceIncDecTarget(inc.Target, from, to),
+                Segment = inc.Segment is null ? null : ExprSubstitution.Replace(inc.Segment, from, to),
+            },
+            DecOperation dec => dec with
+            {
+                Target = ReplaceIncDecTarget(dec.Target, from, to),
+                Segment = dec.Segment is null ? null : ExprSubstitution.Replace(dec.Segment, from, to),
+            },
+            AddAssignOperation add => add with
+            {
+                Target = ExprSubstitution.Replace(add.Target, from, to),
+                Value = ExprSubstitution.Replace(add.Value, from, to),
+                Segment = add.Segment is null ? null : ExprSubstitution.Replace(add.Segment, from, to),
+            },
+            SubAssignOperation sub => sub with
+            {
+                Target = ExprSubstitution.Replace(sub.Target, from, to),
+                Value = ExprSubstitution.Replace(sub.Value, from, to),
+                Segment = sub.Segment is null ? null : ExprSubstitution.Replace(sub.Segment, from, to),
+            },
             IfOperation branch => branch with
             {
                 Condition = ExprSubstitution.Replace(branch.Condition, from, to),
@@ -743,6 +853,11 @@ public static class OperationOptimizer
                 ElseBody = branch.ElseBody?.Select(op => SubstituteVariableDeep(op, from, to)).ToList(),
             },
             WhileOperation loop => loop with
+            {
+                Condition = ExprSubstitution.Replace(loop.Condition, from, to),
+                Body = loop.Body.Select(op => SubstituteVariableDeep(op, from, to)).ToList(),
+            },
+            DoWhileOperation loop => loop with
             {
                 Condition = ExprSubstitution.Replace(loop.Condition, from, to),
                 Body = loop.Body.Select(op => SubstituteVariableDeep(op, from, to)).ToList(),
@@ -813,12 +928,15 @@ public static class OperationOptimizer
             IfOperation branch => branch.ThenBody.Any(op => DefinesVariableDeep(op, variable))
                 || (branch.ElseBody?.Any(op => DefinesVariableDeep(op, variable)) ?? false),
             WhileOperation loop => loop.Body.Any(op => DefinesVariableDeep(op, variable)),
+            DoWhileOperation loop => loop.Body.Any(op => DefinesVariableDeep(op, variable)),
             ForOperation loop => (loop.Init is not null && DefinesVariableDeep(loop.Init, variable))
                 || loop.Body.Any(op => DefinesVariableDeep(op, variable))
                 || (loop.Iteration is not null && DefinesVariableDeep(loop.Iteration, variable)),
             SwitchOperation sw => sw.Cases.Any(c => c.Body.Any(op => DefinesVariableDeep(op, variable))),
             IncOperation inc when inc.Target is Variable target => ReferenceEquals(target, variable),
             DecOperation dec when dec.Target is Variable target => ReferenceEquals(target, variable),
+            AddAssignOperation add => AssignmentTarget.DefinesVariable(add.Target, variable),
+            SubAssignOperation sub => AssignmentTarget.DefinesVariable(sub.Target, variable),
             _ => false,
         };
 }

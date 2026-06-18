@@ -9,6 +9,14 @@
 /// </summary>
 public partial class ExpressionBuilderQuickCOpt : ExpressionBuilder
 {
+    /// <summary>
+    /// Инициализирует анализатор циклов для /Ox.
+    /// </summary>
+    public ExpressionBuilderQuickCOpt()
+    {
+        LoopAnalyzer = new Loops.QuickCOptLoopAnalyzer();
+    }
+
     // Базовая реализация ApplyBlockPatterns и AnalyzeSwitchPatterns — пустая,
     // так как оптимизированный код не следует стандартным паттернам QuickC /Od
 }

@@ -94,5 +94,5 @@ public static class Handlers
         [Mnemonic.SCASW] = new ScasHandler(),
     };
 
-    public static IInstructionHandler? Get(Mnemonic mnemonic) => _dictionary.GetValueOrDefault(mnemonic);
+    public static IInstructionHandler Get(Mnemonic mnemonic) => _dictionary.GetValueOrDefault(mnemonic) ?? throw new NotImplementedException($"Instruction {mnemonic} is not yet supported");
 }
