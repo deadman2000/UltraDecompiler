@@ -71,12 +71,6 @@ public static class OperationOptimizer
                     changed = true;
                     continue;
                 }
-
-                if (IsTailAssignmentForLoopHeader(operations, i, dstVar))
-                {
-                    continue;
-                }
-
                 if (!IsVariableReadAfter(operations, i, dstVar))
                 {
                     if (dstVar.IsStack)
@@ -205,7 +199,7 @@ public static class OperationOptimizer
         var lastReadIndex = FindLastReadIndexInRange(operations, copyIndex, propagateEnd, dst);
         if (lastReadIndex < 0)
         {
-            return !IsTailAssignmentForLoopHeader(operations, copyIndex, dst);
+            return true;
         }
 
         return !DefinesVariableBetween(operations, copyIndex, lastReadIndex, src);
@@ -561,25 +555,6 @@ public static class OperationOptimizer
 
     private static bool IsVariableReadAfter(IReadOnlyList<Operation> operations, int defIndex, Variable variable) =>
         FindLastReadIndex(operations, defIndex, variable) >= 0;
-
-    /// <summary>
-    /// Присваивание в конце тела цикла нужно для чтения в начале тела на следующей итерации.
-    /// </summary>
-    private static bool IsTailAssignmentForLoopHeader(
-        IReadOnlyList<Operation> operations,
-        int defIndex,
-        Variable variable)
-    {
-        if (defIndex <= 0
-            || FindLastReadIndex(operations, defIndex, variable) >= 0
-            || DefinesVariableDeep(operations[0], variable)
-            || !ReadsVariableDeep(operations[0], variable))
-        {
-            return false;
-        }
-
-        return !DefinesVariableBetween(operations, 0, defIndex - 1, variable);
-    }
 
     /// <summary>
     /// Переопределение переменной нельзя удалять как мёртвый код, если она участвует

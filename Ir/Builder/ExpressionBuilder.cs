@@ -150,6 +150,9 @@ public partial class ExpressionBuilder
         }
 
         AnalyzeSwitchPatterns(graph.Blocks);
+
+        // Распознавание циклов на уровне связанных блоков
+        AnalyzeLoopPatterns();
     }
 
     private void CreateExprBlock(BasicBlock block, in RegisterExpressions registers, IEnumerable<Expr> stack)
@@ -275,5 +278,82 @@ public partial class ExpressionBuilder
         {
             _switchByEntry[pattern.EntryOffset] = pattern;
         }
+    }
+
+    /// <summary>
+    /// Распознаёт циклы на уровне связанным ExprBlock'ов.
+    /// Ищет back edges: переходы от блока к ранее посещённому блоку в DFS-обходе.
+    /// Вызывается после завершения обхода и связывания блоков, но до GetAllOperations.
+    /// </summary>
+    private void AnalyzeLoopPatterns()
+    {
+        var visited = new HashSet<ExprBlock>();
+        var pathStack = new Stack<ExprBlock>();
+
+        AnalyzeLoopsRecursive(_entryBlock, visited, pathStack);
+    }
+
+    /// <summary>
+    /// Рекурсивный обход для поиска back edges и преобразования их в WhileOperation.
+    /// </summary>
+    private void AnalyzeLoopsRecursive(
+        ExprBlock? block,
+        HashSet<ExprBlock> visited,
+        Stack<ExprBlock> pathStack)
+    {
+        if (block == null)
+            return;
+
+        // Проверяем back edge
+        var pathList = pathStack.ToList();
+        var backEdgeIndex = pathList.IndexOf(block);
+        if (backEdgeIndex >= 0)
+        {
+            // Нашли back edge — это цикл
+            // Проверяем, что текущий блок содержит if с условием на разыменовании указателя
+            if (TryConvertBackEdgeToWhile(block, pathList[backEdgeIndex], pathList))
+            {
+                return;
+            }
+        }
+
+        if (visited.Contains(block))
+            return;
+
+        visited.Add(block);
+        pathStack.Push(block);
+
+        // Рекурсивно обрабатываем successors
+        if (block.Next != null)
+            AnalyzeLoopsRecursive(block.Next, visited, pathStack);
+
+        if (block.ConditionalBlock != null)
+            AnalyzeLoopsRecursive(block.ConditionalBlock, visited, pathStack);
+
+        pathStack.Pop();
+    }
+
+    /// <summary>
+    /// Пытается преобразовать back edge к while-цикл.
+    /// Паттерн: блок содержит if (cond) { body; } где body переходит к блоку header.
+    /// 
+    /// На данный момент метод возвращает false, так как основная логика работы с циклами
+    /// реализована через IfOperation в GetAllOperations(). Преобразование в WhileOperation
+    /// выполняется только для специфических паттернов (REP-инструкции, строковые циклы).
+    /// 
+    /// Этот метод может быть расширен в будущем для более агрессивного распознавания циклов
+    /// на этапе построения IR, а не на этапе сбора операций.
+    /// </summary>
+    private static bool TryConvertBackEdgeToWhile(ExprBlock currentBlock, ExprBlock headerBlock, IReadOnlyList<ExprBlock> path)
+    {
+        // Базовая реализация: пока не преобразуем общие циклы в WhileOperation.
+        // Циклы обрабатываются через IfOperation в ExpressionBuilder.Flatten.cs.
+        // 
+        // Преобразование в WhileOperation оставлено для:
+        // - REP MOVS/LODS/STOS инструкций
+        // - Специфических паттернов QuickC (распознаются в ShouldConvertLoopHeader)
+        //
+        // Этот метод может быть расширен в будущем для более агрессивного распознавания циклов.
+        return false;
     }
 }

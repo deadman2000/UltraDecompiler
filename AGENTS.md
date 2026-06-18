@@ -31,7 +31,7 @@
 | `UltraDecompiler.Headers` | `Headers/` | `HeaderCatalog`, `HeaderFunction`, `CType`, `StructDefinition` |
 | `UltraDecompiler.LibMatching` | `LibMatching/` | сопоставление тел функций с `.LIB` |
 | `UltraDecompiler.Compilation` | `Compilation/` | `CompilerOptions`, `MemoryModel`, `OptimizationLevel` |
-| `UltraDecompiler.PostProcessing` | `PostProcessing/` | pass-ы IR по каталогам (`Epilogue/`, `Stack/`, `Types/`, `Loops/`, …), `Helpers/LongRuntimeHelpers`, профили (`Abstractions/`, `Profiles/QuickC/`) |
+| `UltraDecompiler.PostProcessing` | `PostProcessing/` | pass-ы IR по каталогам (`Epilogue/`, `Stack/`, `Types/`, …), `Helpers/LongRuntimeHelpers`, профили (`Abstractions/`, `Profiles/QuickC/`) |
 | `UltraDecompiler.CodeGeneration` | `CodeGeneration/` | `CCodeGenerator`, `MakefileGenerator`, `Rendering/` (`RenderExpr`, `ToCString`) |
 | `UltraDecompiler.Decompilation` | `Decompilation/` | `Decompiler`, резолверы, `CallSiteResolver`, оркестрация |
 | `Common` | `Common/` | `RelocationTable`, `RelocationEntry` |
@@ -175,6 +175,25 @@ DosExeParser
 
 ### 5. PostProcessing (`PostProcessing/`)
 
+#### Политика PostProcessing (обязательно)
+
+**Цель проекта — максимально точный декомпилятор, а не подгонка вывода под эталонный `.c`.**
+
+| Где решать задачу | Что делать |
+|-------------------|------------|
+| **CFG / IR (ранний этап)** | Распознавание структуры управления (if/else, циклы, guard/early return), типы, параметры, вызовы, switch, эпилоги. Анализ графа потока управления, доминаторов, back-edge, merge-точек. |
+| **PostProcessing** | Только **семантически нейтральные** улучшения читаемости: DCE мёртвых присваиваний, `void`-вызовы вместо `temp = void_fn()`, символьные литералы по **типу** (не по имени функции), `n & 255` → `n` в счётчиках сдвигов, удаление `__chkstk`. |
+
+**Запрещено в PostProcessing:**
+
+- Pass-ы, заточенные под конкретные программы (`args.c`, `dos.c`, `malloc`, `sub_0010`, `argc`/`argv` и т.п.).
+- Перестройка дерева `if/return` цепочкой эвристик вместо CFG structurer.
+- Post-hoc распознавание циклов на уже сплющенном IR (каталог `Loops/` удалён намеренно).
+- Whitelist по именам символов (`sub_*`, `argc`, `printf` + хардкод порядка аргументов).
+- Pass-ы, маскирующие баги flatten (`UnreachableOperationTrimmer` и аналоги).
+
+Если round-trip ломается — **чинить IR/CFG**, а не добавлять костыль в профиль.
+
 Каталоги pass-ов (namespace везде `UltraDecompiler.PostProcessing`):
 
 | Каталог | Содержимое |
@@ -182,27 +201,25 @@ DosExeParser
 | `Abstractions/` | `IPostProcessPass`, `IDecompilationProfile`, контексты |
 | `Profiles/QuickC/` | `QuickCUnoptimizedProfile`, `QuickCOptimizedFullProfile`, `DecompilationProfileRegistry` |
 | `Helpers/` | `LongRuntimeHelpers` (long-арифметика runtime QuickC) |
-| `Epilogue/` | `TailReturnInserter`, `EpilogueAnalyzer`, return/branch normalizers |
+| `Epilogue/` | `TailReturnInserter`, `EpilogueAnalyzer`, `VoidReturnNormalizer` |
 | `Stack/` | `StackCheckDetector`, `StackLocalArrayInferrer`, `StackFrameAllocationHelper` |
 | `Types/` | `VariableTypeInferrer`, `PointerTypeInferrer`, `SignednessInferrer`, `LongTypeInferrer`, `FarPointer*Inferrer`, `MainParameterNormalizer` |
-| `Loops/` | `WhileLoopRecognizer`, `CounterLoopRecognizer`, `OxRegisterCounterLoopRecognizer`, `Argv*`, `PointerLoopBodySimplifier` |
-| `Literals/` | `CharPtrLiteralMaterializer`, `CharLiteralMaterializer`, `FlagCallLiteralMaterializer`, `GlobalVariableRegistry`, `GlobalVariableMaterializer` |
+| `Literals/` | `CharPtrLiteralMaterializer`, `CharLiteralMaterializer`, `GlobalVariableRegistry`, `GlobalVariableMaterializer` |
 | `Structs/` | `StructFieldRewriter`, `StructFieldLoadSimplifier` |
-| `Normalization/` | `OperationOptimizer`, `VoidCallNormalizer`, `ShiftCountSimplifier`, `IncDecSequenceNormalizer`, `UnreachableOperationTrimmer`, … |
+| `Normalization/` | `OperationOptimizer`, `VoidCallNormalizer`, `ShiftCountSimplifier` |
 | `Infrastructure/` | `OperationTreeMapper` |
 
 Проходы над IR перед кодогенерацией (вызываются из `Decompiler` через профиль и частично из `DecompilePipeline`):
 
-- `OperationOptimizer`, `StackCheckDetector` — удаление `__chkstk`, оптимизация IR.
+- `OperationOptimizer`, `StackCheckDetector` — удаление `__chkstk`, DCE/подстановка temps (без изменения семантики).
 - `VariableTypeInferrer`, `PointerTypeInferrer`, `SignednessInferrer`, `LongTypeInferrer` — типы переменных, указателей, `long`.
 - `StructLocalInferrer`, `StructFieldRewriter`, `StructFieldLoadSimplifier` — поля структур.
 - `StackLocalArrayInferrer` — локальные массивы на стеке.
 - `FarPointerStackPairInferrer`, `FarPointerLocalInferrer` — far-указатели (в основном `/Od`).
-- `VoidCallNormalizer`, `CommutativeOperationNormalizer`, `IfElseReturnFlattener`, `IncDecSequenceNormalizer`, `ShiftCountSimplifier` — нормализация IR.
-- `WhileLoopRecognizer`, `CounterLoopRecognizer`, `OxRegisterCounterLoopRecognizer`, `PointerLoopBodySimplifier`, `PointerCompareSimplifier` — циклы и указатели.
-- `CharPtrLiteralMaterializer`, `CharLiteralMaterializer`, `FlagCallLiteralMaterializer` — литералы.
+- `VoidCallNormalizer`, `ShiftCountSimplifier`, `VoidReturnNormalizer` — нормализация IR для читаемости.
+- `CharPtrLiteralMaterializer`, `CharLiteralMaterializer` — литералы (по типам и образу, не по имени callee).
 - `GlobalVariableMaterializer` — глобалы DGROUP (в `Decompiler`, до post-processing).
-- `EpilogueAnalyzer`, `TailReturnInserter` — эпилог QuickC `/Od`.
+- `EpilogueAnalyzer`, `TailReturnInserter` — эпилог QuickC `/Od` (на этапе IR construction, не post-hoc if-хирургия).
 
 ### 6. CodeGeneration (`CodeGeneration/`)
 - `CCodeGenerator.cs` — форматирование `*.c` / `*.h`; принимает `ProcedureCodegenModel` (не `DisassembledProcedure`).

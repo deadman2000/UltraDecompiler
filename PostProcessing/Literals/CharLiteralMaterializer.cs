@@ -3,7 +3,7 @@ using UltraDecompiler.PostProcessing.Infrastructure;
 namespace UltraDecompiler.PostProcessing.Literals;
 
 /// <summary>
-/// Подставляет символьные литералы QuickC (<c>'-'</c>, <c>'h'</c>) вместо магических кодов ASCII.
+/// Подставляет символьные литералы QuickC вместо магических кодов ASCII по типу параметра.
 /// </summary>
 public static class CharLiteralMaterializer
 {
@@ -90,8 +90,7 @@ public static class CharLiteralMaterializer
 
             if (result[i] is ConstExpr { Value: var value }
                 && TryToCharLiteral(value, out var literal)
-                && (procedure.Signature.Parameters[i].Type.Kind == CTypeKind.Char
-                    || IsLikelyCharArgument(calleeName, i, value)))
+                && procedure.Signature.Parameters[i].Type.Kind == CTypeKind.Char)
             {
                 result[i] = literal;
             }
@@ -148,11 +147,6 @@ public static class CharLiteralMaterializer
             Right = MaterializeExpr(cmp.Right, null),
         };
     }
-
-    private static bool IsLikelyCharArgument(string calleeName, int index, int value) =>
-        index == 1
-        && value is 104 or 118
-        && calleeName.StartsWith("sub_", StringComparison.Ordinal);
 
     private static bool TryToCharLiteral(int value, out CharConstExpr literal)
     {
