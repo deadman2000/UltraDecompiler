@@ -41,9 +41,9 @@ internal static class DisasmCommand
                 "Максимальное количество байт для дизассемблирования",
                 CommandOptionType.SingleValue);
 
-            var noColorOpt = cmd.Option(
-                "--no-color",
-                "Отключить ANSI-цвета в выводе",
+            var colorOpt = cmd.Option(
+                "--color",
+                "Включить ANSI-цвета в выводе",
                 CommandOptionType.NoValue);
 
             cmd.OnExecute(() =>
@@ -58,7 +58,7 @@ internal static class DisasmCommand
                     libDirOpt.Value(),
                     countOpt.Value(),
                     bytesOpt.Value(),
-                    noColorOpt.HasValue());
+                    colorOpt.HasValue());
             });
         });
     }
@@ -70,7 +70,7 @@ internal static class DisasmCommand
         string? libDir,
         string? countText,
         string? bytesText,
-        bool noColor)
+        bool useColor)
     {
         try
         {
@@ -123,7 +123,7 @@ internal static class DisasmCommand
 
             foreach (var instr in instructions)
             {
-                var text = noColor ? instr.ToString() : instr.ToColoredString();
+                var text = useColor ? instr.ToColoredString() : instr.ToString();
                 Console.WriteLine(text);
             }
 
