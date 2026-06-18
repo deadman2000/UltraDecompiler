@@ -1,18 +1,14 @@
 int main(void)
 {
 	int a = 10;
-	int b;
 
 	a = a + 1;
 	a++;
 	a += 1;
 
-	b = ++a;
-	b = a++;
-
 	a = a - 1;
 	a--;
 	a -= 1;
 
-	return b;
+	return a;
 }

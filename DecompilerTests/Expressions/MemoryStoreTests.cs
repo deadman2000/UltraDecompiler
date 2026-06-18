@@ -38,18 +38,13 @@ public class MemoryStoreTests : BaseTests
     }
 
     [Fact]
-    public void Add_ToMemory_Rmw_ProducesSetAndStore()
+    public void Add_ToMemory_Rmw_ProducesAddAssignOperation()
     {
         // ADD [BX], 5
         var expr = BuildExpressions("83 07 05");
 
-        // Ожидаем SetOperation (для вычисленного значения) + StoreOperation
-        Assert.Equal(2, expr.Blocks[0].Operations.Count);
-
-        var setOp = Assert.IsType<SetOperation>(expr.Blocks[0].Operations[0]);
-        Assert.IsType<StoreOperation>(expr.Blocks[0].Operations[1]);
-
-        Assert.IsType<Math2Expr>(setOp.Src); // current + 5
+        var addAssign = Assert.IsType<AddAssignOperation>(Assert.Single(expr.Blocks[0].Operations));
+        Assert.Equal(5, ((ConstExpr)addAssign.Value).Value);
     }
 
     [Fact]

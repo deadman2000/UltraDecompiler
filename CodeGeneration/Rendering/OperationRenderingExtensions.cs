@@ -16,6 +16,8 @@ public static class COperationRenderer
             StoreOperation st => FormatStore(st, indent),
             IncOperation inc => FormatIncDec(inc.Target, inc.Segment, "++", indent),
             DecOperation dec => FormatIncDec(dec.Target, dec.Segment, "--", indent),
+            AddAssignOperation add => FormatCompoundAssign(add.Target, add.Segment, "+=", add.Value, indent),
+            SubAssignOperation sub => FormatCompoundAssign(sub.Target, sub.Segment, "-=", sub.Value, indent),
             ReturnOperation r => FormatReturn(r, indent),
             WhileOperation w => FormatWhile(w, indent),
             ForOperation f => FormatFor(f, indent),
@@ -138,6 +140,22 @@ public static class COperationRenderer
         return $"{Indent(indent)}{segPrefix}[{target}]{suffix}";
     }
 
+
+    static string FormatCompoundAssign(Expr target, Expr? segment, string op, Expr value, int indent)
+    {
+        if (target is Variable variable && segment is null)
+        {
+            return $"{Indent(indent)}{variable} {op} {value.RenderExpr()}";
+        }
+
+        if (PointerStoreFormatter.TryFormat(new StoreOperation(target, segment, ConstExpr.Zero), out var lvalue))
+        {
+            return $"{Indent(indent)}{lvalue} {op} {value.RenderExpr()}";
+        }
+
+        var segPrefix = segment != null ? $"{segment}:" : "";
+        return $"{Indent(indent)}{segPrefix}[{target}] {op} {value.RenderExpr()}";
+    }
     static string FormatWhile(WhileOperation loop, int indent)
     {
         var sb = new StringBuilder();

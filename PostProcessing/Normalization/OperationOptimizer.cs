@@ -1,3 +1,4 @@
+using UltraDecompiler.Ir.Helpers;
 using UltraDecompiler.PostProcessing.Infrastructure;
 
 namespace UltraDecompiler.PostProcessing.Normalization;
@@ -16,6 +17,8 @@ public static class OperationOptimizer
 
     private static List<Operation> OptimizeList(List<Operation> operations)
     {
+        operations = IncDecExpressionRecognizer.Recognize(operations).ToList();
+
         for (var i = 0; i < operations.Count; i++)
         {
             operations[i] = OptimizeNested(operations[i]);
@@ -760,7 +763,7 @@ public static class OperationOptimizer
         };
 
     /// <summary>
-    /// <c>temp = local ± 1; local = temp</c> → <c>local = local ± 1</c> (mov/add/mov из QuickC).
+    /// <c>temp = local ± K; local = temp</c> → <c>local = local ± K</c> (mov/add/mov из QuickC).
     /// </summary>
     private static bool TryFoldSelfAssignTempStore(List<Operation> operations, int assignIndex)
     {
@@ -769,14 +772,26 @@ public static class OperationOptimizer
             || operations[assignIndex - 1] is not SetOperation { Dst: Variable tempDef, Src: Math2Expr math }
             || !ReferenceEquals(tempDef, temp)
             || math.First is not Variable local
-            || !ReferenceEquals(local, dst)
-            || math.Second is not ConstExpr { Value: 1 }
-            || math.Operation is not (Math2Operation.Add or Math2Operation.Sub))
+            || !ReferenceEquals(local, dst))
         {
             return false;
         }
 
-        operations[assignIndex - 1] = new SetOperation(dst, math);
+        Expr folded;
+        if (WordArithmeticHelper.TryNormalizeSelfAssignMath(local, math, isWord: true, out var normalized))
+        {
+            folded = normalized;
+        }
+        else if (math.Operation is Math2Operation.Add or Math2Operation.Sub)
+        {
+            folded = math;
+        }
+        else
+        {
+            return false;
+        }
+
+        operations[assignIndex - 1] = new SetOperation(dst, folded);
         operations.RemoveAt(assignIndex);
         return true;
     }

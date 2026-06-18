@@ -92,10 +92,8 @@ public class LoopRecognitionTests : BaseTests
 
         var ops = builder.GetAllOperations();
         var loop = Assert.Single(ops.OfType<ForOperation>());
-        var set = Assert.IsType<SetOperation>(loop.Iteration);
-        var math = Assert.IsType<Math2Expr>(set.Src);
-        Assert.Equal(Math2Operation.Add, math.Operation);
-        Assert.Equal(2, ((ConstExpr)math.Second).Value);
+        var addAssign = Assert.IsType<AddAssignOperation>(loop.Iteration);
+        Assert.Equal(2, ((ConstExpr)addAssign.Value).Value);
     }
 
     // sum_for_break: for с if (i == 7) break; — не должен превращаться во вложенный while.

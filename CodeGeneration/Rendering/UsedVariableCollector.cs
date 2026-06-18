@@ -80,6 +80,16 @@ public static class UsedVariableCollector
                 AddFromExpr(inc.Target, result);
                 AddFromExpr(inc.Segment, result);
                 break;
+            case AddAssignOperation add:
+                AddFromExpr(add.Target, result);
+                AddFromExpr(add.Segment, result);
+                AddFromExpr(add.Value, result);
+                break;
+            case SubAssignOperation sub:
+                AddFromExpr(sub.Target, result);
+                AddFromExpr(sub.Segment, result);
+                AddFromExpr(sub.Value, result);
+                break;
             case DecOperation dec:
                 AddFromExpr(dec.Target, result);
                 AddFromExpr(dec.Segment, result);

@@ -1,12 +1,12 @@
-п»їnamespace UltraDecompiler.Ir.Helpers;
+namespace UltraDecompiler.Ir.Helpers;
 
 public static class Extensions
 {
     extension(Expr expr)
     {
         /// <summary>
-        /// Р‘СѓР»РµРІРѕ Р СЃ Р°РіСЂРµСЃСЃРёРІРЅС‹Рј constant folding (0/1) Рё СѓРїСЂРѕС‰РµРЅРёРµРј Cmp.
-        /// РџСЂРµРґРїРѕС‡С‚РёС‚РµР»СЊРЅС‹Р№ СЃРїРѕСЃРѕР± РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ вЂ” С‡РµСЂРµР· РїРµСЂРµРіСЂСѓР·РєСѓ РѕРїРµСЂР°С‚РѕСЂР° &amp;.
+        /// Булево И с агрессивным constant folding (0/1) и упрощением Cmp.
+        /// Предпочтительный способ использования — через перегрузку оператора &amp;.
         /// </summary>
         public Expr BoolAnd(Expr other)
         {
@@ -24,8 +24,8 @@ public static class Extensions
         }
 
         /// <summary>
-        /// Р‘СѓР»РµРІРѕ РР›Р СЃ Р°РіСЂРµСЃСЃРёРІРЅС‹Рј constant folding (0/1) Рё СѓРїСЂРѕС‰РµРЅРёРµРј Cmp.
-        /// РџСЂРµРґРїРѕС‡С‚РёС‚РµР»СЊРЅС‹Р№ СЃРїРѕСЃРѕР± РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ вЂ” С‡РµСЂРµР· РїРµСЂРµРіСЂСѓР·РєСѓ РѕРїРµСЂР°С‚РѕСЂР° |.
+        /// Булево ИЛИ с агрессивным constant folding (0/1) и упрощением Cmp.
+        /// Предпочтительный способ использования — через перегрузку оператора |.
         /// </summary>
         public Expr BoolOr(Expr other)
         {
@@ -43,9 +43,9 @@ public static class Extensions
         }
 
         /// <summary>
-        /// Р‘СѓР»РµРІРѕ РќР• СЃ Р°РіСЂРµСЃСЃРёРІРЅС‹Рј constant folding Рё РёРЅРІРµСЂСЃРёРµР№ РёР·РІРµСЃС‚РЅС‹С… CmpExpr
-        /// (Eqв†”Ne, Ultв†”Uge Рё С‚.Рґ.). Р”Р°С‘С‚ Р±РѕР»РµРµ С‡РёСЃС‚С‹Рµ СѓСЃР»РѕРІРёСЏ.
-        /// РџСЂРµРґРїРѕС‡С‚РёС‚РµР»СЊРЅС‹Р№ СЃРїРѕСЃРѕР± РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ вЂ” С‡РµСЂРµР· РїРµСЂРµРіСЂСѓР·РєСѓ РѕРїРµСЂР°С‚РѕСЂР° !.
+        /// Булево НЕ с агрессивным constant folding и инверсией известных CmpExpr
+        /// (Eq-Ne, Ult-Uge и т.д.). Даёт более чистые условия.
+        /// Предпочтительный способ использования — через перегрузку оператора !.
         /// </summary>
         public Expr BoolNot()
         {
@@ -54,7 +54,7 @@ public static class Extensions
                 return c.Value == 0 ? ConstExpr.One : ConstExpr.Zero;
             }
 
-            // РРЅРІРµСЂСЃРёСЏ РёР·РІРµСЃС‚РЅС‹С… СЃСЂР°РІРЅРµРЅРёР№ вЂ” РґР°С‘С‚ Р±РѕР»РµРµ С‡РёСЃС‚С‹Рµ СѓСЃР»РѕРІРёСЏ
+            // Инверсия известных сравнений — даёт более чистые условия
             if (expr is CmpExpr cmp)
             {
                 var invertedOp = cmp.Operation switch
@@ -78,8 +78,8 @@ public static class Extensions
         }
 
         /// <summary>
-        /// Р‘СѓР»РµРІРѕ XOR СЃ constant folding. РџРѕР»РµР·РЅРѕ РґР»СЏ РјРѕРґРµР»РёСЂРѕРІР°РЅРёСЏ SF ^ OF.
-        /// РџСЂРµРґРїРѕС‡С‚РёС‚РµР»СЊРЅС‹Р№ СЃРїРѕСЃРѕР± РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ вЂ” С‡РµСЂРµР· РїРµСЂРµРіСЂСѓР·РєСѓ РѕРїРµСЂР°С‚РѕСЂР° ^.
+        /// Булево XOR с constant folding. Полезно для моделирования SF ^ OF.
+        /// Предпочтительный способ использования — через перегрузку оператора ^.
         /// </summary>
         public Expr BoolXor(Expr other)
         {
@@ -111,9 +111,9 @@ public static class Extensions
         }
 
         /// <summary>
-        /// Р¤РѕСЂРјРёСЂРѕРІР°РЅРёРµ РјР°С‚РµРјР°С‚РёС‡РµСЃРєРѕРіРѕ РІС‹СЂР°Р¶РµРЅРёСЏ РёР»Рё РІС‹С‡РёСЃР»РµРЅРЅРѕРіРѕ РєРѕРЅСЃС‚Р°РЅС‚РЅРѕРіРѕ Р·РЅР°С‡РµРЅРёСЏ (constant folding).
-        /// Р•СЃР»Рё РѕР±Р° РѕРїРµСЂР°РЅРґР° вЂ” РєРѕРЅСЃС‚Р°РЅС‚С‹, РІС‹С‡РёСЃР»СЏРµС‚ СЂРµР·СѓР»СЊС‚Р°С‚ СЃСЂР°Р·Сѓ РєР°Рє ConstExpr.
-        /// РРЅР°С‡Рµ РІРѕР·РІСЂР°С‰Р°РµС‚ Math2Expr.
+        /// Формирование математического выражения или вычисленного константного значения (constant folding).
+        /// Если оба операнда — константы, вычисляет результат сразу как ConstExpr.
+        /// Иначе возвращает Math2Expr.
         /// </summary>
         public Expr Calculate(Math2Operation op, Expr second)
         {
@@ -140,7 +140,7 @@ public static class Extensions
         }
 
         /// <summary>
-        /// РЈРЅР°СЂРЅР°СЏ РІРµСЂСЃРёСЏ Calculate СЃ constant folding РґР»СЏ Not/Neg.
+        /// Унарная версия Calculate с constant folding для Not/Neg.
         /// </summary>
         public Expr Calculate(Math1Operation op)
         {
@@ -163,21 +163,21 @@ public static class Extensions
     extension(RegisterExpressions registers)
     {
         /// <summary>
-        /// SF == OF (СЌРєРІРёРІР°Р»РµРЅС‚РЅРѕСЃС‚СЊ). РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РґР»СЏ JGE / JG / JLE.
+        /// SF == OF (эквивалентность). Используется для JGE / JG / JLE.
         /// </summary>
         public Expr SfEqOf() => !(registers.SF ^ registers.OF);
 
         /// <summary>
-        /// SF != OF. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РґР»СЏ JL / JLE.
+        /// SF != OF. Используется для JL / JLE.
         /// </summary>
         public Expr SfNeOf() => registers.SF ^ registers.OF;
 
         /// <summary>
-        /// РџСЂРёРјРµРЅСЏРµС‚ РѕР±РЅРѕРІР»РµРЅРёРµ С„Р»Р°РіРѕРІ РїРѕСЃР»Рµ Р°СЂРёС„РјРµС‚РёС‡РµСЃРєРѕР№/Р»РѕРіРёС‡РµСЃРєРѕР№ РѕРїРµСЂР°С†РёРё.
-        /// РЈСЃС‚Р°РЅР°РІР»РёРІР°РµС‚ С‚РѕР»СЊРєРѕ ZF = (resultExpr == 0).
+        /// Применяет обновление флагов после арифметической/логической операции.
+        /// Устанавливает только ZF = (resultExpr == 0).
         ///
-        /// Р”Р»СЏ ADD/SUB CF СѓСЃС‚Р°РЅР°РІР»РёРІР°РµС‚СЃСЏ РЅР°РїСЂСЏРјСѓСЋ РІ HandleArithmetic (Р±РѕР»РµРµ С‚РѕС‡РЅР°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ).
-        /// Р”Р»СЏ INC/DEC CF РЅР°РјРµСЂРµРЅРЅРѕ РЅРµ С‚СЂРѕРіР°РµС‚СЃСЏ (СЃРѕРіР»Р°СЃРЅРѕ x86).
+        /// Для ADD/SUB CF устанавливается напрямую в HandleArithmetic (более точная информация).
+        /// Для INC/DEC CF намеренно не трогается (согласно x86).
         /// </summary>
         public RegisterExpressions ApplyArithmeticFlags(Expr resultExpr)
         {
@@ -191,17 +191,17 @@ public static class Extensions
     extension(Operand operand)
     {
         /// <summary>
-        /// РџСЂРµРѕР±СЂР°Р·СѓРµС‚ Operand (РёР· РґРёР·Р°СЃСЃРµРјР±Р»РµСЂР°) РІ СЃРёРјРІРѕР»РёС‡РµСЃРєРѕРµ РІС‹СЂР°Р¶РµРЅРёРµ (Expr).
+        /// Преобразует Operand (из дизассемблера) в символическое выражение (Expr).
         /// 
-        /// Р­С‚Рѕ С†РµРЅС‚СЂР°Р»СЊРЅР°СЏ С‚РѕС‡РєР°, РіРґРµ РјС‹ "РїРѕРґРЅРёРјР°РµРј" РЅРёР·РєРѕСѓСЂРѕРІРЅРµРІС‹Рµ РѕРїРµСЂР°РЅРґС‹
-        /// РІ РЅР°С€Рµ РІС‹СЃРѕРєРѕСѓСЂРѕРІРЅРµРІРѕРµ РїСЂРµРґСЃС‚Р°РІР»РµРЅРёРµ.
+        /// Это центральная точка, где мы "поднимаем" низкоуровневые операнды
+        /// в наше высокоуровневое представление.
         /// 
-        /// РџРѕРґРґРµСЂР¶РёРІР°РµРјС‹Рµ С‚РёРїС‹:
-        /// - Immediate в†’ ConstExpr (РёР»Рё ImageOffsetExpr, РµСЃР»Рё РѕРїРµСЂР°РЅРґ СЂРµР»РѕС†РёСЂРѕРІР°РЅ)
-        /// - Р РµРіРёСЃС‚СЂС‹ (8/16, СЃРµРіРјРµРЅС‚РЅС‹Рµ) в†’ С‚РµРєСѓС‰РµРµ СЃРёРјРІРѕР»РёС‡РµСЃРєРѕРµ Р·РЅР°С‡РµРЅРёРµ РёР· RegisterExpressions
-        /// - Memory в†’ MemExpr(Р°РґСЂРµСЃ, СЃРµРіРјРµРЅС‚). 
-        ///   РЎРµРіРјРµРЅС‚ Р·Р°РїРѕР»РЅСЏРµС‚СЃСЏ Р»РёР±Рѕ РёР· СЏРІРЅРѕРіРѕ РїСЂРµС„РёРєСЃР° (ES:/CS:/SS:/DS:), Р»РёР±Рѕ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
-        ///   (BP-Р°РґСЂРµСЃР°С†РёСЏ в†’ SS, РІСЃС‘ РѕСЃС‚Р°Р»СЊРЅРѕРµ в†’ DS).
+        /// Поддерживаемые типы:
+        /// - Immediate > ConstExpr (или ImageOffsetExpr, если операнд релоцирован)
+        /// - Регистры (8/16, сегментные) > текущее символическое значение из RegisterExpressions
+        /// - Memory > MemExpr(адрес, сегмент). 
+        ///   Сегмент заполняется либо из явного префикса (ES:/CS:/SS:/DS:), либо по умолчанию
+        ///   (BP-адресация > SS, всё остальное > DS).
         /// </summary>
         public Expr GetExpression(ExprBlock block, Segment segmentOverride = Segment.None)
         {
@@ -213,8 +213,8 @@ public static class Extensions
                         return new ImageOffsetExpr(operand.Relocation, operand.Value);
                     return new ConstExpr(operand.Value);
                 case OperandType.Register16:
-                    // Р’РѕР·РІСЂР°С‰Р°РµС‚ Р»РёР±Рѕ СЂР°РЅРµРµ СЃРѕС…СЂР°РЅС‘РЅРЅРѕРµ РІС‹СЂР°Р¶РµРЅРёРµ (Variable/MathExpr),
-                    // Р»РёР±Рѕ ConstExpr.Zero, РµСЃР»Рё Р·РЅР°С‡РµРЅРёРµ СЂРµРіРёСЃС‚СЂР° РµС‰С‘ РЅРµРёР·РІРµСЃС‚РЅРѕ.
+                    // Возвращает либо ранее сохранённое выражение (Variable/MathExpr),
+                    // либо ConstExpr.Zero, если значение регистра ещё неизвестно.
                     return block.EndRegisters.Get16(operand.AsGpRegister16());
                 case OperandType.Register8:
                     return block.EndRegisters.Get8(operand.AsGpRegister8());
@@ -225,7 +225,7 @@ public static class Extensions
                         if (operand.BaseReg == AddressRegister.BP &&
                             operand.IndexReg == AddressRegister.None)
                         {
-                            // РЎРЅР°С‡Р°Р»Р° РїР°СЂР°РјРµС‚СЂС‹ (argN), РїРѕС‚РѕРј Р»РѕРєР°Р»СЊРЅС‹Рµ РїРµСЂРµРјРµРЅРЅС‹Рµ (varN) РїРѕ [BP+disp]
+                            // Сначала параметры (argN), потом локальные переменные (varN) по [BP+disp]
                             var slot = block.Variables.TryGetStackParameter(operand.Value)
                                        ?? block.Variables.TryGetStackLocal(operand.Value);
                             if (slot != null)
@@ -234,7 +234,7 @@ public static class Extensions
 
                         var (address, segExpr) = operand.BuildMemoryReference(block.EndRegisters, segmentOverride);
 
-                        // РџС‹С‚Р°РµРјСЃСЏ СЂР°СЃРїРѕР·РЅР°С‚СЊ РґРѕСЃС‚СѓРї Рє РёР·РІРµСЃС‚РЅРѕР№ СЃС‚СЂСѓРєС‚СѓСЂРµ РІ РїР°РјСЏС‚Рё (PSP Рё С‚.Рї.)
+                        // Пытаемся распознать доступ к известной структуре в памяти (PSP и т.п.)
                         var knownVar = block.Variables.TryGetKnownMemoryVariable(address, segExpr);
                         if (knownVar != null)
                             return knownVar;
@@ -248,8 +248,8 @@ public static class Extensions
         }
 
         /// <summary>
-        /// РЎС‚СЂРѕРёС‚ СЃРёРјРІРѕР»РёС‡РµСЃРєРѕРµ РІС‹СЂР°Р¶РµРЅРёРµ СЌС„С„РµРєС‚РёРІРЅРѕРіРѕ Р°РґСЂРµСЃР° (offset) РґР»СЏ memory-РѕРїРµСЂР°РЅРґР°.
-        /// РЎРµРіРјРµРЅС‚ Р·РґРµСЃСЊ РЅРµ СѓС‡РёС‚С‹РІР°РµС‚СЃСЏ вЂ” LEA Рё РїРѕРґРѕР±РЅС‹Рµ РѕРїРµСЂР°С†РёРё СЂР°Р±РѕС‚Р°СЋС‚ С‚РѕР»СЊРєРѕ СЃ offset-С‡Р°СЃС‚СЊСЋ.
+        /// Строит символическое выражение эффективного адреса (offset) для memory-операнда.
+        /// Сегмент здесь не учитывается — LEA и подобные операции работают только с offset-частью.
         /// </summary>
         public Expr GetEffectiveAddress(in RegisterExpressions registers, Segment segmentOverride = Segment.None)
         {
@@ -276,8 +276,8 @@ public static class Extensions
         }
 
         /// <summary>
-        /// РЎС‚СЂРѕРёС‚ РѕРїРёСЃР°РЅРёРµ Р°РґСЂРµСЃР° РїР°РјСЏС‚Рё (address + segment) РґР»СЏ РѕРїРµСЂР°РЅРґР° Memory.
-        /// РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РєР°Рє РґР»СЏ Р·Р°РіСЂСѓР·РѕРє (MemExpr), С‚Р°Рє Рё РґР»СЏ Р·Р°РїРёСЃРµР№ (StoreOperation).
+        /// Строит описание адреса памяти (address + segment) для операнда Memory.
+        /// Используется как для загрузок (MemExpr), так и для записей (StoreOperation).
         /// </summary>
         public (Expr Address, Expr? Segment) BuildMemoryReference(in RegisterExpressions registers, Segment segmentOverride)
         {
@@ -301,14 +301,14 @@ public static class Extensions
         }
 
         /// <summary>
-        /// Р­РјРёС‚РёС‚ РёРЅРєСЂРµРјРµРЅС‚ РёР»Рё РґРµРєСЂРµРјРµРЅС‚ РѕРїРµСЂР°РЅРґР°.
-        /// Р”Р»СЏ Р»РѕРєР°Р»СЊРЅРѕР№ РїРµСЂРµРјРµРЅРЅРѕР№ РїРѕ [BP+disp] СЃРѕР·РґР°С‘С‚ <see cref="IncOperation"/> / <see cref="DecOperation"/>.
-        /// РРЅР°С‡Рµ вЂ” РѕРїРµСЂР°С†РёСЋ СЃ Р°РґСЂРµСЃРѕРј РїР°РјСЏС‚Рё.
+        /// Эмитит инкремент или декремент операнда.
+        /// Для локальной переменной по [BP+disp] создаёт <see cref="IncOperation"/> / <see cref="DecOperation"/>.
+        /// Иначе — операцию с адресом памяти.
         /// </summary>
         public void EmitIncDec(ExprBlock block, Segment segmentOverride, bool isInc)
         {
             if (operand.Type != OperandType.Memory)
-                throw new InvalidOperationException("EmitIncDec РјРѕР¶РµС‚ РІС‹Р·С‹РІР°С‚СЊСЃСЏ С‚РѕР»СЊРєРѕ РґР»СЏ memory-РѕРїРµСЂР°РЅРґР°");
+                throw new InvalidOperationException("EmitIncDec может вызываться только для memory-операнда");
 
             if (operand.BaseReg == AddressRegister.BP && operand.IndexReg == AddressRegister.None)
             {
@@ -330,17 +330,67 @@ public static class Extensions
             var (addr, seg) = operand.BuildMemoryReference(block.EndRegisters, segmentOverride);
             block.Operations.Add(isInc ? new IncOperation(addr, seg) : new DecOperation(addr, seg));
         }
+        /// <summary>
+        /// Эмитит составное присваивание <c>target += value</c> / <c>target -= value</c>
+        /// (QuickC: <c>add/sub [mem], imm|reg</c>).
+        /// </summary>
+        public bool TryEmitCompoundAssign(
+            ExprBlock block,
+            Segment segmentOverride,
+            bool isAdd,
+            Expr value,
+            Expr currentValue,
+            out Expr result)
+        {
+            result = null!;
+
+            if (operand.Type != OperandType.Memory)
+            {
+                return false;
+            }
+
+            result = isAdd
+                ? currentValue.Calculate(Math2Operation.Add, value)
+                : currentValue.Calculate(Math2Operation.Sub, value);
+
+            if (operand.BaseReg == AddressRegister.BP && operand.IndexReg == AddressRegister.None)
+            {
+                var local = block.Variables.TryGetStackLocal(operand.Value);
+                if (local != null)
+                {
+                    block.Operations.Add(isAdd
+                        ? new AddAssignOperation(local, value)
+                        : new SubAssignOperation(local, value));
+                    return true;
+                }
+
+                var param = block.Variables.TryGetStackParameter(operand.Value);
+                if (param != null)
+                {
+                    block.Operations.Add(isAdd
+                        ? new AddAssignOperation(param, value)
+                        : new SubAssignOperation(param, value));
+                    return true;
+                }
+            }
+
+            var (addr, seg) = operand.BuildMemoryReference(block.EndRegisters, segmentOverride);
+            block.Operations.Add(isAdd
+                ? new AddAssignOperation(addr, value, seg)
+                : new SubAssignOperation(addr, value, seg));
+            return true;
+        }
 
         /// <summary>
-        /// Р­РјРёС‚РёС‚ Р·Р°РїРёСЃСЊ РІ РїР°РјСЏС‚СЊ РїРѕ РѕРїРµСЂР°РЅРґСѓ.
-        /// Р•СЃР»Рё СЌС‚Рѕ РѕР±СЂР°С‰РµРЅРёРµ Рє Р»РѕРєР°Р»СЊРЅРѕР№ РїРµСЂРµРјРµРЅРЅРѕР№ РїРѕ [BP + РѕС‚СЂРёС†Р°С‚РµР»СЊРЅРѕРµ_СЃРјРµС‰РµРЅРёРµ],
-        /// СЃРѕР·РґР°С‘С‚ SetOperation РЅР° СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓСЋС‰СѓСЋ Variable (РїРѕРґРґРµСЂР¶РєР° Р»РѕРєР°Р»РѕРІ).
-        /// РРЅР°С‡Рµ СЃРѕР·РґР°С‘С‚ StoreOperation (РґР»СЏ РіР»РѕР±Р°Р»РѕРІ, РїР°СЂР°РјРµС‚СЂРѕРІ, [bx+si] Рё С‚.Рґ.).
+        /// Эмитит запись в память по операнду.
+        /// Если это обращение к локальной переменной по [BP + отрицательное_смещение],
+        /// создаёт SetOperation на соответствующую Variable (поддержка локалов).
+        /// Иначе создаёт StoreOperation (для глобалов, параметров, [bx+si] и т.д.).
         /// </summary>
         public void EmitStore(ExprBlock block, Segment segmentOverride, Expr value)
         {
             if (operand.Type != OperandType.Memory)
-                throw new InvalidOperationException("EmitStore РјРѕР¶РµС‚ РІС‹Р·С‹РІР°С‚СЊСЃСЏ С‚РѕР»СЊРєРѕ РґР»СЏ memory-РѕРїРµСЂР°РЅРґР°");
+                throw new InvalidOperationException("EmitStore может вызываться только для memory-операнда");
 
             if (operand.BaseReg == AddressRegister.BP && operand.IndexReg == AddressRegister.None)
             {
@@ -364,9 +414,9 @@ public static class Extensions
         }
 
         /// <summary>
-        /// РџСЂРѕРІРµСЂСЏРµС‚, СѓРєР°Р·С‹РІР°СЋС‚ Р»Рё РґРІР° РѕРїРµСЂР°РЅРґР° РЅР° РѕРґРЅРѕ Рё С‚Рѕ Р¶Рµ РјРµСЃС‚Рѕ
-        /// (РѕРґРёРЅ Рё С‚РѕС‚ Р¶Рµ СЂРµРіРёСЃС‚СЂ РёР»Рё РѕРґРЅР° Рё С‚Р° Р¶Рµ СЏС‡РµР№РєР° РїР°РјСЏС‚Рё).
-        /// РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РґР»СЏ РѕРїС‚РёРјРёР·Р°С†РёРё XOR reg,reg в†’ 0 Рё SUB reg,reg в†’ 0.
+        /// Проверяет, указывают ли два операнда на одно и то же место
+        /// (один и тот же регистр или одна и та же ячейка памяти).
+        /// Используется для оптимизации XOR reg,reg > 0 и SUB reg,reg > 0.
         /// </summary>
         public bool ReferToSameLocation(Operand other)
         {
@@ -387,7 +437,7 @@ public static class Extensions
     extension(ExprBlock block)
     {
         /// <summary>
-        /// РЎС‚СЂРѕРёС‚ MemExpr РґР»СЏ С‡С‚РµРЅРёСЏ РёР· РїР°РјСЏС‚Рё РІ РєРѕРЅС‚РµРєСЃС‚Рµ СЃС‚СЂРѕРєРѕРІРѕР№ РёРЅСЃС‚СЂСѓРєС†РёРё.
+        /// Строит MemExpr для чтения из памяти в контексте строковой инструкции.
         /// </summary>
         public Expr BuildStringMemoryRead(Instruction instr, bool isSource, int size)
         {
@@ -402,7 +452,7 @@ public static class Extensions
         }
 
         /// <summary>
-        /// Р’РѕР·РІСЂР°С‰Р°РµС‚ Р°РґСЂРµСЃ Рё СЃРµРіРјРµРЅС‚ РґР»СЏ СЃС‚СЂРѕРєРё (DI+ES РёР»Рё SI+DS).
+        /// Возвращает адрес и сегмент для строки (DI+ES или SI+DS).
         /// </summary>
         public (Expr Address, Expr? Segment) BuildStringMemoryAddress(bool isDestination)
         {

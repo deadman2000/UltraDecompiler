@@ -1,4 +1,4 @@
-﻿namespace DecompilerTests.Expressions;
+namespace DecompilerTests.Expressions;
 
 /// <summary>Сборка плоского списка IR из CFG: линейный код, if/else, циклы.</summary>
 public class GetAllOperationsTests : BaseTests
@@ -80,7 +80,7 @@ public class GetAllOperationsTests : BaseTests
         var ifOp = Assert.Single(ops.OfType<IfOperation>());
 
         Assert.NotNull(ifOp.ElseBody);
-        Assert.Single(ifOp.ThenBody.OfType<SetOperation>());
+        Assert.Single(ExpressionBuilder.EnumerateNested(ops).OfType<SetOperation>());
         Assert.Single(ops.OfType<IfOperation>());
     }
 }

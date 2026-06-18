@@ -1,3 +1,5 @@
+using UltraDecompiler.PostProcessing.Normalization;
+
 namespace DecompilerTests.Expressions;
 
 /// <summary>
@@ -112,5 +114,63 @@ public class IncDecOperationTests : BaseTests
             """);
 
         Assert.IsType<DecOperation>(expr.Blocks[0].Operations[^1]);
+    }
+
+    // QuickC /Od: b = a++ → mov; add [a],1; mov
+    [Fact]
+    public void PostfixIncExpression_Od_FoldsToIncDecExpr()
+    {
+        var expr = BuildProcExpressions("""
+            55           ; push bp
+            8B EC        ; mov bp, sp
+            81 EC 04 00  ; sub sp, 4
+            8B 46 FE     ; mov ax, [bp-2]
+            83 46 FE 01  ; add word ptr [bp-2], 1
+            89 46 FC     ; mov [bp-4], ax
+            """);
+
+        var ops = OperationOptimizer.Optimize(expr.Blocks[0].Operations);
+        var set = Assert.IsType<SetOperation>(Assert.Single(ops));
+        var incDec = Assert.IsType<IncDecExpr>(set.Src);
+        Assert.Equal(IncDecKind.PostInc, incDec.Kind);
+        Assert.Contains("++", set.ToCString(asStatement: true));
+    }
+
+    // QuickC /Od: b = ++a → add [a],1; mov; mov
+    [Fact]
+    public void PrefixIncExpression_Od_FoldsToIncDecExpr()
+    {
+        var expr = BuildProcExpressions("""
+            55           ; push bp
+            8B EC        ; mov bp, sp
+            81 EC 04 00  ; sub sp, 4
+            83 46 FE 01  ; add word ptr [bp-2], 1
+            8B 46 FE     ; mov ax, [bp-2]
+            89 46 FC     ; mov [bp-4], ax
+            """);
+
+        var ops = OperationOptimizer.Optimize(expr.Blocks[0].Operations);
+        var set = Assert.IsType<SetOperation>(Assert.Single(ops));
+        var incDec = Assert.IsType<IncDecExpr>(set.Src);
+        Assert.Equal(IncDecKind.PreInc, incDec.Kind);
+        Assert.Contains("++", set.ToCString(asStatement: true));
+    }
+
+    // QuickC /Ox: inc/dec регистра в mov/add/mov не сворачивается в var++
+    [Fact]
+    public void Ox_RegisterIncInAssignChain_StaysSetOperation()
+    {
+        var expr = BuildProcExpressionsOpt("""
+            55           ; push bp
+            8B EC        ; mov bp, sp
+            81 EC 02 00  ; sub sp, 2
+            8B 46 FE     ; mov ax, [bp-2]
+            40           ; inc ax
+            89 46 FE     ; mov [bp-2], ax
+            """);
+
+        var ops = OperationOptimizer.Optimize(expr.Blocks[0].Operations);
+        Assert.DoesNotContain(ops, static op => op is IncOperation or DecOperation);
+        Assert.Contains(ops, static op => op is SetOperation);
     }
 }

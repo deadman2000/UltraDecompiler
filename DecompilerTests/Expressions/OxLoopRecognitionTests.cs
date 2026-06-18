@@ -35,8 +35,7 @@ public sealed class OxLoopRecognitionTests : BaseTests
         Assert.IsType<IncOperation>(loop.Iteration);
         Assert.IsType<CmpExpr>(loop.Condition);
 
-        var bodySet = Assert.IsType<SetOperation>(Assert.Single(loop.Body));
-        Assert.IsType<Math2Expr>(bodySet.Src);
+        Assert.IsType<AddAssignOperation>(Assert.Single(loop.Body));
     }
 
     // QuickC/PROGRAMS/forlp.c — countdown_for: for (i=3; i&gt;0; i--) acc += i.

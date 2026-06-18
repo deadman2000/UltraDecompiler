@@ -50,6 +50,7 @@ public class ArithmeticHandler : IInstructionHandler
             var delta = isIncrement ? 1 : -1;
             Expr incResult = WordArithmeticHelper.ApplySignedDelta(dstCurrent, delta);
 
+            MemoryIncDecHelper.SnapshotRegistersHoldingStackSlot(block, dst);
             dst.EmitIncDec(block, instr.Segment, isIncrement);
 
             block.EndRegisters = block.EndRegisters.ApplyArithmeticFlags(incResult);
@@ -66,6 +67,30 @@ public class ArithmeticHandler : IInstructionHandler
             }
 
             return;
+        }
+
+        // add/sub [mem], imm|reg — составное присваивание (a += K, a += b); не mov/add/mov.
+        if (!isAdcSbb && dst.Type == OperandType.Memory)
+        {
+            MemoryIncDecHelper.SnapshotRegistersHoldingStackSlot(block, dst);
+
+            if (dst.TryEmitCompoundAssign(block, instr.Segment, isAddLike, srcExpr, dstCurrent, out Expr compoundResult))
+            {
+                block.EndRegisters = block.EndRegisters.ApplyArithmeticFlags(compoundResult);
+
+                if (!isAddLike)
+                {
+                    var cfExpr = new CmpExpr(CmpOperation.Ult, dstCurrent, srcExpr);
+                    block.EndRegisters = block.EndRegisters with { CF = cfExpr };
+                }
+                else
+                {
+                    var cfExpr = new CmpExpr(CmpOperation.Ult, compoundResult, dstCurrent);
+                    block.EndRegisters = block.EndRegisters with { CF = cfExpr };
+                }
+
+                return;
+            }
         }
 
         var baseOp = isAddLike ? Math2Operation.Add : Math2Operation.Sub;

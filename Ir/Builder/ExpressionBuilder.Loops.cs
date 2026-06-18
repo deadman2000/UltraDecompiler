@@ -462,6 +462,8 @@ public partial class ExpressionBuilder
         op switch
         {
             IncOperation or DecOperation => true,
+            AddAssignOperation { Value: ConstExpr } => true,
+            SubAssignOperation { Value: ConstExpr } => true,
             SetOperation { Dst: Variable dst, Src: Math2Expr { First: Variable first, Second: ConstExpr } math }
                 when ReferenceEquals(dst, first)
                 && math.Operation is Math2Operation.Add or Math2Operation.Sub => true,
@@ -680,6 +682,20 @@ public partial class ExpressionBuilder
         }
 
         if (last is DecOperation dec && ExprReferencesVariable(dec.Target, counter))
+        {
+            iteration = last;
+            bodyWithoutIteration = body.Take(body.Count - 1).ToList();
+            return true;
+        }
+
+        if (last is AddAssignOperation addAssign && ExprReferencesVariable(addAssign.Target, counter))
+        {
+            iteration = last;
+            bodyWithoutIteration = body.Take(body.Count - 1).ToList();
+            return true;
+        }
+
+        if (last is SubAssignOperation subAssign && ExprReferencesVariable(subAssign.Target, counter))
         {
             iteration = last;
             bodyWithoutIteration = body.Take(body.Count - 1).ToList();

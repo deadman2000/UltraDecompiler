@@ -268,9 +268,7 @@ public partial class ExpressionBuilderQuickCOpt
                 continue;
             }
 
-            ops.Add(new SetOperation(
-                accVar,
-                new Math2Expr(Math2Operation.Add, accVar, counterVar)));
+            ops.Add(new AddAssignOperation(accVar, counterVar));
         }
 
         return ops;

@@ -102,6 +102,8 @@ public partial class ExpressionBuilder
             SwitchOperation => "switch (...)",
             IncOperation inc => $"{inc.Target}++",
             DecOperation dec => $"{dec.Target}--",
+            AddAssignOperation add => $"{add.Target} += {add.Value}",
+            SubAssignOperation sub => $"{sub.Target} -= {sub.Value}",
             ContinueOperation => "continue",
             BreakOperation => "break",
             GotoOperation g => $"goto {g.Label}",

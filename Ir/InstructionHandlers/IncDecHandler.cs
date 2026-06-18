@@ -22,6 +22,11 @@ public class IncDecHandler(bool isInc) : IInstructionHandler
         var op = isInc ? Math2Operation.Add : Math2Operation.Sub;
         Expr result = current.Calculate(op, ConstExpr.One);
 
+        if (dst.Type == OperandType.Memory)
+        {
+            MemoryIncDecHelper.SnapshotRegistersHoldingStackSlot(block, dst);
+        }
+
         if (TryEmitIncDec(block, dst, instr.Segment, isInc, current))
         {
             block.EndRegisters = UpdateDestination(block, dst, result);
