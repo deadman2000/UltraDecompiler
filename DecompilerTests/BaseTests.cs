@@ -61,6 +61,14 @@ public abstract class BaseTests
         return decompiler;
     }
 
+    /// <summary>Строит IR процедуры с <see cref="ExpressionBuilderQuickCOpt"/> (/Ox).</summary>
+    protected static ExpressionBuilder BuildProcExpressionsOpt(string hex)
+    {
+        var graph = GetGraph(hex);
+        var decompiler = ExpressionBuilder.Create(OptimizationLevel.EnabledFull);
+        decompiler.BuildProc(graph);
+        return decompiler;
+    }
     protected static ExpressionBuilder BuildExpressions(
         string hex,
         IReadOnlyDictionary<int, string> knownProcedures,

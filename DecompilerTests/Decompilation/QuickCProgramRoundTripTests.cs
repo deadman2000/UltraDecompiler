@@ -18,7 +18,7 @@ public sealed class QuickCProgramRoundTripTests
     // Прогон для неоптимизированных сборок (/Od) — основной сценарий QuickCUnoptimizedProfile.
     [Theory]
     [MemberData(nameof(QuickCProgramCases.SourceFileMemberData), MemberType = typeof(QuickCProgramCases))]
-    public void RoundTrip_CompileDecompileRebuild_MatchesOriginalExe(string sourceFileName)
+    public void RoundTrip_CompileDecompileRebuild_MatchesOriginalExe_Od(string sourceFileName)
     {
         RunRoundTrip(sourceFileName, OptimizationLevel.Disabled);
     }

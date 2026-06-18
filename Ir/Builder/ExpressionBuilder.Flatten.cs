@@ -47,6 +47,12 @@ public partial class ExpressionBuilder
                     foreach (var nested in EnumerateNested(w.Body))
                         yield return nested;
                     break;
+                case BreakOperation:
+                    break;
+                case ContinueOperation:
+                case GotoOperation:
+                case LabelOperation:
+                    break;
                 case ForOperation f:
                     if (f.Init != null)
                         yield return f.Init;
@@ -74,12 +80,19 @@ public partial class ExpressionBuilder
         ExprBlock? block,
         List<Operation> result,
         HashSet<ExprBlock> visited,
-        ExprBlock? stopBefore = null)
+        ExprBlock? stopBefore = null,
+        ExprBlock? enclosingLoopExit = null,
+        ExprBlock? enclosingLoopHeader = null)
     {
         while (block != null && block != stopBefore)
         {
             if (!visited.Add(block))
                 return;
+
+            if (!ShouldConvertLoopHeader(block, enclosingLoopExit, enclosingLoopHeader))
+            {
+                TryEmitLabel(block, result);
+            }
 
             if (_switchByEntry.TryGetValue(block.BasicBlock.StartOffset, out var switchPattern))
             {
@@ -102,12 +115,43 @@ public partial class ExpressionBuilder
             {
                 var merge = FindMerge(block.ConditionalBlock, block.Next);
 
+                if (ShouldConvertLoopHeader(block, enclosingLoopExit, enclosingLoopHeader))
+                {
+                    EmitLoopOperation(block, merge, result, visited, enclosingLoopExit, enclosingLoopHeader);
+
+                    if (merge is not null && !visited.Contains(merge))
+                    {
+                        block = merge;
+                        continue;
+                    }
+
+                    return;
+                }
+
+                if (enclosingLoopExit is not null
+                    && TryEmitBreakIf(block, enclosingLoopExit, enclosingLoopHeader, merge, result, visited))
+                {
+                    return;
+                }
+
+                if (enclosingLoopHeader is not null
+                    && TryEmitContinueIf(block, enclosingLoopHeader, enclosingLoopExit, merge, result, visited))
+                {
+                    return;
+                }
+
                 var thenStop = ReferenceEquals(merge, block.ConditionalBlock) ? null : merge;
 
-                var thenBody = new List<Operation>();
-                CollectOperations(block.ConditionalBlock, thenBody, visited, stopBefore: thenStop);
-                if (!ShouldConvertLoopHeader(block))
+                List<Operation> thenBody;
+                if (merge is not null && IsGotoOnlyBranch(block.ConditionalBlock, merge))
                 {
+                    thenBody = [new GotoOperation(GetLabelForBlock(merge))];
+                    MarkGotoBranchVisited(block.ConditionalBlock, merge, visited);
+                }
+                else
+                {
+                    thenBody = [];
+                    CollectOperations(block.ConditionalBlock, thenBody, visited, stopBefore: thenStop, enclosingLoopExit: enclosingLoopExit, enclosingLoopHeader: enclosingLoopHeader);
                     AppendEpilogueReturnIfNeeded(block.ConditionalBlock, merge, thenBody, visited);
                 }
 
@@ -116,7 +160,7 @@ public partial class ExpressionBuilder
                 if (block.Next != null)
                 {
                     var elseOps = new List<Operation>();
-                    CollectOperations(block.Next, elseOps, visited, stopBefore: merge);
+                    CollectOperations(block.Next, elseOps, visited, stopBefore: merge, enclosingLoopExit: enclosingLoopExit, enclosingLoopHeader: enclosingLoopHeader);
                     if (elseOps.Count > 0)
                     {
                         elseBody = elseOps;
@@ -127,7 +171,7 @@ public partial class ExpressionBuilder
                              && MergeIsReturnOnly(merge, visited))
                     {
                         elseBody = [];
-                        CollectOperations(merge, elseBody, visited);
+                        CollectOperations(merge, elseBody, visited, enclosingLoopExit: enclosingLoopExit, enclosingLoopHeader: enclosingLoopHeader);
                         visited.Add(merge);
                         mergeUsedAsElse = true;
                     }
@@ -152,6 +196,12 @@ public partial class ExpressionBuilder
                 }
 
                 return;
+            }
+
+            if (TryEmitStandaloneGoto(block, result, enclosingLoopExit, enclosingLoopHeader, out var gotoTarget))
+            {
+                block = gotoTarget;
+                continue;
             }
 
             block = block.Next;
@@ -230,18 +280,28 @@ public partial class ExpressionBuilder
         body.Any(static op => op is ReturnOperation);
 
     /// <summary>
-    /// Определяет, следует ли конвертировать заголовок цикла в WhileOperation.
+    /// Определяет, следует ли конвертировать заголовок цикла в WhileOperation или ForOperation.
     /// Переопределяется в профилях для разной эвристики (/Od vs /Ox).
     /// </summary>
-    protected virtual bool ShouldConvertLoopHeader(ExprBlock block)
+    protected virtual bool ShouldConvertLoopHeader(ExprBlock block, ExprBlock? enclosingLoopExit = null,
+        ExprBlock? enclosingLoopHeader = null)
     {
-        if (block.Next is null || block.Condition is null)
+        if (block.Condition is null)
         {
             return false;
         }
 
-        var isLoopHeader = IsLoopHeader(block, block.Next);
-        if (!isLoopHeader)
+        if (!TryGetLoopLayout(block, out _))
+        {
+            return false;
+        }
+
+        if (IsBreakGuard(block, enclosingLoopExit))
+        {
+            return false;
+        }
+
+        if (IsContinueGuard(block, enclosingLoopHeader))
         {
             return false;
         }
@@ -258,8 +318,7 @@ public partial class ExpressionBuilder
             return false;
         }
 
-        return ConditionUsesCharPointerDeref(block.Condition)
-            || LoopBodyAdvancesPointer(block.Next);
+        return true;
     }
 
     /// <summary>

@@ -21,9 +21,9 @@ void copy2(char *dst, char *src)
 int main(void)
 {
     char buf[20];
-	int a = 10;
+    int a = 10;
     char buf2[30];
-	int b = 8;
+    int b = 8;
 
     copy(buf, "test");
     copy(buf2, "test3");

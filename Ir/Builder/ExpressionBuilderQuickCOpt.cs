@@ -7,7 +7,7 @@
 /// - Использование регистров вместо стека для аргументов
 /// - Более сложные паттерны циклов
 /// </summary>
-public class ExpressionBuilderQuickCOpt : ExpressionBuilder
+public partial class ExpressionBuilderQuickCOpt : ExpressionBuilder
 {
     // Базовая реализация ApplyBlockPatterns и AnalyzeSwitchPatterns — пустая,
     // так как оптимизированный код не следует стандартным паттернам QuickC /Od

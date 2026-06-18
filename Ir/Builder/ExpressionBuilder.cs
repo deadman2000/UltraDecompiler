@@ -151,6 +151,8 @@ public partial class ExpressionBuilder
 
         AnalyzeSwitchPatterns(graph.Blocks);
 
+        BuildGotoLabelMap();
+
         // Распознавание циклов на уровне связанных блоков
         AnalyzeLoopPatterns();
     }

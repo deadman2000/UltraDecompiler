@@ -104,6 +104,8 @@ public partial class ExpressionBuilder
             DecOperation dec => $"{dec.Target}--",
             ContinueOperation => "continue",
             BreakOperation => "break",
+            GotoOperation g => $"goto {g.Label}",
+            LabelOperation l => $"{l.Label}:",
             _ => op.ToString() ?? string.Empty,
         };
 

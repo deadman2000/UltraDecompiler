@@ -54,37 +54,4 @@ public class ExpressionBuilderQuickCUnopt : ExpressionBuilder
         return CollectReachable(thenStart).Contains(block);
     }
 
-    /// <summary>
-    /// Для /Od кода конвертация в WhileOperation применяется, если:
-    /// - Есть обратное ребро (цикл)
-    /// - Условие использует разыменование указателя или inc/dec в теле
-    /// </summary>
-    protected override bool ShouldConvertLoopHeader(ExprBlock block)
-    {
-        if (block.Next is null || block.Condition is null)
-        {
-            return false;
-        }
-
-        var isLoopHeader = IsLoopHeader(block, block.Next);
-        if (!isLoopHeader)
-        {
-            return false;
-        }
-
-        if (IsArgcBoundLoopHeader(block.Condition))
-        {
-            return false;
-        }
-
-        // Не конвертируем if, условие которого — простая временная переменная
-        // (это обработка флагов внутри цикла, а не заголовок цикла)
-        if (IsTempVariableCondition(block.Condition))
-        {
-            return false;
-        }
-
-        return ConditionUsesCharPointerDeref(block.Condition)
-            || LoopBodyAdvancesPointer(block.Next);
-    }
 }
