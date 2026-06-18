@@ -30,7 +30,7 @@ public static class DosBoxQuickCRunner
         var executable = DosBoxQuickCAssets.ResolvedDosBoxExecutable
             ?? throw new InvalidOperationException("DOSBox-X не найден (PATH или DOSBOX_X_PATH).");
 
-        using var process = Process.Start(new ProcessStartInfo
+        var startInfo = new ProcessStartInfo
         {
             FileName = executable,
             Arguments = arguments.ToString(),
@@ -39,7 +39,13 @@ public static class DosBoxQuickCRunner
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
-        }) ?? throw new InvalidOperationException($"Не удалось запустить DOSBox-X: {executable}");
+        };
+
+        // Предотвращаем инициализацию реального видео на хосте (важно для CI/headless)
+        startInfo.Environment["SDL_VIDEODRIVER"] = "dummy";
+
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException($"Не удалось запустить DOSBox-X: {executable}");
 
         var stdout = process.StandardOutput.ReadToEnd();
         var stderr = process.StandardError.ReadToEnd();
