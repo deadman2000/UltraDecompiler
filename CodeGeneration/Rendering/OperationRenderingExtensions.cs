@@ -20,6 +20,7 @@ public static class COperationRenderer
             SubAssignOperation sub => FormatCompoundAssign(sub.Target, sub.Segment, "-=", sub.Value, indent),
             ReturnOperation r => FormatReturn(r, indent),
             WhileOperation w => FormatWhile(w, indent),
+            DoWhileOperation d => FormatDoWhile(d, indent),
             ForOperation f => FormatFor(f, indent),
             IfOperation i => FormatIf(i, indent),
             SwitchOperation s => FormatSwitch(s, indent),
@@ -30,7 +31,7 @@ public static class COperationRenderer
             _ => Indent(indent) + op.ToString(),
         };
 
-        if (asStatement && op is not (WhileOperation or ForOperation or IfOperation or SwitchOperation or LabelOperation))
+        if (asStatement && op is not (WhileOperation or DoWhileOperation or ForOperation or IfOperation or SwitchOperation or LabelOperation))
         {
             return text + ";";
         }
@@ -41,7 +42,7 @@ public static class COperationRenderer
     public static void Append(StringBuilder sb, Operation op, int indent = 0, bool asStatement = false)
     {
         string text = Render(op, indent, asStatement);
-        if (op is WhileOperation or ForOperation or IfOperation or SwitchOperation)
+        if (op is WhileOperation or DoWhileOperation or ForOperation or IfOperation or SwitchOperation)
         {
             sb.Append(text);
         }
@@ -163,6 +164,17 @@ public static class COperationRenderer
         sb.AppendLine($"{Indent(indent)}{{");
         AppendBody(sb, loop.Body, indent);
         sb.AppendLine($"{Indent(indent)}}}");
+        return sb.ToString();
+    }
+
+    static string FormatDoWhile(DoWhileOperation loop, int indent)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"{Indent(indent)}do");
+        sb.AppendLine($"{Indent(indent)}{{");
+        AppendBody(sb, loop.Body, indent);
+        sb.AppendLine($"{Indent(indent)}}}");
+        sb.AppendLine($"{Indent(indent)}while ({loop.Condition.RenderExpr()});");
         return sb.ToString();
     }
 

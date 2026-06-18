@@ -106,6 +106,9 @@ public static class UsedVariableCollector
             case WhileOperation loop:
                 AddFromExpr(loop.Condition, result);
                 break;
+            case DoWhileOperation loop:
+                AddFromExpr(loop.Condition, result);
+                break;
             case ForOperation loop:
                 AddFromExpr(loop.Condition, result);
                 if (loop.Init != null)

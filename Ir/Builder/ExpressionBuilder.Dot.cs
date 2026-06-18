@@ -98,6 +98,7 @@ public partial class ExpressionBuilder
             ReturnOperation r => r.Value is null ? "return" : $"return {r.Value}",
             IfOperation i => $"if ({i.Condition})",
             WhileOperation w => $"while ({w.Condition})",
+            DoWhileOperation d => $"do-while ({d.Condition})",
             ForOperation => "for (...)",
             SwitchOperation => "switch (...)",
             IncOperation inc => $"{inc.Target}++",
