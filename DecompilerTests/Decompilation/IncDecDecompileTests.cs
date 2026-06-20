@@ -14,39 +14,24 @@ public sealed class IncDecDecompileTests
     [Theory(Skip = "NotImplemented")]
     [InlineData(OptimizationLevel.Disabled)]
     [InlineData(OptimizationLevel.EnabledFull)]
-    public void Decompile_Incdec_EmitsAssemblyFaithfulStatements(OptimizationLevel optimization)
+    public void Decompile_IncDec_EmitsIncDec(OptimizationLevel optimization)
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
-        try
-        {
-            var result = new Decompiler().Decompile(
-                ExeProvider.Get("incdec.c", optimization: optimization),
-                QuickCTestAssets.LibDirectory,
-                QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+        var result = DecompileTestHelper.DecompileExample("incdec.c", optimization: optimization);
 
-            Assert.True(result.Success);
-            var mainSource = File.ReadAllText(
-                result.OutputFiles.First(p => p.EndsWith("main.c", StringComparison.Ordinal)));
+        Assert.True(result.Success);
+        var mainSource = File.ReadAllText(
+            result.OutputFiles.First(p => p.EndsWith("main.c", StringComparison.Ordinal)));
 
-            Assert.Contains("var1 = 10", mainSource);
-            Assert.Contains("var1 = var1 + 1", mainSource);
-            Assert.Contains("var1++", mainSource);
-            Assert.Contains("var2 = ++var1", mainSource);
-            Assert.Contains("var2 = var1++", mainSource);
-            Assert.Contains("var1 = var1 - 1", mainSource);
-            Assert.Contains("var1--", mainSource);
-            Assert.DoesNotContain("65535", mainSource);
-            Assert.DoesNotContain("temp1", mainSource);
-            Assert.DoesNotContain("var1 += 1", mainSource);
-            Assert.DoesNotContain("var1 -= 1", mainSource);
-        }
-        finally
-        {
-            if (Directory.Exists(outputDirectory))
-            {
-                Directory.Delete(outputDirectory, recursive: true);
-            }
-        }
+        Assert.Contains("var1 = 10", mainSource);
+        Assert.Contains("var1 = var1 + 1", mainSource);
+        Assert.Contains("var1++", mainSource);
+        Assert.Contains("var2 = ++var1", mainSource);
+        Assert.Contains("var2 = var1++", mainSource);
+        Assert.Contains("var1 = var1 - 1", mainSource);
+        Assert.Contains("var1--", mainSource);
+        Assert.DoesNotContain("65535", mainSource);
+        Assert.DoesNotContain("temp1", mainSource);
+        Assert.DoesNotContain("var1 += 1", mainSource);
+        Assert.DoesNotContain("var1 -= 1", mainSource);
     }
 }

@@ -42,25 +42,10 @@ public sealed class OptimizationLevelHeuristicsTests
     [Fact(Skip = "NotImplemented")]
     public void Decompile_GlobOd_PreservesDisabledOptimizationLevel()
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
-        try
-        {
-            var result = new Decompiler().Decompile(
-                ExeProvider.Get("glob.c"),
-                QuickCTestAssets.LibDirectory,
-                QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+        var result = DecompileTestHelper.DecompileExample("glob.c");
 
-            Assert.True(result.Success);
-            Assert.Equal(OptimizationLevel.Disabled, result.CompilerOptions.OptimizationLevel);
-        }
-        finally
-        {
-            if (Directory.Exists(outputDirectory))
-            {
-                Directory.Delete(outputDirectory, recursive: true);
-            }
-        }
+        Assert.True(result.Success);
+        Assert.Equal(OptimizationLevel.Disabled, result.CompilerOptions.OptimizationLevel);
     }
 
     // Для каждой программы из QuickC/PROGRAMS/*.c (включая xfail roundtrip) проверяем,
@@ -98,39 +83,20 @@ public sealed class OptimizationLevelHeuristicsTests
         OptimizationLevel buildOptimization,
         OptimizationLevel expected)
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
+        var exePath = ExeProvider.Get(
+            sourceFileName,
+            libraries: ["SLIBCE.LIB"],
+            optimization: buildOptimization);
 
-        try
-        {
-            // Собираем (или берём из кэша) EXE с указанным уровнем оптимизации.
-            // Передаём SLIBCE.LIB для консистентности с round-trip тестами и реальными примерами.
-            var exePath = ExeProvider.Get(
-                sourceFileName,
-                libraries: ["SLIBCE.LIB"],
-                optimization: buildOptimization);
+        var result = DecompileTestHelper.DecompileExample(exePath, libraryFileNames: ["SLIBCE.LIB"]);
 
-            var result = new Decompiler().Decompile(
-                exePath,
-                QuickCTestAssets.LibDirectory,
-                QuickCTestAssets.IncludeDirectory,
-                outputDirectory,
-                libraryFileNames: ["SLIBCE.LIB"]);
+        Assert.True(
+            result.Success,
+            $"Декомпиляция программы '{sourceFileName}' (сборка с {buildOptimization}) завершилась неуспешно. " +
+            "Эвристика уровня оптимизации вызывается только при успешном разборе main/user-процедур.");
 
-            Assert.True(
-                result.Success,
-                $"Декомпиляция программы '{sourceFileName}' (сборка с {buildOptimization}) завершилась неуспешно. " +
-                "Эвристика уровня оптимизации вызывается только при успешном разборе main/user-процедур.");
-
-            Assert.Equal(
-                expected,
-                result.CompilerOptions.OptimizationLevel);
-        }
-        finally
-        {
-            if (Directory.Exists(outputDirectory))
-            {
-                Directory.Delete(outputDirectory, recursive: true);
-            }
-        }
+        Assert.Equal(
+            expected,
+            result.CompilerOptions.OptimizationLevel);
     }
 }

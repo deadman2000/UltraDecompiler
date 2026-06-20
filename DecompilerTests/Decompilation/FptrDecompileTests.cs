@@ -14,34 +14,19 @@ public sealed class FptrDecompileTests
     //   *varN = 'A';
     //   printf("ok\n");
     [Fact(Skip = "NotImplemented")]
-    public void Decompile_Fptr_EmitsFarPointerDereference()
+    public void Decompile_Fptr_EmitsFarPointer()
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
-        try
-        {
-            var result = new Decompiler().Decompile(
-                ExeProvider.Get("fptr.c"),
-                QuickCTestAssets.LibDirectory,
-                QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+        var result = DecompileTestHelper.DecompileExample("fptr.c");
 
-            Assert.True(result.Success);
+        Assert.True(result.Success);
 
-            var source = DecompileTestHelper.ReadPrimarySource(result);
-            Assert.Contains("char far *", source);
-            Assert.Contains("(char far *)0xB8000000L", source);
-            Assert.Contains("*var", source);
-            Assert.Contains("= 'A'", source);
-            Assert.Contains("printf(\"ok\\n\")", source);
-            Assert.DoesNotContain("varSS:[", source);
-            Assert.DoesNotContain(":var", source);
-        }
-        finally
-        {
-            if (Directory.Exists(outputDirectory))
-            {
-                Directory.Delete(outputDirectory, recursive: true);
-            }
-        }
+        var source = DecompileTestHelper.ReadPrimarySource(result);
+        Assert.Contains("char far *", source);
+        Assert.Contains("(char far *)0xB8000000L", source);
+        Assert.Contains("*var", source);
+        Assert.Contains("= 'A'", source);
+        Assert.Contains("printf(\"ok\\n\")", source);
+        Assert.DoesNotContain("varSS:[", source);
+        Assert.DoesNotContain(":var", source);
     }
 }

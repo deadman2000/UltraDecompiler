@@ -10,61 +10,29 @@ public class StackCheckDetectorTests
     [Fact(Skip = "NotImplemented")]
     public void Decompile_HelloSmall_DetectsStackCheckAndRemovesChkstkFromC()
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
-        try
-        {
-            var decompiler = new Decompiler();
-            var result = decompiler.Decompile(
-                ExeProvider.Get("hello.c", stackCheck: true),
-                QuickCTestAssets.LibDirectory,
-                QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+        var result = DecompileTestHelper.DecompileExample("hello.c", stackCheck: true);
 
-            Assert.True(result.Success);
-            Assert.True(result.CompilerOptions.StackCheckingEnabled);
+        Assert.True(result.Success);
+        Assert.True(result.CompilerOptions.StackCheckingEnabled);
 
-            var mainSource = File.ReadAllText(
-                result.OutputFiles.First(path => path.EndsWith("main.c", StringComparison.Ordinal)));
-            Assert.DoesNotContain("_chkstk(", mainSource, StringComparison.Ordinal);
-        }
-        finally
-        {
-            if (Directory.Exists(outputDirectory))
-            {
-                Directory.Delete(outputDirectory, recursive: true);
-            }
-        }
+        var mainSource = File.ReadAllText(
+            result.OutputFiles.First(path => path.EndsWith("main.c", StringComparison.Ordinal)));
+        Assert.DoesNotContain("_chkstk(", mainSource, StringComparison.Ordinal);
     }
 
     // add.exe: _chkstk убирается из main.c и всех sub_*.c пользователя
     [Fact(Skip = "NotImplemented")]
     public void Decompile_AddSmall_DetectsStackCheckAndRemovesChkstkFromAllUserFunctions()
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
-        try
-        {
-            var decompiler = new Decompiler();
-            var result = decompiler.Decompile(
-                ExeProvider.Get("add.c", stackCheck: true),
-                QuickCTestAssets.LibDirectory,
-                QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+        var result = DecompileTestHelper.DecompileExample("add.c", stackCheck: true);
 
-            Assert.True(result.Success);
-            Assert.True(result.CompilerOptions.StackCheckingEnabled);
+        Assert.True(result.Success);
+        Assert.True(result.CompilerOptions.StackCheckingEnabled);
 
-            foreach (var filePath in result.OutputFiles)
-            {
-                var source = File.ReadAllText(filePath);
-                Assert.DoesNotContain("_chkstk(", source, StringComparison.Ordinal);
-            }
-        }
-        finally
+        foreach (var filePath in result.OutputFiles)
         {
-            if (Directory.Exists(outputDirectory))
-            {
-                Directory.Delete(outputDirectory, recursive: true);
-            }
+            var source = File.ReadAllText(filePath);
+            Assert.DoesNotContain("_chkstk(", source, StringComparison.Ordinal);
         }
     }
 

@@ -77,38 +77,21 @@ public class MakefileGeneratorTests
     [Fact(Skip = "NotImplemented")]
     public void Decompile_AddSmall_WritesMakefileWithAllSources()
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
-        try
-        {
-            var exePath = ExeProvider.Get("add.c");
-            var expectedSource = CCodeGenerator.FormatCombinedSourceFileName(Path.GetFileName(exePath));
+        var exePath = ExeProvider.Get("add.c");
+        var expectedSource = CCodeGenerator.FormatCombinedSourceFileName(Path.GetFileName(exePath));
 
-            var decompiler = new Decompiler();
-            var result = decompiler.Decompile(
-                exePath,
-                QuickCTestAssets.LibDirectory,
-                QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+        var result = DecompileTestHelper.DecompileExample(exePath);
 
-            Assert.True(result.Success);
+        Assert.True(result.Success);
 
-            var makefilePath = Path.Combine(outputDirectory, MakefileGenerator.FileName);
-            Assert.Contains(makefilePath, result.OutputFiles);
-            Assert.True(File.Exists(makefilePath));
+        var makefilePath = result.OutputFiles.First(f => f.EndsWith(MakefileGenerator.FileName, StringComparison.OrdinalIgnoreCase));
+        Assert.True(File.Exists(makefilePath));
 
-            var makefile = File.ReadAllText(makefilePath);
-            Assert.Contains($"SRCS   := {expectedSource}", makefile);
-            Assert.Contains("SLIBCE.LIB", makefile);
+        var makefile = File.ReadAllText(makefilePath);
+        Assert.Contains($"SRCS   := {expectedSource}", makefile);
+        Assert.Contains("SLIBCE.LIB", makefile);
 
-            Assert.True(File.Exists(Path.Combine(outputDirectory, expectedSource)));
-            Assert.DoesNotContain(result.OutputFiles, path => path.EndsWith("main.c", StringComparison.Ordinal));
-        }
-        finally
-        {
-            if (Directory.Exists(outputDirectory))
-            {
-                Directory.Delete(outputDirectory, recursive: true);
-            }
-        }
+        Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(makefilePath)!, expectedSource)));
+        Assert.DoesNotContain(result.OutputFiles, path => path.EndsWith("main.c", StringComparison.Ordinal));
     }
 }

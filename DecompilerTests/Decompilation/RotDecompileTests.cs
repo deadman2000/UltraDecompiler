@@ -12,32 +12,17 @@ public sealed class RotDecompileTests
     //   unsigned sub_0010(unsigned arg0, int arg1) { return (arg0 << arg1) | (arg0 >> (16 - arg1)); }
     //   printf("%u\n", sub_0010(0x8001, 3));
     [Fact(Skip = "NotImplemented")]
-    public void Decompile_Rot_UsesUnsignedTypes()
+    public void Decompile_Rot_EmitsRotate()
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
-        try
-        {
-            var result = new Decompiler().Decompile(
-                ExeProvider.Get("rot.c"),
-                QuickCTestAssets.LibDirectory,
-                QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+        var result = DecompileTestHelper.DecompileExample("rot.c");
 
-            Assert.True(result.Success);
-            var source = DecompileTestHelper.ReadPrimarySource(result);
-            Console.WriteLine(source);
+        Assert.True(result.Success);
 
-            Assert.Contains("unsigned sub_0010(unsigned arg0", source);
-            Assert.Contains("(arg0 << arg1) | (arg0 >> 16 - arg1)", source);
-            Assert.Contains("printf(\"%u\\n\",", source);
-            Assert.Contains("sub_0010(32769, 3)", source);
-        }
-        finally
-        {
-            if (Directory.Exists(outputDirectory))
-            {
-                Directory.Delete(outputDirectory, recursive: true);
-            }
-        }
+        var source = DecompileTestHelper.ReadPrimarySource(result);
+
+        Assert.Contains("unsigned sub_0010(unsigned arg0", source);
+        Assert.Contains("(arg0 << arg1) | (arg0 >> 16 - arg1)", source);
+        Assert.Contains("printf(\"%u\\n\",", source);
+        Assert.Contains("sub_0010(32769, 3)", source);
     }
 }

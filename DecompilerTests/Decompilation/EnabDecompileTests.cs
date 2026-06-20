@@ -12,36 +12,21 @@ public sealed class EnabDecompileTests
     //   printf("off\n");
     //   _enable();
     [Fact(Skip = "NotImplemented")]
-    public void Decompile_Enab_EmitsDisableEnableFromCliSti()
+    public void Decompile_Enab_EmitsEnableDisable()
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
-        try
-        {
-            var result = new Decompiler().Decompile(
-                ExeProvider.Get("enab.c"),
-                QuickCTestAssets.LibDirectory,
-                QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+        var result = DecompileTestHelper.DecompileExample(sourceFileName: "enab.c");
 
-            Assert.True(result.Success);
-            var mainSource = File.ReadAllText(
-                result.OutputFiles.First(path => path.EndsWith("main.c", StringComparison.Ordinal)));
+        Assert.True(result.Success);
+        var mainSource = File.ReadAllText(
+            result.OutputFiles.First(path => path.EndsWith("main.c", StringComparison.Ordinal)));
 
-            Assert.Contains("#include <DOS.H>", mainSource);
-            Assert.Contains("_disable();", mainSource);
-            Assert.Contains("_enable();", mainSource);
-            Assert.DoesNotContain("_disable(0", mainSource);
-            Assert.DoesNotContain("_enable(618", mainSource);
-            Assert.Contains("printf(\"off\\n\")", mainSource);
-            Assert.Contains("printf(\"on\\n\")", mainSource);
-            Assert.DoesNotContain("sub_", mainSource);
-        }
-        finally
-        {
-            if (Directory.Exists(outputDirectory))
-            {
-                Directory.Delete(outputDirectory, recursive: true);
-            }
-        }
+        Assert.Contains("#include <DOS.H>", mainSource);
+        Assert.Contains("_disable();", mainSource);
+        Assert.Contains("_enable();", mainSource);
+        Assert.DoesNotContain("_disable(0", mainSource);
+        Assert.DoesNotContain("_enable(618", mainSource);
+        Assert.Contains("printf(\"off\\n\")", mainSource);
+        Assert.Contains("printf(\"on\\n\")", mainSource);
+        Assert.DoesNotContain("sub_", mainSource);
     }
 }

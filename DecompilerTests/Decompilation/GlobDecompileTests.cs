@@ -15,30 +15,15 @@ public sealed class GlobDecompileTests
     [Fact(Skip = "NotImplemented")]
     public void Decompile_Glob_EmitsGlobalVariableAccess()
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
-        try
-        {
-            var result = new Decompiler().Decompile(
-                ExeProvider.Get("glob.c"),
-                QuickCTestAssets.LibDirectory,
-                QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+        var result = DecompileTestHelper.DecompileExample(sourceFileName: "glob.c");
 
-            Assert.True(result.Success);
+        Assert.True(result.Success);
 
-            var source = DecompileTestHelper.ReadPrimarySource(result);
-            Assert.Contains("int global1 = 0;", source);
-            Assert.Contains("global1++", source);
-            Assert.Contains("printf(\"%d\\n\", global1)", source);
-            Assert.DoesNotContain("_psp:[", source);
-            Assert.DoesNotContain("Psp.", source);
-        }
-        finally
-        {
-            if (Directory.Exists(outputDirectory))
-            {
-                Directory.Delete(outputDirectory, recursive: true);
-            }
-        }
+        var source = DecompileTestHelper.ReadPrimarySource(result);
+        Assert.Contains("int global1 = 0;", source);
+        Assert.Contains("global1++", source);
+        Assert.Contains("printf(\"%d\\n\", global1)", source);
+        Assert.DoesNotContain("_psp:[", source);
+        Assert.DoesNotContain("Psp.", source);
     }
 }

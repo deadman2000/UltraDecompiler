@@ -10,39 +10,24 @@ public sealed class CompoundDecompileTests
     [Theory(Skip = "NotImplemented")]
     [InlineData(OptimizationLevel.Disabled)]
     [InlineData(OptimizationLevel.EnabledFull)]
-    public void Decompile_Compound_EmitsAssemblyFaithfulStatements(OptimizationLevel optimization)
+    public void Decompile_Compound_EmitsCompoundAssignment(OptimizationLevel optimization)
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
-        try
-        {
-            var result = new Decompiler().Decompile(
-                ExeProvider.Get("compound.c", optimization: optimization),
-                QuickCTestAssets.LibDirectory,
-                QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+        var result = DecompileTestHelper.DecompileExample("compound.c", optimization: optimization);
 
-            Assert.True(result.Success);
-            var mainSource = File.ReadAllText(
-                result.OutputFiles.First(p => p.EndsWith("main.c", StringComparison.Ordinal)));
+        Assert.True(result.Success);
+        var mainSource = File.ReadAllText(
+            result.OutputFiles.First(p => p.EndsWith("main.c", StringComparison.Ordinal)));
 
-            Assert.Contains("var1 = var1 + 5", mainSource);
-            Assert.Contains("var1 += 5", mainSource);
-            Assert.Contains("var1 = var1 - 5", mainSource);
-            Assert.Contains("var1 -= 5", mainSource);
-            Assert.Contains("var1 = var1 + var2", mainSource);
-            Assert.Contains("var1 += var2", mainSource);
-            Assert.Contains("var1 = var1 - var2", mainSource);
-            Assert.Contains("var1 -= var2", mainSource);
-            Assert.DoesNotContain("65535", mainSource);
-            Assert.DoesNotContain("65531", mainSource);
-            Assert.DoesNotContain("temp1", mainSource);
-        }
-        finally
-        {
-            if (Directory.Exists(outputDirectory))
-            {
-                Directory.Delete(outputDirectory, recursive: true);
-            }
-        }
+        Assert.Contains("var1 = var1 + 5", mainSource);
+        Assert.Contains("var1 += 5", mainSource);
+        Assert.Contains("var1 = var1 - 5", mainSource);
+        Assert.Contains("var1 -= 5", mainSource);
+        Assert.Contains("var1 = var1 + var2", mainSource);
+        Assert.Contains("var1 += var2", mainSource);
+        Assert.Contains("var1 = var1 - var2", mainSource);
+        Assert.Contains("var1 -= var2", mainSource);
+        Assert.DoesNotContain("65535", mainSource);
+        Assert.DoesNotContain("65531", mainSource);
+        Assert.DoesNotContain("temp1", mainSource);
     }
 }

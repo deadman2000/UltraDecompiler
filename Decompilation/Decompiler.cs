@@ -22,242 +22,167 @@ public class Decompiler
 {
     private const string MainFunction = "main";
 
-    /// <summary>
-    /// Декомпилирует EXE/COM: находит <c>_main</c>, рекурсивно собирает функции,
-    /// сопоставляет runtime с .LIB и сохраняет пользовательский код в <paramref name="outputDirectory"/>.
-    /// </summary>
-    /// <param name="libraryFileNames">
-    /// Необязательный список имён или путей к конкретным .LIB для сопоставления.
-    /// Если не задан, загружаются все *.LIB из <paramref name="libraryDirectory"/>.
-    /// </param>
-    public DecompileResult Decompile(
+    private readonly string _exePath;
+    private readonly string _libraryDirectory;
+    private readonly string _includeDirectory;
+    private readonly string? _outputDirectory;
+    private readonly IReadOnlyList<string>? _libraryFileNames;
+
+    // Состояние декомпиляции
+    private DosExeParser _parser = null!;
+    private LibraryProvider _provider = null!;
+    private MainResolution _resolution = default!;
+    private RegisterState _initRegisters;
+    private int _mainOffset;
+    private Dictionary<int, (IReadOnlyList<Instruction> Instructions, bool IsLibrary, string? Name)> _instructionsMap = null!;
+    private MemoryModel _memoryModel;
+    private OptimizationLevel _optimizationLevel;
+    private ProcedureStorage _storage = null!;
+    private HeaderCatalog _headerCatalog = null!;
+    private ExeImageLayout _imageLayout = default!;
+    private CompilerOptions _compilerOptions = default!;
+    private GlobalVariableRegistry _globalRegistry = null!;
+    private List<(DisassembledProcedure Procedure, IReadOnlyList<Operation> Operations)> _preparedProcedures = null!;
+
+    public OptimizationLevel OptimizationLevel => _optimizationLevel;
+
+    public MemoryModel MemoryModel => _memoryModel;
+
+    public ProcedureStorage Procedures => _storage;
+
+    public Decompiler(
         string exePath,
         string libraryDirectory,
         string includeDirectory,
-        string outputDirectory,
-        bool exportGraph = false,
+        string? outputDirectory,
         IReadOnlyList<string>? libraryFileNames = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(exePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryDirectory);
-        ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
+        ArgumentException.ThrowIfNullOrWhiteSpace(includeDirectory);
 
-        // Загружаем образ программы
-        var parser = new DosExeParser(exePath);
-        var initRegisters = parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe;
-        var entryPoint = (int)parser.EntryPointOffset;
+        _exePath = exePath;
+        _libraryDirectory = libraryDirectory;
+        _includeDirectory = includeDirectory;
+        _outputDirectory = outputDirectory;
+        _libraryFileNames = libraryFileNames;
+    }
 
-        var provider = new LibraryProvider(libraryDirectory, libraryFileNames);
-
-        if (!provider.TryResolveMain(
-                parser.Image,
-                parser.RelocationTable,
-                initRegisters,
-                entryPoint,
-                out var resolution))
-        {
+    /// <summary>
+    /// Декомпилирует EXE/COM: находит <c>_main</c>, рекурсивно собирает функции,
+    /// сопоставляет runtime с .LIB и сохраняет пользовательский код в <paramref name="outputDirectory"/>.
+    /// </summary>
+    /// <param name="exportGraph">Экспортировать CFG в .dot/.svg файлы.</param>
+    /// <returns>Результат декомпиляции.</returns>
+    public DecompileResult Decompile(bool exportGraph = false)
+    {
+        // Загрузка образа и поиск точки входа
+        if (!LoadImageAndResolveMain())
             return DecompileResult.Failed;
-        }
 
-        var mainOffset = resolution.MainOffset;
+        // Детекция модели памяти
+        DetectMemoryModel();
 
-        // Сначала собираем только инструкции (без IR) для детекции оптимизации
-        var instructionsMap = CollectInstructions(
-            parser,
-            provider,
-            initRegisters,
-            mainOffset);
+        // Детекция уровня оптимизации
+        DetectOptimizaionLevel();
 
-        // Детектируем уровень оптимизации по сырым инструкциям
-        var optimizationLevel = OptimizationLevelHeuristics.DetectFromInstructionsMap(instructionsMap);
+        // Построение IR для всех процедур
+        BuildIrForAllProcedures();
 
-        // Теперь строим IR один раз с правильным профилем
-        var irProfile = DecompilationProfileRegistry.GetProfile(optimizationLevel);
-        var storage = BuildIrForProcedures(
-            parser,
-            provider,
-            initRegisters,
-            irProfile,
-            optimizationLevel,
-            instructionsMap);
-
+        // Экспорт графов потока управления (опционально)
         if (exportGraph)
         {
-            foreach (var proc in storage.All)
-            {
-                if (proc.IsLibrary || proc.Expressions == null)
-                    continue;
-
-                var exprDotPath = Path.Combine(outputDirectory, $"{proc.Name}.dot");
-                var exprSvgPath = Path.Combine(outputDirectory, $"{proc.Name}.svg");
-                proc.Expressions.SaveDot(exprDotPath);
-                ConvertDotToSvg(exprDotPath, exprSvgPath);
-            }
+            ExportControlFlowGraphs();
         }
 
-        // Загружаем заголовки
-        var headerCatalog = HeaderCatalog.Load(includeDirectory);
+        // Загрузка заголовков и разрешение сигнатур
+        LoadHeadersAndResolveSignatures();
 
-        // Подставляем функции (сигнатуры из заголовков .LIB или анализ тел пользовательских процедур).
-        ProcedureSignatureResolver.ResolveAll(storage, headerCatalog);
+        // Подготовка опций компилятора
+        PrepareCompilerOptions();
 
-        var imageLayout = ExeImageLayout.From(parser);
+        // Post-processing IR
+        ApplyPostProcessing();
 
-        // Подставляем в CallExpr (через CallState) имена (библиотечные) и аргументы по сигнатурам callee.
-        // Для аргументов char* (из заголовков) near-указатель переводится в StringExpr по адресу в образе.
-        CallSiteResolver.ResolveAll(storage, parser.Image, imageLayout);
+        // Материализация глобальных переменных
+        MaterializeGlobalVariables();
 
-        // Safety net после разрешения: гарантируем StringExpr для char* аргументов по типу из заголовка,
-        // даже если CallExpr в IR не имел CallState на момент финального прохода.
-        MaterializeCharPtrLiterals(storage, parser.Image, imageLayout);
-
-        var compilerOptions = new CompilerOptions
-        {
-            MemoryModel = MemoryModelDetector.DetectFromLibraryFileName(resolution.PrimaryLibrary.FileName),
-            StackCheckingEnabled = StackCheckDetector.Analyze(storage),
-            OptimizationLevel = optimizationLevel,
-        };
-
-        var profile = DecompilationProfileRegistry.GetProfile(compilerOptions.OptimizationLevel);
-
-        Directory.CreateDirectory(outputDirectory);
+        var chosenConfig = SelectLibraryConfiguration();
         var outputFiles = new List<string>();
-
-        var userProcedures = storage.All
-            .Where(static p => !p.IsLibrary)
-            .OrderBy(static p => p.Offset)
-            .ToList();
-
-        // Собираем зависимости и готовим IR для кодогенерации.
-        var preparedProcedures = new List<(DisassembledProcedure Procedure, IReadOnlyList<Operation> Operations)>();
-        foreach (var procedure in userProcedures)
+        if (!string.IsNullOrEmpty(_outputDirectory))
         {
-            var postCtx = new PostProcessContext
-            {
-                Procedure = procedure,
-                Storage = storage,
-                HeaderCatalog = headerCatalog,
-                Image = parser.Image,
-                Layout = imageLayout,
-                CompilerOptions = compilerOptions,
-            };
+            // Генерация заголовочных файлов
+            Directory.CreateDirectory(_outputDirectory);
 
-            var flattener = new OperationFlattener(procedure.Expressions!, procedure.Graph!.Blocks, LoopAnalyzerFactory.Create(optimizationLevel));
-            var operations = flattener.GetAllOperations();
-            foreach (var pass in profile.GetProcedurePasses())
-            {
-                operations = pass.Apply(postCtx, operations);
-                if (pass.Name == nameof(MainParameterNormalizer))
-                {
-                    procedure.Callees = ProcedureDependencyCollector.Collect(operations);
-                }
-            }
+            GenerateHeaderFiles(ref outputFiles);
 
-            preparedProcedures.Add((procedure, operations));
+            // Генерация C-исходников
+            var makefileSourceFileNames = GenerateCSourceFiles(ref outputFiles);
+
+            // Генерация Makefile
+            var makefilePath = GenerateMakefile(chosenConfig, makefileSourceFileNames, _compilerOptions);
+            outputFiles.Add(makefilePath);
         }
-
-        var globalRegistry = new GlobalVariableRegistry();
-        for (var i = 0; i < preparedProcedures.Count; i++)
-        {
-            var (procedure, operations) = preparedProcedures[i];
-            preparedProcedures[i] = (
-                procedure,
-                GlobalVariableMaterializer.Materialize(operations, globalRegistry, parser.Image, imageLayout));
-        }
-
-        // Заголовки — только при одном .c на процедуру (в объединённом .c прототипы не нужны).
-        var referencedUserProcedures = ProcedureDependencyCollector.CollectReferencedUserProcedureNames(
-            userProcedures,
-            storage);
-
-        if (preparedProcedures.Count == 1)
-        {
-            foreach (var procedure in userProcedures.Where(p => referencedUserProcedures.Contains(p.Name)))
-            {
-                var headerSource = CCodeGenerator.FormatHeaderFile(procedure.ToCodegenModel());
-                var headerFileName = CCodeGenerator.FormatHeaderFileName(procedure.Name, procedure.Offset);
-                var headerPath = Path.Combine(outputDirectory, headerFileName);
-                File.WriteAllText(headerPath, headerSource, Encoding.ASCII);
-                outputFiles.Add(headerPath);
-            }
-        }
-
-        // Выбираем конфигурацию, соответствующую primary (или первую).
-        var chosenConfig = resolution.PossibleLibraryConfigurations.FirstOrDefault(
-            c => string.Equals(c.PrimaryCrtLibrary, resolution.PrimaryLibrary.FileName, StringComparison.OrdinalIgnoreCase))
-            ?? resolution.PossibleLibraryConfigurations[0];
-
-        // Раскладка: если >1 процедуры — один combined .c; иначе — отдельный .c по имени процедуры (для round-trip).
-        var combinedUnits = new List<(ProcedureCodegenModel Procedure, IReadOnlyList<Operation> Operations, IReadOnlyList<string> Includes)>();
-        foreach (var (procedure, operations) in preparedProcedures)
-        {
-            var includes = ProcedureIncludeResolver.ResolveIncludes(
-                procedure,
-                procedure.Callees,
-                storage,
-                headerCatalog);
-
-            combinedUnits.Add((procedure.ToCodegenModel(), operations, includes));
-        }
-
-        List<string> makefileSourceFileNames;
-        if (preparedProcedures.Count > 1)
-        {
-            var combinedFileName = CCodeGenerator.FormatCombinedSourceFileName(Path.GetFileName(exePath));
-            var combinedSource = CCodeGenerator.FormatCombinedCSource(combinedUnits, globalRegistry.All);
-            var combinedPath = Path.Combine(outputDirectory, combinedFileName);
-            File.WriteAllText(combinedPath, combinedSource, Encoding.ASCII);
-            outputFiles.Add(combinedPath);
-            makefileSourceFileNames = [combinedFileName];
-        }
-        else
-        {
-            var (procedure, operations) = preparedProcedures[0];
-            var includes = combinedUnits[0].Includes;
-            var source = CCodeGenerator.FormatCSource(procedure.ToCodegenModel(), operations, includes, globalRegistry.All);
-            var fileName = CCodeGenerator.FormatOutputFileName(procedure.Name, procedure.Offset);
-            var filePath = Path.Combine(outputDirectory, fileName);
-            File.WriteAllText(filePath, source, Encoding.ASCII);
-            outputFiles.Add(filePath);
-            makefileSourceFileNames = [fileName];
-        }
-
-        var makefilePath = MakefileGenerator.WriteMakefile(
-            new MakefileOptions
-            {
-                TargetExeFileName = Path.GetFileName(exePath),
-                SourceFileNames = makefileSourceFileNames,
-                CompilerOptions = compilerOptions,
-                LibraryFileNames = chosenConfig.LibraryFileNames,
-                OutputDirectory = Path.GetFullPath(outputDirectory),
-            },
-            outputDirectory);
-        outputFiles.Add(makefilePath);
 
         return new DecompileResult
         {
             Success = true,
-            MainOffset = mainOffset,
+            MainOffset = _mainOffset,
             LinkedLibraryFileNames = chosenConfig.LibraryFileNames,
-            PossibleLibraryConfigurations = resolution.PossibleLibraryConfigurations,
-            Procedures = storage,
+            PossibleLibraryConfigurations = _resolution.PossibleLibraryConfigurations,
+            Procedures = _storage,
             OutputFiles = outputFiles,
-            CompilerOptions = compilerOptions,
+            CompilerOptions = _compilerOptions,
         };
+    }
+
+    private void PrepareInstructionsMap()
+    {
+        // Сбор инструкций всех процедур (без IR)
+        _instructionsMap ??= CollectInstructionsForAllProcedures();
+    }
+
+    public void DetectOptimizaionLevel()
+    {
+        PrepareInstructionsMap();
+        _optimizationLevel = OptimizationLevelHeuristics.DetectFromInstructionsMap(_instructionsMap);
+    }
+
+    /// <summary>
+    /// Загружает образ EXE/COM и находит точку входа _main через .LIB.
+    /// </summary>
+    /// <returns>true если успешно, false если не удалось найти _main.</returns>
+    public bool LoadImageAndResolveMain()
+    {
+        _parser = new DosExeParser(_exePath);
+        _initRegisters = _parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe;
+        var entryPoint = (int)_parser.EntryPointOffset;
+
+        _provider = new LibraryProvider(_libraryDirectory, _libraryFileNames);
+
+        if (!_provider.TryResolveMain(
+                _parser.Image,
+                _parser.RelocationTable,
+                _initRegisters,
+                entryPoint,
+                out _resolution))
+        {
+            return false;
+        }
+
+        _mainOffset = _resolution.MainOffset;
+        _imageLayout = ExeImageLayout.From(_parser);
+        return true;
     }
 
     /// <summary>
     /// Собирает только инструкции всех процедур (без IR) для детекции оптимизации.
     /// </summary>
-    private static Dictionary<int, (IReadOnlyList<Instruction> Instructions, bool IsLibrary, string? Name)> CollectInstructions(
-        DosExeParser parser,
-        LibraryProvider provider,
-        RegisterState initRegisters,
-        int initOffset)
+    private Dictionary<int, (IReadOnlyList<Instruction> Instructions, bool IsLibrary, string? Name)> CollectInstructionsForAllProcedures()
     {
         var instructionsMap = new Dictionary<int, (IReadOnlyList<Instruction>, bool, string?)>();
         var pending = new Queue<int>();
-        pending.Enqueue(initOffset);
+        pending.Enqueue(_mainOffset);
 
         while (pending.Count > 0)
         {
@@ -267,20 +192,20 @@ public class Decompiler
                 continue;
 
             var instructions = X86Disassembler.Disassemble(
-                parser.Image,
-                parser.RelocationTable,
+                _parser.Image,
+                _parser.RelocationTable,
                 offset,
-                initRegisters);
+                _initRegisters);
 
             if (instructions.Count == 0)
                 continue;
 
             // Проверяем library match
-            var libraryMatch = provider.TryMatchProcedure(
-                parser.Image,
-                parser.RelocationTable,
+            var libraryMatch = _provider.TryMatchProcedure(
+                _parser.Image,
+                _parser.RelocationTable,
                 offset,
-                initRegisters);
+                _initRegisters);
 
             if (libraryMatch is not null)
             {
@@ -291,7 +216,7 @@ public class Decompiler
                 continue;
             }
 
-            var name = offset == initOffset ? MainFunction : $"sub_{offset:X4}";
+            var name = offset == _mainOffset ? MainFunction : $"sub_{offset:X4}";
             instructionsMap[offset] = (instructions, false, name);
 
             EnqueueExternalTargets(instructions, pending);
@@ -303,25 +228,21 @@ public class Decompiler
     /// <summary>
     /// Строит IR для всех процедур на основе заранее собранных инструкций.
     /// </summary>
-    private ProcedureStorage BuildIrForProcedures(
-        DosExeParser parser,
-        LibraryProvider provider,
-        RegisterState initRegisters,
-        IDecompilationProfile profile,
-        OptimizationLevel optimizationLevel,
-        Dictionary<int, (IReadOnlyList<Instruction> Instructions, bool IsLibrary, string? Name)> instructionsMap)
+    private void BuildIrForAllProcedures()
     {
-        var storage = new ProcedureStorage();
+        PrepareInstructionsMap();
+        _storage = new ProcedureStorage();
+        var irProfile = DecompilationProfileRegistry.GetProfile(_optimizationLevel);
 
-        foreach (var (offset, (instructions, isLibrary, name)) in instructionsMap)
+        foreach (var (offset, (instructions, isLibrary, name)) in _instructionsMap)
         {
             if (isLibrary)
             {
-                var libraryMatch = provider.TryMatchProcedure(
-                    parser.Image,
-                    parser.RelocationTable,
+                var libraryMatch = _provider.TryMatchProcedure(
+                    _parser.Image,
+                    _parser.RelocationTable,
                     offset,
-                    initRegisters);
+                    _initRegisters);
 
                 if (libraryMatch is not null)
                 {
@@ -333,15 +254,15 @@ public class Decompiler
                         IsLibrary = true,
                         LibraryMatch = libraryMatch,
                     };
-                    storage.Add(libraryProc);
+                    _storage.Add(libraryProc);
                 }
                 continue;
             }
 
             var cfg = new ControlFlowGraph();
-            cfg.BuildFromInstructions(instructions, offset, initRegisters);
+            cfg.BuildFromInstructions(instructions, offset, _initRegisters);
 
-            var expressions = ExpressionBuilder.Create(optimizationLevel);
+            var expressions = ExpressionBuilder.Create(_optimizationLevel);
             expressions.BuildProc(cfg);
 
             var userProc = new DisassembledProcedure
@@ -354,21 +275,228 @@ public class Decompiler
                 Graph = cfg,
             };
 
-            profile.ApplyIrConstructionPasses(new IrConstructionContext
+            irProfile.ApplyIrConstructionPasses(new IrConstructionContext
             {
                 Builder = expressions,
                 Graph = cfg,
                 Procedure = userProc,
             });
 
-            storage.Add(userProc);
+            _storage.Add(userProc);
         }
-
-        return storage;
     }
 
     /// <summary>
-    /// Ставим в очередь внешние цели вызовов и переходов для рекурсивного разбора
+    /// Экспортирует CFG пользовательских процедур в .dot и .svg (для отладки).
+    /// </summary>
+    private void ExportControlFlowGraphs()
+    {
+        foreach (var proc in _storage.All)
+        {
+            if (proc.IsLibrary || proc.Expressions == null)
+                continue;
+
+            var exprDotPath = Path.Combine(_outputDirectory, $"{proc.Name}.dot");
+            var exprSvgPath = Path.Combine(_outputDirectory, $"{proc.Name}.svg");
+            proc.Expressions.SaveDot(exprDotPath);
+            ConvertDotToSvg(exprDotPath, exprSvgPath);
+        }
+    }
+
+    /// <summary>
+    /// Загружает заголовки, разрешает сигнатуры процедур и вызовы.
+    /// </summary>
+    private void LoadHeadersAndResolveSignatures()
+    {
+        _headerCatalog = HeaderCatalog.Load(_includeDirectory);
+
+        // Подставляем функции (сигнатуры из заголовков .LIB или анализ тел пользовательских процедур).
+        ProcedureSignatureResolver.ResolveAll(_storage, _headerCatalog);
+
+        // Подставляем в CallExpr (через CallState) имена (библиотечные) и аргументы по сигнатурам callee.
+        // Для аргументов char* (из заголовков) near-указатель переводится в StringExpr по адресу в образе.
+        CallSiteResolver.ResolveAll(_storage, _parser.Image, _imageLayout);
+
+        // Safety net после разрешения: гарантируем StringExpr для char* аргументов по типу из заголовка,
+        // даже если CallExpr в IR не имел CallState на момент финального прохода.
+        MaterializeCharPtrLiterals();
+    }
+
+    public void DetectMemoryModel()
+    {
+        _memoryModel = MemoryModelDetector.DetectFromLibraryFileName(_resolution.PrimaryLibrary.FileName);
+    }
+
+    /// <summary>
+    /// Подготавливает опции компилятора на основе разрешённой библиотеки и анализа IR.
+    /// </summary>
+    private void PrepareCompilerOptions()
+    {
+        _compilerOptions = new CompilerOptions
+        {
+            MemoryModel = _memoryModel,
+            StackCheckingEnabled = StackCheckDetector.Analyze(_storage),
+            OptimizationLevel = _optimizationLevel,
+        };
+    }
+
+    /// <summary>
+    /// Применяет post-processing passes ко всем пользовательским процедурам.
+    /// </summary>
+    private void ApplyPostProcessing()
+    {
+        var profile = DecompilationProfileRegistry.GetProfile(_compilerOptions.OptimizationLevel);
+
+        var userProcedures = _storage.All
+            .Where(static p => !p.IsLibrary)
+            .OrderBy(static p => p.Offset)
+            .ToList();
+
+        _preparedProcedures = new List<(DisassembledProcedure, IReadOnlyList<Operation>)>();
+
+        foreach (var procedure in userProcedures)
+        {
+            var postCtx = new PostProcessContext
+            {
+                Procedure = procedure,
+                Storage = _storage,
+                HeaderCatalog = _headerCatalog,
+                Image = _parser.Image,
+                Layout = _imageLayout,
+                CompilerOptions = _compilerOptions,
+            };
+
+            var flattener = new OperationFlattener(procedure.Expressions!, procedure.Graph!.Blocks, LoopAnalyzerFactory.Create(_optimizationLevel));
+            var operations = flattener.GetAllOperations();
+
+            foreach (var pass in profile.GetProcedurePasses())
+            {
+                operations = pass.Apply(postCtx, operations);
+                if (pass.Name == nameof(MainParameterNormalizer))
+                {
+                    procedure.Callees = ProcedureDependencyCollector.Collect(operations);
+                }
+            }
+
+            _preparedProcedures.Add((procedure, operations));
+        }
+    }
+
+    /// <summary>
+    /// Материализует глобальные переменные в операциях всех процедур.
+    /// </summary>
+    private void MaterializeGlobalVariables()
+    {
+        _globalRegistry = new GlobalVariableRegistry();
+        for (var i = 0; i < _preparedProcedures.Count; i++)
+        {
+            var (procedure, operations) = _preparedProcedures[i];
+            _preparedProcedures[i] = (
+                procedure,
+                GlobalVariableMaterializer.Materialize(operations, _globalRegistry, _parser.Image, _imageLayout));
+        }
+    }
+
+    /// <summary>
+    /// Генерирует заголовочные .h файлы для пользовательских процедур (если процедура одна).
+    /// </summary>
+    private void GenerateHeaderFiles(ref List<string> outputFiles)
+    {
+        if (_preparedProcedures.Count != 1)
+            return;
+
+        var userProcedures = _storage.All.Where(static p => !p.IsLibrary).ToList();
+        var referencedUserProcedures = ProcedureDependencyCollector.CollectReferencedUserProcedureNames(userProcedures, _storage);
+
+        foreach (var procedure in userProcedures.Where(p => referencedUserProcedures.Contains(p.Name)))
+        {
+            var headerSource = CCodeGenerator.FormatHeaderFile(procedure.ToCodegenModel());
+            var headerFileName = CCodeGenerator.FormatHeaderFileName(procedure.Name, procedure.Offset);
+            var headerPath = Path.Combine(_outputDirectory, headerFileName);
+            File.WriteAllText(headerPath, headerSource, Encoding.ASCII);
+            outputFiles.Add(headerPath);
+        }
+    }
+
+    /// <summary>
+    /// Генерирует C-исходники (combined или раздельные .c файлы).
+    /// </summary>
+    /// <returns>Список имён сгенерированных файлов для Makefile.</returns>
+    private List<string> GenerateCSourceFiles(ref List<string> outputFiles)
+    {
+        var combinedUnits = new List<(ProcedureCodegenModel Procedure, IReadOnlyList<Operation> Operations, IReadOnlyList<string> Includes)>();
+
+        foreach (var (procedure, operations) in _preparedProcedures)
+        {
+            var includes = ProcedureIncludeResolver.ResolveIncludes(
+                procedure,
+                procedure.Callees,
+                _storage,
+                _headerCatalog);
+
+            combinedUnits.Add((procedure.ToCodegenModel(), operations, includes));
+        }
+
+        if (_preparedProcedures.Count > 1)
+        {
+            // Множество процедур — объединяем в один .c файл
+            var combinedFileName = CCodeGenerator.FormatCombinedSourceFileName(Path.GetFileName(_exePath));
+            var combinedSource = CCodeGenerator.FormatCombinedCSource(combinedUnits, _globalRegistry.All);
+            var combinedPath = Path.Combine(_outputDirectory, combinedFileName);
+            File.WriteAllText(combinedPath, combinedSource, Encoding.ASCII);
+            outputFiles.Add(combinedPath);
+            return [combinedFileName];
+        }
+        else
+        {
+            // Одна процедура — отдельный .c файл
+            var (procedure, operations) = _preparedProcedures[0];
+            var includes = combinedUnits[0].Includes;
+            var source = CCodeGenerator.FormatCSource(
+                procedure.ToCodegenModel(),
+                operations,
+                includes,
+                _globalRegistry.All);
+            var fileName = CCodeGenerator.FormatOutputFileName(procedure.Name, procedure.Offset);
+            var filePath = Path.Combine(_outputDirectory, fileName);
+            File.WriteAllText(filePath, source, Encoding.ASCII);
+            outputFiles.Add(filePath);
+            return [fileName];
+        }
+    }
+
+    /// <summary>
+    /// Выбирает конфигурацию библиотек, соответствующую primary (или первую доступную).
+    /// </summary>
+    private LibraryConfiguration SelectLibraryConfiguration()
+    {
+        return _resolution.PossibleLibraryConfigurations.FirstOrDefault(
+            c => string.Equals(c.PrimaryCrtLibrary, _resolution.PrimaryLibrary.FileName, StringComparison.OrdinalIgnoreCase))
+            ?? _resolution.PossibleLibraryConfigurations[0];
+    }
+
+    /// <summary>
+    /// Генерирует Makefile для сборки скомпилированного кода.
+    /// </summary>
+    private string GenerateMakefile(
+        LibraryConfiguration config,
+        List<string> sourceFileNames,
+        CompilerOptions compilerOptions)
+    {
+        return MakefileGenerator.WriteMakefile(
+            new MakefileOptions
+            {
+                TargetExeFileName = Path.GetFileName(_exePath),
+                SourceFileNames = sourceFileNames,
+                CompilerOptions = compilerOptions,
+                LibraryFileNames = config.LibraryFileNames,
+                OutputDirectory = Path.GetFullPath(_outputDirectory),
+            },
+            _outputDirectory);
+    }
+
+    /// <summary>
+    /// Ставим в очередь внешние цели вызовов и переходов для рекурсивного разбора.
     /// </summary>
     private static void EnqueueExternalTargets(IReadOnlyList<Instruction> instructions, Queue<int> pending)
     {
@@ -377,28 +505,23 @@ public class Decompiler
         foreach (var instr in instructions)
         {
             if (!instr.IsCall && !instr.IsUnconditionalJump)
-            {
                 continue;
-            }
 
             var target = instr.JumpTarget;
             if (target >= 0 && !functionOffsets.Contains(target))
-            {
                 pending.Enqueue(target);
-            }
         }
     }
 
     /// <summary>
-    /// Ищем по всем процедурам и для всех CallExpr (по эвристике) near-аргументы char*,
+    /// Ищем по всем процедурам и для всех CallExpr near-аргументы char*,
     /// превращаем ConstExpr/ImageOffsetExpr в StringExpr если они указывают на строковый литерал.
-    /// Это позволяет материализовать "printf("...")" на этапе, когда мы знаем сигнатуры.
     /// </summary>
-    private static void MaterializeCharPtrLiterals(ProcedureStorage storage, byte[] image, ExeImageLayout layout)
+    private void MaterializeCharPtrLiterals()
     {
-        if (image.Length == 0) return;
+        if (_parser.Image.Length == 0) return;
 
-        foreach (var proc in storage.All)
+        foreach (var proc in _storage.All)
         {
             if (proc.Expressions == null)
                 continue;
@@ -407,36 +530,38 @@ public class Decompiler
             {
                 for (int i = 0; i < block.Operations.Count; i++)
                 {
-                    if (block.Operations[i] is SetOperation set && set.Src is CallExpr ce)
-                    {
-                        if (!storage.TryGetByName(ce.Name, out var target) || target is null) continue;
-                        var sig = target.Signature;
-                        bool changed = false;
-                        var newArgs = new List<Expr>(ce.Args);
-                        for (int a = 0; a < sig.Parameters.Count && a < newArgs.Count; a++)
-                        {
-                            if (!sig.Parameters[a].Type.IsCharPtr || newArgs[a] is StringExpr)
-                                continue;
+                    if (block.Operations[i] is not SetOperation set || set.Src is not CallExpr ce)
+                        continue;
 
-                            var mat = StringLiteralMaterializer.TryMaterialize(image, newArgs[a], layout);
-                            if (mat != null)
-                            {
-                                newArgs[a] = mat;
-                                changed = true;
-                            }
-                        }
-                        if (changed)
+                    if (!_storage.TryGetByName(ce.Name, out var target) || target is null)
+                        continue;
+
+                    var sig = target.Signature;
+                    bool changed = false;
+                    var newArgs = new List<Expr>(ce.Args);
+
+                    for (int a = 0; a < sig.Parameters.Count && a < newArgs.Count; a++)
+                    {
+                        if (!sig.Parameters[a].Type.IsCharPtr || newArgs[a] is StringExpr)
+                            continue;
+
+                        var mat = StringLiteralMaterializer.TryMaterialize(_parser.Image, newArgs[a], _imageLayout);
+                        if (mat != null)
                         {
-                            block.Operations[i] = new SetOperation(set.Dst, new CallExpr(ce.Name, newArgs));
+                            newArgs[a] = mat;
+                            changed = true;
                         }
                     }
+
+                    if (changed)
+                        block.Operations[i] = new SetOperation(set.Dst, new CallExpr(ce.Name, newArgs));
                 }
             }
         }
     }
 
     /// <summary>
-    /// Вспомогательный метод для конвертации .dot в .svg (для отладки CFG).
+    /// Конвертирует .dot файл в .svg с помощью Graphviz dot (для отладки CFG).
     /// </summary>
     private static void ConvertDotToSvg(string dotPath, string svgPath)
     {

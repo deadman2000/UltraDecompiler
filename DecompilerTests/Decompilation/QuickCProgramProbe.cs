@@ -69,12 +69,12 @@ internal static class QuickCProgramProbe
 
             try
             {
-                var decompiler = new Decompiler();
-                var decompileResult = decompiler.Decompile(
+                var decompiler = new Decompiler(
                     referenceExePath,
                     QuickCTestAssets.LibDirectory,
                     QuickCTestAssets.IncludeDirectory,
                     decompiledDirectory);
+                var decompileResult = decompiler.Decompile();
 
                 if (!decompileResult.Success)
                 {

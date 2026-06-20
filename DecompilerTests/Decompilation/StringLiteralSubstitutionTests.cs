@@ -31,27 +31,11 @@ public class StringLiteralSubstitutionTests
 
     private static string DecompileMainSource(string exePath)
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
-        try
-        {
-            var decompiler = new Decompiler();
-            var result = decompiler.Decompile(
-                exePath,
-                QuickCTestAssets.LibDirectory,
-                QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+        var result = DecompileTestHelper.DecompileExample(exePath);
 
-            Assert.True(result.Success);
+        Assert.True(result.Success);
 
-            var mainPath = DecompileTestHelper.GetPrimarySourcePath(result);
-            return File.ReadAllText(mainPath);
-        }
-        finally
-        {
-            if (Directory.Exists(outputDirectory))
-            {
-                Directory.Delete(outputDirectory, recursive: true);
-            }
-        }
+        var mainPath = DecompileTestHelper.GetPrimarySourcePath(result);
+        return File.ReadAllText(mainPath);
     }
 }

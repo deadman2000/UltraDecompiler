@@ -7,7 +7,7 @@ namespace DecompilerTests.Decompilation;
 public class MemoryModelDetectorTests
 {
     // Префикс S/C/M/L в имени библиотеки → Small/Compact/Medium/Large
-    [Theory(Skip = "NotImplemented")]
+    [Theory]
     [InlineData("SLIBC.LIB", MemoryModel.Small)]
     [InlineData("SLIBCE.LIB", MemoryModel.Small)]
     [InlineData("SLIBFP.LIB", MemoryModel.Small)]
@@ -24,7 +24,7 @@ public class MemoryModelDetectorTests
         Assert.Equal(expected, MemoryModelDetector.DetectFromLibraryFileName(fileName));
 
     // hello_{S,C,M,L}.EXE — CompilerOptions.MemoryModel совпадает с моделью образа
-    [Theory(Skip = "NotImplemented")]
+    [Theory]
     [InlineData(MemoryModel.Small)]
     [InlineData(MemoryModel.Compact)]
     [InlineData(MemoryModel.Medium)]
@@ -32,24 +32,14 @@ public class MemoryModelDetectorTests
     public void Decompile_HelloMemoryModels_DetectsMemoryModel(MemoryModel expected)
     {
         var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
-        try
-        {
-            var decompiler = new Decompiler();
-            var result = decompiler.Decompile(
-                ExeProvider.Get("hello.c", expected),
-                QuickCTestAssets.LibDirectory,
-                QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+        var decompiler = new Decompiler(ExeProvider.Get("hello.c", expected),
+            QuickCTestAssets.LibDirectory,
+            QuickCTestAssets.IncludeDirectory,
+            outputDirectory);
 
-            Assert.True(result.Success);
-            Assert.Equal(expected, result.CompilerOptions.MemoryModel);
-        }
-        finally
-        {
-            if (Directory.Exists(outputDirectory))
-            {
-                Directory.Delete(outputDirectory, recursive: true);
-            }
-        }
+        decompiler.LoadImageAndResolveMain();
+        decompiler.DetectMemoryModel();
+
+        Assert.Equal(expected, decompiler.MemoryModel);
     }
 }

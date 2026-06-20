@@ -14,43 +14,28 @@ public sealed class LongDecompileTests
     //     return var2 + var4 + var6 + var8 + var10 + var12;
     //   }
     [Fact(Skip = "NotImplemented")]
-    public void Decompile_Long_EmitsLongArithmeticWithoutRuntimeHelpers()
+    public void Decompile_Long_EmitsLongType()
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
-        try
-        {
-            var result = new Decompiler().Decompile(
-                ExeProvider.Get("long.c"),
-                QuickCTestAssets.LibDirectory,
-                QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+        var result = DecompileTestHelper.DecompileExample("long.c");
 
-            Assert.True(result.Success);
-            var source = DecompileTestHelper.ReadPrimarySource(result);
+        Assert.True(result.Success);
+        var source = DecompileTestHelper.ReadPrimarySource(result);
 
-            Assert.Contains("long sub_0010(long arg0, long arg1)", source);
-            Assert.Contains("arg0 + arg1", source);
-            Assert.Contains("arg0 - arg1", source);
-            Assert.Contains("arg0 * arg1", source);
-            Assert.Contains("arg0 / arg1", source);
-            Assert.Contains("arg0 % arg1", source);
-            Assert.Contains("(arg0 << 4) + (arg1 >> 2)", source);
-            Assert.Contains("return var2 + var4 + var6 + var8 + var10 + var12", source);
-            Assert.Contains("printf(\"%ld\\n\", sub_0010(0x1234L, 0x5678L))", source);
-            Assert.DoesNotContain("_aNlshl", source);
-            Assert.DoesNotContain("_aNlshr", source);
-            Assert.DoesNotContain("__aNlshl", source);
-            Assert.DoesNotContain("__aNlshr", source);
-            Assert.DoesNotContain("__aNlmul", source);
-            Assert.DoesNotContain("__aNldiv", source);
-            Assert.DoesNotContain("__aNlrem", source);
-        }
-        finally
-        {
-            if (Directory.Exists(outputDirectory))
-            {
-                Directory.Delete(outputDirectory, recursive: true);
-            }
-        }
+        Assert.Contains("long sub_0010(long arg0, long arg1)", source);
+        Assert.Contains("arg0 + arg1", source);
+        Assert.Contains("arg0 - arg1", source);
+        Assert.Contains("arg0 * arg1", source);
+        Assert.Contains("arg0 / arg1", source);
+        Assert.Contains("arg0 % arg1", source);
+        Assert.Contains("(arg0 << 4) + (arg1 >> 2)", source);
+        Assert.Contains("return var2 + var4 + var6 + var8 + var10 + var12", source);
+        Assert.Contains("printf(\"%ld\\n\", sub_0010(0x1234L, 0x5678L))", source);
+        Assert.DoesNotContain("_aNlshl", source);
+        Assert.DoesNotContain("_aNlshr", source);
+        Assert.DoesNotContain("__aNlshl", source);
+        Assert.DoesNotContain("__aNlshr", source);
+        Assert.DoesNotContain("__aNlmul", source);
+        Assert.DoesNotContain("__aNldiv", source);
+        Assert.DoesNotContain("__aNlrem", source);
     }
 }

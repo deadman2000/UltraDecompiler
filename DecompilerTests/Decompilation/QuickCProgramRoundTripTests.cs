@@ -57,13 +57,13 @@ public sealed class QuickCProgramRoundTripTests
         {
             File.Copy(builtExePath, referenceExePath, overwrite: true);
 
-            var decompiler = new Decompiler();
-            var decompileResult = decompiler.Decompile(
+            var decompiler = new Decompiler(
                 referenceExePath,
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
                 decompiledDirectory,
                 libraryFileNames: [CrtLibrary]);
+            var decompileResult = decompiler.Decompile();
 
             Assert.True(decompileResult.Success, "Декомпиляция завершилась неуспешно.");
             Assert.Contains(

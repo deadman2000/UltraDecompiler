@@ -12,29 +12,14 @@ public sealed class VolDecompileTests
     [Fact(Skip = "NotImplemented")]
     public void Decompile_Vol_EmitsFarPointerLiteral()
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), "UltraDecompilerTests", Guid.NewGuid().ToString("N"));
-        try
-        {
-            var result = new Decompiler().Decompile(
-                ExeProvider.Get("vol.c"),
-                QuickCTestAssets.LibDirectory,
-                QuickCTestAssets.IncludeDirectory,
-                outputDirectory);
+        var result = DecompileTestHelper.DecompileExample("vol.c");
 
-            Assert.True(result.Success);
+        Assert.True(result.Success);
 
-            var source = DecompileTestHelper.ReadPrimarySource(result);
-            Assert.Contains("char far *", source);
-            Assert.Contains("(char far *)0xB8000000L", source);
-            Assert.Contains("'X'", source);
-            Assert.Contains("printf(\"done\\n\")", source);
-        }
-        finally
-        {
-            if (Directory.Exists(outputDirectory))
-            {
-                Directory.Delete(outputDirectory, recursive: true);
-            }
-        }
+        var source = DecompileTestHelper.ReadPrimarySource(result);
+        Assert.Contains("char far *", source);
+        Assert.Contains("(char far *)0xB8000000L", source);
+        Assert.Contains("'X'", source);
+        Assert.Contains("printf(\"done\\n\")", source);
     }
 }

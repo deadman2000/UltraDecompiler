@@ -53,8 +53,8 @@ internal static class DecompileCCommand
 
             Utils.ClearDirectory(outputDirectory);
 
-            var decompiler = new Decompiler();
-            var result = decompiler.Decompile(exePath, libDirectory, incDirectory, outputDirectory, exportGraph: true);
+            var decompiler = new Decompiler(exePath, libDirectory, incDirectory, outputDirectory);
+            var result = decompiler.Decompile(exportGraph: true);
 
             if (!result.Success)
             {
