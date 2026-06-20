@@ -1,17 +1,5 @@
 #include <stdio.h>
 
-/* Простой for с ++ в обновлении (unopt/ opt) */
-int for_inc(void) {
-    int sum;
-    int i;
-    sum = 0;
-    for (i = 0; i < 6; i++) {
-        sum += i;
-    }
-    return sum;
-}
-
-/* for с шагом += 3 */
 int for_step3(void) {
     int sum;
     int i;
@@ -22,7 +10,6 @@ int for_step3(void) {
     return sum;
 }
 
-/* for с обновлением умножением i *= 2 (или i = i*2) */
 int for_mul(void) {
     int prod;
     int i;
@@ -33,7 +20,6 @@ int for_mul(void) {
     return prod;
 }
 
-/* for без выражения обновления (обновление внутри тела) */
 int for_no_update_expr(void) {
     int sum;
     int i;
@@ -45,7 +31,6 @@ int for_no_update_expr(void) {
     return sum;
 }
 
-/* for с несколькими переменными (init и update, запятая) */
 int for_multi_var(void) {
     int sum;
     int i;
@@ -57,7 +42,6 @@ int for_multi_var(void) {
     return sum;
 }
 
-/* for с шагом из переменной */
 int for_var_step(void) {
     int sum;
     int step;
@@ -70,7 +54,6 @@ int for_var_step(void) {
     return sum;
 }
 
-/* while с предусловием */
 int while_pre(void) {
     int sum;
     int n;
@@ -83,7 +66,6 @@ int while_pre(void) {
     return sum;
 }
 
-/* do-while */
 int do_while_post(void) {
     int sum;
     int n;
@@ -96,7 +78,6 @@ int do_while_post(void) {
     return sum;
 }
 
-/* бесконечный цикл с break */
 int while_true_break(void) {
     int count;
     count = 0;
@@ -109,14 +90,12 @@ int while_true_break(void) {
     return count;
 }
 
-/* for с пустым телом */
 int for_empty_body(void) {
     int i;
     for (i = 0; i < 4; i++) ;
     return i;
 }
 
-/* вложенные циклы */
 int nested_for(void) {
     int sum;
     int i;
@@ -131,9 +110,7 @@ int nested_for(void) {
 }
 
 int main(void) {
-    int r;
-    /* вызываем, чтобы компилятор не выкинул функции как dead code */
-    r = for_inc() + for_step3() + for_mul() + for_no_update_expr()
+    int r = for_step3() + for_mul() + for_no_update_expr()
       + for_multi_var() + for_var_step() + while_pre() + do_while_post()
       + while_true_break() + for_empty_body() + nested_for();
     printf("%d\n", r);

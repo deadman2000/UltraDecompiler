@@ -26,12 +26,12 @@ public static class ExeProvider
         MemoryModel memoryModel = MemoryModel.Small,
         bool stackCheck = false,
         OptimizationLevel optimization = OptimizationLevel.Disabled,
-        IReadOnlyList<string>? libraries = null)
+        params string[]? libraries)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
 
         var sourceFileName = NormalizeSourceFileName(fileName);
-        var normalizedLibraries = NormalizeLibraries(libraries);
+        var normalizedLibraries = NormalizeLibraries(libraries) ?? [];
         var cachePath = GetCachePath(sourceFileName, memoryModel, stackCheck, optimization, normalizedLibraries);
 
         if (File.Exists(cachePath))
@@ -58,15 +58,6 @@ public static class ExeProvider
         }
     }
 
-    /// <inheritdoc cref="Get(string, MemoryModel, bool, OptimizationLevel, IReadOnlyList{string}?)"/>
-    public static string Get(
-        string fileName,
-        MemoryModel memoryModel,
-        bool stackCheck,
-        OptimizationLevel optimization,
-        params string[] libraries) =>
-        Get(fileName, memoryModel, stackCheck, optimization, libraries);
-
     private static Lock GetCacheLock(string cachePath) =>
         CacheLocks.GetOrAdd(cachePath, static _ => new Lock());
 
@@ -78,7 +69,7 @@ public static class ExeProvider
         MemoryModel memoryModel,
         bool stackCheck,
         OptimizationLevel optimization,
-        IReadOnlyList<string> libraries)
+        string[] libraries)
     {
         var sourceFileName = NormalizeSourceFileName(fileName);
 
@@ -103,7 +94,7 @@ public static class ExeProvider
         MemoryModel memoryModel,
         bool stackCheck,
         OptimizationLevel optimization,
-        IReadOnlyList<string> libraries)
+        string[] libraries)
     {
         var relativePath = FormatExeFileName(sourceFileName, memoryModel, stackCheck, optimization, libraries);
         return Path.Combine(QuickCTestAssets.BuiltExesDirectory, relativePath);
@@ -115,7 +106,7 @@ public static class ExeProvider
         MemoryModel memoryModel,
         bool stackCheck,
         OptimizationLevel optimization,
-        IReadOnlyList<string> libraries)
+        string[] libraries)
     {
         if (!DosBoxQuickCAssets.IsDosBoxAvailable)
         {
@@ -167,9 +158,9 @@ public static class ExeProvider
         }
     }
 
-    private static string[] NormalizeLibraries(IReadOnlyList<string>? libraries)
+    private static string[]? NormalizeLibraries(string[]? libraries)
     {
-        if (libraries is null || libraries.Count == 0)
+        if (libraries is null || libraries.Length == 0)
         {
             return [];
         }
@@ -184,9 +175,9 @@ public static class ExeProvider
     }
 
     /// <summary>Суффикс имени кэша по списку библиотек: <c>_slibce_libh</c>.</summary>
-    private static string FormatLibrariesTag(IReadOnlyList<string> libraries)
+    private static string FormatLibrariesTag(string[] libraries)
     {
-        if (libraries.Count == 0)
+        if (libraries.Length == 0)
         {
             return string.Empty;
         }
@@ -198,8 +189,8 @@ public static class ExeProvider
         return "_" + string.Join('_', tags);
     }
 
-    private static string FormatLibrariesCommandLine(IReadOnlyList<string> libraries) =>
-        libraries.Count == 0 ? string.Empty : " " + string.Join(' ', libraries);
+    private static string FormatLibrariesCommandLine(string[] libraries) =>
+        libraries.Length == 0 ? string.Empty : " " + string.Join(' ', libraries);
 
     private static string NormalizeSourceFileName(string fileName)
     {

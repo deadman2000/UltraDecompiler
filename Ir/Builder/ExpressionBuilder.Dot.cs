@@ -8,7 +8,7 @@ public partial class ExpressionBuilder
     /// Сохраняет граф выражений в формате DOT (узлы — адрес блока и список операций).
     /// </summary>
     /// <param name="fileName">Путь к выходному .dot файлу</param>
-    public void SaveDot(string fileName)
+    public void SaveDot(string fileName, bool renderOffsets = true)
     {
         if (Blocks.Count == 0)
         {
@@ -25,10 +25,12 @@ public partial class ExpressionBuilder
         foreach (var block in Blocks)
         {
             string nodeId = NodeId(block);
-            var lines = new List<string>
+            var lines = new List<string>();
+
+            if (renderOffsets)
             {
-                $"0x{block.BasicBlock.StartOffset:X4}..0x{block.BasicBlock.EndOffset:X4}",
-            };
+                lines.Add($"0x{block.BasicBlock.StartOffset:X4}..0x{block.BasicBlock.EndOffset:X4}");
+            }
 
             if (block.Operations.Count == 0)
             {

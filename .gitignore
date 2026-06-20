@@ -368,3 +368,4 @@ report/
 *.svg
 
 launchSettings.json
+docs/loops-ir-graphs/
