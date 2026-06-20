@@ -11,7 +11,7 @@ public static class UsedVariableCollector
     public static IReadOnlyCollection<Variable> CollectReferenced(IEnumerable<Operation> operations)
     {
         var result = new Dictionary<Variable, Variable>(ByReference);
-        foreach (var op in ExpressionBuilder.EnumerateNested(operations))
+        foreach (var op in OperationFlattener.EnumerateNested(operations))
         {
             AddVariablesFromOperation(op, result);
         }
@@ -33,7 +33,7 @@ public static class UsedVariableCollector
         var exclude = new HashSet<Variable>(parameterVariables, ByReference);
         var result = new Dictionary<Variable, Variable>(ByReference);
 
-        foreach (var op in ExpressionBuilder.EnumerateNested(operations))
+        foreach (var op in OperationFlattener.EnumerateNested(operations))
         {
             AddVariablesFromOperation(op, result);
         }

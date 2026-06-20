@@ -7,7 +7,7 @@ public class DoWhileRecognitionTests : BaseTests
     [Fact]
     public void DoWhile_ProducesForLoop()
     {
-        var builder = BuildProcExpressions("""
+        var ops = BuildProcOperations("""
             55 8B EC 81 EC 04 00 57 56
             C7 46 FE 03 00 C7 46 FC 00 00
             8B 46 FE 01 46 FC 83 6E FE 01
@@ -16,8 +16,6 @@ public class DoWhileRecognitionTests : BaseTests
             83 C4 04 B8 00 00 E9 00 00
             5E 5F 8B E5 5D C3
             """);
-
-        var ops = builder.GetAllOperations();
         // По аналитике: bottom-tested (do {..} while) -> DoWhileOperation, обновления в теле.
         var loop = Assert.Single(ops.OfType<DoWhileOperation>());
         Assert.IsType<CmpExpr>(loop.Condition);

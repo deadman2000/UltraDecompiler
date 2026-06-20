@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using UltraDecompiler.Compilation;
-using UltraDecompiler.Ir.Builder.Loops;
 using UltraDecompiler.Ir.InstructionHandlers;
-using UltraDecompiler.Ir.Switch;
 using UltraDecompiler.Ir.Variables;
 
 namespace UltraDecompiler.Ir.Builder;
@@ -10,6 +8,12 @@ namespace UltraDecompiler.Ir.Builder;
 /// <summary>
 /// Выполняет преобразование потока инструкций x86 (через CFG) в высокоуровневые
 /// выражения и операции (SetOperation, Math1Expr, Math2Expr и т.д.).
+/// 
+/// Этот класс отвечает ТОЛЬКО за генерацию IR-дерева (ExprBlock) из CFG:
+/// - Символическое выполнение инструкций в каждом базовом блоке
+/// - Обновление RegisterExpressions (символические значения регистров/флагов)
+/// - Создание Operations (SetOperation, StoreOperation и т.д.) в ExprBlock
+/// - Построение связей Next/ConditionalBlock между ExprBlock'ами
 /// </summary>
 public partial class ExpressionBuilder
 {
@@ -17,12 +21,10 @@ public partial class ExpressionBuilder
     private readonly Queue<ExprBlock> _queue = new();
     private ExprBlock? _entryBlock;
 
-    // Поля для распознавания switch-паттернов (используются в ExpressionBuilderQuickCUnopt)
-    protected readonly Dictionary<int, ExprBlock> _blocksByOffset = [];
-    protected readonly Dictionary<int, QuickCSwitchPattern> _switchByEntry = [];
-
-    // Анализатор циклов для текущего профиля оптимизации
-    protected ILoopAnalyzer LoopAnalyzer = null!;
+    /// <summary>
+    /// Точка входа IR-дерева (первый построенный ExprBlock).
+    /// </summary>
+    internal ExprBlock? EntryBlock => _entryBlock;
 
     public List<ExprBlock> Blocks { get; } = [];
 
@@ -36,14 +38,6 @@ public partial class ExpressionBuilder
             OptimizationLevel.Enabled or OptimizationLevel.EnableLoop or OptimizationLevel.EnabledFull => new ExpressionBuilderQuickCOpt(),
             _ => throw new NotImplementedException(),
         };
-    }
-
-    /// <summary>
-    /// Конструктор по умолчанию создаёт анализатор для /Od.
-    /// </summary>
-    public ExpressionBuilder()
-    {
-        LoopAnalyzer = new QuickCUnoptLoopAnalyzer();
     }
 
     /// <summary>
@@ -160,10 +154,6 @@ public partial class ExpressionBuilder
                 exprBlock.ConditionalBlock = condCode;
             }
         }
-
-        AnalyzeSwitchPatterns(graph.Blocks);
-
-        BuildGotoLabelMap();
     }
 
     private void CreateExprBlock(BasicBlock block, in RegisterExpressions registers, IEnumerable<Expr> stack)
@@ -268,27 +258,6 @@ public partial class ExpressionBuilder
     protected virtual void ApplyBlockPatterns(ExprBlock block)
     {
         // Базовая реализация — пустая (для оптимизированного кода)
-    }
-
-    /// <summary>
-    /// Анализирует и распознаёт switch-паттерны в графе потока управления.
-    /// Вызывается после завершения обхода всех блоков.
-    /// </summary>
-    /// <param name="blocks">Все блоки графа</param>
-    protected virtual void AnalyzeSwitchPatterns(IReadOnlyList<BasicBlock> blocks)
-    {
-        _blocksByOffset.Clear();
-        _switchByEntry.Clear();
-
-        foreach (var block in Blocks)
-        {
-            _blocksByOffset[block.BasicBlock.StartOffset] = block;
-        }
-
-        foreach (var pattern in QuickCSwitchDetector.Detect(blocks))
-        {
-            _switchByEntry[pattern.EntryOffset] = pattern;
-        }
     }
 }
 

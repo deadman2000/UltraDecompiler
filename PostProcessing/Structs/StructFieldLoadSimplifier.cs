@@ -20,7 +20,7 @@ public static class StructFieldLoadSimplifier
     {
         var result = new Dictionary<Variable, MemberExpr>();
 
-        foreach (var op in ExpressionBuilder.EnumerateNested(operations))
+        foreach (var op in OperationFlattener.EnumerateNested(operations))
         {
             if (op is not SetOperation { Dst: Variable dst, Src: MemberExpr member } || !dst.IsTemp)
             {

@@ -29,7 +29,7 @@ public static class StructLocalInferrer
 
         var structByName = new Dictionary<string, StructDefinition>(StringComparer.Ordinal);
 
-        foreach (var op in ExpressionBuilder.EnumerateNested(operations))
+        foreach (var op in OperationFlattener.EnumerateNested(operations))
         {
             if (!TryGetCall(op, out var call))
             {

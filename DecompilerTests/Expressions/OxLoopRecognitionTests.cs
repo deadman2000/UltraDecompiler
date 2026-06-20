@@ -6,11 +6,11 @@ namespace DecompilerTests.Expressions;
 public sealed class OxLoopRecognitionTests : BaseTests
 {
     // QuickC/PROGRAMS/forlp.c — sum_for: acc на [bp-4], счётчик в SI, spill в [bp-2].
-    // Ожидаем: var2=0; for (var1=0; var1&lt;5; var1++) var2 += var1; return var2.
+    // Ожидаем: var2=0; for (var1=0; var1<5; var1++) var2 += var1; return var2.
     [Fact]
     public void OxRegisterCounterLoop_SumFor_RecognizedAsFor()
     {
-        var builder = BuildProcExpressionsOpt("""
+        var ops = BuildProcOperationsOpt("""
             55                ; push bp
             8B EC             ; mov bp, sp
             81 EC 04 00       ; sub sp, 4
@@ -29,17 +29,15 @@ public sealed class OxLoopRecognitionTests : BaseTests
             5D                ; pop bp
             C3                ; ret
             """);
-
-        var ops = builder.GetAllOperations();
         var hasLoop = ops.Any(o => o is ForOperation or WhileOperation or DoWhileOperation);
         Assert.True(hasLoop);
     }
 
-    // QuickC/PROGRAMS/forlp.c — countdown_for: for (i=3; i&gt;0; i--) acc += i.
+    // QuickC/PROGRAMS/forlp.c — countdown_for: for (i=3; i>0; i--) acc += i.
     [Fact]
     public void OxRegisterCounterLoop_CountdownFor_RecognizedAsFor()
     {
-        var builder = BuildProcExpressionsOpt("""
+        var ops = BuildProcOperationsOpt("""
             55                ; push bp
             8B EC             ; mov bp, sp
             81 EC 04 00       ; sub sp, 4
@@ -58,8 +56,6 @@ public sealed class OxLoopRecognitionTests : BaseTests
             5D                ; pop bp
             C3                ; ret
             """);
-
-        var ops = builder.GetAllOperations();
         var hasLoop = ops.Any(o => o is ForOperation or WhileOperation or DoWhileOperation);
         Assert.True(hasLoop);
     }

@@ -29,7 +29,7 @@ public static class StackCheckDetector
     /// Определяет режим по плоскому списку операций (для одиночной функции без ProcedureStorage).
     /// </summary>
     public static bool AnalyzeFromOperations(IReadOnlyList<Operation> operations) =>
-        ExpressionBuilder.EnumerateNested(operations).Any(IsChkstkOperation);
+        OperationFlattener.EnumerateNested(operations).Any(IsChkstkOperation);
 
     /// <summary>Удаляет все вызовы <c>_chkstk</c> из дерева операций.</summary>
     public static IReadOnlyList<Operation> RemoveChkstkCalls(IReadOnlyList<Operation> operations) =>

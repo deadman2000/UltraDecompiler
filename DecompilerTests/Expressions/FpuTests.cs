@@ -17,7 +17,7 @@ public class FpuTests : BaseTests
             """);
 
         // Успешно дошли сюда — без exception.
-        var ops = builder.GetAllOperations();
+        var ops = CreateFlattener(builder).GetAllOperations();
         // FWAIT/FPU/NOP не создают SetOperation / StoreOperation.
         Assert.DoesNotContain(ops, op => op is SetOperation);
         Assert.DoesNotContain(ops, op => op is StoreOperation);

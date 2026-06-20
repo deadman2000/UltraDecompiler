@@ -11,7 +11,7 @@ public class QuickCUnoptLoopAnalyzerTests : BaseTests
     [Fact]
     public void Analyze_ForLoop_DetectsCounter()
     {
-        var ops = BuildProcExpressions("""
+        var ops = BuildProcOperations("""
             55 8B EC 81 EC 04 00
             C7 46 FC 00 00    ; sum = 0
             C7 46 FE 00 00    ; i = 0
@@ -23,7 +23,7 @@ public class QuickCUnoptLoopAnalyzerTests : BaseTests
             E9 ED FF          ; jmp body
             8B 46 FC          ; exit
             5D C3
-            """).GetAllOperations();
+            """);
 
         // Проверяем, что есть ForOperation
         var forOp = Assert.Single(ops.OfType<UltraDecompiler.Ir.Operations.ForOperation>());
@@ -37,12 +37,12 @@ public class QuickCUnoptLoopAnalyzerTests : BaseTests
     [Fact]
     public void Analyze_WhileLoop_NoCounter()
     {
-        var ops = BuildProcExpressions("""
+        var ops = BuildProcOperations("""
             55 8B EC 81 EC 00 00 57 56
             8B 5E 06 8A 07 98 3D 00 00 75 03 E9 15 00
             8B 5E 06 83 46 06 01 8A 07 8B 5E 04 83 46 04 01 88 07 E9 DD FF
             8B 5E 04 C6 07 00 5E 5F 8B E5 5D C3
-            """).GetAllOperations();
+            """);
 
         // While-циклы могут быть представлены как IfOperation с jmp
         // Это сложный случай, проверяем просто наличие управляющих структур
@@ -56,7 +56,7 @@ public class QuickCUnoptLoopAnalyzerTests : BaseTests
     [Fact]
     public void ForLoopStructure_InitConditionIteration()
     {
-        var ops = BuildProcExpressions("""
+        var ops = BuildProcOperations("""
             55 8B EC 81 EC 04 00
             C7 46 FC 00 00    ; sum = 0
             C7 46 FE 00 00    ; i = 0
@@ -68,7 +68,7 @@ public class QuickCUnoptLoopAnalyzerTests : BaseTests
             E9 ED FF          ; jmp body
             8B 46 FC          ; exit
             5D C3
-            """).GetAllOperations();
+            """);
 
         var forOp = Assert.Single(ops.OfType<UltraDecompiler.Ir.Operations.ForOperation>());
 

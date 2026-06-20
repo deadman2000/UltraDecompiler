@@ -90,8 +90,9 @@ public class ReturnTests : BaseTests
             C3          ; ret
             """);
 
+        var ops = CreateFlattener(expr).GetAllOperations();
         Assert.DoesNotContain(
-            expr.GetAllOperations().OfType<ReturnOperation>(),
+            ops.OfType<ReturnOperation>(),
             static r => r.IsExplicit);
     }
 

@@ -1,55 +1,31 @@
 namespace UltraDecompiler.Ir.Builder;
 
-public partial class ExpressionBuilder
+/// <summary>
+/// Содержит логику работы с goto-переходами и метками.
+/// </summary>
+public partial class OperationFlattener
 {
-    private readonly HashSet<int> _gotoLabelOffsets = [];
-
-    /// <summary>Строит множество смещений, для которых нужны метки (цели безусловных jmp).</summary>
-    private void BuildGotoLabelMap()
-    {
-        _gotoLabelOffsets.Clear();
-
-        var indegree = new Dictionary<int, int>();
-        foreach (var block in Blocks)
-        {
-            if (block.Next is not null)
-            {
-                var offset = block.Next.BasicBlock.StartOffset;
-                indegree[offset] = indegree.GetValueOrDefault(offset) + 1;
-            }
-
-            if (block.ConditionalBlock is not null)
-            {
-                var offset = block.ConditionalBlock.BasicBlock.StartOffset;
-                indegree[offset] = indegree.GetValueOrDefault(offset) + 1;
-            }
-        }
-
-        foreach (var block in Blocks)
-        {
-            if (!EndsWithUnconditionalJump(block) || block.Next is null)
-            {
-                continue;
-            }
-
-            var targetOffset = block.Next.BasicBlock.StartOffset;
-
-            if (block.Operations.Count > 0
-                || indegree.GetValueOrDefault(targetOffset) >= 2)
-            {
-                _gotoLabelOffsets.Add(targetOffset);
-            }
-        }
-    }
-
     private static string GetLabelForBlock(ExprBlock block) =>
         $"label_{block.BasicBlock.StartOffset:X4}";
 
     private void TryEmitLabel(ExprBlock block, List<Operation> result)
     {
-        if (_gotoLabelOffsets.Contains(block.BasicBlock.StartOffset))
+        // Метка нужна для блоков, на которые есть безусловный переход (goto)
+        // Проверяем по offset: если есть predecessor с unconditional jmp на этот блок
+        var targetOffset = block.BasicBlock.StartOffset;
+
+        foreach (var other in _cfgBlocks)
         {
-            result.Add(new LabelOperation(GetLabelForBlock(block)));
+            // Проверяем, ведёт ли other на этот блок через unconditional jump
+            if (other.NextBlock != null && other.NextBlock.StartOffset == targetOffset)
+            {
+                var lastInstr = other.Instructions.Count > 0 ? other.Instructions[^1] : null;
+                if (lastInstr != null && lastInstr.IsUnconditionalJump)
+                {
+                    result.Add(new LabelOperation(GetLabelForBlock(block)));
+                    return;
+                }
+            }
         }
     }
 

@@ -20,7 +20,7 @@ public static class PointerTypeInferrer
         {
             changed = false;
 
-            foreach (var op in ExpressionBuilder.EnumerateNested(operations))
+            foreach (var op in OperationFlattener.EnumerateNested(operations))
             {
                 if (InferFromOperation(op))
                 {
@@ -157,7 +157,7 @@ public static class PointerTypeInferrer
         ProcedureStorage storage,
         HeaderCatalog headers)
     {
-        foreach (var op in ExpressionBuilder.EnumerateNested(operations))
+        foreach (var op in OperationFlattener.EnumerateNested(operations))
         {
             CallExpr? call = op switch
             {

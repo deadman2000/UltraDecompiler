@@ -3,6 +3,7 @@ using System.Text;
 using UltraDecompiler.CodeGeneration;
 using UltraDecompiler.Compilation;
 using UltraDecompiler.Disassembly.Parser;
+using UltraDecompiler.Ir.Builder.Loops;
 using UltraDecompiler.Ir.Helpers;
 using UltraDecompiler.LibMatching;
 using UltraDecompiler.PostProcessing.Abstractions;
@@ -141,7 +142,8 @@ public class Decompiler
                 CompilerOptions = compilerOptions,
             };
 
-            var operations = procedure.Expressions!.GetAllOperations();
+            var flattener = new OperationFlattener(procedure.Expressions!, procedure.Graph!.Blocks, LoopAnalyzerFactory.Create(optimizationLevel));
+            var operations = flattener.GetAllOperations();
             foreach (var pass in profile.GetProcedurePasses())
             {
                 operations = pass.Apply(postCtx, operations);
@@ -349,6 +351,7 @@ public class Decompiler
                 Expressions = expressions,
                 Name = name!,
                 IsLibrary = false,
+                Graph = cfg,
             };
 
             profile.ApplyIrConstructionPasses(new IrConstructionContext

@@ -1,4 +1,7 @@
 ﻿using UltraDecompiler.Compilation;
+using UltraDecompiler.Disassembly.Graph;
+using UltraDecompiler.Ir.Builder;
+using UltraDecompiler.Ir.Builder.Loops;
 using UltraDecompiler.PostProcessing.Abstractions;
 using UltraDecompiler.PostProcessing.Profiles;
 
@@ -23,6 +26,26 @@ public abstract class BaseTests
         return graph;
     }
 
+    /// <summary>
+    /// Создаёт OperationFlattener с анализатором циклов по умолчанию (/Od).
+    /// </summary>
+    protected static OperationFlattener CreateFlattener(ExpressionBuilder builder, ControlFlowGraph? cfg = null)
+    {
+        var loopAnalyzer = LoopAnalyzerFactory.Create(OptimizationLevel.Disabled);
+        var cfgBlocks = cfg is not null ? (IReadOnlyList<BasicBlock>)cfg.Blocks : Array.Empty<BasicBlock>();
+        return new OperationFlattener(builder, cfgBlocks, loopAnalyzer);
+    }
+
+    /// <summary>
+    /// Создаёт OperationFlattener с анализатором циклов для заданного уровня оптимизации.
+    /// </summary>
+    protected static OperationFlattener CreateFlattener(ExpressionBuilder builder, ControlFlowGraph? cfg, OptimizationLevel optimization)
+    {
+        var loopAnalyzer = LoopAnalyzerFactory.Create(optimization);
+        var cfgBlocks = cfg is not null ? (IReadOnlyList<BasicBlock>)cfg.Blocks : Array.Empty<BasicBlock>();
+        return new OperationFlattener(builder, cfgBlocks, loopAnalyzer);
+    }
+
     protected static ExpressionBuilder BuildExpressions(string hex)
     {
         return BuildExpressions(hex, isCom: false);
@@ -40,7 +63,7 @@ public abstract class BaseTests
     protected static ExpressionBuilder BuildProcExpressions(string hex)
     {
         var graph = GetGraph(hex);
-        var decompiler = new ExpressionBuilder();
+        var decompiler = ExpressionBuilder.Create(OptimizationLevel.Disabled);
         decompiler.BuildProc(graph);
 
         var procedure = new DisassembledProcedure
@@ -139,5 +162,35 @@ public abstract class BaseTests
         var (regs, stack) = configure(decompiler.Variables);
         decompiler.Build(graph, regs, stack);
         return decompiler;
+    }
+
+    /// <summary>
+    /// Строит IR и получает плоский список операций с анализатором /Od.
+    /// </summary>
+    protected static IReadOnlyList<Operation> BuildOperations(string hex)
+    {
+        var cfg = GetGraph(hex);
+        var builder = BuildExpressions(hex);
+        return CreateFlattener(builder, cfg).GetAllOperations();
+    }
+
+    /// <summary>
+    /// Строит IR процедуры и получает плоский список операций с анализатором /Od.
+    /// </summary>
+    protected static IReadOnlyList<Operation> BuildProcOperations(string hex)
+    {
+        var cfg = GetGraph(hex);
+        var builder = BuildProcExpressions(hex);
+        return CreateFlattener(builder, cfg).GetAllOperations();
+    }
+
+    /// <summary>
+    /// Строит IR процедуры с /Ox и получает плоский список операций.
+    /// </summary>
+    protected static IReadOnlyList<Operation> BuildProcOperationsOpt(string hex)
+    {
+        var cfg = GetGraph(hex);
+        var builder = BuildProcExpressionsOpt(hex);
+        return CreateFlattener(builder, cfg, OptimizationLevel.EnabledFull).GetAllOperations();
     }
 }

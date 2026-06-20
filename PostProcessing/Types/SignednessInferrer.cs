@@ -43,7 +43,7 @@ public static class SignednessInferrer
     {
         CType? inferred = null;
 
-        foreach (var op in ExpressionBuilder.EnumerateNested(operations))
+        foreach (var op in OperationFlattener.EnumerateNested(operations))
         {
             if (op is not ReturnOperation { Value: { } value })
             {

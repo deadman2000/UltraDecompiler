@@ -9,7 +9,7 @@ public class GotoRecognitionTests : BaseTests
     [Fact]
     public void JmpMain_ProducesGotoAndLabels()
     {
-        var builder = BuildProcExpressions("""
+        var ops = BuildProcOperations("""
             55 8B EC 81 EC 02 00 57 56
             C7 46 FE 00 00 E9 00 00
             C7 46 FE 2A 00
@@ -20,9 +20,7 @@ public class GotoRecognitionTests : BaseTests
             83 C4 04 B8 00 00 E9 00 00
             5E 5F 8B E5 5D C3
             """);
-
-        var ops = builder.GetAllOperations();
-        var all = ExpressionBuilder.EnumerateNested(ops).ToList();
+        var all = OperationFlattener.EnumerateNested(ops).ToList();
 
         Assert.Equal(2, all.OfType<GotoOperation>().Count());
         Assert.Contains(all, op => op is LabelOperation);

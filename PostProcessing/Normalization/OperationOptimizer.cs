@@ -181,7 +181,7 @@ public static class OperationOptimizer
         switch (op)
         {
             case WhileOperation wh when wh.Condition is CmpExpr cmp && cmp.Left is Variable cv && cv.IsStack:
-                bool hasAdvance = ExpressionBuilder.EnumerateNested(wh.Body).Any(o =>
+                bool hasAdvance = OperationFlattener.EnumerateNested(wh.Body).Any(o =>
                     o is IncOperation or DecOperation ||
                     (o is AddAssignOperation aa && aa.Target is Variable t && ReferenceEquals(t, cv)) ||
                     (o is SetOperation s && s.Dst is Variable d && ReferenceEquals(d, cv) && s.Src is Math2Expr));

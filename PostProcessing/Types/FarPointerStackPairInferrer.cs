@@ -18,7 +18,7 @@ public static class FarPointerStackPairInferrer
 
         var variables = procedure.Expressions.Variables;
 
-        foreach (var op in ExpressionBuilder.EnumerateNested(operations))
+        foreach (var op in OperationFlattener.EnumerateNested(operations))
         {
             if (op is not StoreOperation { Segment: Variable segmentVar })
             {

@@ -12,14 +12,6 @@ namespace UltraDecompiler.Ir.Builder;
 public class ExpressionBuilderQuickCUnopt : ExpressionBuilder
 {
     /// <summary>
-    /// Инициализирует анализатор циклов для /Od.
-    /// </summary>
-    public ExpressionBuilderQuickCUnopt()
-    {
-        LoopAnalyzer = new Loops.QuickCUnoptLoopAnalyzer();
-    }
-
-    /// <summary>
     /// Применяет паттерны QuickC /Od к блоку:
     /// - <see cref="StackLocalPushArgPattern"/> — подстановка локалей вместо push reg
     /// </summary>

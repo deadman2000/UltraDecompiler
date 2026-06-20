@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using UltraDecompiler.CodeGeneration.Rendering;
 using UltraDecompiler.Compilation;
+using UltraDecompiler.Ir.Builder.Loops;
 using UltraDecompiler.PostProcessing.Abstractions;
 using UltraDecompiler.PostProcessing.Profiles;
 using UltraDecompiler.PostProcessing.Stack;
@@ -47,7 +48,8 @@ internal static class DecompilePipeline
         var expressions = ExpressionBuilder.Create(optimizationLevel);
         expressions.Build(cfg, parser.IsCom);
 
-        var operations = expressions.GetAllOperations();
+        var flattener = new OperationFlattener(expressions, cfg.Blocks, LoopAnalyzerFactory.Create(optimizationLevel));
+        var operations = flattener.GetAllOperations();
 
         var compilerOptions = new CompilerOptions
         {

@@ -51,7 +51,7 @@ public class BitsCodegenTests : BaseTests
             C3              ; ret
             """, storage);
 
-        var callExpr = expr.GetAllOperations()
+        var callExpr = CreateFlattener(expr).GetAllOperations()
             .OfType<SetOperation>()
             .Select(s => s.Src)
             .OfType<CallExpr>()

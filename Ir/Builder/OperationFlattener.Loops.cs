@@ -1,279 +1,12 @@
-namespace UltraDecompiler.Ir.Builder;
-
 using UltraDecompiler.Ir.Builder.Loops;
 
-public partial class ExpressionBuilder
+namespace UltraDecompiler.Ir.Builder;
+
+/// <summary>
+/// Содержит логику распознавания и эмиссии циклов QuickC.
+/// </summary>
+public partial class OperationFlattener
 {
-    /// <summary>
-    /// Возвращает линейный список операций всей декомпилированной программы.
-    ///
-    /// Обходит дерево <see cref="ExprBlock"/> от точки входа, разворачивая связи
-    /// <see cref="ExprBlock.ConditionalBlock"/> / <see cref="ExprBlock.Next"/> в
-    /// <see cref="IfOperation"/> (ветка «истина» — переход по условию, «ложь» — fallthrough).
-    /// Операции управления потоком, уже вложенные в <see cref="ExprBlock.Operations"/>
-    /// (<see cref="WhileOperation"/>, <see cref="ForOperation"/>), сохраняются как есть.
-    /// </summary>
-    public IReadOnlyList<Operation> GetAllOperations()
-    {
-        if (_entryBlock == null)
-            return [];
-
-        var result = new List<Operation>();
-        var visited = new HashSet<ExprBlock>();
-        CollectOperations(_entryBlock, result, visited);
-        return result;
-    }
-
-    /// <summary>
-    /// Рекурсивно перечисляет все операции, включая тела <see cref="IfOperation"/>,
-    /// <see cref="WhileOperation"/> и <see cref="ForOperation"/>.
-    /// </summary>
-    public static IEnumerable<Operation> EnumerateNested(IEnumerable<Operation> operations)
-    {
-        foreach (var op in operations)
-        {
-            yield return op;
-
-            switch (op)
-            {
-                case IfOperation i:
-                    foreach (var nested in EnumerateNested(i.ThenBody))
-                        yield return nested;
-                    if (i.ElseBody != null)
-                    {
-                        foreach (var nested in EnumerateNested(i.ElseBody))
-                            yield return nested;
-                    }
-                    break;
-                case WhileOperation w:
-                    foreach (var nested in EnumerateNested(w.Body))
-                        yield return nested;
-                    break;
-                case DoWhileOperation d:
-                    foreach (var nested in EnumerateNested(d.Body))
-                        yield return nested;
-                    break;
-                case BreakOperation:
-                    break;
-                case ContinueOperation:
-                case GotoOperation:
-                case LabelOperation:
-                    break;
-                case ForOperation f:
-                    if (f.Init != null)
-                        yield return f.Init;
-                    foreach (var nested in EnumerateNested(f.Body))
-                        yield return nested;
-                    if (f.Iteration != null)
-                        yield return f.Iteration;
-                    break;
-                case SwitchOperation s:
-                    foreach (var switchCase in s.Cases)
-                    {
-                        foreach (var nested in EnumerateNested(switchCase.Body))
-                            yield return nested;
-                    }
-                    break;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Рекурсивно собирает операции, начиная с <paramref name="block"/>, до <paramref name="stopBefore"/>
-    /// или до повторного посещения блока (точка слияния / обратное ребро цикла).
-    /// </summary>
-    private void CollectOperations(
-        ExprBlock? block,
-        List<Operation> result,
-        HashSet<ExprBlock> visited,
-        ExprBlock? stopBefore = null,
-        ExprBlock? enclosingLoopExit = null,
-        ExprBlock? enclosingLoopHeader = null)
-    {
-        while (block != null && block != stopBefore)
-        {
-            if (!visited.Add(block))
-                return;
-
-            if (!ShouldConvertLoopHeader(block, enclosingLoopExit, enclosingLoopHeader))
-            {
-                TryEmitLabel(block, result);
-            }
-
-            if (_switchByEntry.TryGetValue(block.BasicBlock.StartOffset, out var switchPattern))
-            {
-                CollectQuickCSwitch(block, switchPattern, result, visited);
-                if (!_blocksByOffset.TryGetValue(switchPattern.MergeOffset, out block))
-                {
-                    return;
-                }
-
-                continue;
-            }
-
-            result.AddRange(block.Operations);
-            if (EndsWithReturn(block.Operations))
-            {
-                return;
-            }
-
-            if (block.ConditionalBlock != null && block.Condition != null)
-            {
-                var merge = FindMerge(block.ConditionalBlock, block.Next);
-
-                bool shouldLoop = LoopAnalyzer.IsLoopHeader(block, enclosingLoopExit, enclosingLoopHeader);
-                if (shouldLoop)
-                {
-                    EmitLoopOperation(block, merge, result, visited, enclosingLoopExit, enclosingLoopHeader);
-
-                    if (merge is not null && !visited.Contains(merge))
-                    {
-                        block = merge;
-                        continue;
-                    }
-
-                    return;
-                }
-
-                var thenStop = ReferenceEquals(merge, block.ConditionalBlock) ? null : merge;
-
-                List<Operation> thenBody;
-                if (merge is not null && IsGotoOnlyBranch(block.ConditionalBlock, merge))
-                {
-                    thenBody = [new GotoOperation(GetLabelForBlock(merge))];
-                    MarkGotoBranchVisited(block.ConditionalBlock, merge, visited);
-                }
-                else
-                {
-                    thenBody = [];
-                    CollectOperations(block.ConditionalBlock, thenBody, visited, stopBefore: thenStop, enclosingLoopExit: enclosingLoopExit, enclosingLoopHeader: enclosingLoopHeader);
-                    AppendEpilogueReturnIfNeeded(block.ConditionalBlock, merge, thenBody, visited);
-                }
-
-                List<Operation>? elseBody = null;
-                var mergeUsedAsElse = false;
-                if (block.Next != null)
-                {
-                    var elseOps = new List<Operation>();
-                    CollectOperations(block.Next, elseOps, visited, stopBefore: merge, enclosingLoopExit: enclosingLoopExit, enclosingLoopHeader: enclosingLoopHeader);
-                    if (elseOps.Count > 0)
-                    {
-                        elseBody = elseOps;
-                    }
-                    else if (merge is not null
-                             && !ReferenceEquals(merge, block.ConditionalBlock)
-                             && !IsLoopHeader(block, block.ConditionalBlock)
-                             && MergeIsReturnOnly(merge, visited))
-                    {
-                        elseBody = [];
-                        CollectOperations(merge, elseBody, visited, enclosingLoopExit: enclosingLoopExit, enclosingLoopHeader: enclosingLoopHeader);
-                        visited.Add(merge);
-                        mergeUsedAsElse = true;
-                    }
-                }
-
-                result.Add(new IfOperation(block.Condition, thenBody, elseBody));
-
-                if (BranchEndsWithReturn(thenBody) && (elseBody is null || BranchEndsWithReturn(elseBody)))
-                {
-                    if (merge is not null)
-                    {
-                        visited.Add(merge);
-                    }
-
-                    return;
-                }
-
-                if (merge is not null && !mergeUsedAsElse && !visited.Contains(merge))
-                {
-                    block = merge;
-                    continue;
-                }
-
-                return;
-            }
-
-            if (TryEmitStandaloneGoto(block, result, enclosingLoopExit, enclosingLoopHeader, out var gotoTarget))
-            {
-                block = gotoTarget;
-                continue;
-            }
-
-            block = block.Next;
-        }
-    }
-
-    /// <summary>
-    /// Находит ближайшую общую точку слияния двух веток (первый общий блок по смещению).
-    /// </summary>
-    private static ExprBlock? FindMerge(ExprBlock? thenStart, ExprBlock? elseStart)
-    {
-        if (thenStart == null || elseStart == null)
-            return null;
-
-        var thenReach = CollectReachable(thenStart);
-        var elseReach = CollectReachable(elseStart);
-
-        ExprBlock? merge = null;
-        int mergeOffset = int.MaxValue;
-
-        foreach (var candidate in thenReach)
-        {
-            if (ReferenceEquals(candidate, thenStart))
-            {
-                continue;
-            }
-
-            if (!elseReach.Contains(candidate))
-            {
-                continue;
-            }
-
-            int offset = candidate.BasicBlock.StartOffset;
-            if (offset < mergeOffset)
-            {
-                mergeOffset = offset;
-                merge = candidate;
-            }
-        }
-
-        return merge;
-    }
-
-    /// <summary>
-    /// Все блоки, достижимые по <see cref="ExprBlock.Next"/> и <see cref="ExprBlock.ConditionalBlock"/>.
-    /// </summary>
-    protected static HashSet<ExprBlock> CollectReachable(ExprBlock? start)
-    {
-        var result = new HashSet<ExprBlock>();
-        if (start == null)
-            return result;
-
-        var queue = new Queue<ExprBlock>();
-        queue.Enqueue(start);
-
-        while (queue.Count > 0)
-        {
-            var block = queue.Dequeue();
-            if (!result.Add(block))
-                continue;
-
-            if (block.Next != null)
-                queue.Enqueue(block.Next);
-
-            if (block.ConditionalBlock != null)
-                queue.Enqueue(block.ConditionalBlock);
-        }
-
-        return result;
-    }
-
-    private static bool EndsWithReturn(IReadOnlyList<Operation> operations) =>
-        operations.Count > 0 && operations[^1] is ReturnOperation;
-
-    private static bool BranchEndsWithReturn(IReadOnlyList<Operation> body) =>
-        body.Any(static op => op is ReturnOperation);
-
     /// <summary>
     /// Определяет, следует ли конвертировать заголовок цикла в WhileOperation или ForOperation.
     /// Делегирует анализ специализированному анализатору циклов.
@@ -282,7 +15,7 @@ public partial class ExpressionBuilder
         ExprBlock? enclosingLoopHeader = null)
     {
         // Используем анализатор
-        if (LoopAnalyzer.IsLoopHeader(block, enclosingLoopExit, enclosingLoopHeader))
+        if (_loopAnalyzer.IsLoopHeader(block, enclosingLoopExit, enclosingLoopHeader))
             return true;
 
         // Fallback: старая эвристика для сложных случаев
@@ -311,9 +44,9 @@ public partial class ExpressionBuilder
     }
 
     /// <summary>
-    /// Проверяет, является ли блок break/continue внутри цикла (не заголовком).
+    /// Проверяет, является ли блок break/continue внутри цикла (не заголовок).
     /// </summary>
-    protected bool IsBreakOrContinueBlock(ExprBlock block, ExprBlock loopHeader)
+    public bool IsBreakOrContinueBlock(ExprBlock block, ExprBlock loopHeader)
     {
         if (block.Condition is null || ReferenceEquals(block, loopHeader))
             return false;
@@ -329,7 +62,7 @@ public partial class ExpressionBuilder
     /// <summary>
     /// Проверяет, является ли условие циклом по argc (такие циклы не конвертируем).
     /// </summary>
-    protected static bool IsArgcBoundLoopHeader(Expr condition) =>
+    public static bool IsArgcBoundLoopHeader(Expr condition) =>
         condition is CmpExpr { Operation: CmpOperation.Uge or CmpOperation.Ugt, Right: Variable { Name: "argc" } }
         || condition is CmpExpr { Operation: CmpOperation.Uge or CmpOperation.Ugt, Left: Variable { Name: "argc" } };
 
@@ -418,7 +151,7 @@ public partial class ExpressionBuilder
     private ExprBlock? FindDoWhileBodyStart(ExprBlock headerBlock)
     {
         // Ищем блок, который jmp-ится на header и имеет операции
-        foreach (var block in Blocks)
+        foreach (var block in _builder.Blocks)
         {
             if (block.BasicBlock.StartOffset >= headerBlock.BasicBlock.StartOffset)
                 continue;
@@ -436,16 +169,16 @@ public partial class ExpressionBuilder
 
         // Fallback: ищем ближайший блок перед заголовком, который имеет операции
         ExprBlock? bestCandidate = null;
-        for (int i = Blocks.Count - 1; i >= 0; i--)
+        for (int i = _builder.Blocks.Count - 1; i >= 0; i--)
         {
-            if (Blocks[i] == headerBlock)
+            if (_builder.Blocks[i] == headerBlock)
             {
                 return bestCandidate;
             }
 
-            if (Blocks[i].Operations.Count > 0 && bestCandidate == null)
+            if (_builder.Blocks[i].Operations.Count > 0 && bestCandidate == null)
             {
-                bestCandidate = Blocks[i];
+                bestCandidate = _builder.Blocks[i];
             }
         }
 
@@ -552,7 +285,7 @@ public partial class ExpressionBuilder
         }
 
         // Используем анализатор для определения типа цикла и параметров
-        var loopResult = LoopAnalyzer.Analyze(header, Blocks, visited, enclosingLoopHeader);
+        var loopResult = _loopAnalyzer.Analyze(header, _builder.Blocks, visited, enclosingLoopHeader);
 
         var loopType = loopResult?.LoopType ?? LoopType.While;
         var init = loopResult?.Init;
@@ -608,7 +341,7 @@ public partial class ExpressionBuilder
             {
                 var jmpOffset = uncondJmp.Operand1.Value;
                 var targetOffset = header.BasicBlock.StartOffset + 3 + (short)jmpOffset;
-                loopTarget = Blocks.FirstOrDefault(b => b.BasicBlock.StartOffset == targetOffset);
+                loopTarget = _builder.Blocks.FirstOrDefault(b => b.BasicBlock.StartOffset == targetOffset);
             }
 
             var doWhileBody = CollectDoWhileBody(header, loopTarget ?? bodyStart);
@@ -669,7 +402,7 @@ public partial class ExpressionBuilder
             var targetOffset = header.BasicBlock.StartOffset + 3 + (short)jmpOffset;
 
             // Ищем блок с этим offset
-            loopTarget = Blocks.FirstOrDefault(b => b.BasicBlock.StartOffset == targetOffset);
+            loopTarget = _builder.Blocks.FirstOrDefault(b => b.BasicBlock.StartOffset == targetOffset);
         }
 
         // Если не нашли по jmp, используем bodyStartHint
@@ -709,7 +442,7 @@ public partial class ExpressionBuilder
         {
             // Fallback: ищем все блоки перед заголовком, которые имеют операции
             // И сортируем по offset
-            var candidateBlocks = Blocks
+            var candidateBlocks = _builder.Blocks
                 .Where(b => b.BasicBlock.StartOffset < header.BasicBlock.StartOffset && b.Operations.Count > 0)
                 .OrderBy(b => b.BasicBlock.StartOffset)
                 .ToList();
@@ -833,7 +566,7 @@ public partial class ExpressionBuilder
         if (epilogueMerge is not null && IsInlineEpilogueMerge(epilogueMerge))
         {
             AppendEpilogueReturnIfNeeded(exitStart, epilogueMerge, exitOps, exitVisited);
-            exitVisited.Add(epilogueMerge);
+            visited.Add(epilogueMerge);
         }
 
         foreach (var block in exitVisited)
@@ -847,7 +580,7 @@ public partial class ExpressionBuilder
     /// <summary>
     /// Проверяет, использует ли условие разыменование указателя (признак цикла по строке/массиву).
     /// </summary>
-    protected static bool ConditionUsesCharPointerDeref(Expr condition)
+    public static bool ConditionUsesCharPointerDeref(Expr condition)
     {
         foreach (var mem in ExprSubstitution.CollectMemExprs(condition))
         {

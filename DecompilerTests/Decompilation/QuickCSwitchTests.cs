@@ -1,4 +1,6 @@
 using TestSupport;
+using UltraDecompiler.Compilation;
+using UltraDecompiler.Ir.Builder.Loops;
 using UltraDecompiler.Ir.Switch;
 
 namespace DecompilerTests.Decompilation;
@@ -40,7 +42,8 @@ public sealed class QuickCSwitchTests : BaseTests
         var expressions = new ExpressionBuilder();
         expressions.Build(cfg, parser.IsCom);
 
-        var operations = expressions.GetAllOperations();
+        var flattener = new OperationFlattener(expressions, cfg.Blocks, LoopAnalyzerFactory.Create(OptimizationLevel.Disabled));
+        var operations = flattener.GetAllOperations();
         var switchOps = operations.OfType<SwitchOperation>().ToList();
         Assert.Single(switchOps);
 
@@ -81,8 +84,9 @@ public sealed class QuickCSwitchTests : BaseTests
         var graph = GetGraph(hex);
 
         Assert.Empty(QuickCSwitchDetector.Detect(graph.Blocks));
+        var ops = BuildOperations(hex);
         Assert.DoesNotContain(
-            BuildExpressions(hex).GetAllOperations(),
+            ops,
             static op => op is SwitchOperation);
     }
 }

@@ -12,7 +12,7 @@ public static class ProcedureDependencyCollector
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var operation in ExpressionBuilder.EnumerateNested(operations))
+        foreach (var operation in OperationFlattener.EnumerateNested(operations))
         {
             switch (operation)
             {

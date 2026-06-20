@@ -19,7 +19,7 @@ public static class VariableTypeInferrer
         while (changed)
         {
             changed = false;
-            foreach (var op in ExpressionBuilder.EnumerateNested(operations))
+            foreach (var op in OperationFlattener.EnumerateNested(operations))
             {
                 if (InferFromOperation(op, storage, headers))
                 {

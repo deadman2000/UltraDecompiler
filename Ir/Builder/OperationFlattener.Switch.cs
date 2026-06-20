@@ -2,7 +2,10 @@ using UltraDecompiler.Ir.Switch;
 
 namespace UltraDecompiler.Ir.Builder;
 
-public partial class ExpressionBuilder
+/// <summary>
+/// Содержит логику распознавания и эмиссии switch-конструкций QuickC.
+/// </summary>
+public partial class OperationFlattener
 {
     /// <summary>
     /// Собирает операции switch-конструкции и добавляет их в результат.
@@ -19,7 +22,7 @@ public partial class ExpressionBuilder
             ?? throw new InvalidOperationException(
                 $"Не удалось восстановить discriminant switch на 0x{pattern.EntryOffset:X}.");
 
-        if (!_blocksByOffset.TryGetValue(pattern.MergeOffset, out var mergeBlock))
+        if (!_switchAnalyzer.BlocksByOffset.TryGetValue(pattern.MergeOffset, out var mergeBlock))
         {
             throw new InvalidOperationException(
                 $"Не найден merge-блок switch на 0x{pattern.MergeOffset:X}.");
@@ -29,7 +32,7 @@ public partial class ExpressionBuilder
 
         foreach (var casePattern in pattern.Cases)
         {
-            if (!_blocksByOffset.TryGetValue(casePattern.BodyStartOffset, out var bodyBlock))
+            if (!_switchAnalyzer.BlocksByOffset.TryGetValue(casePattern.BodyStartOffset, out var bodyBlock))
             {
                 throw new InvalidOperationException(
                     $"Не найден case-блок switch на 0x{casePattern.BodyStartOffset:X}.");
@@ -40,7 +43,7 @@ public partial class ExpressionBuilder
             switchCases.Add(new SwitchCase(casePattern.Value, body));
         }
 
-        if (!_blocksByOffset.TryGetValue(pattern.DefaultBodyOffset, out var defaultBlock))
+        if (!_switchAnalyzer.BlocksByOffset.TryGetValue(pattern.DefaultBodyOffset, out var defaultBlock))
         {
             throw new InvalidOperationException(
                 $"Не найден default-блок switch на 0x{pattern.DefaultBodyOffset:X}.");
@@ -52,7 +55,7 @@ public partial class ExpressionBuilder
 
         foreach (var dispatcherOffset in pattern.DispatcherBlockOffsets)
         {
-            if (_blocksByOffset.TryGetValue(dispatcherOffset, out var dispatcherBlock))
+            if (_switchAnalyzer.BlocksByOffset.TryGetValue(dispatcherOffset, out var dispatcherBlock))
             {
                 visited.Add(dispatcherBlock);
             }

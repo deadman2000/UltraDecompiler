@@ -102,7 +102,7 @@ public static class StackLocalArrayInferrer
             .ToHashSet();
 
         var locals = new HashSet<Variable>();
-        foreach (var op in ExpressionBuilder.EnumerateNested(operations))
+        foreach (var op in OperationFlattener.EnumerateNested(operations))
         {
             foreach (var variable in CollectOperationVariables(op))
             {

@@ -35,7 +35,7 @@ public class CCodeGeneratorTests : BaseTests
             ]),
         };
 
-        var source = CCodeGenerator.FormatCFunction(procedure.ToCodegenModel(), expr.GetAllOperations());
+        var source = CCodeGenerator.FormatCFunction(procedure.ToCodegenModel(), CreateFlattener(expr).GetAllOperations());
 
         Assert.Contains("int copy_arg(int arg0)", source);
         Assert.DoesNotContain("    int arg0;", source);

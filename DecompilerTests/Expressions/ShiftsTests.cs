@@ -1,5 +1,3 @@
-using UltraDecompiler.Ir.Expressions;
-
 namespace DecompilerTests.Expressions;
 
 /// <summary>
