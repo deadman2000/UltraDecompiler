@@ -14,6 +14,11 @@ public static class Handlers
 
         [Mnemonic.MOV] = new MovHandler(),
 
+        [Mnemonic.ADD] = new ArithmeticHandler(Math2Operation.Add, useCarryFlag: false),
+        [Mnemonic.SUB] = new ArithmeticHandler(Math2Operation.Sub, useCarryFlag: false),
+        [Mnemonic.ADC] = new ArithmeticHandler(Math2Operation.Add, useCarryFlag: true),
+        [Mnemonic.SBB] = new ArithmeticHandler(Math2Operation.Sub, useCarryFlag: true),
+
         [Mnemonic.CMP] = new CmpHandler(),
         [Mnemonic.TEST] = new TestHandler(),
 

@@ -1,6 +1,4 @@
 ﻿using UltraDecompiler.Compilation;
-using UltraDecompiler.Disassembly.Graph;
-using UltraDecompiler.Ir.Builder;
 using UltraDecompiler.Ir.Builder.Loops;
 using UltraDecompiler.PostProcessing.Abstractions;
 using UltraDecompiler.PostProcessing.Profiles;
