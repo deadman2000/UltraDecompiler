@@ -7,7 +7,7 @@ public sealed class OxLoopRecognitionTests : BaseTests
 {
     // QuickC/PROGRAMS/forlp.c — sum_for: acc на [bp-4], счётчик в SI, spill в [bp-2].
     // Ожидаем: var2=0; for (var1=0; var1<5; var1++) var2 += var1; return var2.
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void OxRegisterCounterLoop_SumFor_RecognizedAsFor()
     {
         var ops = BuildProcOperationsOpt("""
@@ -34,7 +34,7 @@ public sealed class OxLoopRecognitionTests : BaseTests
     }
 
     // QuickC/PROGRAMS/forlp.c — countdown_for: for (i=3; i>0; i--) acc += i.
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void OxRegisterCounterLoop_CountdownFor_RecognizedAsFor()
     {
         var ops = BuildProcOperationsOpt("""

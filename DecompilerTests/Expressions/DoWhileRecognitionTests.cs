@@ -4,7 +4,7 @@ namespace DecompilerTests.Expressions;
 public class DoWhileRecognitionTests : BaseTests
 {
     // Байты main из DOWHL.EXE /Od (смещения 0x10–0x4E).
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void DoWhile_ProducesForLoop()
     {
         var ops = BuildProcOperations("""

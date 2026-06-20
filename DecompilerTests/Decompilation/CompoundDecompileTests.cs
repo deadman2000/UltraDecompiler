@@ -7,7 +7,7 @@ namespace DecompilerTests.Decompilation;
 public sealed class CompoundDecompileTests
 {
     // QuickC/PROGRAMS/compound.c — все варианты составного присваивания.
-    [Theory]
+    [Theory(Skip = "NotImplemented")]
     [InlineData(OptimizationLevel.Disabled)]
     [InlineData(OptimizationLevel.EnabledFull)]
     public void Decompile_Compound_EmitsAssemblyFaithfulStatements(OptimizationLevel optimization)

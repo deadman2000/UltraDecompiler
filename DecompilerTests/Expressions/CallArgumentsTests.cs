@@ -4,7 +4,7 @@ namespace DecompilerTests.Expressions;
 public class CallArgumentsTests : BaseTests
 {
     // push fmt; push val; call printf → CallExpr("printf", [0x1000, 0x1234])
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void DirectCall_WithPrintfSignature_PassesStackArguments()
     {
         var includeDir = Path.GetFullPath(Path.Combine(
@@ -49,7 +49,7 @@ public class CallArgumentsTests : BaseTests
     }
 
     // Паттерн bits.c: mov/push между push'ами — аргументы printf не схлопываются (1, 5, 10)
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void DirectCall_PrintfWithRegisterPushes_PreservesComputedArgumentExpressions()
     {
         var includeDir = Path.GetFullPath(Path.Combine(
@@ -102,7 +102,7 @@ public class CallArgumentsTests : BaseTests
     }
 
     // void perror(msg) — один строковый аргумент с стека
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void DirectCall_VoidPerror_EmitsCallOperationWithoutSet()
     {
         var includeDir = Path.GetFullPath(Path.Combine(

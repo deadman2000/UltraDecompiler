@@ -4,7 +4,6 @@
 		<!-- 0 = все доступные ядра для параллельного запуска сборок тестов -->
 		<MaxCpuCount>0</MaxCpuCount>
 		<ResultsDirectory>.\TestResults</ResultsDirectory>
-		<TestCaseFilter>Tool != ImHex</TestCaseFilter>
 	</RunConfiguration>
 
 	<!-- Параллелизм xUnit: сборки и коллекции тестов -->

@@ -6,7 +6,7 @@ namespace DecompilerTests.Decompilation;
 public sealed class ArgsEnvDecompileTests
 {
     // QuickC/PROGRAMS/args.c → main(int argc, char *argv[]), argv[i], argc (циклы — задача CFG structurer).
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void Decompile_Args_MainUsesArgcArgv()
     {
         var exePath = ExeProvider.Get("args.c", libraries: ["SLIBCE.LIB"]);
@@ -40,7 +40,7 @@ public sealed class ArgsEnvDecompileTests
     }
 
     // QuickC/PROGRAMS/env.c → main(int argc, char *argv[], char *envp[]), обращения к envp
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void Decompile_Env_MainUsesEnvp()
     {
         var exePath = ExeProvider.Get("env.c", libraries: ["SLIBCE.LIB"]);

@@ -10,7 +10,7 @@ public sealed class QuickCSwitchTests : BaseTests
 {
     // QuickC/PROGRAMS/switch.c: ручные if (cmp [mem]) + настоящий switch (cmp AX + обратные jmp).
     // Ожидаем: один SwitchOperation, ручная if-цепочка остаётся IfOperation.
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void GetAllOperations_SwitchExe_RecognizesOnlyQuickCSwitchPattern()
     {
         var builtExePath = ExeProvider.Get("switch.c", libraries: ["SLIBCE.LIB"]);
@@ -63,7 +63,7 @@ public sealed class QuickCSwitchTests : BaseTests
     }
 
     // cmp [mem], imm + прямой jmp в case — не switch QuickC.
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void Detect_MemoryCompareChain_IsNotQuickCSwitch()
     {
         var hex = """

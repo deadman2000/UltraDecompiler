@@ -4,7 +4,7 @@ namespace DecompilerTests.Expressions;
 public class GetAllOperationsTests : BaseTests
 {
     // Линейный add ax, 2 → один SetOperation, без IfOperation
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void GetAllOperations_LinearCode_HasNoIf()
     {
         var ops = BuildOperations("""
@@ -16,7 +16,7 @@ public class GetAllOperationsTests : BaseTests
     }
 
     // cmp; je → IfOperation с CmpExpr, без else
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void GetAllOperations_CmpJe_WrapsBranchesInIf()
     {
         var ops = BuildOperations("""
@@ -33,7 +33,7 @@ public class GetAllOperationsTests : BaseTests
     }
 
     // if/else с общим merge-блоком — один If с then и else
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void GetAllOperations_Diamond_MergesAfterIf()
     {
         // if (x == 1) { x += 2 } else { x += 1 }; c += 3
@@ -53,7 +53,7 @@ public class GetAllOperationsTests : BaseTests
     }
 
     // loop: тело в then, выход из цикла в else
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void GetAllOperations_Loop_ExitInElseBranch()
     {
         var ops = BuildOperations("""

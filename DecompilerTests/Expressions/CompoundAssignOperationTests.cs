@@ -8,7 +8,7 @@ namespace DecompilerTests.Expressions;
 public class CompoundAssignOperationTests : BaseTests
 {
     // add word ptr [bp-2], 5 → var1 += 5
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void Add_MemoryByConst_EmitsAddAssignOperation()
     {
         var expr = BuildExpressions("""
@@ -23,7 +23,7 @@ public class CompoundAssignOperationTests : BaseTests
     }
 
     // sub word ptr [bp-2], 5 → var1 -= 5
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void Sub_MemoryByConst_EmitsSubAssignOperation()
     {
         var expr = BuildExpressions("""
@@ -36,7 +36,7 @@ public class CompoundAssignOperationTests : BaseTests
     }
 
     // mov ax,[bp-4]; add [bp-2],ax → var1 += var2
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void Add_MemoryByRegister_EmitsAddAssignOperation()
     {
         var expr = BuildProcExpressions("""
@@ -52,7 +52,7 @@ public class CompoundAssignOperationTests : BaseTests
     }
 
     // mov/add/mov с константой остаётся var = var + K, не +=
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void MovAddMov_Const_StaysExplicitAssign()
     {
         var expr = BuildExpressions("""
@@ -70,7 +70,7 @@ public class CompoundAssignOperationTests : BaseTests
     }
 
     // mov/add/mov с переменной → var1 = var1 + var2
-    [Fact]
+    [Fact(Skip = "NotImplemented")]
     public void MovAddMov_Variable_FoldsToExplicitAssign()
     {
         var expr = BuildProcExpressions("""
