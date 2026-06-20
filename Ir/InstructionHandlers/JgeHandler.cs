@@ -1,11 +1,12 @@
-using UltraDecompiler.Ir.Helpers;
-
 namespace UltraDecompiler.Ir.InstructionHandlers;
 
+/// <summary>
+/// Обработчик JGE (Jump if Greater or Equal) — переход при SF==OF (знаковое больше или равно).
+/// </summary>
 public class JgeHandler : ConditionalJumpHandler
 {
     protected override Expr BuildCondition(ExprBlock block, Instruction instr)
     {
-        return block.EndRegisters.SfEqOf();
+        return !(block.Variables.SF ^ block.Variables.OF);
     }
 }

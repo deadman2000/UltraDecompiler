@@ -22,14 +22,7 @@ public class CmpHandler : IInstructionHandler
 
         block.LastComparisonOperands = (left, right);
 
-        var zfExpr = new CmpExpr(CmpOperation.Eq, left, right);
-        var cfExpr = new CmpExpr(CmpOperation.Ult, left, right); // left &lt; right (unsigned) → CF
-
-        block.EndRegisters = block.EndRegisters with
-        {
-            ZF = zfExpr,
-            CF = cfExpr
-            // SF и OF можно добавить позже при необходимости (для знаковых Jcc)
-        };
+        block.Set(block.Variables.ZF, new CmpExpr(CmpOperation.Eq, left, right));
+        block.Set(block.Variables.CF, new CmpExpr(CmpOperation.Ult, left, right)); // left &lt; right (unsigned) → CF
     }
 }

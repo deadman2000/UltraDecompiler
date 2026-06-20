@@ -63,11 +63,7 @@ public partial class ExpressionBuilder
     {
         Variables.Clear();
 
-        var initialRegisters = isCom
-            ? RegisterExpressions.InitCom(Variables)
-            : RegisterExpressions.InitExe(Variables);
-
-        RunBuild(graph, initialRegisters, []);
+        RunBuild(graph, []);
     }
 
     /// <summary>
@@ -76,10 +72,9 @@ public partial class ExpressionBuilder
     public void BuildProc(ControlFlowGraph graph)
     {
         Variables.Clear();
-        var initialRegisters = RegisterExpressions.InitProc(Variables);
         List<Expr> stack = [];
         stack.Add(Variables.CreateInternalVariable("retAddr"));
-        RunBuild(graph, initialRegisters, stack);
+        RunBuild(graph, stack);
     }
 
     /// <summary>
@@ -91,10 +86,10 @@ public partial class ExpressionBuilder
     /// В отличие от версии с isCom, эта перегрузка НЕ очищает <see cref="Variables"/>
     /// (чтобы созданные пользователем переменные в initialRegisters остались валидными).
     /// </summary>
-    public void Build(ControlFlowGraph graph, RegisterExpressions initialRegisters, Stack<Expr> initialStack)
+    public void Build(ControlFlowGraph graph, Stack<Expr> initialStack)
     {
         // Важно: Variables НЕ очищаем — пользователь мог создать в них переменные для initialRegisters.
-        RunBuild(graph, initialRegisters, initialStack);
+        RunBuild(graph, initialStack);
     }
 
     /// <summary>
@@ -102,7 +97,6 @@ public partial class ExpressionBuilder
     /// </summary>
     private void RunBuild(
         ControlFlowGraph graph,
-        RegisterExpressions initialRegisters,
         IEnumerable<Expr> initialStack)
     {
         Blocks.Clear();
@@ -113,7 +107,7 @@ public partial class ExpressionBuilder
         AnalyzeFunctionParameters(graph);
 
         // Формируем первый блок и добавляем его в очередь на обработку
-        CreateExprBlock(graph.EntryBlock, initialRegisters, initialStack);
+        CreateExprBlock(graph.EntryBlock, initialStack);
 
         var visited = new HashSet<BasicBlock>();
 
@@ -131,12 +125,12 @@ public partial class ExpressionBuilder
             // Передаём выходное состояние successor'ам.
             if (block.BasicBlock.NextBlock != null)
             {
-                CreateExprBlock(block.BasicBlock.NextBlock, block.EndRegisters, block.EndStack);
+                CreateExprBlock(block.BasicBlock.NextBlock, block.EndStack);
             }
 
             if (block.BasicBlock.ConditionalBlock != null)
             {
-                CreateExprBlock(block.BasicBlock.ConditionalBlock, block.EndRegisters, block.EndStack);
+                CreateExprBlock(block.BasicBlock.ConditionalBlock, block.EndStack);
             }
         }
 
@@ -156,7 +150,7 @@ public partial class ExpressionBuilder
         }
     }
 
-    private void CreateExprBlock(BasicBlock block, in RegisterExpressions registers, IEnumerable<Expr> stack)
+    private void CreateExprBlock(BasicBlock block, IEnumerable<Expr> stack)
     {
         // TODO Подумать, что делать, если в блок мы попадаем из разных мест
         if (_blocksMap.ContainsKey(block))
@@ -165,7 +159,6 @@ public partial class ExpressionBuilder
         var exprBlock = new ExprBlock(block)
         {
             Variables = Variables,
-            InitRegisters = registers,
             InitStack = stack.ToArray(),
         };
         Blocks.Add(exprBlock);
@@ -194,9 +187,6 @@ public partial class ExpressionBuilder
     private ExprBlock GenerateCode(ExprBlock block)
     {
         Debug.Assert(block.BasicBlock.EndOffset != -1);
-
-        // Начинаем обработку блока с копии InitRegisters.
-        block.EndRegisters = block.InitRegisters;
 
         // Копируем символический стек. Reverse() нужен, потому что конструктор Stack<T>(IEnumerable)
         // кладёт первый элемент перечисления на дно, а последний — на вершину.

@@ -46,16 +46,6 @@ public class ExprBlock(BasicBlock basicBlock)
     public Expr? Condition { get; set; }
 
     /// <summary>
-    /// Начальное состояние регистров
-    /// </summary>
-    public RegisterExpressions InitRegisters { get; set; }
-
-    /// <summary>
-    /// Конечное состояние регистров
-    /// </summary>
-    public RegisterExpressions EndRegisters { get; set; }
-
-    /// <summary>
     /// Начальное состояние стека
     /// </summary>
     public required IReadOnlyList<Expr> InitStack { get; init; }
@@ -71,4 +61,18 @@ public class ExprBlock(BasicBlock basicBlock)
     /// для PUSH reg даёт текущее значение регистра, а не то, что было в момент push.
     /// </summary>
     public Dictionary<int, Expr> PushExprsByOffset { get; } = [];
+
+    /// <summary>
+    /// Хелпер для SetOperation
+    /// </summary>
+    public void Set(Expr dst, Expr src)
+    {
+        Operations.Add(new SetOperation(dst, src));
+    }
+
+    public void Set(GpRegister16 reg, Expr src) => Set(Variables.Get(reg), src);
+
+    public void Set(GpRegister8 reg, Expr src) => Set(Variables.Get(reg), src);
+
+    public void Set(CpuSegmentRegister reg, Expr src) => Set(Variables.Get(reg), src);
 }

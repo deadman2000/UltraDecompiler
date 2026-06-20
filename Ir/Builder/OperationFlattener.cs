@@ -9,7 +9,6 @@ public partial class OperationFlattener
 {
     private readonly ExpressionBuilder _builder;
     private readonly ILoopAnalyzer _loopAnalyzer;
-    private readonly SwitchPatternAnalyzer _switchAnalyzer;
     private readonly IReadOnlyList<BasicBlock> _cfgBlocks;
 
     /// <summary>
@@ -23,7 +22,6 @@ public partial class OperationFlattener
         _builder = builder;
         _cfgBlocks = cfgBlocks;
         _loopAnalyzer = loopAnalyzer;
-        _switchAnalyzer = new();
     }
 
     /// <summary>
@@ -40,9 +38,6 @@ public partial class OperationFlattener
         var entryBlock = _builder.EntryBlock;
         if (entryBlock == null)
             return [];
-
-        // Распознаём switch-паттерны один раз при первом вызове
-        _switchAnalyzer.Analyze(_cfgBlocks, _builder.Blocks);
 
         var result = new List<Operation>();
         var visited = new HashSet<ExprBlock>();

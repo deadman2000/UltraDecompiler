@@ -57,7 +57,8 @@ public sealed record Variable(
     bool IsStack = false,
     bool IsTemp = false,
     bool IsInternal = false,
-    bool IsGlobal = false) : Expr
+    bool IsGlobal = false,
+    bool IsRegister = false) : Expr
 {
     /// <summary>Старшее слово far-указателя на стеке (не объявляется отдельно в C).</summary>
     public bool IsMergedFarPointerSegment { get; set; }

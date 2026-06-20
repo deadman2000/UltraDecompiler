@@ -1,4 +1,4 @@
-namespace UltraDecompiler.Ir.Expressions;
+namespace UltraDecompiler.CodeGeneration;
 
 /// <summary>Синтетическое выражение с готовым C-текстом (результат переписывания MemExpr).</summary>
 public sealed record SyntheticLoadExpr(string Text, Variable? Array = null, Variable? Index = null) : Expr

@@ -16,11 +16,6 @@ public sealed record CallState
     public IReadOnlyList<Expr>? CallSiteStack { get; init; }
 
     /// <summary>
-    /// Снимок состояния регистров на момент вызова.
-    /// </summary>
-    public RegisterExpressions? CallSiteRegisters { get; init; }
-
-    /// <summary>
     /// Выражения, явно подготовленные через последовательность PUSH непосредственно перед CALL
     /// (в текущем базовом блоке). Предпочтительный источник stack-аргументов для этого вызова.
     /// </summary>

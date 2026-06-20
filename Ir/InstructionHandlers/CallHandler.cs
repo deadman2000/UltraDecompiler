@@ -31,7 +31,6 @@ public class CallHandler : IInstructionHandler
             {
                 TargetOffset = target,
                 CallSiteStack = block.EndStack.ToArray(),
-                CallSiteRegisters = block.EndRegisters,
                 CallSitePushArgs = pushArgs
             };
 
@@ -61,9 +60,7 @@ public class CallHandler : IInstructionHandler
         // Все вызовы (в т.ч. к библиотечным) моделируем как возвращающие значение в AX.
         // Это консервативно для dataflow. Если callee на самом деле void (по проанализированной сигнатуре),
         // то в CCodeGenerator или дополнительном этапе можно убрать присваивание (мёртвое).
-        var resultVar = block.Variables.CreateTempVariable();
-        block.Operations.Add(new SetOperation(resultVar, callExpr));
-        block.EndRegisters = block.EndRegisters.Set16(GpRegister16.AX, resultVar);
+        block.Set(block.Variables.AX, callExpr);
     }
 
     private static List<Expr> BuildIndirectTargetArgs(ExprBlock block, Operand op, Instruction instr)

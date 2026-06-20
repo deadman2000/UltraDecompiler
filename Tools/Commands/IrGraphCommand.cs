@@ -140,11 +140,7 @@ internal static class IrGraphCommand
         cfg.Build(disassembler, offset, parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe);
 
         var builder = ExpressionBuilder.Create(opt);
-        var variables = builder.Variables;
-        var registers = parser.IsCom
-            ? RegisterExpressions.InitCom(variables)
-            : RegisterExpressions.InitExe(variables);
-        builder.Build(cfg, registers, []);
+        builder.Build(cfg, []);
 
         string dotPath = outputPath ?? "ir_graph.dot";
 

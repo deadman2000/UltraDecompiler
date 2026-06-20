@@ -160,34 +160,6 @@ public static class Extensions
 
     }
 
-    extension(RegisterExpressions registers)
-    {
-        /// <summary>
-        /// SF == OF (эквивалентность). Используется для JGE / JG / JLE.
-        /// </summary>
-        public Expr SfEqOf() => !(registers.SF ^ registers.OF);
-
-        /// <summary>
-        /// SF != OF. Используется для JL / JLE.
-        /// </summary>
-        public Expr SfNeOf() => registers.SF ^ registers.OF;
-
-        /// <summary>
-        /// Применяет обновление флагов после арифметической/логической операции.
-        /// Устанавливает только ZF = (resultExpr == 0).
-        ///
-        /// Для ADD/SUB CF устанавливается напрямую в HandleArithmetic (более точная информация).
-        /// Для INC/DEC CF намеренно не трогается (согласно x86).
-        /// </summary>
-        public RegisterExpressions ApplyArithmeticFlags(Expr resultExpr)
-        {
-            return registers with
-            {
-                ZF = new CmpExpr(CmpOperation.Eq, resultExpr, ConstExpr.Zero)
-            };
-        }
-    }
-
     extension(Operand operand)
     {
         /// <summary>
@@ -215,11 +187,11 @@ public static class Extensions
                 case OperandType.Register16:
                     // Возвращает либо ранее сохранённое выражение (Variable/MathExpr),
                     // либо ConstExpr.Zero, если значение регистра ещё неизвестно.
-                    return block.EndRegisters.Get16(operand.AsGpRegister16());
+                    return block.Variables.Get(operand.AsGpRegister16());
                 case OperandType.Register8:
-                    return block.EndRegisters.Get8(operand.AsGpRegister8());
+                    return block.Variables.Get(operand.AsGpRegister8());
                 case OperandType.SegmentRegister:
-                    return block.EndRegisters.GetSegment(operand.AsCpuSegmentRegister());
+                    return block.Variables.Get(operand.AsCpuSegmentRegister());
                 case OperandType.Memory:
                     {
                         if (operand.BaseReg == AddressRegister.BP &&
@@ -232,7 +204,7 @@ public static class Extensions
                                 return slot;
                         }
 
-                        var (address, segExpr) = operand.BuildMemoryReference(block.EndRegisters, segmentOverride);
+                        var (address, segExpr) = operand.BuildMemoryReference(block, segmentOverride);
 
                         // Пытаемся распознать доступ к известной структуре в памяти (PSP и т.п.)
                         var knownVar = block.Variables.TryGetKnownMemoryVariable(address, segExpr);
@@ -251,16 +223,16 @@ public static class Extensions
         /// Строит символическое выражение эффективного адреса (offset) для memory-операнда.
         /// Сегмент здесь не учитывается — LEA и подобные операции работают только с offset-частью.
         /// </summary>
-        public Expr GetEffectiveAddress(in RegisterExpressions registers, Segment segmentOverride = Segment.None)
+        public Expr GetEffectiveAddress(ExprBlock block, Segment segmentOverride = Segment.None)
         {
             Expr? addr = null;
 
             if (operand.BaseReg != AddressRegister.None)
-                addr = registers.Get16((GpRegister16)operand.BaseReg);
+                addr = block.Variables.Get((GpRegister16)operand.BaseReg);
 
             if (operand.IndexReg != AddressRegister.None)
             {
-                var idx = registers.Get16((GpRegister16)operand.IndexReg);
+                var idx = block.Variables.Get((GpRegister16)operand.IndexReg);
                 addr = addr == null ? idx : addr.Calculate(Math2Operation.Add, idx);
             }
 
@@ -279,22 +251,22 @@ public static class Extensions
         /// Строит описание адреса памяти (address + segment) для операнда Memory.
         /// Используется как для загрузок (MemExpr), так и для записей (StoreOperation).
         /// </summary>
-        public (Expr Address, Expr? Segment) BuildMemoryReference(in RegisterExpressions registers, Segment segmentOverride)
+        public (Expr Address, Expr? Segment) BuildMemoryReference(ExprBlock block, Segment segmentOverride)
         {
-            var address = operand.GetEffectiveAddress(registers, segmentOverride);
+            var address = operand.GetEffectiveAddress(block, segmentOverride);
 
             Expr? segExpr;
 
             if (segmentOverride != Segment.None)
             {
-                segExpr = registers.GetSegment(segmentOverride.ToCpuSegmentRegister());
+                segExpr = block.Variables.Get(segmentOverride.ToCpuSegmentRegister());
             }
             else
             {
                 bool usesStackSegment = operand.BaseReg == AddressRegister.BP ||
                                         operand.IndexReg == AddressRegister.BP;
 
-                segExpr = registers.GetSegment(usesStackSegment ? CpuSegmentRegister.SS : CpuSegmentRegister.DS);
+                segExpr = block.Variables.Get(usesStackSegment ? CpuSegmentRegister.SS : CpuSegmentRegister.DS);
             }
 
             return (address, segExpr);
@@ -327,7 +299,7 @@ public static class Extensions
                 }
             }
 
-            var (addr, seg) = operand.BuildMemoryReference(block.EndRegisters, segmentOverride);
+            var (addr, seg) = operand.BuildMemoryReference(block, segmentOverride);
             block.Operations.Add(isInc ? new IncOperation(addr, seg) : new DecOperation(addr, seg));
         }
         /// <summary>
@@ -374,7 +346,7 @@ public static class Extensions
                 }
             }
 
-            var (addr, seg) = operand.BuildMemoryReference(block.EndRegisters, segmentOverride);
+            var (addr, seg) = operand.BuildMemoryReference(block, segmentOverride);
             block.Operations.Add(isAdd
                 ? new AddAssignOperation(addr, value, seg)
                 : new SubAssignOperation(addr, value, seg));
@@ -409,7 +381,7 @@ public static class Extensions
                 }
             }
 
-            var (addr, seg) = operand.BuildMemoryReference(block.EndRegisters, segmentOverride);
+            var (addr, seg) = operand.BuildMemoryReference(block, segmentOverride);
             block.Operations.Add(new StoreOperation(addr, seg, value));
         }
 
@@ -445,7 +417,7 @@ public static class Extensions
 
             if (instr.Segment != Segment.None)
             {
-                seg = block.EndRegisters.GetSegment(instr.Segment.ToCpuSegmentRegister());
+                seg = block.Variables.Get(instr.Segment.ToCpuSegmentRegister());
             }
 
             return new MemExpr(addr, seg);
@@ -457,12 +429,12 @@ public static class Extensions
         public (Expr Address, Expr? Segment) BuildStringMemoryAddress(bool isDestination)
         {
             Expr ptr = isDestination
-                ? block.EndRegisters.Get16(GpRegister16.DI)
-                : block.EndRegisters.Get16(GpRegister16.SI);
+                ? block.Variables.Get(GpRegister16.DI)
+                : block.Variables.Get(GpRegister16.SI);
 
             Expr? seg = isDestination
-                ? block.EndRegisters.GetSegment(CpuSegmentRegister.ES)
-                : block.EndRegisters.GetSegment(CpuSegmentRegister.DS);
+                ? block.Variables.Get(CpuSegmentRegister.ES)
+                : block.Variables.Get(CpuSegmentRegister.DS);
 
             return (ptr, seg);
         }

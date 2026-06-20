@@ -70,11 +70,11 @@ public class RotateHandler(bool isLeft) : IInstructionHandler
         // Записываем результат
         if (dst.Type == OperandType.Register16)
         {
-            block.EndRegisters = block.EndRegisters.Set16(dst.AsGpRegister16(), result);
+            block.Set(dst.AsGpRegister16(), result);
         }
         else if (dst.Type == OperandType.Register8)
         {
-            block.EndRegisters = block.EndRegisters.Set8(dst.AsGpRegister8(), result);
+            block.Set(dst.AsGpRegister8(), result);
         }
         else if (dst.Type == OperandType.Memory)
         {
@@ -85,8 +85,6 @@ public class RotateHandler(bool isLeft) : IInstructionHandler
             throw new NotImplementedException($"Rotate with destination {dst.Type} is not supported");
         }
 
-        // Ротации обновляют флаги (ZF, CF, OF). Для простоты обновляем только ZF.
-        // CF для ротаций на 1 бит можно вычислить, но пока упрощаем.
-        block.EndRegisters = block.EndRegisters.ApplyArithmeticFlags(result);
+        block.Set(block.Variables.ZF, new CmpExpr(CmpOperation.Eq, result, ConstExpr.Zero));
     }
 }

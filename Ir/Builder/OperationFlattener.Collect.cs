@@ -27,17 +27,6 @@ public partial class OperationFlattener
                 TryEmitLabel(block, result);
             }
 
-            if (_switchAnalyzer.SwitchByEntry.TryGetValue(block.BasicBlock.StartOffset, out var switchPattern))
-            {
-                CollectQuickCSwitch(block, switchPattern, result, visited);
-                if (!_switchAnalyzer.BlocksByOffset.TryGetValue(switchPattern.MergeOffset, out block))
-                {
-                    return;
-                }
-
-                continue;
-            }
-
             result.AddRange(block.Operations);
             if (EndsWithReturn(block.Operations))
             {

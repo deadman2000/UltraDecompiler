@@ -41,8 +41,7 @@ public static class TailReturnInserter
             }
 
             var isExplicit = !IsNaturalEpilogueMerge(block.BasicBlock, targetOffset, predecessors);
-            var returnValue = block.EndRegisters.Get16(GpRegister16.AX);
-            block.Operations.Add(new ReturnOperation(returnValue, IsExplicit: isExplicit));
+            block.Operations.Add(new ReturnOperation(block.Variables.AX, IsExplicit: isExplicit));
         }
     }
 

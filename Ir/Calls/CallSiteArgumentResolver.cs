@@ -35,7 +35,7 @@ public static class CallSiteArgumentResolver
                     break;
 
                 case RegisterParameter(var reg):
-                    args.Add(block.EndRegisters.Get16(reg));
+                    args.Add(block.Variables.Get(reg));
                     break;
             }
         }

@@ -17,7 +17,7 @@ internal static class SandboxCommand
 
     private static int Execute()
     {
-        var image = HexConverter.FromHexString("11 56 FC"); // adc word ptr [bp - 4], dx
+        var image = HexConverter.FromHexString("B8 05 00");
 
         var disassembler = new X86Disassembler(image);
 
@@ -25,8 +25,7 @@ internal static class SandboxCommand
         cfg.Build(disassembler, 0, RegisterState.Unknown);
 
         var expressions = new ExpressionBuilder();
-        RegisterExpressions registers = RegisterExpressions.InitZero() with { BP = new Variable(0) { Name = "x" } };
-        expressions.Build(cfg, registers, []);
+        expressions.Build(cfg, []);
 
         Console.WriteLine();
 

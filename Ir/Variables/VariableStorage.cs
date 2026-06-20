@@ -17,8 +17,64 @@ public class VariableStorage
     private int _stackNumber;
     private int _tempNumber;
 
+    /// <summary>Регистр AX.</summary>
+    public Variable AX { get; } = new Variable(Number: 0, Name: "regAX", IsRegister: true);
+
+    /// <summary>Регистр BX.</summary>
+    public Variable BX { get; } = new Variable(Number: 0, Name: "regBX", IsRegister: true);
+
+    /// <summary>Регистр CX.</summary>
+    public Variable CX { get; } = new Variable(Number: 0, Name: "regCX", IsRegister: true);
+
+    /// <summary>Регистр DX.</summary>
+    public Variable DX { get; } = new Variable(Number: 0, Name: "regDX", IsRegister: true);
+
+    /// <summary>Регистр SI.</summary>
+    public Variable SI { get; } = new Variable(Number: 0, Name: "regSI", IsRegister: true);
+
+    /// <summary>Регистр DI.</summary>
+    public Variable DI { get; } = new Variable(Number: 0, Name: "regDI", IsRegister: true);
+
+    /// <summary>Регистр BP.</summary>
+    public Variable BP { get; } = new Variable(Number: 0, Name: "regBP", IsRegister: true);
+
+    /// <summary>Регистр SP.</summary>
+    public Variable SP { get; } = new Variable(Number: 0, Name: "regSP", IsRegister: true);
+
+    /// <summary>Сегментный регистр DS.</summary>
+    public Variable DS { get; } = new Variable(Number: 0, Name: "regDS", IsRegister: true);
+
+    /// <summary>Сегментный регистр ES.</summary>
+    public Variable ES { get; } = new Variable(Number: 0, Name: "regES", IsRegister: true);
+
+    /// <summary>Сегментный регистр SS.</summary>
+    public Variable SS { get; } = new Variable(Number: 0, Name: "regSS", IsRegister: true);
+
+    /// <summary>Сегментный регистр CS.</summary>
+    public Variable CS { get; } = new Variable(Number: 0, Name: "regCS", IsRegister: true);
+
+    /// <summary>Флаг нуля (Zero Flag).</summary>
+    public Variable ZF { get; } = new Variable(Number: 0, Name: "regZF", IsRegister: true);
+
+    /// <summary>Флаг переноса (Carry Flag).</summary>
+    public Variable CF { get; } = new Variable(Number: 0, Name: "regCF", IsRegister: true);
+
+    /// <summary>Флаг знака (Sign Flag).</summary>
+    public Variable SF { get; } = new Variable(Number: 0, Name: "regSF", IsRegister: true);
+
+    /// <summary>Флаг переполнения (Overflow Flag).</summary>
+    public Variable OF { get; } = new Variable(Number: 0, Name: "regOF", IsRegister: true);
+
+    /// <summary>Флаг направления (Direction Flag).</summary>
+    public Variable DF { get; } = new Variable(Number: 0, Name: "regDF", IsRegister: true);
+
     /// <summary>true, если для функции активирован стандартный стековый кадр (BP-based).</summary>
     public bool StackFrameActive { get; private set; }
+
+    /// <summary>
+    /// Возвращает (или создаёт) каноническую переменную — базу PSP.
+    /// </summary>
+    public Variable PspBase => _pspBase ??= CreateInternalVariable("_psp");
 
     public void Clear()
     {
@@ -47,7 +103,7 @@ public class VariableStorage
     }
 
     /// <summary>
-    /// Создаёт служебную переменную символического выполнения (регистры, PSP, retAddr).
+    /// Создаёт служебную переменную символического выполнения (PSP, retAddr).
     /// </summary>
     public Variable CreateInternalVariable(string name)
     {
@@ -77,9 +133,49 @@ public class VariableStorage
     }
 
     /// <summary>
-    /// Возвращает (или создаёт) каноническую переменную — базу PSP.
+    /// Возвращает переменную 16-битного регистра общего назначения.
     /// </summary>
-    public Variable PspBase => _pspBase ??= CreateInternalVariable("_psp");
+    public Variable Get(GpRegister16 reg) => reg switch
+    {
+        GpRegister16.AX => AX,
+        GpRegister16.CX => CX,
+        GpRegister16.DX => DX,
+        GpRegister16.BX => BX,
+        GpRegister16.SP => SP,
+        GpRegister16.BP => BP,
+        GpRegister16.SI => SI,
+        GpRegister16.DI => DI,
+        _ => throw new ArgumentOutOfRangeException(nameof(reg), reg, null),
+    };
+
+    /// <summary>
+    /// Возвращает выражение 8-битного регистра общего назначения.
+    /// Для AH/CH/DH/BH возвращает старший байт соответствующего 16-битного регистра.
+    /// </summary>
+    public Expr Get(GpRegister8 reg) => reg switch
+    {
+        GpRegister8.AL => new Math2Expr(Math2Operation.And, AX, new ConstExpr(0xFF)),
+        GpRegister8.CL => new Math2Expr(Math2Operation.And, CX, new ConstExpr(0xFF)),
+        GpRegister8.DL => new Math2Expr(Math2Operation.And, DX, new ConstExpr(0xFF)),
+        GpRegister8.BL => new Math2Expr(Math2Operation.And, BX, new ConstExpr(0xFF)),
+        GpRegister8.AH => new Math2Expr(Math2Operation.Shr, new Math2Expr(Math2Operation.And, AX, new ConstExpr(0xFF00)), new ConstExpr(8)),
+        GpRegister8.CH => new Math2Expr(Math2Operation.Shr, new Math2Expr(Math2Operation.And, CX, new ConstExpr(0xFF00)), new ConstExpr(8)),
+        GpRegister8.DH => new Math2Expr(Math2Operation.Shr, new Math2Expr(Math2Operation.And, DX, new ConstExpr(0xFF00)), new ConstExpr(8)),
+        GpRegister8.BH => new Math2Expr(Math2Operation.Shr, new Math2Expr(Math2Operation.And, BX, new ConstExpr(0xFF00)), new ConstExpr(8)),
+        _ => throw new ArgumentOutOfRangeException(nameof(reg), reg, null),
+    };
+
+    /// <summary>
+    /// Возвращает переменную сегментного регистра.
+    /// </summary>
+    public Variable Get(CpuSegmentRegister reg) => reg switch
+    {
+        CpuSegmentRegister.ES => ES,
+        CpuSegmentRegister.CS => CS,
+        CpuSegmentRegister.SS => SS,
+        CpuSegmentRegister.DS => DS,
+        _ => throw new ArgumentOutOfRangeException(nameof(reg), reg, null),
+    };
 
     /// <summary>
     /// Активирует стековый кадр и создаёт переменные параметров для указанных смещений [BP+offset].

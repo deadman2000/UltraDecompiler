@@ -631,34 +631,7 @@ public partial class OperationFlattener
             return;
         }
 
-        var lastBlock = FindLastCollectedBlock(bodyStart, merge, visited);
-        if (lastBlock is null)
-        {
-            return;
-        }
-
-        var returnValue = lastBlock.EndRegisters.Get16(GpRegister16.AX);
-        body.Add(new ReturnOperation(returnValue, IsExplicit: true));
-    }
-
-    private static ExprBlock? FindLastCollectedBlock(ExprBlock? start, ExprBlock stopBefore, HashSet<ExprBlock> visited)
-    {
-        ExprBlock? last = null;
-        var block = start;
-        var localSeen = new HashSet<ExprBlock>();
-
-        while (block is not null && block != stopBefore)
-        {
-            if (!visited.Contains(block) || !localSeen.Add(block))
-            {
-                break;
-            }
-
-            last = block;
-            block = block.Next;
-        }
-
-        return last;
+        body.Add(new ReturnOperation(bodyStart.Variables.Get(GpRegister16.AX), IsExplicit: true));
     }
 
     private static bool IsInlineEpilogueMerge(ExprBlock merge)

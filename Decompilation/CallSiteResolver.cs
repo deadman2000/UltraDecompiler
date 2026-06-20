@@ -83,7 +83,7 @@ public static class CallSiteResolver
         IReadOnlyList<Expr> finalArgs;
 
         // Если есть запомненное состояние, строим аргументы строго по сигнатуре callee
-        if (state.CallSiteStack != null || state.CallSitePushArgs != null || state.CallSiteRegisters != null)
+        if (state.CallSiteStack != null || state.CallSitePushArgs != null)
         {
             finalArgs = BuildArgsFromCalleeSignature(callExpr, sig, image, layout, storage);
         }
@@ -117,7 +117,6 @@ public static class CallSiteResolver
 
         var stackSnap = state?.CallSiteStack ?? [];
         var pushList = state?.CallSitePushArgs;
-        var regs = state?.CallSiteRegisters;
 
         // Выбираем источник stack-слов в зависимости от сигнатуры callee.
         // Снимок стека на момент CALL хранит корректные выражения (в т.ч. после mov reg, val; push reg).
@@ -159,8 +158,8 @@ public static class CallSiteResolver
                     break;
 
                 case RegisterParameter(var reg):
-                    arg = regs?.Get16(reg) ?? ConstExpr.Zero;
-                    break;
+                    // TODO переменная регистра
+                    throw new NotImplementedException();
 
                 default:
                     arg = ConstExpr.Zero;

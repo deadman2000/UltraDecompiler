@@ -20,14 +20,8 @@ public class TestHandler : IInstructionHandler
         var right = instr.Operand2.GetExpression(block, instr.Segment);
 
         var andExpr = left.Calculate(Math2Operation.And, right);
-        var zfExpr = new CmpExpr(CmpOperation.Eq, andExpr, ConstExpr.Zero);
-
-        block.EndRegisters = block.EndRegisters with
-        {
-            ZF = zfExpr,
-            CF = ConstExpr.Zero,
-            OF = ConstExpr.Zero
-            // SF/PF от битов результата AND — при необходимости доработать
-        };
+        block.Set(block.Variables.ZF, new CmpExpr(CmpOperation.Eq, andExpr, ConstExpr.Zero));
+        block.Set(block.Variables.CF, ConstExpr.Zero);
+        block.Set(block.Variables.OF, ConstExpr.Zero);
     }
 }
