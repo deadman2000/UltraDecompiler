@@ -31,6 +31,8 @@ public static class Handlers
         [Mnemonic.CALL_FAR] = new CallHandler(),
         [Mnemonic.RET] = new RetHandler(),
         [Mnemonic.RET_IMM] = new RetHandler(),
+        [Mnemonic.RETF] = new RetHandler(),
+        [Mnemonic.RETF_IMM] = new RetHandler(),
         [Mnemonic.LOOP] = new LoopHandler(),
         [Mnemonic.LOOPE] = new LoopHandler(),
         [Mnemonic.LOOPNE] = new LoopHandler(),
