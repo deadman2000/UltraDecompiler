@@ -11,7 +11,6 @@ namespace UltraDecompiler.Ir.Builder;
 /// 
 /// Этот класс отвечает ТОЛЬКО за генерацию IR-дерева (ExprBlock) из CFG:
 /// - Символическое выполнение инструкций в каждом базовом блоке
-/// - Обновление RegisterExpressions (символические значения регистров/флагов)
 /// - Создание Operations (SetOperation, StoreOperation и т.д.) в ExprBlock
 /// - Построение связей Next/ConditionalBlock между ExprBlock'ами
 /// </summary>
@@ -20,6 +19,8 @@ public partial class ExpressionBuilder
     private readonly Dictionary<BasicBlock, ExprBlock> _blocksMap = [];
     private readonly Queue<ExprBlock> _queue = new();
     private ExprBlock? _entryBlock;
+    private IReadOnlyDictionary<BasicBlock, List<BasicBlock>> _predecessors =
+        new Dictionary<BasicBlock, List<BasicBlock>>();
 
     /// <summary>
     /// Точка входа IR-дерева (первый построенный ExprBlock).
@@ -50,9 +51,6 @@ public partial class ExpressionBuilder
     ///    инструкций и заполняет ExprBlock.Operations.
     /// 4. После обхода связываем ExprBlock'и между собой по ссылкам из CFG
     ///    (Next и ConditionalBlock).
-    /// 
-    /// Важно: состояние регистров (RegisterExpressions) передаётся между блоками.
-    /// Это позволяет отслеживать значения регистров через границы базовых блоков.
     /// 
     /// Если передан <paramref name="procedures"/>, после построения блоков автоматически
     /// выполняется CallSiteResolver для подстановки имён (в т.ч. библиотечных) и аргументов в CallExpr.
@@ -105,6 +103,7 @@ public partial class ExpressionBuilder
         _entryBlock = null;
 
         AnalyzeFunctionParameters(graph);
+        _predecessors = BuildPredecessors(graph.Blocks);
 
         // Формируем первый блок и добавляем его в очередь на обработку
         CreateExprBlock(graph.EntryBlock, initialStack);
@@ -148,6 +147,9 @@ public partial class ExpressionBuilder
                 exprBlock.ConditionalBlock = condCode;
             }
         }
+
+        InsertTailReturnsBeforeEpilogue(graph);
+        RemoveSharedEpilogueBlocks();
     }
 
     private void CreateExprBlock(BasicBlock block, IEnumerable<Expr> stack)
@@ -169,20 +171,6 @@ public partial class ExpressionBuilder
 
     /// <summary>
     /// Выполняет symbolic execution инструкций одного базового блока.
-    /// 
-    /// Для каждой инструкции:
-    /// - Если это "запись" в регистр (MOV, ADD, AND и т.д.) — мы вычисляем
-    ///   новое символическое выражение и сохраняем его в RegisterExpressions.
-    /// - Если инструкция имеет побочный эффект, который мы умеем представлять
-    ///   (арифметика, логика, сдвиги) — создаём соответствующую Operation
-    ///   (обычно SetOperation с Math1Expr или Math2Expr).
-    /// 
-    /// Важно: мы НЕ создаём Operation для каждого MOV. MOV просто обновляет
-    /// текущее символическое значение регистра. Операции создаются только
-    /// тогда, когда происходит "полезное" вычисление (ADD, AND, NEG и т.д.).
-    /// 
-    /// В конце работы метод сохраняет финальное состояние регистров в
-    /// exprBlock.EndRegisters.
     /// </summary>
     private ExprBlock GenerateCode(ExprBlock block)
     {
@@ -193,11 +181,35 @@ public partial class ExpressionBuilder
         // InitStack[0] — самый глубокий, InitStack[^1] — вершина (результат последнего PUSH).
         block.EndStack = new Stack<Expr>(block.InitStack.Reverse());
 
+        // Определяем диапазоны пролога и эпилога для специальной обработки
+        var prologueRange = GetPrologueRange(block.BasicBlock.Instructions);
+        var epilogueRange = GetEpilogueRange(block.BasicBlock.Instructions);
+
         Mnemonic? previousMnemonic = null;
 
-        foreach (var instr in block.BasicBlock.Instructions)
+        for (var i = 0; i < block.BasicBlock.Instructions.Count; i++)
         {
+            var instr = block.BasicBlock.Instructions[i];
             block.PreviousMnemonic = previousMnemonic;
+
+            // === Специальная обработка пролога ===
+            // Инструкции пролога (push bp, mov bp, sp, sub sp, N) не создают операций IR,
+            // а только настраивают символическое состояние регистров.
+            if (prologueRange.HasValue && i >= prologueRange.Value.Start && i < prologueRange.Value.End)
+            {
+                HandlePrologueInstruction(block, instr);
+                previousMnemonic = instr.Mnemonic;
+                continue;
+            }
+
+            // === Специальная обработка эпилога ===
+            // Инструкции эпилога (mov sp, bp, pop bp, leave) не создают операций IR.
+            if (epilogueRange.HasValue && i >= epilogueRange.Value.Start && i < epilogueRange.Value.End)
+            {
+                HandleEpilogueInstruction(block, instr);
+                previousMnemonic = instr.Mnemonic;
+                continue;
+            }
 
             // === Управление потоком ===
             // При встрече безусловного перехода — завершаем блок (переход моделируется в CFG).
@@ -206,7 +218,11 @@ public partial class ExpressionBuilder
             // Для условных переходов сразу заполняем Condition (в их хендлерах).
             if (instr.IsReturn)
             {
-                Handlers.Get(instr.Mnemonic)?.Handle(block, instr);
+                if (ShouldEmitReturnFromRet(block.BasicBlock))
+                {
+                    Handlers.Get(instr.Mnemonic)?.Handle(block, instr);
+                }
+
                 Debug.Assert(block.BasicBlock.ConditionalBlock == null);
                 return block;
             }
@@ -249,5 +265,16 @@ public partial class ExpressionBuilder
     {
         // Базовая реализация — пустая (для оптимизированного кода)
     }
+
+    /// <summary>
+    /// Создавать ли <see cref="ReturnOperation"/> для инструкции RET в данном блоке.
+    /// Переопределяется в /Od-профиле для подавления дубля с tail-return.
+    /// </summary>
+    protected virtual bool ShouldEmitReturnFromRet(BasicBlock block) => true;
+
+    /// <summary>
+    /// Вставлять ли <see cref="ReturnOperation"/> в блоки с tail jmp в общий эпилог (/Od).
+    /// </summary>
+    protected virtual bool ShouldInsertTailReturnsBeforeEpilogue() => false;
 }
 

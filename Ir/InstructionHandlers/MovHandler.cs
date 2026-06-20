@@ -6,11 +6,9 @@ namespace UltraDecompiler.Ir.InstructionHandlers;
 /// Обрабатывает MOV (пересылка данных).
 /// 
 /// MOV обновляет символическое значение целевого операнда:
-/// - MOV reg, reg/mem/imm — создаёт SetOperation и обновляет RegisterExpressions
+/// - MOV reg, reg/mem/imm — создаёт SetOperation
 /// - MOV mem, reg/imm — создаёт StoreOperation (запись в память)
 /// - MOV seg, reg/mem — обновляет сегментный регистр
-/// 
-/// Важно: MOV не создаёт Math-операций, только копирует выражение.
 /// </summary>
 public class MovHandler : IInstructionHandler
 {

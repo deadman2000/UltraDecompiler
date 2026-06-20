@@ -232,7 +232,6 @@ public class Decompiler
     {
         PrepareInstructionsMap();
         _storage = new ProcedureStorage();
-        var irProfile = DecompilationProfileRegistry.GetProfile(_optimizationLevel);
 
         foreach (var (offset, (instructions, isLibrary, name)) in _instructionsMap)
         {
@@ -274,13 +273,6 @@ public class Decompiler
                 IsLibrary = false,
                 Graph = cfg,
             };
-
-            irProfile.ApplyIrConstructionPasses(new IrConstructionContext
-            {
-                Builder = expressions,
-                Graph = cfg,
-                Procedure = userProc,
-            });
 
             _storage.Add(userProc);
         }

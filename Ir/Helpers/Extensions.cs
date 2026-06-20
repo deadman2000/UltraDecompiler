@@ -164,16 +164,6 @@ public static class Extensions
     {
         /// <summary>
         /// Преобразует Operand (из дизассемблера) в символическое выражение (Expr).
-        /// 
-        /// Это центральная точка, где мы "поднимаем" низкоуровневые операнды
-        /// в наше высокоуровневое представление.
-        /// 
-        /// Поддерживаемые типы:
-        /// - Immediate > ConstExpr (или ImageOffsetExpr, если операнд релоцирован)
-        /// - Регистры (8/16, сегментные) > текущее символическое значение из RegisterExpressions
-        /// - Memory > MemExpr(адрес, сегмент). 
-        ///   Сегмент заполняется либо из явного префикса (ES:/CS:/SS:/DS:), либо по умолчанию
-        ///   (BP-адресация > SS, всё остальное > DS).
         /// </summary>
         public Expr GetExpression(ExprBlock block, Segment segmentOverride = Segment.None)
         {

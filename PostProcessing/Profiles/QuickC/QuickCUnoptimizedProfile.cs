@@ -18,11 +18,6 @@ public sealed class QuickCUnoptimizedProfile : IDecompilationProfile
 
     public OptimizationLevel OptimizationLevel => OptimizationLevel.Disabled;
 
-    public void ApplyIrConstructionPasses(IrConstructionContext context)
-    {
-        TailReturnInserter.Apply(context.Builder.Blocks, context.Graph.Blocks);
-    }
-
     public IReadOnlyList<IPostProcessPass> GetProcedurePasses() => ProcedurePasses;
 
     public IReadOnlyList<IPostProcessPass> GetGlobalPasses() => [];

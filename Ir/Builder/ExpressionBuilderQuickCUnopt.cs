@@ -20,4 +20,10 @@ public class ExpressionBuilderQuickCUnopt : ExpressionBuilder
         StackLocalPushArgPattern.Apply(block);
     }
 
+    /// <inheritdoc />
+    protected override bool ShouldEmitReturnFromRet(BasicBlock block) =>
+        !IsSharedEpilogueReachedByTailJmp(block);
+
+    /// <inheritdoc />
+    protected override bool ShouldInsertTailReturnsBeforeEpilogue() => true;
 }

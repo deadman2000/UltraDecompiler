@@ -375,12 +375,8 @@ public class MovTests : BaseTests
             8B 46 04  ; MOV AX, [BP+4]
             """);
 
-        // Должно быть 2 операции: установка BP и загрузка arg0
-        var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
-        Assert.Equal(2, sets.Count);
-
-        // Вторая SetOperation — загрузка параметра
-        var loadParam = sets[1];
+        // Пролог не создаёт операций — только загрузка arg0
+        var loadParam = Assert.Single(expr.Blocks[0].Operations.OfType<SetOperation>());
         Assert.Equal(expr.Variables.AX, loadParam.Dst);
         // Должна загрузиться переменная arg0
         Assert.Equal("arg0", loadParam.Src.ToString());

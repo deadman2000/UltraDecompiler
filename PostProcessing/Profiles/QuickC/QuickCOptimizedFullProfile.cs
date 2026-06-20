@@ -11,18 +11,13 @@ namespace UltraDecompiler.PostProcessing.Profiles.QuickC;
 
 /// <summary>
 /// Профиль QuickC для оптимизированной компиляции (<c>/Ox</c>).
-/// В отличие от unopt-профиля не применяет TailReturnInserter и Od-специфичные эпилог/структ/фар-пассы.
+/// В отличие от unopt-профиля не применяет Od-специфичные эпилог/структ/фар-пассы.
 /// </summary>
 public sealed class QuickCOptimizedFullProfile : IDecompilationProfile
 {
     public static QuickCOptimizedFullProfile Instance { get; } = new();
 
     public OptimizationLevel OptimizationLevel => OptimizationLevel.EnabledFull;
-
-    public void ApplyIrConstructionPasses(IrConstructionContext context)
-    {
-        // Оптимизированный код не использует Od-эпилоги и tail-return паттерны QuickC.
-    }
 
     public IReadOnlyList<IPostProcessPass> GetProcedurePasses() => ProcedurePasses;
 

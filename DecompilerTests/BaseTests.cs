@@ -63,22 +63,6 @@ public abstract class BaseTests
         var graph = GetGraph(hex);
         var decompiler = ExpressionBuilder.Create(OptimizationLevel.Disabled);
         decompiler.BuildProc(graph);
-
-        var procedure = new DisassembledProcedure
-        {
-            Offset = 0,
-            Instructions = [],
-            Name = "test_proc",
-        };
-        DecompilationProfileRegistry
-            .GetProfile(OptimizationLevel.Disabled)
-            .ApplyIrConstructionPasses(new IrConstructionContext
-            {
-                Builder = decompiler,
-                Graph = graph,
-                Procedure = procedure,
-            });
-
         return decompiler;
     }
 

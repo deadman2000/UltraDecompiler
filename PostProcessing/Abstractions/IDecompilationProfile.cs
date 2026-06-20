@@ -9,8 +9,6 @@ public interface IDecompilationProfile
 {
     OptimizationLevel OptimizationLevel { get; }
 
-    void ApplyIrConstructionPasses(IrConstructionContext context);
-
     IReadOnlyList<IPostProcessPass> GetProcedurePasses();
 
     IReadOnlyList<IPostProcessPass> GetGlobalPasses();

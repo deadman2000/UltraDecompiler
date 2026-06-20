@@ -475,7 +475,7 @@ public static class Extensions
 
     extension(Segment segment)
     {
-        /// <summary>Индекс сегментного регистра (0=ES … 3=DS) для <see cref="RegisterExpressions.GetSegment"/>.</summary>
+        /// <summary>Индекс сегментного регистра (0=ES … 3=DS)</summary>
         public CpuSegmentRegister ToCpuSegmentRegister() => segment switch
         {
             Segment.ES => CpuSegmentRegister.ES,
