@@ -406,6 +406,22 @@ public static class Extensions
         }
     }
 
+    extension(GpRegister8 reg)
+    {
+        /// <summary>
+        /// Возвращает соответствующий 16-битный регистр для 8-битного.
+        /// AL/AH -> AX, BL/BH -> BX, CL/CH -> CX, DL/DH -> DX.
+        /// </summary>
+        public GpRegister16 ToGpRegister16() => reg switch
+        {
+            GpRegister8.AL or GpRegister8.AH => GpRegister16.AX,
+            GpRegister8.BL or GpRegister8.BH => GpRegister16.BX,
+            GpRegister8.CL or GpRegister8.CH => GpRegister16.CX,
+            GpRegister8.DL or GpRegister8.DH => GpRegister16.DX,
+            _ => throw new ArgumentOutOfRangeException(nameof(reg), reg, null)
+        };
+    }
+
     extension(ExprBlock block)
     {
         /// <summary>

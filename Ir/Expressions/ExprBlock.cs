@@ -1,4 +1,5 @@
-﻿using UltraDecompiler.Ir.Variables;
+﻿using UltraDecompiler.Ir.Helpers;
+using UltraDecompiler.Ir.Variables;
 
 namespace UltraDecompiler.Ir.Expressions;
 
@@ -72,7 +73,44 @@ public class ExprBlock(BasicBlock basicBlock)
 
     public void Set(GpRegister16 reg, Expr src) => Set(Variables.Get(reg), src);
 
-    public void Set(GpRegister8 reg, Expr src) => Set(Variables.Get(reg), src);
+    public void Set(GpRegister8 reg, Expr src)
+    {
+        // Для 8-битных регистров сохраняем неизменённые биты 16-битного регистра
+        var baseVar = Variables.Get(reg.ToGpRegister16());
+        var old16 = (Expr)baseVar;
+        var maskedSrc = src.LowByte();
+
+        Expr newValue = reg switch
+        {
+            // AL: сохраняем старший байт (AH), меняем младший (AL)
+            // AX_new = (AX_old & 0xFF00) | (src & 0xFF)
+            GpRegister8.AL => old16.Calculate(Math2Operation.And, new ConstExpr(0xFF00))
+                              .Calculate(Math2Operation.Or, maskedSrc),
+
+            // AH: сохраняем младший байт (AL), меняем старший (AH)
+            // AX_new = (AX_old & 0x00FF) | ((src & 0xFF) << 8)
+            GpRegister8.AH => old16.Calculate(Math2Operation.And, new ConstExpr(0x00FF))
+                              .Calculate(Math2Operation.Or, maskedSrc.Calculate(Math2Operation.Shl, new ConstExpr(8))),
+
+            // BL, BH, CL, CH, DL, DH — аналогично
+            GpRegister8.BL => old16.Calculate(Math2Operation.And, new ConstExpr(0xFF00))
+                              .Calculate(Math2Operation.Or, maskedSrc),
+            GpRegister8.BH => old16.Calculate(Math2Operation.And, new ConstExpr(0x00FF))
+                              .Calculate(Math2Operation.Or, maskedSrc.Calculate(Math2Operation.Shl, new ConstExpr(8))),
+            GpRegister8.CL => old16.Calculate(Math2Operation.And, new ConstExpr(0xFF00))
+                              .Calculate(Math2Operation.Or, maskedSrc),
+            GpRegister8.CH => old16.Calculate(Math2Operation.And, new ConstExpr(0x00FF))
+                              .Calculate(Math2Operation.Or, maskedSrc.Calculate(Math2Operation.Shl, new ConstExpr(8))),
+            GpRegister8.DL => old16.Calculate(Math2Operation.And, new ConstExpr(0xFF00))
+                              .Calculate(Math2Operation.Or, maskedSrc),
+            GpRegister8.DH => old16.Calculate(Math2Operation.And, new ConstExpr(0x00FF))
+                              .Calculate(Math2Operation.Or, maskedSrc.Calculate(Math2Operation.Shl, new ConstExpr(8))),
+
+            _ => throw new ArgumentOutOfRangeException(nameof(reg), reg, null)
+        };
+
+        Set(baseVar, newValue);
+    }
 
     public void Set(CpuSegmentRegister reg, Expr src) => Set(Variables.Get(reg), src);
 }

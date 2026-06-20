@@ -12,6 +12,8 @@ public static class Handlers
         [Mnemonic.PUSH] = new PushHandler(),
         [Mnemonic.POP] = new PopHandler(),
 
+        [Mnemonic.MOV] = new MovHandler(),
+
         [Mnemonic.CMP] = new CmpHandler(),
         [Mnemonic.TEST] = new TestHandler(),
 
