@@ -109,10 +109,59 @@ int nested_for(void) {
     return sum;
 }
 
+int for_break(int N) {
+    int i, sum;
+    sum = 0;
+    for (i = 0; i < N; i++) {
+        if (i == 7)
+            break;
+        sum += i;
+    }
+    return sum;
+}
+
+int for_continue(int N) {
+    int i, sum;
+    sum = 0;
+    for (i = 0; i < N; i++) {
+        if ((i & 1) == 0)
+            continue;
+        sum += i;
+    }
+    return sum;
+}
+
+int while_break(int N) {
+    int i, sum;
+    sum = 0;
+    i = 0;
+    while (1) {
+        if (i >= N)
+            break;
+        sum += i;
+        i++;
+    }
+    return sum;
+}
+
+int while_continue(int N) {
+    int i, sum;
+    sum = 0;
+    i = 0;
+    while (i < N) {
+        i++;
+        if ((i & 1) == 0)
+            continue;
+        sum += i;
+    }
+    return sum;
+}
+
 int main(void) {
     int r = for_step3() + for_mul() + for_no_update_expr()
       + for_multi_var() + for_var_step() + while_pre() + do_while_post()
-      + while_true_break() + for_empty_body() + nested_for();
+      + while_true_break() + for_empty_body() + nested_for()
+      + for_break(10) + for_continue(10) + while_break(10) + while_continue(10);
     printf("%d\n", r);
     return 0;
 }

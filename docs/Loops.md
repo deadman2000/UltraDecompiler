@@ -805,9 +805,9 @@ exit_label:
 
 i=SI, j=DI. `imul reg` (регистр). Отдельные прыжки на инициализацию inner. Плотнее, меньше стековых обращений.
 
-### 2.11 Break / Continue (forbk, forcnt, whbrk, whcnt)
+### 2.11 For с break `if (i == 7) break;`
 
-**for + break (if (i==7) break):**
+**Источник: loopspec.c (for_break)**
 
 ```c
 int for_break(int N)
@@ -822,52 +822,9 @@ int for_break(int N)
     }
     return sum;
 }
-
-int for_continue(int N)
-{
-    int i, sum;
-    sum = 0;
-    for (i = 0; i < N; i++)
-    {
-        if ((i & 1) == 0)
-            continue;
-        sum += i;
-    }
-    return sum;
-}
-
-int while_break(int N)
-{
-    int i, sum;
-    sum = 0;
-    i = 0;
-    while (1)
-    {
-        if (i >= N)
-            break;
-        sum += i;
-        i++;
-    }
-    return sum;
-}
-
-int while_continue(int N)
-{
-    int i, sum;
-    sum = 0;
-    i = 0;
-    while (i < N)
-    {
-        i++;
-        if ((i & 1) == 0)
-            continue;
-        sum += i;
-    }
-    return sum;
-}
 ```
 
-**Unopt:** после `for` init/jmp:
+**Unopt (/Od):**
 ```asm
 ; Инициализация for
 mov     [BP-2], 0           ; i = 0
@@ -897,9 +854,7 @@ exit_loop:
 
 ![for_break /Od](loops-ir-graphs/for_break_Od.png)
 
-Continue: `jne` на update (пропуск тела), затем update + тест.
-
-**Opt:**
+**Opt (/Ox):**
 ```asm
 ; Инициализация
 mov     SI, 0               ; i в SI
@@ -924,18 +879,66 @@ test_label:
 exit_loop:
     ; код после цикла
 ```
-cmp SI,7
-jne continue_body
-jmp exit
-...
-add ...
-inc
-test jl ...
-```
 
 ![for_break /Ox](loops-ir-graphs/for_break_Ox.png)
 
-Continue (opt):
+**Наблюдения:** Break реализуется через `je` / `jmp` на выход из цикла. В /Od проверка в начале тела, в /Ox — аналогично, но с регистром `SI`.
+
+---
+
+### 2.12 For с continue `if ((i & 1) == 0) continue;`
+
+**Источник: loopspec.c (for_continue)**
+
+```c
+int for_continue(int N)
+{
+    int i, sum;
+    sum = 0;
+    for (i = 0; i < N; i++)
+    {
+        if ((i & 1) == 0)
+            continue;
+        sum += i;
+    }
+    return sum;
+}
+```
+
+**Unopt (/Od):**
+```asm
+; Инициализация for
+mov     [BP-2], 0           ; i = 0
+jmp     test_label
+
+; Проверка continue (в начале тела)
+body_label:
+    mov     AX, [BP-2]              ; загрузить i
+    and     AX, 1                   ; i & 1
+    jne     do_body                 ; если нечётное, выполнить тело
+    jmp     update_label            ; continue → пропустить тело
+
+do_body:
+    mov     AX, [BP-2]
+    add     [BP-4], AX              ; sum += i
+
+; Обновление
+update_label:
+    add     [BP-2], 1               ; i++
+
+; Проверка условия
+test_label:
+    cmp     [BP-2], N               ; сравнить i с N
+    jge     exit_loop               ; если i >= N, выход
+    jmp     body_label              ; иначе повторить
+
+exit_loop:
+    ; код после цикла
+```
+
+![for_continue /Od](loops-ir-graphs/for_continue_Od.png)
+
+**Opt (/Ox):**
 ```asm
 ; Инициализация
 mov     SI, 0               ; i в SI
@@ -945,25 +948,186 @@ jmp     test_label
 body_label:
     mov     AX, SI                  ; загрузить i
     and     AX, 1                   ; i & 1
-    jne     update_label            ; если нечётное, выполнить тело
-    jmp     update_label            ; continue → пропуск тела
+    jne     do_body                 ; если нечётное, выполнить тело
+    jmp     update_label            ; continue → пропустить тело
 
+do_body:
+    add     [BP-4], SI              ; sum += SI
+
+; Обновление
 update_label:
     inc     SI                      ; i++
 
 ; Проверка условия
 test_label:
-    cmp     SI, N
-    jl      body_label
+    cmp     SI, N                   ; сравнить SI с N
+    jl      body_label              ; если SI < N, повторить
+
+exit_loop:
+    ; код после цикла
 ```
 
 ![for_continue /Ox](loops-ir-graphs/for_continue_Ox.png)
 
-Использует короткие `je` / `jne` + `jmp` на выход или на update-часть.
+**Наблюдения:** Continue реализуется через `jne` / `jmp` на метку обновления. В /Od переменные на стеке, в /Ox — счётчик в `SI`, используется `inc`.
 
-Аналогично для while.
+---
 
-### 2.12 Циклы по указателям / строкам (whcpy.c)
+### 2.13 While(1) с break `if (i >= N) break;`
+
+**Источник: loopspec.c (while_break)**
+
+```c
+int while_break(int N)
+{
+    int i, sum;
+    sum = 0;
+    i = 0;
+    while (1)
+    {
+        if (i >= N)
+            break;
+        sum += i;
+        i++;
+    }
+    return sum;
+}
+```
+
+**Unopt (/Od):**
+```asm
+; Инициализация
+mov     [BP-4], 0           ; sum = 0
+mov     [BP-2], 0           ; i = 0
+jmp     body_label          ; прыжок на тело
+
+; Тело + проверка break
+body_label:
+    cmp     [BP-2], N               ; сравнить i с N
+    jge     exit_loop               ; если i >= N, выход (break)
+    
+    ; Тело: sum += i
+    mov     AX, [BP-2]
+    add     [BP-4], AX
+    
+    ; Обновление
+    add     [BP-2], 1               ; i++
+    jmp     body_label              ; повторить
+
+exit_loop:
+    ; код после цикла
+```
+
+![while_break /Od](loops-ir-graphs/while_break_Od.png)
+
+**Opt (/Ox):**
+```asm
+; Инициализация
+mov     SI, 0               ; i в SI
+jmp     body_label
+
+; Тело + проверка break
+body_label:
+    cmp     SI, N                   ; сравнить SI с N
+    jge     exit_loop               ; если SI >= N, выход
+    
+    ; Тело: sum += SI
+    add     [BP-4], SI
+    inc     SI                      ; i++
+    jmp     body_label              ; повторить
+
+exit_loop:
+    ; код после цикла
+```
+
+![while_break /Ox](loops-ir-graphs/while_break_Ox.png)
+
+**Наблюдения:** Бесконечный `while(1)` компилируется без явной проверки условия, только `break`. В /Ox счётчик в `SI`, `inc` вместо `add`.
+
+---
+
+### 2.14 While с continue `if ((i & 1) == 0) continue;`
+
+**Источник: loopspec.c (while_continue)**
+
+```c
+int while_continue(int N)
+{
+    int i, sum;
+    sum = 0;
+    i = 0;
+    while (i < N)
+    {
+        i++;
+        if ((i & 1) == 0)
+            continue;
+        sum += i;
+    }
+    return sum;
+}
+```
+
+**Unopt (/Od):**
+```asm
+; Инициализация
+mov     [BP-4], 0           ; sum = 0
+mov     [BP-2], 0           ; i = 0
+jmp     test_label
+
+; Тело цикла
+body_label:
+    add     [BP-2], 1               ; i++
+    mov     AX, [BP-2]
+    and     AX, 1                   ; i & 1
+    jne     do_body                 ; если нечётное, выполнить тело
+    jmp     test_label              ; continue → пропустить тело, перейти на тест
+
+do_body:
+    mov     AX, [BP-2]
+    add     [BP-4], AX              ; sum += i
+
+; Проверка условия
+test_label:
+    cmp     [BP-2], N               ; сравнить i с N
+    jl      body_label              ; если i < N, повторить
+
+exit_loop:
+    ; код после цикла
+```
+
+![while_continue /Od](loops-ir-graphs/while_continue_Od.png)
+
+**Opt (/Ox):**
+```asm
+; Инициализация
+mov     SI, 0               ; i в SI
+jmp     test_label
+
+; Тело цикла
+body_label:
+    inc     SI                      ; i++
+    mov     AX, SI
+    and     AX, 1                   ; i & 1
+    jne     do_body                 ; если нечётное, выполнить тело
+    jmp     test_label              ; continue → пропустить тело, перейти на тест
+
+do_body:
+    add     [BP-4], SI              ; sum += SI
+
+; Проверка условия
+test_label:
+    cmp     SI, N                   ; сравнить SI с N
+    jl      body_label              ; если SI < N, повторить
+
+exit_loop:
+    ; код после цикла
+```
+
+![while_continue /Ox](loops-ir-graphs/while_continue_Ox.png)
+
+**Наблюдения:** Continue в `while` переходит сразу на проверку условия (нет отдельной метки обновления). В /Ox счётчик в `SI`, `inc` вместо `add`.
+
+### 2.15 Циклы по указателям / строкам (whcpy.c)
 
 **Источник: whcpy.c (copy_str)**
 

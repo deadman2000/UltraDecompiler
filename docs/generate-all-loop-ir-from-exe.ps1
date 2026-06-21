@@ -65,21 +65,15 @@ $loopCases = @(
             @{ Name = "do_while"; Offset = "0x15A"; Opt = "Ox" },
             @{ Name = "while_break"; Offset = "0x188"; Opt = "Ox" },
             @{ Name = "for_empty"; Offset = "0x1AE"; Opt = "Ox" },
-            @{ Name = "nested_for"; Offset = "0x1CC"; Opt = "Ox" }
-        )
-    },
-    @{
-        Source = "forbk.c"
-        Functions = @(
-            @{ Name = "for_break"; Offset = "0x10"; Opt = "Od" },
-            @{ Name = "for_break"; Offset = "0x10"; Opt = "Ox" }
-        )
-    },
-    @{
-        Source = "forcnt.c"
-        Functions = @(
-            @{ Name = "for_continue"; Offset = "0x10"; Opt = "Od" },
-            @{ Name = "for_continue"; Offset = "0x10"; Opt = "Ox" }
+            @{ Name = "nested_for"; Offset = "0x1CC"; Opt = "Ox" },
+            @{ Name = "for_break"; Offset = "0x250"; Opt = "Od" },
+            @{ Name = "for_continue"; Offset = "0x2A0"; Opt = "Od" },
+            @{ Name = "while_break"; Offset = "0x2F0"; Opt = "Od" },
+            @{ Name = "while_continue"; Offset = "0x340"; Opt = "Od" },
+            @{ Name = "for_break"; Offset = "0x200"; Opt = "Ox" },
+            @{ Name = "for_continue"; Offset = "0x240"; Opt = "Ox" },
+            @{ Name = "while_break"; Offset = "0x280"; Opt = "Ox" },
+            @{ Name = "while_continue"; Offset = "0x2C0"; Opt = "Ox" }
         )
     },
     @{
