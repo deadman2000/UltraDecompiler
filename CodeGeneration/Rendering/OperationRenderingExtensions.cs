@@ -127,7 +127,7 @@ public static class COperationRenderer
 
     static string FormatIncDec(Expr target, Expr? segment, string suffix, int indent)
     {
-        if (target is Variable variable && segment is null)
+        if (target is VariableExpr { Var: var variable } && segment is null)
         {
             return $"{Indent(indent)}{variable}{suffix}";
         }
@@ -144,7 +144,7 @@ public static class COperationRenderer
 
     static string FormatCompoundAssign(Expr target, Expr? segment, string op, Expr value, int indent)
     {
-        if (target is Variable variable && segment is null)
+        if (target is VariableExpr { Var: var variable } && segment is null)
         {
             return $"{Indent(indent)}{variable} {op} {value.RenderExpr()}";
         }

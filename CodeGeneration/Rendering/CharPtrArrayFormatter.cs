@@ -38,7 +38,7 @@ public static class CharPtrArrayFormatter
         array = null;
         index = null;
 
-        if (mem.Address is Variable arrayVar && arrayVar.Type?.IsCharPtrPtr == true)
+        if (mem.Address is VariableExpr { Var: var arrayVar } && arrayVar.Type?.IsCharPtrPtr == true)
         {
             array = arrayVar;
             formatted = $"{arrayVar}[0]";
@@ -77,7 +77,7 @@ public static class CharPtrArrayFormatter
         array = null;
         index = null;
 
-        if (mem.Address is Variable ptr && ptr.Type?.IsCharPtr == true)
+        if (mem.Address is VariableExpr { Var: var ptr } && ptr.Type?.IsCharPtr == true)
         {
             array = ptr;
             formatted = $"*{ptr}";
@@ -89,12 +89,12 @@ public static class CharPtrArrayFormatter
             return false;
         }
 
-        if (add.First is Variable first && !IsSegmentBase(first) && add.Second is ConstExpr offset)
+        if (add.First is VariableExpr { Var: var first } && !IsSegmentBase(first) && add.Second is ConstExpr offset)
         {
             return FormatCharPtrIndexed(first, offset.Value, out formatted, out array);
         }
 
-        if (add.Second is Variable second && !IsSegmentBase(second) && add.First is ConstExpr offset2)
+        if (add.Second is VariableExpr { Var: var second } && !IsSegmentBase(second) && add.First is ConstExpr offset2)
         {
             return FormatCharPtrIndexed(second, offset2.Value, out formatted, out array);
         }
@@ -150,7 +150,7 @@ public static class CharPtrArrayFormatter
         indexVar = null;
         indexExpr = string.Empty;
 
-        if (left is Variable variable && !IsSegmentBase(variable))
+        if (left is VariableExpr { Var: var variable } && !IsSegmentBase(variable))
         {
             if (right is ConstExpr { Value: 0 })
             {
@@ -176,7 +176,7 @@ public static class CharPtrArrayFormatter
 
         switch (expr)
         {
-            case Variable variable:
+            case VariableExpr { Var: var variable }:
                 indexVar = variable;
                 indexExpr = variable.ToString();
                 return true;
@@ -190,17 +190,17 @@ public static class CharPtrArrayFormatter
                 indexExpr = (value / 2).ToString();
                 return true;
 
-            case Math2Expr { Operation: Math2Operation.Shl, First: Variable index, Second: ConstExpr { Value: 1 } }:
+            case Math2Expr { Operation: Math2Operation.Shl, First: VariableExpr { Var: var index }, Second: ConstExpr { Value: 1 } }:
                 indexVar = index;
                 indexExpr = index.ToString();
                 return true;
 
-            case Math2Expr { Operation: Math2Operation.Mul, First: Variable mulIndex, Second: ConstExpr { Value: 2 } }:
+            case Math2Expr { Operation: Math2Operation.Mul, First: VariableExpr { Var: var mulIndex }, Second: ConstExpr { Value: 2 } }:
                 indexVar = mulIndex;
                 indexExpr = mulIndex.ToString();
                 return true;
 
-            case Math2Expr { Operation: Math2Operation.Mul, First: ConstExpr { Value: 2 }, Second: Variable mulIndex2 }:
+            case Math2Expr { Operation: Math2Operation.Mul, First: ConstExpr { Value: 2 }, Second: VariableExpr { Var: var mulIndex2 } }:
                 indexVar = mulIndex2;
                 indexExpr = mulIndex2.ToString();
                 return true;

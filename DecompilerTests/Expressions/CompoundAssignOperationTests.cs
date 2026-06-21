@@ -18,7 +18,8 @@ public class CompoundAssignOperationTests : BaseTests
             """);
 
         var add = Assert.IsType<AddAssignOperation>(expr.Blocks[0].Operations[^1]);
-        Assert.IsType<Variable>(add.Target);
+        Assert.True(AssignmentTarget.TryGetVariable(add.Target, out var target));
+        Assert.True(target!.IsStack);
         Assert.Contains("+=", add.ToCString(asStatement: true));
     }
 

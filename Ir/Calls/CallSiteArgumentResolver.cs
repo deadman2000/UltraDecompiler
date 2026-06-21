@@ -35,7 +35,7 @@ public static class CallSiteArgumentResolver
                     break;
 
                 case RegisterParameter(var reg):
-                    args.Add(block.Variables.Get(reg));
+                    args.Add(block.Variables.Get(reg).ToGet());
                     break;
             }
         }
@@ -170,6 +170,6 @@ public static class CallSiteArgumentResolver
 
     private static bool IsSyntheticReturnAddress(Expr e)
     {
-        return e is Variable v && string.Equals(v.Name, "retAddr", StringComparison.Ordinal);
+        return e is VariableExpr { Var.Name: "retAddr" };
     }
 }

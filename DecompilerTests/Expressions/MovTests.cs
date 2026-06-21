@@ -18,7 +18,7 @@ public class MovTests : BaseTests
         var s = Assert.IsType<SetOperation>(set);
 
         // Целевая переменная — AX
-        Assert.Equal(expr.Variables.AX, s.Dst);
+        ExprTestHelpers.AssertReferencesVariable(s.Dst, expr.Variables.AX);
 
         // Значение — константа 0x1234
         var constExpr = Assert.IsType<ConstExpr>(s.Src);
@@ -34,7 +34,7 @@ public class MovTests : BaseTests
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
 
-        Assert.Equal(expr.Variables.CX, s.Dst);
+        ExprTestHelpers.AssertReferencesVariable(s.Dst, expr.Variables.CX);
         var constExpr = Assert.IsType<ConstExpr>(s.Src);
         Assert.Equal(0x5678, constExpr.Value);
     }
@@ -49,7 +49,7 @@ public class MovTests : BaseTests
         var s = Assert.IsType<SetOperation>(set);
 
         // Для 8-битных регистров целевая переменная — AX
-        Assert.Equal(expr.Variables.AX, s.Dst);
+        ExprTestHelpers.AssertReferencesVariable(s.Dst, expr.Variables.AX);
         // Источник — сложное выражение: (AX_old & 0xFF00) | (0x55 & 0xFF)
         // Из-за constant folding: (AX & 0xFF00) | 0x55
         var orExpr = Assert.IsType<Math2Expr>(s.Src);
@@ -77,9 +77,9 @@ public class MovTests : BaseTests
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
 
-        Assert.Equal(expr.Variables.AX, s.Dst);
+        ExprTestHelpers.AssertReferencesVariable(s.Dst, expr.Variables.AX);
         // Источник — переменная BX
-        Assert.Equal(expr.Variables.BX, s.Src);
+        ExprTestHelpers.AssertSameVariable(expr.Variables.BX, s.Src);
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public class MovTests : BaseTests
         var s = Assert.IsType<SetOperation>(set);
 
         // Для 8-битных регистров целевая переменная — AX
-        Assert.Equal(expr.Variables.AX, s.Dst);
+        ExprTestHelpers.AssertReferencesVariable(s.Dst, expr.Variables.AX);
         // Источник — сложное выражение: (AX_old & 0xFF00) | (BL & 0xFF)
         var orExpr = Assert.IsType<Math2Expr>(s.Src);
         Assert.Equal(Math2Operation.Or, orExpr.Operation);
@@ -115,14 +115,14 @@ public class MovTests : BaseTests
 
         // Первая операция: AX = 1234h
         var set1 = Assert.IsType<SetOperation>(expr.Blocks[0].Operations[0]);
-        Assert.Equal(expr.Variables.AX, set1.Dst);
+        ExprTestHelpers.AssertReferencesVariable(set1.Dst, expr.Variables.AX);
         Assert.Equal(0x1234, ((ConstExpr)set1.Src).Value);
 
         // Вторая операция: BX = AX
         var set2 = Assert.IsType<SetOperation>(expr.Blocks[0].Operations[1]);
-        Assert.Equal(expr.Variables.BX, set2.Dst);
+        ExprTestHelpers.AssertReferencesVariable(set2.Dst, expr.Variables.BX);
         // Источник должен ссылаться на AX (через Variable)
-        Assert.Equal(expr.Variables.AX, set2.Src);
+        ExprTestHelpers.AssertSameVariable(expr.Variables.AX, set2.Src);
     }
 
     #endregion
@@ -138,7 +138,7 @@ public class MovTests : BaseTests
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
 
-        Assert.Equal(expr.Variables.AX, s.Dst);
+        ExprTestHelpers.AssertReferencesVariable(s.Dst, expr.Variables.AX);
         // Источник — MemExpr с адресом 0x1234
         var mem = Assert.IsType<MemExpr>(s.Src);
         var addr = Assert.IsType<ConstExpr>(mem.Address);
@@ -154,7 +154,7 @@ public class MovTests : BaseTests
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
 
-        Assert.Equal(expr.Variables.AX, s.Dst);
+        ExprTestHelpers.AssertReferencesVariable(s.Dst, expr.Variables.AX);
         // Источник — сложное выражение: (AX_old & 0xFF00) | ([mem] & 0xFF)
         var orExpr = Assert.IsType<Math2Expr>(s.Src);
         Assert.Equal(Math2Operation.Or, orExpr.Operation);
@@ -177,10 +177,10 @@ public class MovTests : BaseTests
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
 
-        Assert.Equal(expr.Variables.AX, s.Dst);
+        ExprTestHelpers.AssertReferencesVariable(s.Dst, expr.Variables.AX);
         var mem = Assert.IsType<MemExpr>(s.Src);
         // Адрес — переменная BX
-        Assert.Equal(expr.Variables.BX, mem.Address);
+        ExprTestHelpers.AssertSameVariable(expr.Variables.BX, mem.Address);
     }
 
     [Fact]
@@ -192,7 +192,7 @@ public class MovTests : BaseTests
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
 
-        Assert.Equal(expr.Variables.CX, s.Dst);
+        ExprTestHelpers.AssertReferencesVariable(s.Dst, expr.Variables.CX);
         var mem = Assert.IsType<MemExpr>(s.Src);
         // Адрес = BP + SI
         var addr = Assert.IsType<Math2Expr>(mem.Address);
@@ -217,7 +217,7 @@ public class MovTests : BaseTests
         Assert.Equal(0x1234, addr.Value);
 
         // Значение — переменная AX
-        Assert.Equal(expr.Variables.AX, s.Value);
+        ExprTestHelpers.AssertSameVariable(expr.Variables.AX, s.Value);
     }
 
     [Fact]
@@ -251,8 +251,8 @@ public class MovTests : BaseTests
         var s = Assert.IsType<StoreOperation>(store);
 
         // Адрес — переменная BX
-        Assert.Equal(expr.Variables.BX, s.Address);
-        Assert.Equal(expr.Variables.AX, s.Value);
+        ExprTestHelpers.AssertSameVariable(expr.Variables.BX, s.Address);
+        ExprTestHelpers.AssertSameVariable(expr.Variables.AX, s.Value);
     }
 
     [Fact]
@@ -264,9 +264,9 @@ public class MovTests : BaseTests
         var store = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<StoreOperation>(store);
 
-        Assert.Equal(expr.Variables.BX, s.Address);
+        ExprTestHelpers.AssertSameVariable(expr.Variables.BX, s.Address);
         // Сегмент должен быть ES
-        Assert.Equal(expr.Variables.ES, s.Segment);
+        ExprTestHelpers.AssertSameVariable(expr.Variables.ES, s.Segment);
     }
 
     #endregion
@@ -282,8 +282,8 @@ public class MovTests : BaseTests
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
 
-        Assert.Equal(expr.Variables.DS, s.Dst);
-        Assert.Equal(expr.Variables.AX, s.Src);
+        ExprTestHelpers.AssertReferencesVariable(s.Dst, expr.Variables.DS);
+        ExprTestHelpers.AssertSameVariable(expr.Variables.AX, s.Src);
     }
 
     [Fact]
@@ -295,8 +295,8 @@ public class MovTests : BaseTests
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
 
-        Assert.Equal(expr.Variables.AX, s.Dst);
-        Assert.Equal(expr.Variables.DS, s.Src);
+        ExprTestHelpers.AssertReferencesVariable(s.Dst, expr.Variables.AX);
+        ExprTestHelpers.AssertSameVariable(expr.Variables.DS, s.Src);
     }
 
     #endregion
@@ -317,7 +317,7 @@ public class MovTests : BaseTests
 
         // Вторая операция: AL = 55h
         var setAl = sets[1];
-        Assert.Equal(expr.Variables.AX, setAl.Dst);
+        ExprTestHelpers.AssertReferencesVariable(setAl.Dst, expr.Variables.AX);
 
         // Источник должен быть OR-выражением
         var orExpr = Assert.IsType<Math2Expr>(setAl.Src);
@@ -346,7 +346,7 @@ public class MovTests : BaseTests
 
         // Вторая операция: AH = 55h
         var setAh = sets[1];
-        Assert.Equal(expr.Variables.AX, setAh.Dst);
+        ExprTestHelpers.AssertReferencesVariable(setAh.Dst, expr.Variables.AX);
 
         // Источник должен быть OR-выражением
         var orExpr = Assert.IsType<Math2Expr>(setAh.Src);
@@ -377,7 +377,7 @@ public class MovTests : BaseTests
 
         // Пролог не создаёт операций — только загрузка arg0
         var loadParam = Assert.Single(expr.Blocks[0].Operations.OfType<SetOperation>());
-        Assert.Equal(expr.Variables.AX, loadParam.Dst);
+        ExprTestHelpers.AssertReferencesVariable(loadParam.Dst, expr.Variables.AX);
         // Должна загрузиться переменная arg0
         Assert.Equal("arg0", loadParam.Src.ToString());
     }
@@ -399,7 +399,7 @@ public class MovTests : BaseTests
 
         // Последняя SetOperation — запись в локаль
         var setLocal = sets.Last();
-        Assert.Equal(expr.Variables.AX, setLocal.Src);
+        ExprTestHelpers.AssertSameVariable(expr.Variables.AX, setLocal.Src);
     }
 
     #endregion
@@ -420,18 +420,18 @@ public class MovTests : BaseTests
 
         // Первая операция: AX = 1234h
         var set1 = sets[0];
-        Assert.Equal(expr.Variables.AX, set1.Dst);
+        ExprTestHelpers.AssertReferencesVariable(set1.Dst, expr.Variables.AX);
         Assert.Equal(0x1234, ((ConstExpr)set1.Src).Value);
 
         // Вторая операция: BX = AX
         var set2 = sets[1];
-        Assert.Equal(expr.Variables.BX, set2.Dst);
-        Assert.Equal(expr.Variables.AX, set2.Src);
+        ExprTestHelpers.AssertReferencesVariable(set2.Dst, expr.Variables.BX);
+        ExprTestHelpers.AssertSameVariable(expr.Variables.AX, set2.Src);
 
         // Третья операция: CX = BX
         var set3 = sets[2];
-        Assert.Equal(expr.Variables.CX, set3.Dst);
-        Assert.Equal(expr.Variables.BX, set3.Src);
+        ExprTestHelpers.AssertReferencesVariable(set3.Dst, expr.Variables.CX);
+        ExprTestHelpers.AssertSameVariable(expr.Variables.BX, set3.Src);
     }
 
     #endregion

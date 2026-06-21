@@ -7,6 +7,6 @@ public class JleHandler : ConditionalJumpHandler
 {
     protected override Expr BuildCondition(ExprBlock block, Instruction instr)
     {
-        return block.Variables.ZF | (block.Variables.SF ^ block.Variables.OF);
+        return block.Variables.ZF.ToGet() | (block.Variables.SF.ToGet() ^ block.Variables.OF.ToGet());
     }
 }

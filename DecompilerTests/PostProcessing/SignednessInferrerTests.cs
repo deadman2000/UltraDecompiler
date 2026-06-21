@@ -22,7 +22,7 @@ public sealed class SignednessInferrerTests
         var operations = new List<Operation>
         {
             new ReturnOperation(
-                new Math2Expr(Math2Operation.Shl, arg0, new ConstExpr(3)),
+                new Math2Expr(Math2Operation.Shl, arg0.ToGet(), new ConstExpr(3)),
                 IsExplicit: true),
         };
 

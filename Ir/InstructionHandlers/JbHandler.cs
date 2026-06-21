@@ -7,6 +7,6 @@ public class JbHandler : ConditionalJumpHandler
 {
     protected override Expr BuildCondition(ExprBlock block, Instruction instr)
     {
-        return block.Variables.CF;
+        return block.Variables.CF.ToGet();
     }
 }

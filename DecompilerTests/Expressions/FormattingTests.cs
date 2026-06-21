@@ -13,8 +13,8 @@ public class FormattingTests : BaseTests
         var b = new Variable(2) { Name = "b" };
         var c = new Variable(3) { Name = "c" };
 
-        var add = new Math2Expr(Math2Operation.Add, a, b);
-        var andExpr = new Math2Expr(Math2Operation.And, add, c);
+        var add = new Math2Expr(Math2Operation.Add, a.ToGet(), b.ToGet());
+        var andExpr = new Math2Expr(Math2Operation.And, add, c.ToGet());
         Assert.Equal("(a + b) & c", andExpr.ToString());
     }
 
@@ -24,7 +24,7 @@ public class FormattingTests : BaseTests
         // (var & mask) >= val
         var v = new Variable(4) { Name = "var4" };
         var mask = new ConstExpr(255);
-        var and = new Math2Expr(Math2Operation.And, v, mask);
+        var and = new Math2Expr(Math2Operation.And, v.ToGet(), mask);
         var cmp = new CmpExpr(CmpOperation.Uge, and, new ConstExpr(2));
         Assert.Equal("(var4 & 255) >= 2", cmp.ToString());
     }
@@ -34,7 +34,7 @@ public class FormattingTests : BaseTests
     {
         // (x << 2) + 1
         var x = new Variable(0) { Name = "x" };
-        var shl = new Math2Expr(Math2Operation.Shl, x, new ConstExpr(2));
+        var shl = new Math2Expr(Math2Operation.Shl, x.ToGet(), new ConstExpr(2));
         var add = new Math2Expr(Math2Operation.Add, shl, new ConstExpr(1));
         Assert.Equal("(x << 2) + 1", add.ToString());
     }
@@ -48,8 +48,8 @@ public class FormattingTests : BaseTests
         var a = new Variable(1) { Name = "a" };
         var b = new Variable(2) { Name = "b" };
         var c = new Variable(3) { Name = "c" };
-        var add = new Math2Expr(Math2Operation.Add, a, b);
-        var cmp = new CmpExpr(CmpOperation.Eq, add, c);
+        var add = new Math2Expr(Math2Operation.Add, a.ToGet(), b.ToGet());
+        var cmp = new CmpExpr(CmpOperation.Eq, add, c.ToGet());
         Assert.Equal("(a + b) == c", cmp.ToString());
     }
 
@@ -57,7 +57,7 @@ public class FormattingTests : BaseTests
     public void ToString_BitwiseNotOnVariable_UsesTilde()
     {
         var v = new Variable(1) { Name = "x" };
-        var not = new Math1Expr(Math1Operation.Not, v);
+        var not = new Math1Expr(Math1Operation.Not, v.ToGet());
         Assert.Equal("~x", not.ToString());
     }
 
@@ -66,7 +66,7 @@ public class FormattingTests : BaseTests
     {
         // !(a == 1)
         var a = new Variable(1) { Name = "a" };
-        var cmp = new CmpExpr(CmpOperation.Eq, a, new ConstExpr(1));
+        var cmp = new CmpExpr(CmpOperation.Eq, a.ToGet(), new ConstExpr(1));
         var not = new Math1Expr(Math1Operation.Not, cmp);
         Assert.Equal("!(a == 1)", not.ToString());
     }

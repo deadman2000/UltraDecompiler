@@ -146,9 +146,9 @@ public static class MainParameterNormalizer
 
     private static Expr RewriteExpr(Expr expr, IReadOnlyDictionary<Variable, Variable> renames)
     {
-        if (expr is Variable variable)
+        if (expr is VariableExpr { Var: var variable })
         {
-            return Rename(variable, renames);
+            return Rename(variable, renames).ToGet();
         }
 
         return expr switch

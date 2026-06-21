@@ -71,7 +71,7 @@ public partial class ExpressionBuilder
     {
         Variables.Clear();
         List<Expr> stack = [];
-        stack.Add(Variables.CreateInternalVariable("retAddr"));
+        stack.Add(Variables.CreateInternalVariable("retAddr").ToGet());
         RunBuild(graph, stack);
     }
 

@@ -42,10 +42,10 @@ public class StackCheckDetectorTests
     {
         var operations = new List<Operation>
         {
-            new SetOperation(new Variable(1), new CallExpr(StackCheckDetector.ChkstkCName, [])),
+            new SetOperation(new Variable(1).ToSet(), new CallExpr(StackCheckDetector.ChkstkCName, [])),
             new IfOperation(
                 new ConstExpr(1),
-                [new SetOperation(new Variable(2), new CallExpr(StackCheckDetector.ChkstkCName, []))],
+                [new SetOperation(new Variable(2).ToSet(), new CallExpr(StackCheckDetector.ChkstkCName, []))],
                 null),
         };
 

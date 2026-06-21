@@ -7,6 +7,6 @@ public class JsHandler : ConditionalJumpHandler
 {
     protected override Expr BuildCondition(ExprBlock block, Instruction instr)
     {
-        return block.Variables.SF;
+        return block.Variables.SF.ToGet();
     }
 }

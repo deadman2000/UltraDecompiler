@@ -10,7 +10,7 @@ public static class ExprSubstitution
     /// </summary>
     public static Expr Replace(Expr expr, Variable from, Expr to)
     {
-        if (expr is Variable v && ReferenceEquals(v, from))
+        if (expr is VariableExpr { Var: var v } && ReferenceEquals(v, from))
         {
             return to;
         }
@@ -18,7 +18,7 @@ public static class ExprSubstitution
         return expr switch
         {
             ConstExpr or CharConstExpr or StringExpr or ImageOffsetExpr => expr,
-            Variable => expr,
+            VariableExpr => expr,
             MemberExpr member => member with { Base = Replace(member.Base, from, to) },
             IncDecExpr inc => inc with { Operand = Replace(inc.Operand, from, to) },
             AddressOfExpr addr => addr with { Operand = Replace(addr.Operand, from, to) },
@@ -68,7 +68,7 @@ public static class ExprSubstitution
             return;
         }
 
-        if (expr is Variable variable)
+        if (expr is VariableExpr { Var: var variable })
         {
             result.Add(variable);
             return;
@@ -181,7 +181,7 @@ public static class ExprSubstitution
             return false;
         }
 
-        if (expr is Variable v && ReferenceEquals(v, variable))
+        if (expr is VariableExpr { Var: var v } && ReferenceEquals(v, variable))
         {
             return true;
         }

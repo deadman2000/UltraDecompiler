@@ -7,6 +7,6 @@ public class JcxzHandler : ConditionalJumpHandler
 {
     protected override Expr BuildCondition(ExprBlock block, Instruction instr)
     {
-        return new CmpExpr(CmpOperation.Eq, block.Variables.CX, ConstExpr.Zero);
+        return new CmpExpr(CmpOperation.Eq, block.Variables.CX.ToGet(), ConstExpr.Zero);
     }
 }

@@ -116,13 +116,13 @@ public abstract class LoopAnalyzerBase : ILoopAnalyzer
 
         if (condition is CmpExpr cmp)
         {
-            if (cmp.Left is Variable left && !left.IsTemp)
+            if (cmp.Left is VariableExpr { Var: var left } && !left.IsTemp)
             {
                 counter = left;
                 return true;
             }
 
-            if (cmp.Right is Variable right && !right.IsTemp)
+            if (cmp.Right is VariableExpr { Var: var right } && !right.IsTemp)
             {
                 counter = right;
                 return true;
@@ -131,13 +131,13 @@ public abstract class LoopAnalyzerBase : ILoopAnalyzer
 
         if (condition is Math1Expr { Operation: Math1Operation.Not, Op: CmpExpr inner })
         {
-            if (inner.Left is Variable left2 && !left2.IsTemp)
+            if (inner.Left is VariableExpr { Var: var left2 } && !left2.IsTemp)
             {
                 counter = left2;
                 return true;
             }
 
-            if (inner.Right is Variable right2 && !right2.IsTemp)
+            if (inner.Right is VariableExpr { Var: var right2 } && !right2.IsTemp)
             {
                 counter = right2;
                 return true;
@@ -158,8 +158,8 @@ public abstract class LoopAnalyzerBase : ILoopAnalyzer
             DecOperation dec => ExprReferencesVariable(dec.Target, counter),
             AddAssignOperation add => ExprReferencesVariable(add.Target, counter),
             SubAssignOperation sub => ExprReferencesVariable(sub.Target, counter),
-            SetOperation { Dst: Variable dst, Src: Math2Expr math }
-                when ExprReferencesVariable(dst, counter)
+            SetOperation { Dst: VariableExpr { Var: var dst }, Src: Math2Expr math }
+                when SameVariable(dst, counter)
                      && ExprReferencesVariable(math.First, counter)
                      && math.Second is ConstExpr { Value: not 0 }
                      && math.Operation is Math2Operation.Add or Math2Operation.Sub or Math2Operation.Mul => true,
@@ -174,7 +174,7 @@ public abstract class LoopAnalyzerBase : ILoopAnalyzer
     {
         for (var i = operations.Count - 1; i >= 0; i--)
         {
-            if (operations[i] is SetOperation { Dst: Variable dst } set && SameVariable(dst, counter))
+            if (operations[i] is SetOperation { Dst: VariableExpr { Var: var dst } } set && SameVariable(dst, counter))
             {
                 init = set;
                 operations.RemoveAt(i);
@@ -224,7 +224,7 @@ public abstract class LoopAnalyzerBase : ILoopAnalyzer
     {
         iteration = null!;
 
-        if (last is not SetOperation { Dst: Variable dst, Src: Variable temp })
+        if (last is not SetOperation { Dst: VariableExpr { Var: var dst }, Src: VariableExpr { Var: var temp } })
         {
             return false;
         }
@@ -234,7 +234,7 @@ public abstract class LoopAnalyzerBase : ILoopAnalyzer
             return false;
         }
 
-        if (prev is not SetOperation { Dst: Variable tempDst, Src: Math2Expr math })
+        if (prev is not SetOperation { Dst: VariableExpr { Var: var tempDst }, Src: Math2Expr math })
         {
             return false;
         }
@@ -254,7 +254,7 @@ public abstract class LoopAnalyzerBase : ILoopAnalyzer
             return false;
         }
 
-        iteration = new SetOperation(dst, math);
+        iteration = new SetOperation(dst.ToSet(), math);
         return true;
     }
 
@@ -265,7 +265,7 @@ public abstract class LoopAnalyzerBase : ILoopAnalyzer
     {
         return expr switch
         {
-            Variable v => SameVariable(v, counter),
+            VariableExpr { Var: var v } => SameVariable(v, counter),
             Math1Expr m1 => ExprReferencesVariable(m1.Op, counter),
             Math2Expr m2 => ExprReferencesVariable(m2.First, counter) || ExprReferencesVariable(m2.Second, counter),
             MemExpr mem => ExprReferencesVariable(mem.Address, counter),
@@ -359,7 +359,7 @@ public abstract class LoopAnalyzerBase : ILoopAnalyzer
             IncOperation or DecOperation => true,
             AddAssignOperation { Value: ConstExpr } => true,
             SubAssignOperation { Value: ConstExpr } => true,
-            SetOperation { Dst: Variable dst, Src: Math2Expr { First: Variable first, Second: ConstExpr } math }
+            SetOperation { Dst: VariableExpr { Var: var dst }, Src: Math2Expr { First: VariableExpr { Var: var first }, Second: ConstExpr } math }
                 when ReferenceEquals(dst, first)
                 && math.Operation is Math2Operation.Add or Math2Operation.Sub or Math2Operation.Mul => true,
             _ => false

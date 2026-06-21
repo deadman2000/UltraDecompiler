@@ -61,7 +61,7 @@ public static class PointerDerefFormatter
             return true;
         }
 
-        if (mem.Address is not Variable variable || IsSegmentBase(variable))
+        if (mem.Address is not VariableExpr { Var: var variable } || IsSegmentBase(variable))
         {
             return false;
         }
@@ -96,7 +96,7 @@ public static class PointerDerefFormatter
         segment switch
         {
             null => true,
-            Variable { Name: "_psp" } => true,
+            VariableExpr { Var.Name: "_psp" } => true,
             _ => false,
         };
 
@@ -107,7 +107,7 @@ public static class PointerDerefFormatter
     {
         ptr = null!;
 
-        if (incDec.Operand is not Variable variable || IsSegmentBase(variable))
+        if (incDec.Operand is not VariableExpr { Var: var variable } || IsSegmentBase(variable))
         {
             return false;
         }

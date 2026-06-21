@@ -79,7 +79,7 @@ public static class IncDecExpressionRecognizer
         removeCount = 0;
 
         if (index + 2 >= operations.Count
-            || operations[index] is not SetOperation { Src: Variable source, Dst: Variable loadTemp }
+            || operations[index] is not SetOperation { Src: VariableExpr { Var: var source }, Dst: VariableExpr { Var: var loadTemp } }
             || !loadTemp.IsTemp
             || !TryGetIncDecTarget(operations[index + 1], out var isIncrement, out var incDecTarget)
             || !ReferenceEquals(incDecTarget, source))
@@ -88,18 +88,18 @@ public static class IncDecExpressionRecognizer
         }
 
         var kind = isIncrement ? IncDecKind.PostInc : IncDecKind.PostDec;
-        var expr = new IncDecExpr(kind, source);
+        var expr = new IncDecExpr(kind, source.ToGet());
 
-        if (operations[index + 2] is SetOperation { Dst: Variable dest, Src: Variable storeTemp }
+        if (operations[index + 2] is SetOperation { Dst: VariableExpr { Var: var dest }, Src: VariableExpr { Var: var storeTemp } }
             && ReferenceEquals(storeTemp, loadTemp)
             && !ReferenceEquals(dest, source))
         {
-            replacement = new SetOperation(dest, expr);
+            replacement = new SetOperation(dest.ToSet(), expr);
             removeCount = 2;
             return true;
         }
 
-        if (operations[index + 2] is ReturnOperation { Value: Variable returnTemp }
+        if (operations[index + 2] is ReturnOperation { Value: VariableExpr { Var: var returnTemp } }
             && ReferenceEquals(returnTemp, loadTemp))
         {
             replacement = new ReturnOperation(expr);
@@ -130,36 +130,36 @@ public static class IncDecExpressionRecognizer
         var kind = isIncrement ? IncDecKind.PreInc : IncDecKind.PreDec;
 
         if (index + 1 < operations.Count
-            && operations[index + 1] is SetOperation { Dst: Variable dest, Src: Variable loaded }
+            && operations[index + 1] is SetOperation { Dst: VariableExpr { Var: var dest }, Src: VariableExpr { Var: var loaded } }
             && ReferenceEquals(loaded, source)
             && !ReferenceEquals(dest, source))
         {
-            replacement = new SetOperation(dest, new IncDecExpr(kind, source));
+            replacement = new SetOperation(dest.ToSet(), new IncDecExpr(kind, source.ToGet()));
             removeCount = 1;
             return true;
         }
 
         if (index + 1 < operations.Count
-            && operations[index + 1] is ReturnOperation { Value: Variable returned }
+            && operations[index + 1] is ReturnOperation { Value: VariableExpr { Var: var returned } }
             && ReferenceEquals(returned, source))
         {
-            replacement = new ReturnOperation(new IncDecExpr(kind, source));
+            replacement = new ReturnOperation(new IncDecExpr(kind, source.ToGet()));
             removeCount = 1;
             return true;
         }
 
         if (index + 2 >= operations.Count
-            || operations[index + 1] is not SetOperation { Src: Variable reloaded, Dst: Variable loadTemp }
+            || operations[index + 1] is not SetOperation { Src: VariableExpr { Var: var reloaded }, Dst: VariableExpr { Var: var loadTemp } }
             || !loadTemp.IsTemp
             || !ReferenceEquals(reloaded, source)
-            || operations[index + 2] is not SetOperation { Dst: Variable assignDest, Src: Variable storeTemp }
+            || operations[index + 2] is not SetOperation { Dst: VariableExpr { Var: var assignDest }, Src: VariableExpr { Var: var storeTemp } }
             || !ReferenceEquals(storeTemp, loadTemp)
             || ReferenceEquals(assignDest, source))
         {
             return false;
         }
 
-        replacement = new SetOperation(assignDest, new IncDecExpr(kind, source));
+        replacement = new SetOperation(assignDest.ToSet(), new IncDecExpr(kind, source.ToGet()));
         removeCount = 2;
         return true;
     }
@@ -168,11 +168,11 @@ public static class IncDecExpressionRecognizer
     {
         switch (operation)
         {
-            case IncOperation { Target: Variable incTarget }:
+            case IncOperation { Target: VariableExpr { Var: var incTarget } }:
                 isIncrement = true;
                 target = incTarget;
                 return true;
-            case DecOperation { Target: Variable decTarget }:
+            case DecOperation { Target: VariableExpr { Var: var decTarget } }:
                 isIncrement = false;
                 target = decTarget;
                 return true;

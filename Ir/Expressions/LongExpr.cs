@@ -11,7 +11,7 @@ public sealed record LongExpr(Expr Low, Expr High) : Expr
     public static LongExpr FromWords(Expr low, Expr high) => new(low, high);
 
     /// <summary>Собирает <see cref="LongExpr"/> из одной переменной типа <c>long</c>.</summary>
-    public static LongExpr FromVariable(Variable variable) => new(variable, ConstExpr.Zero);
+    public static LongExpr FromVariable(Variable variable) => new(variable.ToGet(), ConstExpr.Zero);
 
     public override int GetPrecedence() => Prec.Atom;
 
@@ -24,10 +24,10 @@ public sealed record LongExpr(Expr Low, Expr High) : Expr
             return literal;
         }
 
-        if (Low is Variable { Type.Kind: CTypeKind.Long } variable
+        if (Low is VariableExpr { Var.Type.Kind: CTypeKind.Long } variableExpr
             && High is ConstExpr { Value: 0 })
         {
-            return variable.ToString();
+            return variableExpr.ToString();
         }
 
         var lowStr = Low.ToString(GetPrecedence());

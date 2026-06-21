@@ -49,7 +49,7 @@ public static class VariableTypeInferrer
             return false;
         }
 
-        if (set.Src is Variable srcVar && srcVar.Type is not null)
+        if (set.Src is VariableExpr { Var: var srcVar } && srcVar.Type is not null)
         {
             return VariableSignedness.TrySetType(dstVar, srcVar.Type);
         }
@@ -122,7 +122,7 @@ public static class VariableTypeInferrer
 
         for (var i = 0; i < signature.Parameters.Count && i < args.Count; i++)
         {
-            if (!signature.Parameters[i].Type.IsCharPtr || args[i] is not Variable variable)
+            if (!signature.Parameters[i].Type.IsCharPtr || args[i] is not VariableExpr { Var: var variable })
             {
                 continue;
             }

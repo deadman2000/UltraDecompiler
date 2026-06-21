@@ -134,7 +134,7 @@ public static class CharLiteralMaterializer
     private static CmpExpr MaterializeCmp(CmpExpr cmp)
     {
         if (cmp.Right is ConstExpr { Value: var value }
-            && cmp.Left is Variable left
+            && cmp.Left is VariableExpr { Var: var left }
             && left.Type?.Kind == CTypeKind.Char
             && TryToCharLiteral(value, out var literal))
         {

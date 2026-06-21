@@ -106,7 +106,7 @@ public static class LongTypeInferrer
             }
 
             var expr = BuildSiteExpression(site, variables);
-            operations.Add(new SetOperation(dest, expr));
+            operations.Add(new SetOperation(dest.ToSet(), expr));
         }
 
         var returnOperands = LongRuntimeHelpers.CollectLongReturnOperands(procedure.Instructions);
@@ -357,12 +357,12 @@ public static class LongTypeInferrer
     {
         if (offset >= 4 && variables.TryGetStackParameter(offset) is { } param)
         {
-            return param;
+            return param.ToGet();
         }
 
         if (offset < 0 && variables.TryGetStackLocal(offset) is { } local)
         {
-            return local;
+            return local.ToGet();
         }
 
         return ConstExpr.Zero;
@@ -382,7 +382,7 @@ public static class LongTypeInferrer
                 case SetOperation { Src: CallExpr call } set when shiftReplacements.TryGetValue(call.Name, out var shift):
                     if (TryGetLongDestFromShiftCall(set, variables, out var dest))
                     {
-                        result.Add(new SetOperation(dest, shift));
+                        result.Add(new SetOperation(dest.ToSet(), shift));
                     }
                     else
                     {
@@ -415,7 +415,7 @@ public static class LongTypeInferrer
         out Variable dest)
     {
         dest = null!;
-        if (set.Dst is not Variable temp || !temp.IsTemp)
+        if (!AssignmentTarget.TryGetVariable(set.Dst, out var temp) || !temp.IsTemp)
         {
             return false;
         }
@@ -430,11 +430,11 @@ public static class LongTypeInferrer
     }
 
     private static bool IsMergedLongHighStore(StoreOperation store, VariableStorage variables) =>
-        store.Address is Variable variable
+        store.Address is VariableExpr { Var: var variable }
         && variable.IsMergedLongHigh;
 
     private static bool IsMergedLongHighAssignment(SetOperation set, VariableStorage variables) =>
-        set.Dst is Variable variable && variable.IsMergedLongHigh;
+        AssignmentTarget.TryGetVariable(set.Dst, out var variable) && variable.IsMergedLongHigh;
 
     private static IReadOnlyList<Operation> RewriteLongReturn(
         DisassembledProcedure procedure,
@@ -494,7 +494,7 @@ public static class LongTypeInferrer
             }
 
             if (op is SetOperation set
-                && set.Dst is Variable variable
+                && AssignmentTarget.TryGetVariable(set.Dst, out var variable)
                 && variables.LongLocals.Any(e => ReferenceEquals(e.LowVariable, variable)))
             {
                 continue;
@@ -676,7 +676,7 @@ public static class LongTypeInferrer
                 continue;
             }
 
-            if (working[i] is Variable variable && variable.Type?.Kind == CTypeKind.Long)
+            if (working[i] is VariableExpr { Var: var variable } && variable.Type?.Kind == CTypeKind.Long)
             {
                 result.Add(LongExpr.FromVariable(variable));
                 if (i + 1 < working.Count && working[i + 1] is ConstExpr { Value: 0 })
@@ -707,7 +707,7 @@ public static class LongTypeInferrer
     }
 
     private static bool LooksLikeLongWordPair(Expr low, Expr high) =>
-        high is ConstExpr { Value: 0 } || high is Variable { IsMergedLongHigh: true };
+        high is ConstExpr { Value: 0 } || high is VariableExpr { Var.IsMergedLongHigh: true };
 
     private static Operation RewriteNestedOperation(
         Operation op,

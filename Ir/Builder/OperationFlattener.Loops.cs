@@ -63,8 +63,8 @@ public partial class OperationFlattener
     /// Проверяет, является ли условие циклом по argc (такие циклы не конвертируем).
     /// </summary>
     public static bool IsArgcBoundLoopHeader(Expr condition) =>
-        condition is CmpExpr { Operation: CmpOperation.Uge or CmpOperation.Ugt, Right: Variable { Name: "argc" } }
-        || condition is CmpExpr { Operation: CmpOperation.Uge or CmpOperation.Ugt, Left: Variable { Name: "argc" } };
+        condition is CmpExpr { Operation: CmpOperation.Uge or CmpOperation.Ugt, Right: VariableExpr { Var.Name: "argc" } }
+        || condition is CmpExpr { Operation: CmpOperation.Uge or CmpOperation.Ugt, Left: VariableExpr { Var.Name: "argc" } };
 
     /// <summary>
     /// Определяет раскладку цикла: тело, выход, условие продолжения.
@@ -584,7 +584,7 @@ public partial class OperationFlattener
     {
         foreach (var mem in ExprSubstitution.CollectMemExprs(condition))
         {
-            if (mem.Address is Variable or Math2Expr)
+            if (mem.Address is VariableExpr or Math2Expr)
             {
                 return true;
             }
@@ -631,7 +631,7 @@ public partial class OperationFlattener
             return;
         }
 
-        body.Add(new ReturnOperation(bodyStart.Variables.Get(GpRegister16.AX), IsExplicit: true));
+        body.Add(new ReturnOperation(bodyStart.Variables.Get(GpRegister16.AX).ToGet(), IsExplicit: true));
     }
 
     private static bool IsInlineEpilogueMerge(ExprBlock merge)

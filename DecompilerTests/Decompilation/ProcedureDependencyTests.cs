@@ -12,7 +12,7 @@ public class ProcedureDependencyTests : BaseTests
     {
         var operations = new List<Operation>
         {
-            new SetOperation(new Variable(0), new CallExpr("sub_0010", [new ConstExpr(1), new ConstExpr(2)])),
+            new SetOperation(new Variable(0).ToSet(), new CallExpr("sub_0010", [new ConstExpr(1), new ConstExpr(2)])),
             new IfOperation(
                 new CmpExpr(CmpOperation.Eq, new ConstExpr(0), new ConstExpr(1)),
                 [new CallOperation("printf", [new StringExpr("x")])],

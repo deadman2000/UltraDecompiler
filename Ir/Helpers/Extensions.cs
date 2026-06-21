@@ -177,11 +177,11 @@ public static class Extensions
                 case OperandType.Register16:
                     // Возвращает либо ранее сохранённое выражение (Variable/MathExpr),
                     // либо ConstExpr.Zero, если значение регистра ещё неизвестно.
-                    return block.Variables.Get(operand.AsGpRegister16());
+                    return block.Variables.Get(operand.AsGpRegister16()).ToGet();
                 case OperandType.Register8:
                     return block.Variables.Get(operand.AsGpRegister8());
                 case OperandType.SegmentRegister:
-                    return block.Variables.Get(operand.AsCpuSegmentRegister());
+                    return block.Variables.Get(operand.AsCpuSegmentRegister()).ToGet();
                 case OperandType.Memory:
                     {
                         if (operand.BaseReg == AddressRegister.BP &&
@@ -191,7 +191,7 @@ public static class Extensions
                             var slot = block.Variables.TryGetStackParameter(operand.Value)
                                        ?? block.Variables.TryGetStackLocal(operand.Value);
                             if (slot != null)
-                                return slot;
+                                return slot.ToGet();
                         }
 
                         var (address, segExpr) = operand.BuildMemoryReference(block, segmentOverride);
@@ -199,7 +199,7 @@ public static class Extensions
                         // Пытаемся распознать доступ к известной структуре в памяти (PSP и т.п.)
                         var knownVar = block.Variables.TryGetKnownMemoryVariable(address, segExpr);
                         if (knownVar != null)
-                            return knownVar;
+                            return knownVar.ToGet();
 
                         return new MemExpr(address, segExpr);
                     }
@@ -218,11 +218,11 @@ public static class Extensions
             Expr? addr = null;
 
             if (operand.BaseReg != AddressRegister.None)
-                addr = block.Variables.Get((GpRegister16)operand.BaseReg);
+                addr = block.Variables.Get((GpRegister16)operand.BaseReg).ToGet();
 
             if (operand.IndexReg != AddressRegister.None)
             {
-                var idx = block.Variables.Get((GpRegister16)operand.IndexReg);
+                var idx = block.Variables.Get((GpRegister16)operand.IndexReg).ToGet();
                 addr = addr == null ? idx : addr.Calculate(Math2Operation.Add, idx);
             }
 
@@ -249,14 +249,14 @@ public static class Extensions
 
             if (segmentOverride != Segment.None)
             {
-                segExpr = block.Variables.Get(segmentOverride.ToCpuSegmentRegister());
+                segExpr = block.Variables.Get(segmentOverride.ToCpuSegmentRegister()).ToGet();
             }
             else
             {
                 bool usesStackSegment = operand.BaseReg == AddressRegister.BP ||
                                         operand.IndexReg == AddressRegister.BP;
 
-                segExpr = block.Variables.Get(usesStackSegment ? CpuSegmentRegister.SS : CpuSegmentRegister.DS);
+                segExpr = block.Variables.Get(usesStackSegment ? CpuSegmentRegister.SS : CpuSegmentRegister.DS).ToGet();
             }
 
             return (address, segExpr);
@@ -277,14 +277,14 @@ public static class Extensions
                 var local = block.Variables.TryGetStackLocal(operand.Value);
                 if (local != null)
                 {
-                    block.Operations.Add(isInc ? new IncOperation(local) : new DecOperation(local));
+                    block.Operations.Add(isInc ? new IncOperation(local.ToSet()) : new DecOperation(local.ToSet()));
                     return;
                 }
 
                 var param = block.Variables.TryGetStackParameter(operand.Value);
                 if (param != null)
                 {
-                    block.Operations.Add(isInc ? new IncOperation(param) : new DecOperation(param));
+                    block.Operations.Add(isInc ? new IncOperation(param.ToSet()) : new DecOperation(param.ToSet()));
                     return;
                 }
             }
@@ -321,8 +321,8 @@ public static class Extensions
                 if (local != null)
                 {
                     block.Operations.Add(isAdd
-                        ? new AddAssignOperation(local, value)
-                        : new SubAssignOperation(local, value));
+                        ? new AddAssignOperation(local.ToSet(), value)
+                        : new SubAssignOperation(local.ToSet(), value));
                     return true;
                 }
 
@@ -330,8 +330,8 @@ public static class Extensions
                 if (param != null)
                 {
                     block.Operations.Add(isAdd
-                        ? new AddAssignOperation(param, value)
-                        : new SubAssignOperation(param, value));
+                        ? new AddAssignOperation(param.ToSet(), value)
+                        : new SubAssignOperation(param.ToSet(), value));
                     return true;
                 }
             }
@@ -359,14 +359,14 @@ public static class Extensions
                 var local = block.Variables.TryGetStackLocal(operand.Value);
                 if (local != null)
                 {
-                    block.Operations.Add(new SetOperation(local, value));
+                    block.Operations.Add(new SetOperation(local.ToSet(), value));
                     return;
                 }
 
                 var param = block.Variables.TryGetStackParameter(operand.Value);
                 if (param != null)
                 {
-                    block.Operations.Add(new SetOperation(param, value));
+                    block.Operations.Add(new SetOperation(param.ToSet(), value));
                     return;
                 }
             }
@@ -423,7 +423,7 @@ public static class Extensions
 
             if (instr.Segment != Segment.None)
             {
-                seg = block.Variables.Get(instr.Segment.ToCpuSegmentRegister());
+                seg = block.Variables.Get(instr.Segment.ToCpuSegmentRegister()).ToGet();
             }
 
             return new MemExpr(addr, seg);
@@ -435,12 +435,12 @@ public static class Extensions
         public (Expr Address, Expr? Segment) BuildStringMemoryAddress(bool isDestination)
         {
             Expr ptr = isDestination
-                ? block.Variables.Get(GpRegister16.DI)
-                : block.Variables.Get(GpRegister16.SI);
+                ? block.Variables.Get(GpRegister16.DI).ToGet()
+                : block.Variables.Get(GpRegister16.SI).ToGet();
 
             Expr? seg = isDestination
-                ? block.Variables.Get(CpuSegmentRegister.ES)
-                : block.Variables.Get(CpuSegmentRegister.DS);
+                ? block.Variables.Get(CpuSegmentRegister.ES).ToGet()
+                : block.Variables.Get(CpuSegmentRegister.DS).ToGet();
 
             return (ptr, seg);
         }

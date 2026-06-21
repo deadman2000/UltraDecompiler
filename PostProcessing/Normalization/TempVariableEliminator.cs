@@ -22,7 +22,7 @@ public static class TempVariableEliminator
 
             for (var i = 0; i < operations.Count; i++)
             {
-                if (operations[i] is not SetOperation { Dst: Variable temp, Src: var expr }
+                if (operations[i] is not SetOperation { Dst: VariableExpr { Var: var temp }, Src: var expr }
                     || !temp.IsTemp)
                 {
                     continue;
@@ -246,7 +246,7 @@ public static class TempVariableEliminator
 
     private static Expr ReplaceIncDecTarget(Expr target, Variable from, Expr to)
     {
-        if (target is Variable variable && ReferenceEquals(variable, from))
+        if (target is VariableExpr { Var: var variable } && ReferenceEquals(variable, from))
         {
             return target;
         }
@@ -302,8 +302,8 @@ public static class TempVariableEliminator
                 || loop.Body.Any(op => DefinesVariableDeep(op, variable))
                 || (loop.Iteration is not null && DefinesVariableDeep(loop.Iteration, variable)),
             SwitchOperation sw => sw.Cases.Any(c => c.Body.Any(op => DefinesVariableDeep(op, variable))),
-            IncOperation inc when inc.Target is Variable target => ReferenceEquals(target, variable),
-            DecOperation dec when dec.Target is Variable target => ReferenceEquals(target, variable),
+            IncOperation inc when AssignmentTarget.TryGetVariable(inc.Target, out var target) => ReferenceEquals(target, variable),
+            DecOperation dec when AssignmentTarget.TryGetVariable(dec.Target, out var target) => ReferenceEquals(target, variable),
             AddAssignOperation add => AssignmentTarget.DefinesVariable(add.Target, variable),
             SubAssignOperation sub => AssignmentTarget.DefinesVariable(sub.Target, variable),
             _ => false,

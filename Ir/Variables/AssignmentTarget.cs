@@ -10,7 +10,7 @@ public static class AssignmentTarget
     /// <summary>Возвращает переменную, если назначение — простое <c>var = …</c>.</summary>
     public static bool TryGetVariable(Expr dst, [NotNullWhen(true)] out Variable? variable)
     {
-        if (dst is Variable v)
+        if (dst is VariableExpr { Var: var v })
         {
             variable = v;
             return true;
@@ -43,5 +43,5 @@ public static class AssignmentTarget
     }
 
     private static bool ReferencesIncDecOperand(IncDecExpr inc, Variable variable) =>
-        inc.Operand is Variable operand && ReferenceEquals(operand, variable);
+        inc.Operand is VariableExpr { Var: var operand } && ReferenceEquals(operand, variable);
 }

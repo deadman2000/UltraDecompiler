@@ -51,8 +51,8 @@ public class ArithmeticHandler : IInstructionHandler
         {
             // ADC: result = dest + src + CF
             // SBB: result = dest - src - CF
-            var cfExpr = (Expr)block.Variables.CF;
-            var carryTerm = _operation == Math2Operation.Add
+            var cfExpr = block.Variables.CF.ToGet();
+            Expr carryTerm = _operation == Math2Operation.Add
                 ? cfExpr
                 : new Math1Expr(Math1Operation.Neg, cfExpr);
 
@@ -123,7 +123,7 @@ public class ArithmeticHandler : IInstructionHandler
             // SUB: CF = (left < right) unsigned
             // SBB: CF = (left < right + CF) unsigned
             cfExpr = hasCarry
-                ? new CmpExpr(CmpOperation.Ult, left, new Math2Expr(Math2Operation.Add, right, block.Variables.CF))
+                ? new CmpExpr(CmpOperation.Ult, left, new Math2Expr(Math2Operation.Add, right, block.Variables.CF.ToGet()))
                 : new CmpExpr(CmpOperation.Ult, left, right);
         }
         block.Set(block.Variables.CF, cfExpr);

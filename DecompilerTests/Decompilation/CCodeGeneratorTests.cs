@@ -63,7 +63,7 @@ public class CCodeGeneratorTests : BaseTests
         var operations = new List<Operation>
         {
             new IfOperation(
-                new CmpExpr(CmpOperation.Eq, local, new ConstExpr(0)),
+                new CmpExpr(CmpOperation.Eq, local.ToGet(), new ConstExpr(0)),
                 [new ReturnOperation(new ConstExpr(1))],
                 [new ReturnOperation(new ConstExpr(0))]),
         };

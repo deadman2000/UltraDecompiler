@@ -7,6 +7,6 @@ public class JgeHandler : ConditionalJumpHandler
 {
     protected override Expr BuildCondition(ExprBlock block, Instruction instr)
     {
-        return !(block.Variables.SF ^ block.Variables.OF);
+        return !(block.Variables.SF.ToGet() ^ block.Variables.OF.ToGet());
     }
 }

@@ -154,14 +154,14 @@ public class VariableStorage
     /// </summary>
     public Expr Get(GpRegister8 reg) => reg switch
     {
-        GpRegister8.AL => new Math2Expr(Math2Operation.And, AX, new ConstExpr(0xFF)),
-        GpRegister8.CL => new Math2Expr(Math2Operation.And, CX, new ConstExpr(0xFF)),
-        GpRegister8.DL => new Math2Expr(Math2Operation.And, DX, new ConstExpr(0xFF)),
-        GpRegister8.BL => new Math2Expr(Math2Operation.And, BX, new ConstExpr(0xFF)),
-        GpRegister8.AH => new Math2Expr(Math2Operation.Shr, new Math2Expr(Math2Operation.And, AX, new ConstExpr(0xFF00)), new ConstExpr(8)),
-        GpRegister8.CH => new Math2Expr(Math2Operation.Shr, new Math2Expr(Math2Operation.And, CX, new ConstExpr(0xFF00)), new ConstExpr(8)),
-        GpRegister8.DH => new Math2Expr(Math2Operation.Shr, new Math2Expr(Math2Operation.And, DX, new ConstExpr(0xFF00)), new ConstExpr(8)),
-        GpRegister8.BH => new Math2Expr(Math2Operation.Shr, new Math2Expr(Math2Operation.And, BX, new ConstExpr(0xFF00)), new ConstExpr(8)),
+        GpRegister8.AL => new Math2Expr(Math2Operation.And, AX.ToGet(), new ConstExpr(0xFF)),
+        GpRegister8.CL => new Math2Expr(Math2Operation.And, CX.ToGet(), new ConstExpr(0xFF)),
+        GpRegister8.DL => new Math2Expr(Math2Operation.And, DX.ToGet(), new ConstExpr(0xFF)),
+        GpRegister8.BL => new Math2Expr(Math2Operation.And, BX.ToGet(), new ConstExpr(0xFF)),
+        GpRegister8.AH => new Math2Expr(Math2Operation.Shr, new Math2Expr(Math2Operation.And, AX.ToGet(), new ConstExpr(0xFF00)), new ConstExpr(8)),
+        GpRegister8.CH => new Math2Expr(Math2Operation.Shr, new Math2Expr(Math2Operation.And, CX.ToGet(), new ConstExpr(0xFF00)), new ConstExpr(8)),
+        GpRegister8.DH => new Math2Expr(Math2Operation.Shr, new Math2Expr(Math2Operation.And, DX.ToGet(), new ConstExpr(0xFF00)), new ConstExpr(8)),
+        GpRegister8.BH => new Math2Expr(Math2Operation.Shr, new Math2Expr(Math2Operation.And, BX.ToGet(), new ConstExpr(0xFF00)), new ConstExpr(8)),
         _ => throw new ArgumentOutOfRangeException(nameof(reg), reg, null),
     };
 
@@ -463,7 +463,7 @@ public class VariableStorage
                 continue;
             }
 
-            member = new MemberExpr(baseVariable, field.Name);
+            member = new MemberExpr(baseVariable.ToGet(), field.Name);
             return true;
         }
 
@@ -475,7 +475,7 @@ public class VariableStorage
     {
         if (_mergedFieldLocals.TryGetValue(variable, out var mapped))
         {
-            member = new MemberExpr(mapped.Base, mapped.FieldName);
+            member = new MemberExpr(mapped.Base.ToGet(), mapped.FieldName);
             return true;
         }
 
@@ -522,7 +522,7 @@ public class VariableStorage
 
     private static bool IsSameVariable(Expr? expr, Variable target)
     {
-        return expr is Variable v && ReferenceEquals(v, target);
+        return expr is VariableExpr { Var: var v } && ReferenceEquals(v, target);
     }
 
     private static bool AddressContainsBase(Expr address, Variable baseVar)

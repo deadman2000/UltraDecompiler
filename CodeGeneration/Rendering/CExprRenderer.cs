@@ -8,7 +8,7 @@ public static class CExprRenderer
     public static string Render(Expr expr, int parentPrec = 0) =>
         expr switch
         {
-            Variable v => RenderVariable(v),
+            VariableExpr { Var: var v } => RenderVariable(v),
             MemberExpr m => $"{Render(m.Base, 0)}.{m.FieldName}",
             IncDecExpr inc => RenderIncDec(inc, parentPrec),
             AddressOfExpr addr => RenderAddressOf(addr, parentPrec),

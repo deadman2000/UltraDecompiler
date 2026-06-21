@@ -40,14 +40,14 @@ public static class PointerTypeInferrer
         {
             StoreOperation store when PointerStoreFormatter.TryGetIndexedPointer(store, out var ptr, out _)
                 => TryUpgradeToCharPtr(ptr),
-            StoreOperation store when store.Address is Variable ptr && !IsSegmentBase(ptr)
+            StoreOperation store when store.Address is VariableExpr { Var: var ptr } && !IsSegmentBase(ptr)
                 => TryUpgradeToCharPtr(ptr),
             SetOperation { Src: MemExpr mem } when PointerDerefFormatter.TryGetNearPointerBase(mem, out var ptr)
                 => TryUpgradeToCharPtr(ptr),
-            SetOperation { Src: Math2Expr { Operation: Math2Operation.Add, First: Variable src }, Dst: var dst }
+            SetOperation { Src: Math2Expr { Operation: Math2Operation.Add, First: VariableExpr { Var: var src } }, Dst: var dst }
                 when src.Type?.IsCharPtr == true && AssignmentTarget.TryGetVariable(dst, out var dstVar)
                 => TryUpgradeToCharPtr(dstVar),
-            SetOperation { Src: Math2Expr { Operation: Math2Operation.Add, Second: Variable src2 }, Dst: var dst }
+            SetOperation { Src: Math2Expr { Operation: Math2Operation.Add, Second: VariableExpr { Var: var src2 } }, Dst: var dst }
                 when src2.Type?.IsCharPtr == true && AssignmentTarget.TryGetVariable(dst, out var dstVar)
                 => TryUpgradeToCharPtr(dstVar),
             IfOperation branch => InferFromExpr(branch.Condition)
@@ -178,7 +178,7 @@ public static class PointerTypeInferrer
 
             for (var i = 0; i < signature.Parameters.Count && i < call.Args.Count; i++)
             {
-                if (signature.Parameters[i].Type.IsStructPtr && call.Args[i] is Variable structVar)
+                if (signature.Parameters[i].Type.IsStructPtr && call.Args[i] is VariableExpr { Var: var structVar })
                 {
                     if (signature.Parameters[i].Type.Pointee?.StructName is { } structName
                         && headers.TryGetStruct(structName, out var definition)
@@ -195,7 +195,7 @@ public static class PointerTypeInferrer
                     continue;
                 }
 
-                if (!signature.Parameters[i].Type.IsCharPtr || call.Args[i] is not Variable variable)
+                if (!signature.Parameters[i].Type.IsCharPtr || call.Args[i] is not VariableExpr { Var: var variable })
                 {
                     continue;
                 }

@@ -20,7 +20,7 @@ public static class FarPointerStackPairInferrer
 
         foreach (var op in OperationFlattener.EnumerateNested(operations))
         {
-            if (op is not StoreOperation { Segment: Variable segmentVar })
+            if (op is not StoreOperation { Segment: VariableExpr { Var: var segmentVar } })
             {
                 continue;
             }

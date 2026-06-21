@@ -108,8 +108,8 @@ public static class StackLocalPushArgPattern
                 }
 
                 expr = transformed is null
-                    ? stackLocal
-                    : new Math2Expr(Math2Operation.And, stackLocal, transformed);
+                    ? stackLocal.ToGet()
+                    : new Math2Expr(Math2Operation.And, stackLocal.ToGet(), transformed);
                 return true;
             }
 

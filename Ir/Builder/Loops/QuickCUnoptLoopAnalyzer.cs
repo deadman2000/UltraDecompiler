@@ -341,7 +341,7 @@ public sealed class QuickCUnoptLoopAnalyzer : LoopAnalyzerBase
 
             foreach (var op in block.Operations)
             {
-                if (op is SetOperation { Dst: Variable dst } set && SameVariable(dst, counter))
+                if (op is SetOperation { Dst: VariableExpr { Var: var dst } } set && SameVariable(dst, counter))
                     return set;
             }
         }

@@ -45,7 +45,7 @@ public static class PointerStoreFormatter
 
         switch (store.Address)
         {
-            case Variable basePtr when !IsSegmentBase(basePtr):
+            case VariableExpr { Var: var basePtr } when !IsSegmentBase(basePtr):
                 ptr = basePtr;
                 return true;
 
@@ -65,14 +65,14 @@ public static class PointerStoreFormatter
         ptr = null!;
         index = 0;
 
-        if (add.First is Variable first && !IsSegmentBase(first) && add.Second is ConstExpr offset)
+        if (add.First is VariableExpr { Var: var first } && !IsSegmentBase(first) && add.Second is ConstExpr offset)
         {
             ptr = first;
             index = offset.Value;
             return true;
         }
 
-        if (add.Second is Variable second && !IsSegmentBase(second) && add.First is ConstExpr offset2)
+        if (add.Second is VariableExpr { Var: var second } && !IsSegmentBase(second) && add.First is ConstExpr offset2)
         {
             ptr = second;
             index = offset2.Value;

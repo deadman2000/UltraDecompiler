@@ -15,14 +15,14 @@ public sealed class ShiftCountSimplifierTests
             Math2Operation.Or,
             new Math2Expr(
                 Math2Operation.Shl,
-                arg0,
-                new Math2Expr(Math2Operation.And, arg1, new ConstExpr(255))),
+                arg0.ToGet(),
+                new Math2Expr(Math2Operation.And, arg1.ToGet(), new ConstExpr(255))),
             new Math2Expr(
                 Math2Operation.Shr,
-                arg0,
+                arg0.ToGet(),
                 new Math2Expr(
                     Math2Operation.And,
-                    new Math2Expr(Math2Operation.Sub, new ConstExpr(16), arg1),
+                    new Math2Expr(Math2Operation.Sub, new ConstExpr(16), arg1.ToGet()),
                     new ConstExpr(255))));
 
         var operations = new List<Operation>

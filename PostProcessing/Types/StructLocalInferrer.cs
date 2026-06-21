@@ -56,7 +56,7 @@ public static class StructLocalInferrer
 
                 structByName[structName] = definition;
 
-                if (call.Args[i] is not Variable variable || !variable.IsStack || variable.ArraySize is not null)
+                if (call.Args[i] is not VariableExpr { Var: var variable } || !variable.IsStack || variable.ArraySize is not null)
                 {
                     continue;
                 }

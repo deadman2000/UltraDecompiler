@@ -12,7 +12,7 @@ public static class WordArithmeticHelper
     {
         normalized = null!;
 
-        if (math.First is not Variable first || !ReferenceEquals(first, local) || math.Second is not ConstExpr imm)
+        if (math.First is not VariableExpr { Var: var first } || !ReferenceEquals(first, local) || math.Second is not ConstExpr imm)
         {
             return false;
         }
@@ -27,8 +27,8 @@ public static class WordArithmeticHelper
         }
 
         normalized = signed > 0
-            ? new Math2Expr(Math2Operation.Add, local, new ConstExpr((ushort)signed))
-            : new Math2Expr(Math2Operation.Sub, local, new ConstExpr((ushort)(-signed)));
+            ? new Math2Expr(Math2Operation.Add, local.ToGet(), new ConstExpr((ushort)signed))
+            : new Math2Expr(Math2Operation.Sub, local.ToGet(), new ConstExpr((ushort)(-signed)));
         return true;
     }
 }

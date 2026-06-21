@@ -22,7 +22,7 @@ public static class StructFieldLoadSimplifier
 
         foreach (var op in OperationFlattener.EnumerateNested(operations))
         {
-            if (op is not SetOperation { Dst: Variable dst, Src: MemberExpr member } || !dst.IsTemp)
+            if (op is not SetOperation { Dst: VariableExpr { Var: var dst }, Src: MemberExpr member } || !dst.IsTemp)
             {
                 continue;
             }
@@ -41,7 +41,7 @@ public static class StructFieldLoadSimplifier
 
         foreach (var op in operations)
         {
-            if (op is SetOperation { Dst: Variable dst } && replacements.ContainsKey(dst))
+            if (op is SetOperation { Dst: VariableExpr { Var: var dst } } && replacements.ContainsKey(dst))
             {
                 continue;
             }
@@ -90,7 +90,7 @@ public static class StructFieldLoadSimplifier
     private static Expr ReplaceExpr(Expr expr, Dictionary<Variable, MemberExpr> replacements) =>
         expr switch
         {
-            Variable variable when replacements.TryGetValue(variable, out var member) => member,
+            VariableExpr { Var: var variable } when replacements.TryGetValue(variable, out var member) => member,
             Math1Expr m1 => m1 with { Op = ReplaceExpr(m1.Op, replacements) },
             Math2Expr m2 => m2 with
             {

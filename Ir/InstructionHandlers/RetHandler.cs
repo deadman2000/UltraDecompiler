@@ -7,6 +7,6 @@ public class RetHandler : IInstructionHandler
 {
     public void Handle(ExprBlock block, Instruction instr)
     {
-        block.Operations.Add(new ReturnOperation(block.Variables.AX));
+        block.Operations.Add(new ReturnOperation(block.Variables.AX.ToGet()));
     }
 }

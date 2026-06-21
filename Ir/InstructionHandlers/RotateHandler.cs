@@ -63,8 +63,8 @@ public class RotateHandler(bool isLeft) : IInstructionHandler
         if (result is not ConstExpr)
         {
             var resultVar = block.Variables.CreateTempVariable();
-            block.Operations.Add(new SetOperation(resultVar, result));
-            result = resultVar;
+            block.Operations.Add(new SetOperation(resultVar.ToSet(), result));
+            result = resultVar.ToGet();
         }
 
         // Записываем результат

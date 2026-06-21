@@ -40,7 +40,7 @@ public class PrologueEpilogueTests : BaseTests
 
         // Должна быть операция MOV AX, 100h
         var set = expr.Blocks[0].Operations.OfType<SetOperation>()
-            .FirstOrDefault(op => op.Dst == expr.Variables.AX);
+            .FirstOrDefault(op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
 
         Assert.NotNull(set);
         Assert.Equal(0x100, ((ConstExpr)set!.Src).Value);
@@ -79,7 +79,7 @@ public class PrologueEpilogueTests : BaseTests
             """);
 
         var set = expr.Blocks[0].Operations.OfType<SetOperation>()
-            .FirstOrDefault(op => op.Dst == expr.Variables.AX);
+            .FirstOrDefault(op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
 
         Assert.NotNull(set);
         Assert.Equal(0x4444, ((ConstExpr)set!.Src).Value);
@@ -104,10 +104,10 @@ public class PrologueEpilogueTests : BaseTests
 
         // Должна быть операция записи в локаль
         var set = expr.Blocks[0].Operations.OfType<SetOperation>()
-            .FirstOrDefault(op => op.Dst is Variable v && v.IsStack);
+            .FirstOrDefault(op => op.Dst is VariableExpr { Var.IsStack: true });
 
         Assert.NotNull(set);
-        var dstVar = (Variable)set!.Dst;
+        var dstVar = Assert.IsType<VariableExpr>(set!.Dst).Var;
         Assert.True(dstVar.IsStack);
         Assert.Equal(0x100, ((ConstExpr)set.Src).Value);
     }
@@ -127,10 +127,10 @@ public class PrologueEpilogueTests : BaseTests
 
         // Должна быть операция загрузки из локали в AX
         var set = expr.Blocks[0].Operations.OfType<SetOperation>()
-            .FirstOrDefault(op => op.Dst == expr.Variables.AX);
+            .FirstOrDefault(op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
 
         Assert.NotNull(set);
-        var srcVar = Assert.IsType<Variable>(set!.Src);
+        var srcVar = Assert.IsType<VariableExpr>(set!.Src).Var;
         Assert.True(srcVar.IsStack);
     }
 
@@ -152,7 +152,7 @@ public class PrologueEpilogueTests : BaseTests
 
         // Должна быть операция загрузки параметра
         var set = expr.Blocks[0].Operations.OfType<SetOperation>()
-            .FirstOrDefault(op => op.Dst == expr.Variables.AX);
+            .FirstOrDefault(op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
 
         Assert.NotNull(set);
         Assert.Contains("arg0", set!.Src.ToString());
@@ -177,11 +177,11 @@ public class PrologueEpilogueTests : BaseTests
         Assert.True(sets.Count >= 2);
 
         // Первая загрузка — arg0
-        var set1 = sets.First(op => op.Dst == expr.Variables.AX && op.Src is Variable v && v.Name.Contains("arg"));
+        var set1 = sets.First(op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX) && op.Src is VariableExpr { Var.Name: var n } && n.Contains("arg"));
         Assert.Contains("arg0", set1.Src!.ToString());
 
         // Вторая загрузка — arg1
-        var set2 = sets.First(op => op.Dst == expr.Variables.BX && op.Src is Variable v && v.Name.Contains("arg"));
+        var set2 = sets.First(op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.BX) && op.Src is VariableExpr { Var.Name: var n } && n.Contains("arg"));
         Assert.Contains("arg1", set2.Src!.ToString());
     }
 
@@ -203,7 +203,7 @@ public class PrologueEpilogueTests : BaseTests
 
         // MOV AX должно создать операцию
         var set = expr.Blocks[0].Operations.OfType<SetOperation>()
-            .FirstOrDefault(op => op.Dst == expr.Variables.AX);
+            .FirstOrDefault(op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
 
         Assert.NotNull(set);
         Assert.Equal(0xDDCC, ((ConstExpr)set!.Src).Value);
@@ -224,7 +224,7 @@ public class PrologueEpilogueTests : BaseTests
 
         // MOV AX должно создать операцию
         var set = expr.Blocks[0].Operations.OfType<SetOperation>()
-            .FirstOrDefault(op => op.Dst == expr.Variables.AX);
+            .FirstOrDefault(op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
 
         Assert.NotNull(set);
         Assert.Equal(0xBBAA, ((ConstExpr)set!.Src).Value);
@@ -255,7 +255,7 @@ public class PrologueEpilogueTests : BaseTests
 
         // Пользовательский код: MOV AX, 1 и ADD AX, 2
         var userOps = expr.Blocks[0].Operations.Where(op =>
-            op is SetOperation s && s.Dst == expr.Variables.AX).ToList();
+            op is SetOperation s && AssignmentTarget.ReferencesVariable(s.Dst, expr.Variables.AX)).ToList();
 
         Assert.Equal(2, userOps.Count);
     }
@@ -317,12 +317,14 @@ public class PrologueEpilogueTests : BaseTests
 
             // Не должно быть установки BP из SP (mov bp, sp)
             var movBpSp = allOperations.FirstOrDefault(op =>
-                op is SetOperation s && s.Dst == builder.Variables.BP && s.Src == builder.Variables.SP);
+                op is SetOperation s && AssignmentTarget.ReferencesVariable(s.Dst, builder.Variables.BP)
+                    && AssignmentTarget.TryGetVariable(s.Src, out var src) && ReferenceEquals(src, builder.Variables.SP));
             Assert.Null(movBpSp);
 
             // Не должно быть установки SP из BP (mov sp, bp)
             var movSpBp = allOperations.FirstOrDefault(op =>
-                op is SetOperation s && s.Dst == builder.Variables.SP && s.Src == builder.Variables.BP);
+                op is SetOperation s && AssignmentTarget.ReferencesVariable(s.Dst, builder.Variables.SP)
+                    && AssignmentTarget.TryGetVariable(s.Src, out var src) && ReferenceEquals(src, builder.Variables.BP));
             Assert.Null(movSpBp);
 
             // Проверяем, что есть операции пользовательского кода (вызовы, арифметика и т.п.)

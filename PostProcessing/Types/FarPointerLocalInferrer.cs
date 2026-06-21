@@ -41,7 +41,9 @@ public static class FarPointerLocalInferrer
     {
         foreach (var op in operations)
         {
-            if (op is SetOperation { Dst: var dst, Src: ConstExpr value } && ReferenceEquals(dst, variable))
+            if (op is SetOperation { Dst: var dst, Src: ConstExpr value }
+                && AssignmentTarget.TryGetVariable(dst, out var dstVar)
+                && ReferenceEquals(dstVar, variable))
             {
                 return value.Value;
             }
@@ -53,7 +55,9 @@ public static class FarPointerLocalInferrer
     private static void RemoveConstAssignment(List<Operation> operations, Variable variable)
     {
         operations.RemoveAll(op =>
-            op is SetOperation { Dst: var dst, Src: ConstExpr } && ReferenceEquals(dst, variable));
+            op is SetOperation { Dst: var dst, Src: ConstExpr }
+            && AssignmentTarget.TryGetVariable(dst, out var dstVar)
+            && ReferenceEquals(dstVar, variable));
     }
 
     private static uint PackFarPointer(int segment, int offset) =>

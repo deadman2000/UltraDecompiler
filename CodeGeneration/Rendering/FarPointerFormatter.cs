@@ -50,14 +50,14 @@ public static class FarPointerFormatter
         farPtr = null!;
         index = null;
 
-        if (store.Segment is not Variable segmentVar)
+        if (store.Segment is not VariableExpr { Var: var segmentVar })
         {
             return false;
         }
 
         switch (store.Address)
         {
-            case Variable offsetVar when IsFarPointerPair(offsetVar, segmentVar):
+            case VariableExpr { Var: var offsetVar } when IsFarPointerPair(offsetVar, segmentVar):
                 farPtr = offsetVar;
                 return true;
 
@@ -77,14 +77,14 @@ public static class FarPointerFormatter
         farPtr = null!;
         index = null;
 
-        if (mem.Segment is not Variable segmentVar)
+        if (mem.Segment is not VariableExpr { Var: var segmentVar })
         {
             return false;
         }
 
         switch (mem.Address)
         {
-            case Variable offsetVar when IsFarPointerPair(offsetVar, segmentVar):
+            case VariableExpr { Var: var offsetVar } when IsFarPointerPair(offsetVar, segmentVar):
                 farPtr = offsetVar;
                 return true;
 
@@ -108,28 +108,28 @@ public static class FarPointerFormatter
         ptr = null!;
         index = null;
 
-        if (add.First is Variable first && add.Second is ConstExpr offset)
+        if (add.First is VariableExpr { Var: var first } && add.Second is ConstExpr offset)
         {
             ptr = first;
             index = offset.Value == 0 ? null : offset;
             return true;
         }
 
-        if (add.Second is Variable second && add.First is ConstExpr offset2)
+        if (add.Second is VariableExpr { Var: var second } && add.First is ConstExpr offset2)
         {
             ptr = second;
             index = offset2.Value == 0 ? null : offset2;
             return true;
         }
 
-        if (add.First is Variable firstVar && add.Second is not Variable { IsTemp: false })
+        if (add.First is VariableExpr { Var: var firstVar } && add.Second is not VariableExpr { Var: { IsTemp: false } })
         {
             ptr = firstVar;
             index = add.Second;
             return true;
         }
 
-        if (add.Second is Variable secondVar && add.First is not Variable { IsTemp: false })
+        if (add.Second is VariableExpr { Var: var secondVar } && add.First is not VariableExpr { Var: { IsTemp: false } })
         {
             ptr = secondVar;
             index = add.First;

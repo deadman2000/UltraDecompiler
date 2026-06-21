@@ -136,7 +136,7 @@ public static class UsedVariableCollector
             return;
         }
 
-        if (expr is Variable variable)
+        if (expr is VariableExpr { Var: var variable })
         {
             AddVariable(variable, result);
             return;

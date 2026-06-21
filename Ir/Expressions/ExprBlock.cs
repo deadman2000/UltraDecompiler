@@ -66,6 +66,14 @@ public class ExprBlock(BasicBlock basicBlock)
     /// <summary>
     /// Хелпер для SetOperation
     /// </summary>
+    public void Set(Variable dst, Expr src)
+    {
+        Operations.Add(new SetOperation(dst.ToSet(), src));
+    }
+
+    /// <summary>
+    /// Хелпер для SetOperation
+    /// </summary>
     public void Set(Expr dst, Expr src)
     {
         Operations.Add(new SetOperation(dst, src));
@@ -77,7 +85,7 @@ public class ExprBlock(BasicBlock basicBlock)
     {
         // Для 8-битных регистров сохраняем неизменённые биты 16-битного регистра
         var baseVar = Variables.Get(reg.ToGpRegister16());
-        var old16 = (Expr)baseVar;
+        var old16 = baseVar.ToGet();
         var maskedSrc = src.LowByte();
 
         Expr newValue = reg switch

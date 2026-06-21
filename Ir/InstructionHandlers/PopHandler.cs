@@ -14,7 +14,7 @@ public class PopHandler : IInstructionHandler
     public void Handle(ExprBlock block, Instruction instr)
     {
         var value = block.EndStack.Count == 0
-            ? new Variable(Name: "stackErr")
+            ? block.Variables.CreateInternalVariable("stackErr").ToGet()
             : block.EndStack.Pop();
 
         var dst = instr.Operand1;

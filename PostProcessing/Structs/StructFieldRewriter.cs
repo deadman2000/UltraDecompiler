@@ -87,9 +87,9 @@ public static class StructFieldRewriter
         {
             if (i < signature.Parameters.Count
                 && signature.Parameters[i].Type.IsStructPtr
-                && args[i] is Variable { Type.IsStruct: true } structVar)
+                && args[i] is VariableExpr { Var: { Type.IsStruct: true } structVar })
             {
-                result.Add(new AddressOfExpr(structVar));
+                result.Add(new AddressOfExpr(structVar.ToGet()));
                 continue;
             }
 
@@ -101,7 +101,7 @@ public static class StructFieldRewriter
 
     private static Expr RewriteSetTarget(Expr dst, VariableStorage variables)
     {
-        if (dst is not Variable variable)
+        if (!AssignmentTarget.TryGetVariable(dst, out var variable))
         {
             return RewriteExpr(dst, variables);
         }
@@ -116,7 +116,7 @@ public static class StructFieldRewriter
             return member;
         }
 
-        return variable;
+        return variable.ToSet();
     }
 
     private static bool TryResolveStructBaseField(Variable variable, VariableStorage variables, out MemberExpr? member)
@@ -142,7 +142,7 @@ public static class StructFieldRewriter
     private static Expr RewriteExpr(Expr expr, VariableStorage variables) =>
         expr switch
         {
-            Variable variable => RewriteVariable(variable, variables),
+            VariableExpr { Var: var variable } => RewriteVariable(variable, variables),
             MemExpr mem => RewriteMemExpr(mem, variables),
             Math1Expr m1 => m1 with { Op = RewriteExpr(m1.Op, variables) },
             Math2Expr m2 => m2 with
@@ -161,8 +161,8 @@ public static class StructFieldRewriter
             },
             AddressOfExpr addr => addr with
             {
-                Operand = addr.Operand is Variable structVar
-                    ? structVar
+                Operand = addr.Operand is VariableExpr { Var: var structVar }
+                    ? structVar.ToGet()
                     : RewriteExpr(addr.Operand, variables),
             },
             MemberExpr member => member with { Base = RewriteExpr(member.Base, variables) },
@@ -181,7 +181,7 @@ public static class StructFieldRewriter
             return member;
         }
 
-        return variable;
+        return variable.ToGet();
     }
 
     private static Expr RewriteMemExpr(MemExpr mem, VariableStorage variables)
@@ -220,7 +220,7 @@ public static class StructFieldRewriter
 
     private static bool IsStackSegment(Expr? segment) =>
         segment is null
-        || segment is Variable { Name: "varSS" or "_ss" or "SS" };
+        || segment is VariableExpr { Var.Name: "varSS" or "_ss" or "SS" };
 
     private static int NormalizeDisplacement(int value) =>
         value > short.MaxValue ? (short)value : value;

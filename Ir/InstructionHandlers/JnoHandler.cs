@@ -7,6 +7,6 @@ public class JnoHandler : ConditionalJumpHandler
 {
     protected override Expr BuildCondition(ExprBlock block, Instruction instr)
     {
-        return !block.Variables.OF;
+        return !block.Variables.OF.ToGet();
     }
 }

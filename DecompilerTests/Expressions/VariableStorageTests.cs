@@ -115,7 +115,7 @@ public class VariableStorageTests
         var storage = new VariableStorage();
         var pspVar = new Variable(Name: "_psp", IsInternal: true);
 
-        var result = storage.TryGetKnownMemoryVariable(new ConstExpr(0x2C), pspVar);
+        var result = storage.TryGetKnownMemoryVariable(new ConstExpr(0x2C), pspVar.ToGet());
         Assert.Null(result);
     }
 
@@ -126,7 +126,7 @@ public class VariableStorageTests
         var storage = new VariableStorage();
         var otherVar = new Variable(Name: "other");
 
-        var result = storage.TryGetKnownMemoryVariable(new ConstExpr(0x2C), otherVar);
+        var result = storage.TryGetKnownMemoryVariable(new ConstExpr(0x2C), otherVar.ToGet());
         Assert.Null(result);
     }
 
@@ -137,7 +137,7 @@ public class VariableStorageTests
         var storage = new VariableStorage();
         var psp = storage.PspBase;
 
-        var result = storage.TryGetKnownMemoryVariable(new ConstExpr(0x2C), psp);
+        var result = storage.TryGetKnownMemoryVariable(new ConstExpr(0x2C), psp.ToGet());
 
         Assert.NotNull(result);
         Assert.Equal("Psp.EnvironmentSegment", result.Name);
@@ -150,8 +150,8 @@ public class VariableStorageTests
         var storage = new VariableStorage();
         var psp = storage.PspBase;
 
-        var address = new Math2Expr(Math2Operation.Add, psp, new ConstExpr(0x80));
-        var result = storage.TryGetKnownMemoryVariable(address, psp);
+        var address = new Math2Expr(Math2Operation.Add, psp.ToGet(), new ConstExpr(0x80));
+        var result = storage.TryGetKnownMemoryVariable(address, psp.ToGet());
 
         Assert.NotNull(result);
         Assert.Equal("Psp.CommandTailLength", result.Name);
@@ -164,7 +164,7 @@ public class VariableStorageTests
         var storage = new VariableStorage();
         var psp = storage.PspBase;
 
-        var result = storage.TryGetKnownMemoryVariable(new ConstExpr(0x17), psp);
+        var result = storage.TryGetKnownMemoryVariable(new ConstExpr(0x17), psp.ToGet());
         Assert.Null(result);
     }
 
@@ -177,7 +177,7 @@ public class VariableStorageTests
         var bx = new Variable(Name: "BX");
 
         // [BX] без константы относительно PSP
-        var result = storage.TryGetKnownMemoryVariable(bx, psp);
+        var result = storage.TryGetKnownMemoryVariable(bx.ToGet(), psp.ToGet());
         Assert.Null(result);
     }
 }

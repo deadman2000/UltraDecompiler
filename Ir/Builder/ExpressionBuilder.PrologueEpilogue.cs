@@ -116,8 +116,8 @@ public partial class ExpressionBuilder
                 // enter N, 0 — аналог push bp; mov bp, sp; sub sp, N
                 if (instr.Operand2.Type == OperandType.Immediate8 && instr.Operand2.Value == 0)
                 {
-                    block.EndStack.Push(block.Variables.BP);
-                    block.PushExprsByOffset[instr.Offset] = block.Variables.BP;
+                    block.EndStack.Push(block.Variables.BP.ToGet());
+                    block.PushExprsByOffset[instr.Offset] = block.Variables.BP.ToGet();
                 }
                 break;
         }
@@ -336,7 +336,7 @@ public partial class ExpressionBuilder
             }
 
             var isExplicit = !IsNaturalEpilogueMerge(block.BasicBlock, targetOffset);
-            block.Operations.Add(new ReturnOperation(block.Variables.AX, IsExplicit: isExplicit));
+            block.Operations.Add(new ReturnOperation(block.Variables.AX.ToGet(), IsExplicit: isExplicit));
         }
     }
 

@@ -45,7 +45,7 @@ public class PointerCodegenTests
 
         var operations = new List<Operation>
         {
-            new SetOperation(ptrVar, new CallExpr("malloc", [new ConstExpr(32)])),
+            new SetOperation(ptrVar.ToSet(), new CallExpr("malloc", [new ConstExpr(32)])),
         };
 
         VariableTypeInferrer.Infer(operations, storage, catalog);
@@ -82,17 +82,17 @@ public class PointerCodegenTests
 
         var operations = new List<Operation>
         {
-            new SetOperation(ptrVar, new CallExpr("malloc", [new ConstExpr(32)])),
+            new SetOperation(ptrVar.ToSet(), new CallExpr("malloc", [new ConstExpr(32)])),
             new IfOperation(
-                new CmpExpr(CmpOperation.Ne, ptrVar, ConstExpr.Zero),
+                new CmpExpr(CmpOperation.Ne, ptrVar.ToGet(), ConstExpr.Zero),
                 [
-                    new StoreOperation(ptrVar, pspBase, new ConstExpr(65)),
+                    new StoreOperation(ptrVar.ToGet(), pspBase.ToGet(), new ConstExpr(65)),
                     new StoreOperation(
-                        new Math2Expr(Math2Operation.Add, ptrVar, new ConstExpr(1)),
-                        pspBase,
+                        new Math2Expr(Math2Operation.Add, ptrVar.ToGet(), new ConstExpr(1)),
+                        pspBase.ToGet(),
                         ConstExpr.Zero),
-                    new CallOperation("printf", [new StringExpr("%s\n"), ptrVar]),
-                    new CallOperation("free", [ptrVar]),
+                    new CallOperation("printf", [new StringExpr("%s\n"), ptrVar.ToGet()]),
+                    new CallOperation("free", [ptrVar.ToGet()]),
                 ]),
             new ReturnOperation(ConstExpr.Zero),
         };
@@ -137,8 +137,8 @@ public class PointerCodegenTests
         var operations = new List<Operation>
         {
             new SetOperation(
-                dstVar,
-                new CallExpr("strcpy", [dstVar, new StringExpr("hello")])),
+                dstVar.ToSet(),
+                new CallExpr("strcpy", [dstVar.ToGet(), new StringExpr("hello")])),
         };
 
         VariableTypeInferrer.Infer(operations, new ProcedureStorage(), catalog);

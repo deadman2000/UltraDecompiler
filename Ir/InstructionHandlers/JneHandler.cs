@@ -7,6 +7,6 @@ public class JneHandler : ConditionalJumpHandler
 {
     protected override Expr BuildCondition(ExprBlock block, Instruction instr)
     {
-        return !block.Variables.ZF;
+        return !block.Variables.ZF.ToGet();
     }
 }

@@ -9,10 +9,10 @@ public class LoopOperationTests
     [Fact]
     public void IfOperation_ThenOnly_ProducesCorrectC()
     {
-        var cond = new CmpExpr(CmpOperation.Eq, new Variable(1), ConstExpr.Zero);
+        var cond = new CmpExpr(CmpOperation.Eq, new Variable(1).ToGet(), ConstExpr.Zero);
         var thenBody = new List<Operation>
         {
-            new SetOperation(new Variable(2), new Variable(3))
+            new SetOperation(new Variable(2).ToSet(), new Variable(3).ToGet())
         };
 
         var ifOp = new IfOperation(cond, thenBody);
@@ -27,9 +27,9 @@ public class LoopOperationTests
     [Fact]
     public void IfOperation_WithElse_ProducesCorrectC()
     {
-        var cond = new CmpExpr(CmpOperation.Ne, new Variable(0) { Name = "x" }, ConstExpr.Zero);
-        var thenBody = new List<Operation> { new SetOperation(new Variable(1), ConstExpr.One) };
-        var elseBody = new List<Operation> { new SetOperation(new Variable(1), ConstExpr.Zero) };
+        var cond = new CmpExpr(CmpOperation.Ne, new Variable(0) { Name = "x" }.ToGet(), ConstExpr.Zero);
+        var thenBody = new List<Operation> { new SetOperation(new Variable(1).ToSet(), ConstExpr.One) };
+        var elseBody = new List<Operation> { new SetOperation(new Variable(1).ToSet(), ConstExpr.Zero) };
 
         var ifOp = new IfOperation(cond, thenBody, elseBody);
         string result = ifOp.ToCString();
@@ -52,7 +52,7 @@ public class LoopOperationTests
     [Fact]
     public void IfOperation_EmptyElse_OmitsElseBranch()
     {
-        var thenBody = new List<Operation> { new SetOperation(new Variable(1), ConstExpr.One) };
+        var thenBody = new List<Operation> { new SetOperation(new Variable(1).ToSet(), ConstExpr.One) };
         var ifOp = new IfOperation(ConstExpr.One, thenBody, Array.Empty<Operation>());
         string result = ifOp.ToCString();
 
@@ -64,10 +64,10 @@ public class LoopOperationTests
     [Fact]
     public void WhileOperation_SimpleBody_ProducesCorrectC()
     {
-        var cond = new CmpExpr(CmpOperation.Ne, new Variable(1), ConstExpr.Zero);
+        var cond = new CmpExpr(CmpOperation.Ne, new Variable(1).ToGet(), ConstExpr.Zero);
         var body = new List<Operation>
         {
-            new StoreOperation(new Variable(2), null, new Variable(3))
+            new StoreOperation(new Variable(2).ToGet(), null, new Variable(3).ToGet())
         };
 
         var loop = new WhileOperation(cond, body);
@@ -83,14 +83,15 @@ public class LoopOperationTests
     public void ForOperation_ClassicCounter_ProducesCorrectC()
     {
         // for (i = 0; i < 10; i++) { ... }
-        var init = new SetOperation(new Variable(0) { Name = "i" }, ConstExpr.Zero);
-        var cond = new CmpExpr(CmpOperation.Ult, new Variable(0) { Name = "i" }, new ConstExpr(10));
-        var iter = new SetOperation(new Variable(0) { Name = "i" },
-            new Math2Expr(Math2Operation.Add, new Variable(0) { Name = "i" }, ConstExpr.One));
+        var i = new Variable(0) { Name = "i" };
+        var init = new SetOperation(i.ToSet(), ConstExpr.Zero);
+        var cond = new CmpExpr(CmpOperation.Ult, i.ToGet(), new ConstExpr(10));
+        var iter = new SetOperation(i.ToSet(),
+            new Math2Expr(Math2Operation.Add, i.ToGet(), ConstExpr.One));
 
         var body = new List<Operation>
         {
-            new StoreOperation(new Variable(1), null, new Variable(2))
+            new StoreOperation(new Variable(1).ToGet(), null, new Variable(2).ToGet())
         };
 
         var loop = new ForOperation(init, cond, iter, body);
@@ -116,7 +117,7 @@ public class LoopOperationTests
     {
         var innerIf = new IfOperation(
             ConstExpr.One,
-            [new SetOperation(new Variable(5), new Variable(6))]);
+            [new SetOperation(new Variable(5).ToSet(), new Variable(6).ToGet())]);
 
         var loop = new WhileOperation(ConstExpr.One, [innerIf]);
         string result = loop.ToCString(0);
@@ -130,7 +131,7 @@ public class LoopOperationTests
     {
         var ifOp = new IfOperation(
             ConstExpr.One,
-            [new SetOperation(new Variable(1), ConstExpr.Zero)]);
+            [new SetOperation(new Variable(1).ToSet(), ConstExpr.Zero)]);
 
         string result = ifOp.ToCString(indent: 1);
         var lines = result.Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -144,7 +145,7 @@ public class LoopOperationTests
         var innerCond = ConstExpr.One;
         var innerBody = new List<Operation>
         {
-            new SetOperation(new Variable(5), new Variable(6))
+            new SetOperation(new Variable(5).ToSet(), new Variable(6).ToGet())
         };
         var innerWhile = new WhileOperation(innerCond, innerBody);
         var outer = new ForOperation(null, null, null, [innerWhile]);

@@ -41,7 +41,7 @@ public static class GlobalVariableMaterializer
                 MaterializeExpr(set.Dst, registry, image, layout),
                 MaterializeExpr(set.Src, registry, image, layout)),
             StoreOperation store when TryGetGlobal(store.Address, store.Segment, registry, image, layout, out var global) =>
-                new SetOperation(global, MaterializeExpr(store.Value, registry, image, layout)),
+                new SetOperation(global.ToSet(), MaterializeExpr(store.Value, registry, image, layout)),
             StoreOperation store => store with
             {
                 Address = MaterializeExpr(store.Address, registry, image, layout),
@@ -49,9 +49,9 @@ public static class GlobalVariableMaterializer
                 Value = MaterializeExpr(store.Value, registry, image, layout),
             },
             IncOperation inc when TryGetGlobal(inc.Target, inc.Segment, registry, image, layout, out var global) =>
-                new IncOperation(global),
+                new IncOperation(global.ToSet()),
             DecOperation dec when TryGetGlobal(dec.Target, dec.Segment, registry, image, layout, out var global) =>
-                new DecOperation(global),
+                new DecOperation(global.ToSet()),
             IncOperation inc => inc with
             {
                 Target = MaterializeExpr(inc.Target, registry, image, layout),
@@ -118,7 +118,7 @@ public static class GlobalVariableMaterializer
     {
         if (expr is MemExpr mem && TryGetGlobal(mem.Address, mem.Segment, registry, image, layout, out var global))
         {
-            return global;
+            return global.ToGet();
         }
 
         return expr switch
