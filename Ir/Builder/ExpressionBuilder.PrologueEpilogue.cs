@@ -301,7 +301,7 @@ public partial class ExpressionBuilder
     /// <summary>
     /// Для /Od: заменяет tail jmp в общий эпилог явным <see cref="ReturnOperation"/> с текущим AX.
     /// </summary>
-    private void InsertTailReturnsBeforeEpilogue()
+    public void InsertTailReturnsBeforeEpilogue()
     {
         if (!ShouldInsertTailReturnsBeforeEpilogue())
         {
@@ -371,7 +371,7 @@ public partial class ExpressionBuilder
     /// Удаляет из IR-дерева блоки общего эпилога QuickC /Od (pop/leave/ret),
     /// на которые ведёт tail jmp. Return уже стоит в блоке-источнике перехода.
     /// </summary>
-    private void RemoveSharedEpilogueBlocks()
+    public void RemoveSharedEpilogueBlocks()
     {
         var epilogueBlocks = Blocks
             .Where(b => IsSharedEpilogueReachedByTailJmp(b.BasicBlock))

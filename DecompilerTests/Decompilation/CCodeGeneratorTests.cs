@@ -11,7 +11,7 @@ public class CCodeGeneratorTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void FormatCFunction_DeclaresStackLocal_ExcludesParameter()
     {
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             55          ; push bp
             8B EC       ; mov bp, sp
             83 EC 02    ; sub sp, 2
@@ -48,7 +48,7 @@ public class CCodeGeneratorTests : BaseTests
     public void FormatCFunction_DeclaresVariablesUsedInConditions()
     {
         var local = new Variable(3);
-        var expr = BuildExpressions("C3");
+        var expr = BuildExpressionsRaw("C3");
 
         var procedure = new DisassembledProcedure
         {
@@ -78,7 +78,7 @@ public class CCodeGeneratorTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void FormatCFunction_VoidImplicitReturn_OmitsBareReturn()
     {
-        var expr = BuildExpressions("C3");
+        var expr = BuildExpressionsRaw("C3");
 
         var procedure = new DisassembledProcedure
         {
@@ -102,7 +102,7 @@ public class CCodeGeneratorTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void FormatCFunction_VoidExplicitReturn_EmitsBareReturn()
     {
-        var expr = BuildExpressions("C3");
+        var expr = BuildExpressionsRaw("C3");
 
         var procedure = new DisassembledProcedure
         {
@@ -125,7 +125,7 @@ public class CCodeGeneratorTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void FormatCFunction_NoLocals_NoDeclarationBlock()
     {
-        var expr = BuildExpressions("C3");
+        var expr = BuildExpressionsRaw("C3");
 
         var procedure = new DisassembledProcedure
         {

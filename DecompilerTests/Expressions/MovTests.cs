@@ -12,7 +12,7 @@ public class MovTests : BaseTests
     public void Mov_Ax_Immediate16_ProducesSetOperation()
     {
         // MOV AX, 1234h
-        var expr = BuildExpressions("B8 34 12");
+        var expr = BuildExpressionsRaw("B8 34 12");
 
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
@@ -29,7 +29,7 @@ public class MovTests : BaseTests
     public void Mov_Cx_Immediate16_ProducesSetOperation()
     {
         // MOV CX, 5678h
-        var expr = BuildExpressions("B9 78 56");
+        var expr = BuildExpressionsRaw("B9 78 56");
 
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
@@ -43,7 +43,7 @@ public class MovTests : BaseTests
     public void Mov_Al_Immediate8_ProducesSetOperation()
     {
         // MOV AL, 55h
-        var expr = BuildExpressions("B0 55");
+        var expr = BuildExpressionsRaw("B0 55");
 
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
@@ -72,7 +72,7 @@ public class MovTests : BaseTests
     public void Mov_Ax_Bx_ProducesSetOperation()
     {
         // MOV AX, BX
-        var expr = BuildExpressions("8B C3");
+        var expr = BuildExpressionsRaw("8B C3");
 
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
@@ -86,7 +86,7 @@ public class MovTests : BaseTests
     public void Mov_Al_Bl_ProducesSetOperation()
     {
         // MOV AL, BL
-        var expr = BuildExpressions("88 D8");
+        var expr = BuildExpressionsRaw("88 D8");
 
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
@@ -106,7 +106,7 @@ public class MovTests : BaseTests
     public void Mov_MultipleMovs_ChainValues()
     {
         // MOV AX, 1234h; MOV BX, AX
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             B8 34 12  ; MOV AX, 1234h
             8B D8     ; MOV BX, AX
             """);
@@ -133,7 +133,7 @@ public class MovTests : BaseTests
     public void Mov_Ax_MemoryDirect_ProducesSetOperation()
     {
         // MOV AX, [1234h]
-        var expr = BuildExpressions("A1 34 12");
+        var expr = BuildExpressionsRaw("A1 34 12");
 
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
@@ -149,7 +149,7 @@ public class MovTests : BaseTests
     public void Mov_Al_MemoryDirect_ProducesSetOperation()
     {
         // MOV AL, [1234h]
-        var expr = BuildExpressions("A0 34 12");
+        var expr = BuildExpressionsRaw("A0 34 12");
 
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
@@ -172,7 +172,7 @@ public class MovTests : BaseTests
     public void Mov_Ax_MemoryBx_ProducesSetOperation()
     {
         // MOV AX, [BX]
-        var expr = BuildExpressions("8B 07");
+        var expr = BuildExpressionsRaw("8B 07");
 
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
@@ -187,7 +187,7 @@ public class MovTests : BaseTests
     public void Mov_Cx_MemoryBpPlusSi_ProducesSetOperation()
     {
         // MOV CX, [BP+SI]
-        var expr = BuildExpressions("8B 0A");
+        var expr = BuildExpressionsRaw("8B 0A");
 
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
@@ -207,7 +207,7 @@ public class MovTests : BaseTests
     public void Mov_MemoryDirect_Ax_ProducesStoreOperation()
     {
         // MOV [1234h], AX
-        var expr = BuildExpressions("A3 34 12");
+        var expr = BuildExpressionsRaw("A3 34 12");
 
         var store = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<StoreOperation>(store);
@@ -224,7 +224,7 @@ public class MovTests : BaseTests
     public void Mov_MemoryDirect_Al_ProducesStoreOperation()
     {
         // MOV [1234h], AL
-        var expr = BuildExpressions("A2 34 12");
+        var expr = BuildExpressionsRaw("A2 34 12");
 
         var store = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<StoreOperation>(store);
@@ -245,7 +245,7 @@ public class MovTests : BaseTests
     public void Mov_MemoryBx_Ax_ProducesStoreOperation()
     {
         // MOV [BX], AX
-        var expr = BuildExpressions("89 07");
+        var expr = BuildExpressionsRaw("89 07");
 
         var store = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<StoreOperation>(store);
@@ -259,7 +259,7 @@ public class MovTests : BaseTests
     public void Mov_MemoryWithSegmentOverride_ProducesStoreOperation()
     {
         // ES: MOV [BX], AX
-        var expr = BuildExpressions("26 89 07");
+        var expr = BuildExpressionsRaw("26 89 07");
 
         var store = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<StoreOperation>(store);
@@ -277,7 +277,7 @@ public class MovTests : BaseTests
     public void Mov_Ds_Ax_ProducesSetOperation()
     {
         // MOV DS, AX
-        var expr = BuildExpressions("8E D8");
+        var expr = BuildExpressionsRaw("8E D8");
 
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
@@ -290,7 +290,7 @@ public class MovTests : BaseTests
     public void Mov_Ax_Ds_ProducesSetOperation()
     {
         // MOV AX, DS
-        var expr = BuildExpressions("8C D8");
+        var expr = BuildExpressionsRaw("8C D8");
 
         var set = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<SetOperation>(set);
@@ -307,7 +307,7 @@ public class MovTests : BaseTests
     public void Mov_Al_PreservesHighByte()
     {
         // Ожидаем: AX = (0x1234 & 0xFF00) | (0x55 & 0xFF) = 0x1255
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             B8 34 12  ; MOV AX, 1234h
             B0 55     ; MOV AL, 55h
             """);
@@ -336,7 +336,7 @@ public class MovTests : BaseTests
     public void Mov_Ah_PreservesLowByte()
     {
         // Ожидаем: AX = (0x1234 & 0x00FF) | (0x55 << 8) = 0x5534
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             B8 34 12  ; MOV AX, 1234h
             B4 55     ; MOV AH, 55h
             """);
@@ -369,7 +369,7 @@ public class MovTests : BaseTests
     [Fact]
     public void Mov_Ax_BpPlus4_LoadsParameter()
     {
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             8B 46 04  ; MOV AX, [BP+4]
@@ -386,7 +386,7 @@ public class MovTests : BaseTests
     public void Mov_BpPlusMinus2_Ax_StoresLocal()
     {
         // Проверяем, что MOV [BP-2], AX создаёт SetOperation для локальной переменной
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             50        ; PUSH AX
@@ -409,7 +409,7 @@ public class MovTests : BaseTests
     [Fact]
     public void Mov_WithChainOfMovs_PreservesExpressionChain()
     {
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             B8 34 12  ; MOV AX, 1234h
             8B D8     ; MOV BX, AX
             8B CB     ; MOV CX, BX

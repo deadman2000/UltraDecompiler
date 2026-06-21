@@ -9,7 +9,7 @@ public class RemoveUnusedSetsTests : BaseTests
     [Fact]
     public void Optimized_RemovesDeadSpAdjustment()
     {
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             83 C4 02    ; ADD SP, 2
             C3          ; RET
             """);
@@ -24,7 +24,7 @@ public class RemoveUnusedSetsTests : BaseTests
     [Fact]
     public void Unoptimized_KeepsDeadSpAdjustment()
     {
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             83 C4 02    ; ADD SP, 2
             C3          ; RET
             """);
@@ -38,7 +38,7 @@ public class RemoveUnusedSetsTests : BaseTests
     [Fact]
     public void Optimized_ConvertsDeadCallResultToCallOperation()
     {
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             E8 02 00    ; CALL +5
             B8 00 00    ; MOV AX, 0
             C3          ; RET
@@ -58,7 +58,7 @@ public class RemoveUnusedSetsTests : BaseTests
     [Fact]
     public void Optimized_KeepsRegisterAssignment_WhenReadInSameBlock()
     {
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             B8 01 00    ; MOV AX, 1
             8B C8       ; MOV CX, AX
             C3          ; RET
@@ -76,7 +76,7 @@ public class RemoveUnusedSetsTests : BaseTests
     [Fact]
     public void Optimized_KeepsRegisterAssignment_WhenReadInSuccessorBlock()
     {
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             B8 01 00    ; MOV AX, 1
             EB 02       ; JMP +2 → offset 7
             90          ; padding (dead)
@@ -101,7 +101,7 @@ public class RemoveUnusedSetsTests : BaseTests
     [Fact]
     public void Optimized_RemovesRegisterAssignment_WhenSuccessorDoesNotRead()
     {
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             B8 01 00    ; MOV AX, 1
             EB 02       ; JMP +2 → NOP
             8B D8       ; MOV BX, AX (skipped)
@@ -117,7 +117,7 @@ public class RemoveUnusedSetsTests : BaseTests
     [Fact]
     public void Optimized_RemovesNeverReadRegisterAssignment()
     {
-        var expr = BuildProcExpressions("B8 34 12");
+        var expr = BuildExpressions("B8 34 12");
 
         Assert.DoesNotContain(
             expr.Blocks[0].Operations.OfType<SetOperation>(),
@@ -128,7 +128,7 @@ public class RemoveUnusedSetsTests : BaseTests
     [Fact]
     public void Optimized_RemovesDeadFlagAssignments()
     {
-        var expr = BuildProcExpressions("2B C3");
+        var expr = BuildExpressions("2B C3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         Assert.DoesNotContain(sets, set => AssignmentTarget.ReferencesVariable(set.Dst, expr.Variables.ZF));
@@ -140,7 +140,7 @@ public class RemoveUnusedSetsTests : BaseTests
     [Fact]
     public void Optimized_RemovesDeadCopyChain_InFixpointLoop()
     {
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             B8 01 00    ; MOV AX, 1
             8B D8       ; MOV BX, AX
             B8 02 00    ; MOV AX, 2

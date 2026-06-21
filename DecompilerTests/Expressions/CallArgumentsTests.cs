@@ -137,10 +137,8 @@ public class CallArgumentsTests : BaseTests
 
     protected static ExpressionBuilder BuildExpressions(string hex, ProcedureStorage storage)
     {
-        var graph = GetGraph(hex);
-        var decompiler = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        decompiler.Build();
-        CallSiteResolver.ResolveBlocks(decompiler.Blocks, storage);
-        return decompiler;
+        var expr = BuildExpressions(hex);
+        CallSiteResolver.ResolveBlocks(expr.Blocks, storage);
+        return expr;
     }
 }

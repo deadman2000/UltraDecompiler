@@ -16,7 +16,7 @@ public class PrologueEpilogueTests : BaseTests
     {
         // Стандартный пролог QuickC /Od: push bp; mov bp, sp
         // С BuildProc: пролог обрабатывается, но не создаёт операций пользовательского кода
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             C3        ; RET
@@ -31,7 +31,7 @@ public class PrologueEpilogueTests : BaseTests
     public void StandardPrologue_BP_SetToSP()
     {
         // Проверяем, что после пролога код работает корректно
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             B8 00 01  ; MOV AX, 100h
@@ -53,7 +53,7 @@ public class PrologueEpilogueTests : BaseTests
     public void PrologueWithStackAllocation_DetectsStackFrame()
     {
         // Пролог с выделением стека должен активировать стековый кадр
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             83 EC 0A  ; SUB SP, 0Ah
@@ -69,7 +69,7 @@ public class PrologueEpilogueTests : BaseTests
     public void PrologueWithStackAllocation_SP_Updated()
     {
         // Проверяем, что код после выделения стека работает
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             83 EC 0A  ; SUB SP, 0Ah
@@ -92,7 +92,7 @@ public class PrologueEpilogueTests : BaseTests
     public void StackLocal_MovToBpMinus2_CreatesSetOperationForLocal()
     {
         // Запись в локальную переменную [BP-2]
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             83 EC 04  ; SUB SP, 4
@@ -115,7 +115,7 @@ public class PrologueEpilogueTests : BaseTests
     public void StackLocal_ReadFromBpMinus2_UsesLocalVariable()
     {
         // Чтение из локальной переменной [BP-2]
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             83 EC 04  ; SUB SP, 4
@@ -136,7 +136,7 @@ public class PrologueEpilogueTests : BaseTests
     public void StackLocal_UnusedFromSubSp_CreatesLocalForCodegen()
     {
         // sub sp, 2 без обращений к [BP-2] — неиспользуемый int a; (func.c / foo)
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             83 EC 02  ; SUB SP, 2
@@ -156,7 +156,7 @@ public class PrologueEpilogueTests : BaseTests
     public void Parameter_ReadFromBpPlus4_UsesArg0()
     {
         // Чтение параметра [BP+4]
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             8B 46 04  ; MOV AX, [BP+4]
@@ -175,7 +175,7 @@ public class PrologueEpilogueTests : BaseTests
     public void MultipleParameters_ReadFromBpPlus4And6()
     {
         // Чтение двух параметров [BP+4] и [BP+6]
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             8B 46 04  ; MOV AX, [BP+4]
@@ -199,7 +199,7 @@ public class PrologueEpilogueTests : BaseTests
     public void EpilogueWithLeave_ProcessedCorrectly()
     {
         // leave = mov sp, bp; pop bp
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             B8 CC DD  ; MOV AX, DDCC
@@ -218,7 +218,7 @@ public class PrologueEpilogueTests : BaseTests
     public void EpilogueWithMovSpBpPopBp_ProcessedCorrectly()
     {
         // mov sp, bp; pop bp
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             B8 AA BB  ; MOV AX, BBAA
@@ -243,7 +243,7 @@ public class PrologueEpilogueTests : BaseTests
     {
         // Полный пролог/эпилог с кодом функции
         // MOV AX, 1; ADD AX, 2; RET → return 3
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             83 EC 10  ; SUB SP, 10h
@@ -275,7 +275,7 @@ public class PrologueEpilogueTests : BaseTests
     {
         // Функция без стандартного пролога (например, _start)
         // Используем простой код без INT (который не поддерживается в ExpressionBuilder)
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             B8 00 00  ; MOV AX, 0
             B9 01 00  ; MOV CX, 1
             C3        ; RET

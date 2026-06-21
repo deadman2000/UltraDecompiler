@@ -12,7 +12,7 @@ public class LogicalTests : BaseTests
     public void And_Ax_Immediate16_ProducesMath2Expr()
     {
         // AND AX, 00FFh
-        var expr = BuildExpressions("25 FF 00");
+        var expr = BuildExpressionsRaw("25 FF 00");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -27,7 +27,7 @@ public class LogicalTests : BaseTests
     public void And_Ax_Bx_ProducesMath2Expr()
     {
         // AND AX, BX
-        var expr = BuildExpressions("23 C3");
+        var expr = BuildExpressionsRaw("23 C3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -42,7 +42,7 @@ public class LogicalTests : BaseTests
     public void And_Al_Immediate8_ProducesMath2Expr()
     {
         // AND AL, 0Fh
-        var expr = BuildExpressions("24 0F");
+        var expr = BuildExpressionsRaw("24 0F");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -55,7 +55,7 @@ public class LogicalTests : BaseTests
     public void And_Memory_Ax_ProducesStoreOperation()
     {
         // AND [BX], AX
-        var expr = BuildExpressions("21 07");
+        var expr = BuildExpressionsRaw("21 07");
 
         var ops = expr.Blocks[0].Operations;
         Assert.NotEmpty(ops);
@@ -77,7 +77,7 @@ public class LogicalTests : BaseTests
     public void And_Ax_Memory_ProducesMath2Expr()
     {
         // AND AX, [BX]
-        var expr = BuildExpressions("23 07");
+        var expr = BuildExpressionsRaw("23 07");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -96,7 +96,7 @@ public class LogicalTests : BaseTests
     public void Or_Ax_Immediate16_ProducesMath2Expr()
     {
         // OR AX, 00FFh
-        var expr = BuildExpressions("0D FF 00");
+        var expr = BuildExpressionsRaw("0D FF 00");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -111,7 +111,7 @@ public class LogicalTests : BaseTests
     public void Or_Ax_Bx_ProducesMath2Expr()
     {
         // OR AX, BX
-        var expr = BuildExpressions("0B C3");
+        var expr = BuildExpressionsRaw("0B C3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -126,7 +126,7 @@ public class LogicalTests : BaseTests
     public void Or_Al_Immediate8_ProducesMath2Expr()
     {
         // OR AL, 80h
-        var expr = BuildExpressions("0C 80");
+        var expr = BuildExpressionsRaw("0C 80");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -138,7 +138,7 @@ public class LogicalTests : BaseTests
     public void Or_Ax_Memory_ProducesMath2Expr()
     {
         // OR AX, [BX]
-        var expr = BuildExpressions("0B 07");
+        var expr = BuildExpressionsRaw("0B 07");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -157,7 +157,7 @@ public class LogicalTests : BaseTests
     public void Xor_Ax_Immediate16_ProducesMath2Expr()
     {
         // XOR AX, 00FFh
-        var expr = BuildExpressions("35 FF 00");
+        var expr = BuildExpressionsRaw("35 FF 00");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -172,7 +172,7 @@ public class LogicalTests : BaseTests
     public void Xor_Ax_Bx_ProducesMath2Expr()
     {
         // XOR AX, BX
-        var expr = BuildExpressions("33 C3");
+        var expr = BuildExpressionsRaw("33 C3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -187,7 +187,7 @@ public class LogicalTests : BaseTests
     public void Xor_Bx_Ax_ProducesMath2Expr()
     {
         // XOR BX, AX
-        var expr = BuildExpressions("31 C3");
+        var expr = BuildExpressionsRaw("31 C3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.BX));
@@ -202,7 +202,7 @@ public class LogicalTests : BaseTests
     public void Xor_Al_Bh_ProducesMath2Expr()
     {
         // XOR AL, BH
-        var expr = BuildExpressions("30 F4");
+        var expr = BuildExpressionsRaw("30 F4");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -214,7 +214,7 @@ public class LogicalTests : BaseTests
     public void Xor_Ax_Memory_ProducesMath2Expr()
     {
         // XOR AX, [BX]
-        var expr = BuildExpressions("33 07");
+        var expr = BuildExpressionsRaw("33 07");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -233,7 +233,7 @@ public class LogicalTests : BaseTests
     public void And_UpdatesFlags()
     {
         // AND AX, BX
-        var expr = BuildExpressions("23 C3");
+        var expr = BuildExpressionsRaw("23 C3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
 
@@ -252,7 +252,7 @@ public class LogicalTests : BaseTests
     public void Or_UpdatesFlags()
     {
         // OR AX, BX
-        var expr = BuildExpressions("0B C3");
+        var expr = BuildExpressionsRaw("0B C3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
 
@@ -271,7 +271,7 @@ public class LogicalTests : BaseTests
     public void Xor_UpdatesFlags()
     {
         // XOR AX, BX
-        var expr = BuildExpressions("33 C3");
+        var expr = BuildExpressionsRaw("33 C3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
 
@@ -293,7 +293,7 @@ public class LogicalTests : BaseTests
     [Fact]
     public void And_SetsCFToZero()
     {
-        var expr = BuildExpressions("25 FF 00");
+        var expr = BuildExpressionsRaw("25 FF 00");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var cfSet = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.CF));
@@ -306,7 +306,7 @@ public class LogicalTests : BaseTests
     [Fact]
     public void Or_SetsCFToZero()
     {
-        var expr = BuildExpressions("0D FF 00");
+        var expr = BuildExpressionsRaw("0D FF 00");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var cfSet = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.CF));
@@ -318,7 +318,7 @@ public class LogicalTests : BaseTests
     [Fact]
     public void Xor_SetsCFToZero()
     {
-        var expr = BuildExpressions("35 FF 00");
+        var expr = BuildExpressionsRaw("35 FF 00");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var cfSet = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.CF));
@@ -330,7 +330,7 @@ public class LogicalTests : BaseTests
     [Fact]
     public void And_SetsOFToZero()
     {
-        var expr = BuildExpressions("25 FF 00");
+        var expr = BuildExpressionsRaw("25 FF 00");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var ofSet = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.OF));
@@ -342,7 +342,7 @@ public class LogicalTests : BaseTests
     [Fact]
     public void Or_SetsOFToZero()
     {
-        var expr = BuildExpressions("0D FF 00");
+        var expr = BuildExpressionsRaw("0D FF 00");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var ofSet = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.OF));
@@ -354,7 +354,7 @@ public class LogicalTests : BaseTests
     [Fact]
     public void Xor_SetsOFToZero()
     {
-        var expr = BuildExpressions("35 FF 00");
+        var expr = BuildExpressionsRaw("35 FF 00");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var ofSet = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.OF));
@@ -371,7 +371,7 @@ public class LogicalTests : BaseTests
     public void Xor_Ax_Ax_SetsZFToOne()
     {
         // XOR AX, AX → AX = 0, ZF = 1
-        var expr = BuildExpressions("31 C0");
+        var expr = BuildExpressionsRaw("31 C0");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));

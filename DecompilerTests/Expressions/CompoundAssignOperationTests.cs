@@ -11,7 +11,7 @@ public class CompoundAssignOperationTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void Add_MemoryByConst_EmitsAddAssignOperation()
     {
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             55           ; push bp
             8B EC        ; mov bp, sp
             83 46 FE 05  ; add word ptr [bp-2], 5
@@ -27,7 +27,7 @@ public class CompoundAssignOperationTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void Sub_MemoryByConst_EmitsSubAssignOperation()
     {
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             55           ; push bp
             8B EC        ; mov bp, sp
             83 6E FE 05  ; sub word ptr [bp-2], 5
@@ -40,7 +40,7 @@ public class CompoundAssignOperationTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void Add_MemoryByRegister_EmitsAddAssignOperation()
     {
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             55           ; push bp
             8B EC        ; mov bp, sp
             81 EC 04 00  ; sub sp, 4
@@ -56,7 +56,7 @@ public class CompoundAssignOperationTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void MovAddMov_Const_StaysExplicitAssign()
     {
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             55           ; push bp
             8B EC        ; mov bp, sp
             8B 46 FE     ; mov ax, [bp-2]
@@ -74,7 +74,7 @@ public class CompoundAssignOperationTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void MovAddMov_Variable_FoldsToExplicitAssign()
     {
-        var expr = BuildProcExpressions("""
+        var expr = BuildExpressions("""
             55           ; push bp
             8B EC        ; mov bp, sp
             81 EC 04 00  ; sub sp, 4

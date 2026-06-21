@@ -264,6 +264,7 @@ public class Decompiler
 
             var expressions = ExpressionBuilder.Create(cfg, _optimizationLevel);
             expressions.Build();
+            expressions.Optimize();
 
             var userProc = new DisassembledProcedure
             {

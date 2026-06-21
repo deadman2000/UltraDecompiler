@@ -7,7 +7,7 @@ public class DoWhileRecognitionTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void DoWhile_ProducesForLoop()
     {
-        var ops = BuildProcOperations("""
+        var ops = BuildOperations("""
             55 8B EC 81 EC 04 00 57 56
             C7 46 FE 03 00 C7 46 FC 00 00
             8B 46 FE 01 46 FC 83 6E FE 01

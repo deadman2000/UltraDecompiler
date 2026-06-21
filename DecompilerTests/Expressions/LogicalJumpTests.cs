@@ -13,7 +13,7 @@ public class LogicalJumpTests : BaseTests
     {
         // AND SI, SI → LastComparisonOperands = (SI & SI, 0)
         // JG → CmpJumpConditions упрощает до CmpExpr(Gt, SI, 0)
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             23 F6          ; AND SI, SI
             7F 00          ; JG +0 (target)
             """);
@@ -33,7 +33,7 @@ public class LogicalJumpTests : BaseTests
     [Fact]
     public void And_Si_Si_Jge_ConditionIsSignedGreaterEqual()
     {
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             23 F6          ; AND SI, SI
             7D 00          ; JGE +0
             """);
@@ -54,7 +54,7 @@ public class LogicalJumpTests : BaseTests
     {
         // TEST AX, AX → LastComparisonOperands = (AX & AX, 0)
         // JE → CmpExpr(Eq, AX & AX, 0) — НЕ упрощаем (только AND)
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             85 C0          ; TEST AX, AX
             74 00          ; JE +0
             """);
@@ -71,7 +71,7 @@ public class LogicalJumpTests : BaseTests
     public void Test_Ax_0FFh_Jne_ConditionIsNotEqual()
     {
         // TEST AX, 0FFh (16-bit immediate)
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             81 F0 FF 00    ; TEST AX, 0FFh (16-bit)
             75 00          ; JNE +0
             """);
@@ -90,7 +90,7 @@ public class LogicalJumpTests : BaseTests
     [Fact]
     public void Or_Ax_Ax_Je_ConditionIsNotSimplified()
     {
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             0B C0          ; OR AX, AX
             74 00          ; JE +0
             """);
@@ -106,7 +106,7 @@ public class LogicalJumpTests : BaseTests
     [Fact]
     public void Xor_Ax_Ax_Je_ConditionIsNotSimplified()
     {
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             31 C0          ; XOR AX, AX
             74 00          ; JE +0
             """);
@@ -126,7 +126,7 @@ public class LogicalJumpTests : BaseTests
     [Fact]
     public void And_SetsLastComparisonOperands()
     {
-        var expr = BuildExpressions("23 F6"); // AND SI, SI
+        var expr = BuildExpressionsRaw("23 F6"); // AND SI, SI
 
         var block = expr.Blocks[0];
         Assert.NotNull(block.LastComparisonOperands);
@@ -136,7 +136,7 @@ public class LogicalJumpTests : BaseTests
     [Fact]
     public void Test_SetsLastComparisonOperands()
     {
-        var expr = BuildExpressions("83 F0 01"); // TEST AX, 1
+        var expr = BuildExpressionsRaw("83 F0 01"); // TEST AX, 1
 
         var block = expr.Blocks[0];
         Assert.NotNull(block.LastComparisonOperands);
@@ -150,7 +150,7 @@ public class LogicalJumpTests : BaseTests
     public void And_Si_Di_Jg_ConditionIsNotSimplified()
     {
         // AND SI, DI — разные регистры, не упрощаем
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             23 F7          ; AND SI, DI
             7F 00          ; JG +0
             """);
@@ -171,7 +171,7 @@ public class LogicalJumpTests : BaseTests
     public void And_Si_Si_DoesNotProduceExtraSetOperation()
     {
         // AND SI, SI — тождественная операция, не должна генерировать regSI = regSI & regSI
-        var expr = BuildExpressions("23 F6"); // AND SI, SI
+        var expr = BuildExpressionsRaw("23 F6"); // AND SI, SI
 
         var block = expr.Blocks[0];
 
@@ -190,7 +190,7 @@ public class LogicalJumpTests : BaseTests
     public void And_Si_Di_DoesProduceSetOperation()
     {
         // AND SI, DI — не тождественная операция, должна генерировать regSI = regSI & regDI
-        var expr = BuildExpressions("23 F7"); // AND SI, DI
+        var expr = BuildExpressionsRaw("23 F7"); // AND SI, DI
 
         var block = expr.Blocks[0];
 

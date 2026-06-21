@@ -9,7 +9,7 @@ public class GotoRecognitionTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void JmpMain_ProducesGotoAndLabels()
     {
-        var ops = BuildProcOperations("""
+        var ops = BuildOperations("""
             55 8B EC 81 EC 02 00 57 56
             C7 46 FE 00 00 E9 00 00
             C7 46 FE 2A 00

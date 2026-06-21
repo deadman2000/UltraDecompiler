@@ -12,7 +12,7 @@ public class ArithmeticTests : BaseTests
     public void Add_Ax_Immediate16_ProducesMath2Expr()
     {
         // ADD AX, 1234h
-        var expr = BuildExpressions("05 34 12");
+        var expr = BuildExpressionsRaw("05 34 12");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         Assert.NotEmpty(sets);
@@ -31,7 +31,7 @@ public class ArithmeticTests : BaseTests
     public void Add_Ax_Bx_ProducesMath2Expr()
     {
         // ADD AX, BX
-        var expr = BuildExpressions("03 C3");
+        var expr = BuildExpressionsRaw("03 C3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -46,7 +46,7 @@ public class ArithmeticTests : BaseTests
     public void Add_Al_Immediate8_ProducesMath2Expr()
     {
         // ADD AL, 55h
-        var expr = BuildExpressions("04 55");
+        var expr = BuildExpressionsRaw("04 55");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -63,7 +63,7 @@ public class ArithmeticTests : BaseTests
     public void Sub_Ax_Immediate16_ProducesMath2Expr()
     {
         // SUB AX, 1234h
-        var expr = BuildExpressions("2D 34 12");
+        var expr = BuildExpressionsRaw("2D 34 12");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -78,7 +78,7 @@ public class ArithmeticTests : BaseTests
     public void Sub_Ax_Bx_ProducesMath2Expr()
     {
         // SUB AX, BX
-        var expr = BuildExpressions("2B C3");
+        var expr = BuildExpressionsRaw("2B C3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -97,7 +97,7 @@ public class ArithmeticTests : BaseTests
     public void Adc_Ax_Immediate16_ProducesMath2ExprWithCarry()
     {
         // ADC AX, 1234h
-        var expr = BuildExpressions("15 34 12");
+        var expr = BuildExpressionsRaw("15 34 12");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -114,7 +114,7 @@ public class ArithmeticTests : BaseTests
     public void Adc_Ax_Bx_ProducesMath2ExprWithCarry()
     {
         // ADC AX, BX
-        var expr = BuildExpressions("13 C3");
+        var expr = BuildExpressionsRaw("13 C3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -131,7 +131,7 @@ public class ArithmeticTests : BaseTests
     public void Sbb_Ax_Immediate16_ProducesMath2ExprWithCarry()
     {
         // SBB AX, 1234h
-        var expr = BuildExpressions("1D 34 12");
+        var expr = BuildExpressionsRaw("1D 34 12");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -148,7 +148,7 @@ public class ArithmeticTests : BaseTests
     public void Sbb_Ax_Bx_ProducesMath2ExprWithCarry()
     {
         // SBB AX, BX
-        var expr = BuildExpressions("1B C3");
+        var expr = BuildExpressionsRaw("1B C3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -165,7 +165,7 @@ public class ArithmeticTests : BaseTests
     public void Add_UpdatesFlags()
     {
         // ADD AX, BX
-        var expr = BuildExpressions("03 C3");
+        var expr = BuildExpressionsRaw("03 C3");
 
         // Должны быть установлены флаги ZF, SF, CF, OF
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
@@ -187,7 +187,7 @@ public class ArithmeticTests : BaseTests
     public void Sub_UpdatesFlags()
     {
         // SUB AX, BX
-        var expr = BuildExpressions("2B C3");
+        var expr = BuildExpressionsRaw("2B C3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
 
@@ -206,7 +206,7 @@ public class ArithmeticTests : BaseTests
     public void Adc_UpdatesFlags()
     {
         // ADC AX, BX
-        var expr = BuildExpressions("13 C3");
+        var expr = BuildExpressionsRaw("13 C3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
 
@@ -225,7 +225,7 @@ public class ArithmeticTests : BaseTests
     public void Sbb_UpdatesFlags()
     {
         // SBB AX, BX
-        var expr = BuildExpressions("1B C3");
+        var expr = BuildExpressionsRaw("1B C3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
 
@@ -248,7 +248,7 @@ public class ArithmeticTests : BaseTests
     public void Add_Memory_Ax_ProducesAddAssignOperation()
     {
         // ADD [BX], AX
-        var expr = BuildExpressions("01 07");
+        var expr = BuildExpressionsRaw("01 07");
 
         var ops = expr.Blocks[0].Operations;
         Assert.NotEmpty(ops);
@@ -272,7 +272,7 @@ public class ArithmeticTests : BaseTests
     public void Add_Ax_Memory_ProducesMath2Expr()
     {
         // ADD AX, [BX]
-        var expr = BuildExpressions("03 07");
+        var expr = BuildExpressionsRaw("03 07");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));

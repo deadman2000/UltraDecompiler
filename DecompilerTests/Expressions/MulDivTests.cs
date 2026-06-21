@@ -12,7 +12,7 @@ public class MulDivTests : BaseTests
     public void Mul_Al_Reg8_ProducesMulExpr()
     {
         // MUL BL: AL × BL → AX
-        var expr = BuildExpressions("F6 E3");
+        var expr = BuildExpressionsRaw("F6 E3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -26,7 +26,7 @@ public class MulDivTests : BaseTests
     public void Mul_Al_Immediate8_ProducesMulExpr()
     {
         // MUL byte ptr [0x1234]: AL × mem8 → AX
-        var expr = BuildExpressions("F6 26 34 12");
+        var expr = BuildExpressionsRaw("F6 26 34 12");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -40,7 +40,7 @@ public class MulDivTests : BaseTests
     public void Mul_Ax_Reg16_ProducesMulExpr()
     {
         // MUL BX: AX × BX → DX:AX
-        var expr = BuildExpressions("F7 E3");
+        var expr = BuildExpressionsRaw("F7 E3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var axSet = sets.First(op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -58,7 +58,7 @@ public class MulDivTests : BaseTests
     public void Mul_8Bit_SetsFlags()
     {
         // MUL BL: CF=OF=1, если AH != 0
-        var expr = BuildExpressions("F6 E3");
+        var expr = BuildExpressionsRaw("F6 E3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
 
@@ -74,7 +74,7 @@ public class MulDivTests : BaseTests
     public void Mul_16Bit_SetsFlags()
     {
         // MUL BX: CF=OF=1, если DX != 0
-        var expr = BuildExpressions("F7 E3");
+        var expr = BuildExpressionsRaw("F7 E3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
 
@@ -93,7 +93,7 @@ public class MulDivTests : BaseTests
     public void Imul_Al_Reg8_ProducesMulExpr()
     {
         // IMUL BL: AL × BL → AX (знаковое)
-        var expr = BuildExpressions("F6 EB");
+        var expr = BuildExpressionsRaw("F6 EB");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var set = Assert.Single(sets, op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -107,7 +107,7 @@ public class MulDivTests : BaseTests
     public void Imul_Ax_Reg16_ProducesMulExpr()
     {
         // IMUL BX: AX × BX → DX:AX (знаковое)
-        var expr = BuildExpressions("F7 EB");
+        var expr = BuildExpressionsRaw("F7 EB");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var axSet = sets.First(op => AssignmentTarget.ReferencesVariable(op.Dst, expr.Variables.AX));
@@ -125,7 +125,7 @@ public class MulDivTests : BaseTests
     public void Imul_8Bit_SetsFlags()
     {
         // IMUL BL: CF=OF=1, если результат не помещается в 8 бит со знаком
-        var expr = BuildExpressions("F6 EB");
+        var expr = BuildExpressionsRaw("F6 EB");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
 
@@ -140,7 +140,7 @@ public class MulDivTests : BaseTests
     public void Imul_16Bit_SetsFlags()
     {
         // IMUL BX: CF=OF=1, если DX != знаковое расширение AX
-        var expr = BuildExpressions("F7 EB");
+        var expr = BuildExpressionsRaw("F7 EB");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
 
@@ -159,7 +159,7 @@ public class MulDivTests : BaseTests
     public void Div_Al_Reg8_ProducesDivAndModExpr()
     {
         // DIV BL: AX / BL → AL, AH = остаток
-        var expr = BuildExpressions("F6 F3");
+        var expr = BuildExpressionsRaw("F6 F3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
 
@@ -177,7 +177,7 @@ public class MulDivTests : BaseTests
     public void Div_Ax_Reg16_ProducesDivAndModExpr()
     {
         // DIV BX: (DX:AX) / BX → AX, DX = остаток
-        var expr = BuildExpressions("F7 F3");
+        var expr = BuildExpressionsRaw("F7 F3");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
 
@@ -208,7 +208,7 @@ public class MulDivTests : BaseTests
     public void Idiv_Al_Reg8_ProducesDivAndModExpr()
     {
         // IDIV BL: AX / BL → AL, AH = остаток (знаковое)
-        var expr = BuildExpressions("F6 FB");
+        var expr = BuildExpressionsRaw("F6 FB");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
 
@@ -226,7 +226,7 @@ public class MulDivTests : BaseTests
     public void Idiv_Ax_Reg16_ProducesDivAndModExpr()
     {
         // IDIV BX: (DX:AX) / BX → AX, DX = остаток (знаковое)
-        var expr = BuildExpressions("F7 FB");
+        var expr = BuildExpressionsRaw("F7 FB");
 
         var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
 

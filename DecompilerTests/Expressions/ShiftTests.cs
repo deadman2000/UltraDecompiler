@@ -13,7 +13,7 @@ public class ShiftTests : BaseTests
     public void SalAxCl_BuildExpressions_ShiftLeft()
     {
         // SAL AX, CL — сдвиг влево
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             D3 E0    ; SAL AX, CL
             C3       ; RET
             """);
@@ -28,7 +28,7 @@ public class ShiftTests : BaseTests
     public void SalAx1_ConstantFold_ResultIsShifted()
     {
         // SAL AX, 1 с константным значением
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             B8 01 00    ; MOV AX, 1
             D1 E0       ; SAL AX, 1
             C3          ; RET
@@ -48,7 +48,7 @@ public class ShiftTests : BaseTests
     public void ShrAxCl_BuildExpressions_ShiftRight()
     {
         // SHR AX, CL — логический сдвиг вправо
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             D3 E8    ; SHR AX, CL
             C3       ; RET
             """);
@@ -62,7 +62,7 @@ public class ShiftTests : BaseTests
     public void ShrAx1_ConstantFold_ResultIsShifted()
     {
         // SHR AX, 1 с константным значением
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             B8 04 00    ; MOV AX, 4
             D1 E8       ; SHR AX, 1
             C3          ; RET
@@ -82,7 +82,7 @@ public class ShiftTests : BaseTests
     public void SarAxCl_BuildExpressions_ShiftRight()
     {
         // SAR AX, CL — арифметический сдвиг вправо
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             D3 F8    ; SAR AX, CL
             C3       ; RET
             """);
@@ -97,7 +97,7 @@ public class ShiftTests : BaseTests
     public void SarAx1_ConstantFold_ResultIsShifted()
     {
         // SAR AX, 1 с константным значением
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             B8 F0 FF    ; MOV AX, 0xFFF0 (-16 в signed)
             D1 F8       ; SAR AX, 1
             C3          ; RET
@@ -117,7 +117,7 @@ public class ShiftTests : BaseTests
     public void SalUpdatesFlags_ZF_SetOnZero()
     {
         // SAL должен обновлять ZF
-        var expr = BuildExpressions("""
+        var expr = BuildExpressionsRaw("""
             B8 00 00    ; MOV AX, 0
             D1 E0       ; SAL AX, 1
             C3          ; RET

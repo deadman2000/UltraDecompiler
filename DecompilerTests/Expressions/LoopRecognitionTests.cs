@@ -14,7 +14,7 @@ public class LoopRecognitionTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void SumFor_ProducesForLoop()
     {
-        var ops = BuildProcOperations("""
+        var ops = BuildOperations("""
             55                ; push bp
             8B EC             ; mov bp, sp
             81 EC 04 00       ; sub sp, 4
@@ -45,7 +45,7 @@ public class LoopRecognitionTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void CopyStr_ProducesWhileLoop()
     {
-        var ops = BuildProcOperations("""
+        var ops = BuildOperations("""
             55 8B EC 81 EC 00 00 57 56
             8B 5E 06 8A 07 98 3D 00 00 75 03 E9 15 00
             8B 5E 06 83 46 06 01 8A 07 8B 5E 04 83 46 04 01 88 07 E9 DD FF
@@ -59,7 +59,7 @@ public class LoopRecognitionTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void NestedFor_ProducesTwoForLoops()
     {
-        var ops = BuildProcOperations("""
+        var ops = BuildOperations("""
             55 8B EC 81 EC 06 00 57 56
             C7 46 FA 01 00 C7 46 FE 01 00 E9 22 00
             C7 46 FC 01 00 E9 0D 00
@@ -83,7 +83,7 @@ public class LoopRecognitionTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void SumForStep2_ProducesForWithStep2()
     {
-        var ops = BuildProcOperations("""
+        var ops = BuildOperations("""
             55 8B EC 81 EC 04 00 57 56
             C7 46 FC 00 00 C7 46 FE 00 00 E9 0A 00
             8B 46 FE 01 46 FC 83 46 FE 02
@@ -100,7 +100,7 @@ public class LoopRecognitionTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void SumForBreak_ProducesBreakInForBody()
     {
-        var ops = BuildProcOperations("""
+        var ops = BuildOperations("""
             55 8B EC 81 EC 04 00 57 56
             C7 46 FC 00 00 C7 46 FE 00 00 E9 16 00
             83 7E FE 07 74 03 E9 03 00
@@ -120,7 +120,7 @@ public class LoopRecognitionTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void WhileBreak_ProducesBreakWithoutNestedLoop()
     {
-        var ops = BuildProcOperations("""
+        var ops = BuildOperations("""
             55 8B EC 81 EC 04 00 57 56
             C7 46 FE 00 00 C7 46 FC 00 00 E9 16 00
             83 7E FE 0C 74 03 E9 03 00
@@ -140,7 +140,7 @@ public class LoopRecognitionTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void ForContinue_ProducesContinueInForBody()
     {
-        var ops = BuildProcOperations("""
+        var ops = BuildOperations("""
             55 8B EC 81 EC 04 00 57 56
             C7 46 FC 00 00 C7 46 FE 00 00 E9 1B 00
             8B 46 FE 25 01 00 3D 00 00 75 03 E9 03 00
@@ -158,7 +158,7 @@ public class LoopRecognitionTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void WhileContinue_ProducesContinueInWhileBody()
     {
-        var ops = BuildProcOperations("""
+        var ops = BuildOperations("""
             55 8B EC 81 EC 04 00 57 56
             C7 46 FE 00 00 C7 46 FC 00 00 E9 16 00
             83 46 FE 01 83 7E FE 05 74 03 E9 03 00
@@ -175,7 +175,7 @@ public class LoopRecognitionTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void LoopInstruction_StaysAsIf()
     {
-        var ops = BuildOperations("""
+        var ops = BuildOperationsRaw("""
             B9 02 00   ; mov cx, 2
             E2 02      ; loop +2
             90         ; fallthrough (exit)

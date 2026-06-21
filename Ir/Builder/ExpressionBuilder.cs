@@ -40,11 +40,6 @@ public partial class ExpressionBuilder
 
     public Stack<Expr> InitialStack { get; } = new();
 
-    /// <summary>
-    /// Оптимизация
-    /// </summary>
-    public bool VarUsageOptimization { get; set; } = true;
-
     public static ExpressionBuilder Create(ControlFlowGraph cfg, OptimizationLevel optimization)
     {
         return optimization switch
@@ -122,11 +117,19 @@ public partial class ExpressionBuilder
                 exprBlock.ConditionalBlock = condCode;
             }
         }
+    }
 
+    public void OptimizeEpilogue()
+    {
         InsertTailReturnsBeforeEpilogue();
         RemoveSharedEpilogueBlocks();
+    }
 
-        if (VarUsageOptimization)
+    public void Optimize(bool varUsage = true)
+    {
+        OptimizeEpilogue();
+
+        if (varUsage)
         {
             OptimizeRegisterChains();
             RemoveUnusedSets();

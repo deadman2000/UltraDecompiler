@@ -9,7 +9,7 @@ public class MemoryStoreTests : BaseTests
     public void Add_ToMemory_Rmw_ProducesAddAssignOperation()
     {
         // ADD [BX], 5
-        var expr = BuildExpressions("83 07 05");
+        var expr = BuildExpressionsRaw("83 07 05");
 
         var addAssign = Assert.IsType<AddAssignOperation>(Assert.Single(expr.Blocks[0].Operations));
         Assert.Equal(5, ((ConstExpr)addAssign.Value).Value);
@@ -19,7 +19,7 @@ public class MemoryStoreTests : BaseTests
     public void Inc_Memory_Destination_ProducesIncOperation()
     {
         // INC word [SI]
-        var expr = BuildExpressions("FF 04");
+        var expr = BuildExpressionsRaw("FF 04");
 
         var inc = Assert.IsType<IncOperation>(Assert.Single(expr.Blocks[0].Operations, op => op is IncOperation));
         Assert.NotNull(inc.Segment);
@@ -29,7 +29,7 @@ public class MemoryStoreTests : BaseTests
     public void Store_WithSegmentOverride_ProducesCorrectStore()
     {
         // ES: MOV [BX], AX
-        var expr = BuildExpressions("26 89 07");
+        var expr = BuildExpressionsRaw("26 89 07");
 
         var store = Assert.Single(expr.Blocks[0].Operations);
         var s = Assert.IsType<StoreOperation>(store);

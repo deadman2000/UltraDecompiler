@@ -141,6 +141,7 @@ internal static class IrGraphCommand
 
         var builder = ExpressionBuilder.Create(cfg, opt);
         builder.Build();
+        builder.Optimize();
 
         string dotPath = outputPath ?? "ir_graph.dot";
 

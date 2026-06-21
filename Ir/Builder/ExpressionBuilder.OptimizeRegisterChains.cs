@@ -21,7 +21,7 @@ public partial class ExpressionBuilder
     /// Стало:
     ///   return var1
     /// </summary>
-    private void OptimizeRegisterChains()
+    public void OptimizeRegisterChains()
     {
         foreach (var block in Blocks)
         {

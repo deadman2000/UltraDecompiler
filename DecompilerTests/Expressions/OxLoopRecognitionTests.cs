@@ -10,7 +10,7 @@ public sealed class OxLoopRecognitionTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void OxRegisterCounterLoop_SumFor_RecognizedAsFor()
     {
-        var ops = BuildProcOperationsOpt("""
+        var ops = BuildOperationsOpt("""
             55                ; push bp
             8B EC             ; mov bp, sp
             81 EC 04 00       ; sub sp, 4
@@ -37,7 +37,7 @@ public sealed class OxLoopRecognitionTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void OxRegisterCounterLoop_CountdownFor_RecognizedAsFor()
     {
-        var ops = BuildProcOperationsOpt("""
+        var ops = BuildOperationsOpt("""
             55                ; push bp
             8B EC             ; mov bp, sp
             81 EC 04 00       ; sub sp, 4

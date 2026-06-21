@@ -41,6 +41,7 @@ public sealed class QuickCSwitchTests : BaseTests
 
         var expressions = ExpressionBuilder.Create(cfg, OptimizationLevel.Disabled);
         expressions.Build();
+        expressions.Optimize();
 
         var flattener = new OperationFlattener(expressions, cfg.Blocks, LoopAnalyzerFactory.Create(OptimizationLevel.Disabled));
         var operations = flattener.GetAllOperations();
@@ -84,7 +85,7 @@ public sealed class QuickCSwitchTests : BaseTests
         var graph = GetGraph(hex);
 
         Assert.Empty(QuickCSwitchDetector.Detect(graph.Blocks));
-        var ops = BuildOperations(hex);
+        var ops = BuildOperationsRaw(hex);
         Assert.DoesNotContain(
             ops,
             static op => op is SwitchOperation);

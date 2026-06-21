@@ -27,7 +27,7 @@ public class BitsCodegenTests : BaseTests
             Signature = printfSig!,
         });
 
-        var expr = BuildExpressionsWithProc("""
+        var expr = BuildExpressions("""
             55              ; push bp
             8B EC           ; mov bp, sp
             81 EC 04 00     ; sub sp, 4
@@ -49,7 +49,9 @@ public class BitsCodegenTests : BaseTests
             50              ; push ax
             E8 0F 00        ; call 3Ch
             C3              ; ret
-            """, storage);
+            """);
+
+        CallSiteResolver.ResolveBlocks(expr.Blocks, storage);
 
         var callExpr = CreateFlattener(expr).GetAllOperations()
             .OfType<SetOperation>()
@@ -64,14 +66,5 @@ public class BitsCodegenTests : BaseTests
         Assert.NotEqual(callExpr.Args[1], callExpr.Args[2]);
         Assert.NotEqual(callExpr.Args[2], callExpr.Args[3]);
         Assert.DoesNotContain(callExpr.Args, a => a is ConstExpr { Value: 0x26A } && !ReferenceEquals(a, callExpr.Args[0]));
-    }
-
-    private static ExpressionBuilder BuildExpressionsWithProc(string hex, ProcedureStorage storage)
-    {
-        var graph = GetGraph(hex);
-        var decompiler = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        decompiler.Build();
-        CallSiteResolver.ResolveBlocks(decompiler.Blocks, storage);
-        return decompiler;
     }
 }

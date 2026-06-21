@@ -1,6 +1,3 @@
-using UltraDecompiler.Ir.Expressions;
-using UltraDecompiler.Ir.Operations;
-
 namespace DecompilerTests.Expressions;
 
 /// <summary>Тесты оптимизации цепочек присваиваний через регистры.</summary>
@@ -13,15 +10,11 @@ public sealed class RegisterChainOptimizationTests : BaseTests
     public void RegisterChain_Const_Copy_Optimizes()
     {
         // regAX = 1; regDX = regAX → regDX = 1
-        var graph = GetGraph("""
+        var builder = BuildExpressionsChains("""
             B8 01 00  ; MOV AX, 1
             8B D0     ; MOV DX, AX
             C3        ; RET
             """);
-        var builder = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        builder.VarUsageOptimization = false;
-        builder.Build();
-        CallOptimizeRegisterChains(builder);
 
         // После оптимизации должно остаться только присваивание regDX = 1
         var sets = builder.Blocks[0].Operations.OfType<SetOperation>().ToList();
@@ -38,15 +31,11 @@ public sealed class RegisterChainOptimizationTests : BaseTests
     public void RegisterChain_Var_Copy_Optimizes()
     {
         // regAX = BX; regDX = regAX → regDX = BX
-        var graph = GetGraph("""
+        var builder = BuildExpressionsChains("""
             8B C3     ; MOV AX, BX
             8B D0     ; MOV DX, AX
             C3        ; RET
             """);
-        var builder = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        builder.VarUsageOptimization = false;
-        builder.Build();
-        CallOptimizeRegisterChains(builder);
 
         // После оптимизации: regDX = BX
         var sets = builder.Blocks[0].Operations.OfType<SetOperation>().ToList();
@@ -63,14 +52,10 @@ public sealed class RegisterChainOptimizationTests : BaseTests
     public void RegisterChain_Return_Var_Optimizes()
     {
         // regAX = BX; return regAX → return BX
-        var graph = GetGraph("""
+        var builder = BuildExpressionsChains("""
             8B C3     ; MOV AX, BX
             C3        ; RET
             """);
-        var builder = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        builder.VarUsageOptimization = false;
-        builder.Build();
-        CallOptimizeRegisterChains(builder);
 
         // После оптимизации: return BX (без присваивания regAX)
         var sets = builder.Blocks[0].Operations.OfType<SetOperation>().ToList();
@@ -78,7 +63,7 @@ public sealed class RegisterChainOptimizationTests : BaseTests
 
         Assert.Empty(sets);
         Assert.Single(returns);
-        ExprTestHelpers.AssertSameVariable(builder.Variables.BX, returns[0].Value);
+        ExprTestHelpers.AssertSameVariable(builder.Variables.BX, returns[0].Value!);
     }
 
     /// <summary>
@@ -88,14 +73,10 @@ public sealed class RegisterChainOptimizationTests : BaseTests
     public void RegisterChain_Return_Const_Optimizes()
     {
         // regAX = 42; return regAX → return 42
-        var graph = GetGraph("""
+        var builder = BuildExpressionsChains("""
             B8 2A 00  ; MOV AX, 42
             C3        ; RET
             """);
-        var builder = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        builder.VarUsageOptimization = false;
-        builder.Build();
-        CallOptimizeRegisterChains(builder);
 
         // После оптимизации: return 42 (без присваивания regAX)
         var sets = builder.Blocks[0].Operations.OfType<SetOperation>().ToList();
@@ -113,16 +94,12 @@ public sealed class RegisterChainOptimizationTests : BaseTests
     public void RegisterChain_UsedInExpression_NoOptimize()
     {
         // regAX = 1; regBX = 2; regAX = regAX + regBX
-        var graph = GetGraph("""
+        var builder = BuildExpressionsChains("""
             B8 01 00  ; MOV AX, 1
             BB 02 00  ; MOV BX, 2
             01 D8     ; ADD AX, BX
             C3        ; RET
             """);
-        var builder = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        builder.VarUsageOptimization = false;
-        builder.Build();
-        CallOptimizeRegisterChains(builder);
 
         // Оптимизация не должна применяться, т.к. regAX используется в выражении
         // (количество операций может быть > 3 из-за особенностей дизассемблера)
@@ -142,16 +119,12 @@ public sealed class RegisterChainOptimizationTests : BaseTests
     {
         // regAX = 1; regBX = regAX; regCX = regAX
         // regAX используется дважды, оптимизация применяет к обоим использованиям
-        var graph = GetGraph("""
+        var builder = BuildExpressionsChains("""
             B8 01 00  ; MOV AX, 1
             8B D8     ; MOV BX, AX
             8B C8     ; MOV CX, AX
             C3        ; RET
             """);
-        var builder = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        builder.VarUsageOptimization = false;
-        builder.Build();
-        CallOptimizeRegisterChains(builder);
 
         // После оптимизации: regBX = 1, regCX = 1 (regAX = 1 удалено)
         var sets = builder.Blocks[0].Operations.OfType<SetOperation>().ToList();
@@ -175,16 +148,12 @@ public sealed class RegisterChainOptimizationTests : BaseTests
         // regAX = 1; regAX = 2; regBX = regAX; return regAX
         // regAX = 1 не оптимизируется (переопределение regAX = 2)
         // regAX = 2 оптимизируется в regBX = 2 и return 2
-        var graph = GetGraph("""
+        var builder = BuildExpressionsChains("""
             B8 01 00  ; MOV AX, 1
             B8 02 00  ; MOV AX, 2
             8B D8     ; MOV BX, AX
             C3        ; RET
             """);
-        var builder = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        builder.VarUsageOptimization = false;
-        builder.Build();
-        CallOptimizeRegisterChains(builder);
 
         var sets = builder.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var returns = builder.Blocks[0].Operations.OfType<ReturnOperation>().ToList();
@@ -215,7 +184,7 @@ public sealed class RegisterChainOptimizationTests : BaseTests
     public void RegisterChain_StackVar_Copy_Optimizes()
     {
         // regAX = var1; regBX = regAX → regBX = var1
-        var graph = GetGraph("""
+        var builder = BuildExpressionsChains("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             83 EC 02  ; SUB SP, 2
@@ -223,10 +192,6 @@ public sealed class RegisterChainOptimizationTests : BaseTests
             8B D8     ; MOV BX, AX
             C3        ; RET
             """);
-        var builder = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        builder.VarUsageOptimization = false;
-        builder.Build();
-        CallOptimizeRegisterChains(builder);
 
         // После оптимизации: regBX = var1
         var sets = builder.Blocks[0].Operations.OfType<SetOperation>().ToList();
@@ -244,7 +209,7 @@ public sealed class RegisterChainOptimizationTests : BaseTests
     public void RegisterChain_Const_ToStackVar_Optimizes()
     {
         // regAX = 42; var1 = regAX → var1 = 42
-        var graph = GetGraph("""
+        var builder = BuildExpressionsChains("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             83 EC 02  ; SUB SP, 2
@@ -252,10 +217,6 @@ public sealed class RegisterChainOptimizationTests : BaseTests
             89 46 FE  ; MOV [BP-2], AX
             C3        ; RET
             """);
-        var builder = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        builder.VarUsageOptimization = false;
-        builder.Build();
-        CallOptimizeRegisterChains(builder);
 
         // После оптимизации: var1 = 42
         var sets = builder.Blocks[0].Operations.OfType<SetOperation>().ToList();
@@ -279,7 +240,7 @@ public sealed class RegisterChainOptimizationTests : BaseTests
     public void RegisterChain_StackVar_ToStackVar_Optimizes()
     {
         // var1 = regAX; var2 = regAX → var2 = var1
-        var graph = GetGraph("""
+        var builder = BuildExpressionsChains("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             83 EC 04  ; SUB SP, 4
@@ -287,10 +248,6 @@ public sealed class RegisterChainOptimizationTests : BaseTests
             89 46 FC  ; MOV [BP-4], AX
             C3        ; RET
             """);
-        var builder = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        builder.VarUsageOptimization = false;
-        builder.Build();
-        CallOptimizeRegisterChains(builder);
 
         // После оптимизации: var2 = var1
         var sets = builder.Blocks[0].Operations.OfType<SetOperation>().ToList();
@@ -316,7 +273,7 @@ public sealed class RegisterChainOptimizationTests : BaseTests
         // regAX = [BP-2]; regAX = 42; [BP-4] = regAX; return regAX
         // regAX = var1 не оптимизируется (переопределение regAX = 42)
         // regAX = 42 оптимизируется в [BP-4] = 42 и return 42
-        var graph = GetGraph("""
+        var builder = BuildExpressionsChains("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             83 EC 04  ; SUB SP, 4
@@ -325,10 +282,6 @@ public sealed class RegisterChainOptimizationTests : BaseTests
             89 46 FC  ; MOV [BP-4], AX
             C3        ; RET
             """);
-        var builder = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        builder.VarUsageOptimization = false;
-        builder.Build();
-        CallOptimizeRegisterChains(builder);
 
         var sets = builder.Blocks[0].Operations.OfType<SetOperation>().ToList();
         var returns = builder.Blocks[0].Operations.OfType<ReturnOperation>().ToList();
@@ -357,7 +310,7 @@ public sealed class RegisterChainOptimizationTests : BaseTests
     {
         // regAX = [BP-2]; [BP-4] = regAX; [BP-6] = regAX
         // [BP-4] = var1; [BP-6] = var1
-        var graph = GetGraph("""
+        var builder = BuildExpressionsChains("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             83 EC 06  ; SUB SP, 6
@@ -366,10 +319,6 @@ public sealed class RegisterChainOptimizationTests : BaseTests
             89 46 FA  ; MOV [BP-6], AX
             C3        ; RET
             """);
-        var builder = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        builder.VarUsageOptimization = false;
-        builder.Build();
-        CallOptimizeRegisterChains(builder);
 
         // После оптимизации: [BP-4] = var1, [BP-6] = var1
         var sets = builder.Blocks[0].Operations.OfType<SetOperation>().ToList();
@@ -394,17 +343,13 @@ public sealed class RegisterChainOptimizationTests : BaseTests
     public void RegisterChain_StackVar_Return_Optimizes()
     {
         // regAX = var1; return regAX → return var1
-        var graph = GetGraph("""
+        var builder = BuildExpressionsChains("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             83 EC 02  ; SUB SP, 2
             8B 46 FE  ; MOV AX, [BP-2]
             C3        ; RET
             """);
-        var builder = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        builder.VarUsageOptimization = false;
-        builder.Build();
-        CallOptimizeRegisterChains(builder);
 
         // После оптимизации: return var1 (без присваивания regAX)
         var sets = builder.Blocks[0].Operations.OfType<SetOperation>().ToList();
@@ -412,7 +357,7 @@ public sealed class RegisterChainOptimizationTests : BaseTests
 
         Assert.Empty(sets);
         Assert.Single(returns);
-        ExprTestHelpers.AssertSameVariable(builder.Variables.StackLocals[0].Variable, returns[0].Value);
+        ExprTestHelpers.AssertSameVariable(builder.Variables.StackLocals[0].Variable, returns[0].Value!);
     }
 
     /// <summary>
@@ -422,17 +367,13 @@ public sealed class RegisterChainOptimizationTests : BaseTests
     public void RegisterChain_Const_Return_Optimizes()
     {
         // regAX = 42; return regAX → return 42
-        var graph = GetGraph("""
+        var builder = BuildExpressionsChains("""
             55        ; PUSH BP
             8B EC     ; MOV BP, SP
             83 EC 02  ; SUB SP, 2
             B8 2A 00  ; MOV AX, 42
             C3        ; RET
             """);
-        var builder = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
-        builder.VarUsageOptimization = false;
-        builder.Build();
-        CallOptimizeRegisterChains(builder);
 
         // После оптимизации: return 42 (без присваивания regAX)
         var sets = builder.Blocks[0].Operations.OfType<SetOperation>().ToList();
@@ -445,15 +386,12 @@ public sealed class RegisterChainOptimizationTests : BaseTests
 
     #endregion
 
-    /// <summary>
-    /// Вызывает приватный метод OptimizeRegisterChains через рефлексию.
-    /// </summary>
-    private static void CallOptimizeRegisterChains(ExpressionBuilder builder)
+    private static ExpressionBuilder BuildExpressionsChains(string hex)
     {
-        var method = typeof(ExpressionBuilder).GetMethod(
-            "OptimizeRegisterChains",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        method?.Invoke(builder, null);
+        var builder = BuildExpressionsRaw(hex);
+        builder.OptimizeEpilogue();
+        builder.OptimizeRegisterChains();
+        return builder;
     }
 }
 

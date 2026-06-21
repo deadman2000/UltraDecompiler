@@ -42,35 +42,46 @@ public abstract class BaseTests
         return new OperationFlattener(builder, cfgBlocks, loopAnalyzer);
     }
 
-    protected static ExpressionBuilder BuildExpressions(string hex)
+    protected static ExpressionBuilder BuildExpressionsRaw(string hex)
     {
         var graph = GetGraph(hex);
         var builder = ExpressionBuilder.Create(graph, OptimizationLevel.Disabled);
-        builder.VarUsageOptimization = false;
         builder.Build();
         return builder;
     }
 
     /// <summary>Строит IR процедуры с <see cref="ExpressionBuilder.BuildProc"/> и IR-construction pass-ами профиля.</summary>
-    protected static ExpressionBuilder BuildProcExpressions(string hex)
+    protected static ExpressionBuilder BuildExpressions(string hex)
     {
         var graph = GetGraph(hex);
         var builder = ExpressionBuilder.Create(graph, OptimizationLevel.Disabled);
         builder.Build();
+        builder.Optimize();
         return builder;
     }
 
     /// <summary>Строит IR процедуры с <see cref="ExpressionBuilderQuickCOpt"/> (/Ox).</summary>
-    protected static ExpressionBuilder BuildProcExpressionsOpt(string hex)
+    protected static ExpressionBuilder BuildExpressionsOpt(string hex)
     {
         var graph = GetGraph(hex);
         var builder = ExpressionBuilder.Create(graph, OptimizationLevel.EnabledFull);
         builder.Build();
+        builder.Optimize();
         return builder;
     }
 
     /// <summary>
     /// Строит IR и получает плоский список операций с анализатором /Od.
+    /// </summary>
+    protected static IReadOnlyList<Operation> BuildOperationsRaw(string hex)
+    {
+        var cfg = GetGraph(hex);
+        var builder = BuildExpressionsRaw(hex);
+        return CreateFlattener(builder, cfg).GetAllOperations();
+    }
+
+    /// <summary>
+    /// Строит IR процедуры и получает плоский список операций с анализатором /Od.
     /// </summary>
     protected static IReadOnlyList<Operation> BuildOperations(string hex)
     {
@@ -80,19 +91,9 @@ public abstract class BaseTests
     }
 
     /// <summary>
-    /// Строит IR процедуры и получает плоский список операций с анализатором /Od.
-    /// </summary>
-    protected static IReadOnlyList<Operation> BuildProcOperations(string hex)
-    {
-        var cfg = GetGraph(hex);
-        var builder = BuildProcExpressions(hex);
-        return CreateFlattener(builder, cfg).GetAllOperations();
-    }
-
-    /// <summary>
     /// Строит IR процедуры с /Ox и получает плоский список операций.
     /// </summary>
-    protected static IReadOnlyList<Operation> BuildProcOperationsOpt(string hex)
+    protected static IReadOnlyList<Operation> BuildOperationsOpt(string hex)
     {
         var graph = GetGraph(hex);
         var builder = ExpressionBuilder.Create(graph, OptimizationLevel.EnabledFull);

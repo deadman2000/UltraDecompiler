@@ -9,7 +9,7 @@ public class FpuTests : BaseTests
     {
         // FWAIT + FPU (типичный thunk) + RET — не должны бросать NotImplementedException
         // и не должны порождать операций (кроме возможных от других инструкций).
-        var builder = BuildExpressions("""
+        var builder = BuildExpressionsRaw("""
             9B          ; fwait
             DE C1       ; faddp  (fpu)
             90          ; nop

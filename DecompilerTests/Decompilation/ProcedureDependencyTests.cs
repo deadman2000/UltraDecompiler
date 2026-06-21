@@ -33,7 +33,7 @@ public class ProcedureDependencyTests : BaseTests
         {
             Offset = 0x10,
             Instructions = [],
-            Expressions = BuildExpressions("C3"),
+            Expressions = BuildExpressionsRaw("C3"),
             Name = "sub_0010",
             IsLibrary = false,
             Signature = new ProcedureSignature(CType.Int, [
@@ -45,7 +45,7 @@ public class ProcedureDependencyTests : BaseTests
         {
             Offset = 0x20,
             Instructions = [],
-            Expressions = BuildExpressions("C3"),
+            Expressions = BuildExpressionsRaw("C3"),
             Name = "main",
             IsLibrary = false,
             Signature = new ProcedureSignature(CType.Int, []),
@@ -73,7 +73,7 @@ public class ProcedureDependencyTests : BaseTests
         {
             Offset = 0x10,
             Instructions = [],
-            Expressions = BuildExpressions("C3"),
+            Expressions = BuildExpressionsRaw("C3"),
             Name = "sub_0010",
             IsLibrary = false,
         };
@@ -81,7 +81,7 @@ public class ProcedureDependencyTests : BaseTests
         {
             Offset = 0x20,
             Instructions = [],
-            Expressions = BuildExpressions("C3"),
+            Expressions = BuildExpressionsRaw("C3"),
             Name = "main",
             IsLibrary = false,
             Callees = ["sub_0010", "printf"],
@@ -105,7 +105,7 @@ public class ProcedureDependencyTests : BaseTests
         {
             Offset = 0x10,
             Instructions = [],
-            Expressions = BuildExpressions("C3"),
+            Expressions = BuildExpressionsRaw("C3"),
             Name = "sub_0010",
             IsLibrary = false,
             Signature = new ProcedureSignature(CType.Int, [
