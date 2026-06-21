@@ -98,16 +98,12 @@ public static class Extensions
 
         public Expr LowByte()
         {
-            if (expr is ConstExpr c)
-                return new ConstExpr(c.Value & 0xff);
-            return new Math2Expr(Math2Operation.And, expr, new ConstExpr(0xff));
+            return expr.Calculate(Math2Operation.And, new ConstExpr(0xff));
         }
 
         public Expr HighByte()
         {
-            if (expr is ConstExpr c)
-                return new ConstExpr(c.Value >> 8);
-            return new Math2Expr(Math2Operation.Shr, expr, new ConstExpr(8));
+            return expr.Calculate(Math2Operation.Shr, new ConstExpr(8));
         }
 
         /// <summary>

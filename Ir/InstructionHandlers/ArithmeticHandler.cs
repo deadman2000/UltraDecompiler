@@ -105,7 +105,7 @@ public class ArithmeticHandler : IInstructionHandler
         // SF = знаковый бит результата (result < 0 для знаковой интерпретации)
         // Для 16-битных: SF = bit 15, для 8-битных: SF = bit 7
         // Используем битовую маску: SF = (result & 0x8000) != 0 для 16-бит
-        block.Set(block.Variables.SF, new CmpExpr(CmpOperation.Ne, new Math2Expr(Math2Operation.And, result, new ConstExpr(0x8000)), ConstExpr.Zero));
+        block.Set(block.Variables.SF, new CmpExpr(CmpOperation.Ne, result.Calculate(Math2Operation.And, new ConstExpr(0x8000)), ConstExpr.Zero));
 
         // CF для ADD/ADC: переполнение без знака
         // CF для SUB/SBB: заём (left < right в беззнаковом смысле)
@@ -131,9 +131,9 @@ public class ArithmeticHandler : IInstructionHandler
         // OF (overflow flag) для знаковых операций
         // ADD: OF = (sign(left) == sign(right)) && (sign(result) != sign(left))
         // SUB: OF = (sign(left) != sign(right)) && (sign(result) != sign(left))
-        var leftSign = new Math2Expr(Math2Operation.And, left, new ConstExpr(0x8000));
-        var rightSign = new Math2Expr(Math2Operation.And, right, new ConstExpr(0x8000));
-        var resultSign = new Math2Expr(Math2Operation.And, result, new ConstExpr(0x8000));
+        var leftSign = left.Calculate(Math2Operation.And, new ConstExpr(0x8000));
+        var rightSign = right.Calculate(Math2Operation.And, new ConstExpr(0x8000));
+        var resultSign = result.Calculate(Math2Operation.And, new ConstExpr(0x8000));
 
         if (_operation == Math2Operation.Add)
         {
