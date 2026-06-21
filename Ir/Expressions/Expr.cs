@@ -399,6 +399,15 @@ public enum CmpOperation
     Ugt,
     /// <summary>Беззнаковое больше или равно (unsigned &gt;=)</summary>
     Uge,
+
+    /// <summary>Знаковое меньше (signed &lt;). Соответствует SF!=OF после CMP/SUB.</summary>
+    Lt,
+    /// <summary>Знаковое меньше или равно (signed &lt;=)</summary>
+    Le,
+    /// <summary>Знаковое больше (signed &gt;)</summary>
+    Gt,
+    /// <summary>Знаковое больше или равно (signed &gt;=)</summary>
+    Ge,
 }
 
 /// <summary>
@@ -424,6 +433,10 @@ public record CmpExpr(CmpOperation Operation, Expr Left, Expr Right) : Expr
             CmpOperation.Ule => "<=",
             CmpOperation.Ugt => ">",
             CmpOperation.Uge => ">=",
+            CmpOperation.Lt => "<",
+            CmpOperation.Le => "<=",
+            CmpOperation.Gt => ">",
+            CmpOperation.Ge => ">=",
             _ => throw new NotImplementedException(),
         };
 

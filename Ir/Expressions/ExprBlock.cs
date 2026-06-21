@@ -25,8 +25,16 @@ public class ExprBlock(BasicBlock basicBlock)
 
     /// <summary>
     /// Операнды последнего CMP в этом блоке (для вывода знаковости по условным переходам).
+    /// Последняя инструкция сравнения (CMP/AND/TEST/OR/XOR).
+    /// Используется для построения высокоуровневых условий Jcc.
     /// </summary>
     public (Expr Left, Expr Right)? LastComparisonOperands { get; set; }
+
+    /// <summary>
+    /// Последняя инструкция сравнения (CMP/AND/TEST/OR/XOR).
+    /// Используется для построения высокоуровневых условий Jcc.
+    /// </summary>
+    public Instruction? LastComparison { get; set; }
 
     /// <summary>Мнемоника инструкции, выполненной непосредственно перед текущей.</summary>
     public Mnemonic? PreviousMnemonic { get; set; }

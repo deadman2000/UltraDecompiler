@@ -32,12 +32,6 @@
 
 ## Пайплайн
 
-**Диагностика** (`decompile`, `decompile-main`):
-
-```
-DosExeParser → X86Disassembler → CFG → ExpressionBuilder → PostProcessing (частично) → консоль
-```
-
 **Полная декомпиляция** (`decompile-c`, `Decompiler`):
 
 ```
@@ -77,8 +71,6 @@ DosExeParser → TryResolveMain → CollectInstructions → OptimizationLevelHeu
 
 | Команда | Назначение |
 |---------|------------|
-| `decompile` | hex/EXE → IR в консоль |
-| `decompile-main` | `_main` через `.LIB` + pipeline |
 | `decompile-c` | полный вывод `*.c` + Makefile |
 | `disasm` | линейный дизассемблер |
 | `lib` | разбор OMF `.LIB` |
@@ -108,7 +100,6 @@ dotnet format --verify-no-changes
 - Эталон: `QuickC/` (QCL, `INCLUDE/`, `PROGRAMS/*.c`, `.LIB`).
 - Round-trip: DOSBox-X + QCL; известные сбои — `QuickC/PROGRAMS/roundtrip_xfail.txt`.
 - Из тестов/агента: `DosBoxQuickCRunner.Run(...)` (рабочий каталог **`QuickC/`**), `ExeProvider.Get(...)`, `QuickCTestAssets`.
-- Переменная `DOSBOX_X_PATH`, если `dosbox-x` не в PATH.
 
 ---
 
@@ -117,8 +108,8 @@ dotnet format --verify-no-changes
 - IR-регистры: `VariableStorage.Get`, `ExprBlock.Set`, `Operand.GetExpression` — не поля storage напрямую.
 - Дизассемблер: `RegisterState`, `Instruction.ApplyRegisters`.
 - `.LIB`: `dotnet run --project Tools -- lib QuickC\CLIBC.LIB -s _printf`.
-- Отладка IR: `decompile-main`; полный цикл: `decompile-c`.
-- Кодоген: unit-тесты + round-trip при наличии DOSBox-X.
+- Полная декомпиляция: `decompile-c`.
+- Кодоген: unit-тесты + round-trip.
 
 ---
 

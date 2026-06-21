@@ -176,6 +176,10 @@ public static class CExprRenderer
             CmpOperation.Ule => "<=",
             CmpOperation.Ugt => ">",
             CmpOperation.Uge => ">=",
+            CmpOperation.Lt => "<",
+            CmpOperation.Le => "<=",
+            CmpOperation.Gt => ">",
+            CmpOperation.Ge => ">=",
             _ => throw new NotImplementedException(),
         };
 

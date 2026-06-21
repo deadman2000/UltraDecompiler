@@ -102,13 +102,15 @@ public abstract class LoopAnalyzerBase : ILoopAnalyzer
     }
 
     /// <summary>
-    /// Определяет, является ли условие сравнением на равенство (для break/continue).
+    /// Определяет, является ли условие сравнением на равенство или неравенство (для break/continue).
     /// </summary>
     protected static bool IsEqualityTest(Expr condition) =>
         condition is CmpExpr { Operation: CmpOperation.Eq or CmpOperation.Ne };
 
     /// <summary>
     /// Извлекает переменную-счётчик из условия цикла.
+    /// Поддерживает: CMP-паттерн (CmpExpr), AND/TEST-паттерн (signed CmpExpr с константой 0),
+    /// а также инвертированные варианты через NOT.
     /// </summary>
     protected static bool TryGetLoopCounter(Expr condition, out Variable counter)
     {
@@ -116,6 +118,7 @@ public abstract class LoopAnalyzerBase : ILoopAnalyzer
 
         if (condition is CmpExpr cmp)
         {
+            // CMP reg, imm / AND reg,reg → (reg <op> 0) или (reg <op> imm)
             if (cmp.Left is VariableExpr { Var: var left } && !left.IsTemp)
             {
                 counter = left;
@@ -129,6 +132,7 @@ public abstract class LoopAnalyzerBase : ILoopAnalyzer
             }
         }
 
+        // Инвертированный вариант: !(reg <op> imm)
         if (condition is Math1Expr { Operation: Math1Operation.Not, Op: CmpExpr inner })
         {
             if (inner.Left is VariableExpr { Var: var left2 } && !left2.IsTemp)

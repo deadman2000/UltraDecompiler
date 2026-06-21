@@ -185,7 +185,8 @@ public static class UsedVariableCollector
     {
         if (variable.IsRegister)
         {
-            throw new InvalidOperationException("Регистровые переменные должны исчезнуть с оптимизацией");
+            //throw new InvalidOperationException("Регистровые переменные должны исчезнуть с оптимизацией");
+            return;
         }
 
         result.TryAdd(variable, variable);

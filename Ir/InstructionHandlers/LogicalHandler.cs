@@ -37,6 +37,28 @@ public class LogicalHandler : IInstructionHandler
         // Вычисляем результат логической операции
         var result = destExpr.Calculate(_operation, srcExpr);
 
+        // Запоминаем операнды для последующих Jcc (аналогично CmpHandler).
+        // AND/TEST/XOR/OR reg,reg или reg,imm обновляют флаги — Jcc может опираться на них.
+        // result — уже вычисленное значение (dest & src для AND, dest | src для OR и т.д.).
+        block.LastComparisonOperands = (result, ConstExpr.Zero);
+        block.LastComparison = instr;
+
+        // Эвристика: AND reg, reg — тождественная операция, результат не меняется.
+        // Запись reg = reg & reg избыточна, пропускаем её.
+        // Обновляем только флаги.
+        var isSelfAnd = _operation == Math2Operation.And
+            && AreSameRegister(dest, src, destExpr);
+
+        if (isSelfAnd)
+        {
+            // Обновляем только флаги, запись результата пропускаем
+            block.Set(block.Variables.ZF, new CmpExpr(CmpOperation.Eq, destExpr, ConstExpr.Zero));
+            block.Set(block.Variables.SF, new CmpExpr(CmpOperation.Ne, destExpr.Calculate(Math2Operation.And, new ConstExpr(0x8000)), ConstExpr.Zero));
+            block.Set(block.Variables.CF, ConstExpr.Zero);
+            block.Set(block.Variables.OF, ConstExpr.Zero);
+            return;
+        }
+
         // Записываем результат в целевой операнд
         switch (dest.Type)
         {
@@ -62,5 +84,19 @@ public class LogicalHandler : IInstructionHandler
         block.Set(block.Variables.SF, new CmpExpr(CmpOperation.Ne, result.Calculate(Math2Operation.And, new ConstExpr(0x8000)), ConstExpr.Zero));
         block.Set(block.Variables.CF, ConstExpr.Zero);
         block.Set(block.Variables.OF, ConstExpr.Zero);
+    }
+
+    /// <summary>
+    /// Проверяет, что оба операнда — один и тот же регистр.
+    /// </summary>
+    private static bool AreSameRegister(Operand dest, Operand src, Expr destExpr)
+    {
+        if (dest.Type != OperandType.Register16 || src.Type != OperandType.Register16)
+        {
+            return false;
+        }
+
+        var destVar = dest.AsGpRegister16();
+        return destVar == src.AsGpRegister16();
     }
 }

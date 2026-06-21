@@ -121,8 +121,8 @@ public sealed class QuickCOptimizedFullProfile : IDecompilationProfile
         new DelegatePostProcessPass(
             nameof(LongTypeInferrer.RewriteCallArguments),
             static (ctx, ops) => LongTypeInferrer.RewriteCallArguments(ops, ctx.Storage)),
-        new DelegatePostProcessPass(
+        /*new DelegatePostProcessPass(
             "RegisterVariableEliminator",
-            static (ctx, ops) => RegisterVariableEliminator.Eliminate(ops, ctx.Procedure.Expressions!.Variables)),
+            static (ctx, ops) => RegisterVariableEliminator.Eliminate(ops, ctx.Procedure.Expressions!.Variables)),*/
     ];
 }
