@@ -32,7 +32,7 @@ public partial class ExpressionBuilder
                 lines.Add($"0x{block.BasicBlock.StartOffset:X4}..0x{block.BasicBlock.EndOffset:X4}");
             }
 
-            if (block.Operations.Count == 0)
+            if (block.Operations.Count == 0 && block.Condition == null)
             {
                 lines.Add("(нет операций)");
             }
@@ -63,7 +63,7 @@ public partial class ExpressionBuilder
                 string to = NodeId(block.Next);
                 if (hasTwo)
                 {
-                    sb.AppendLine($"    {from} -> {to} [color=red, label=\"fallthrough\"];");
+                    sb.AppendLine($"    {from} -> {to} [color=red];");
                 }
                 else
                 {
@@ -74,14 +74,7 @@ public partial class ExpressionBuilder
             if (block.ConditionalBlock != null)
             {
                 string to = NodeId(block.ConditionalBlock);
-                if (hasTwo)
-                {
-                    sb.AppendLine($"    {from} -> {to} [color=green, label=\"taken\"];");
-                }
-                else
-                {
-                    sb.AppendLine($"    {from} -> {to} [color=green];");
-                }
+                sb.AppendLine($"    {from} -> {to} [color=green];");
             }
         }
 

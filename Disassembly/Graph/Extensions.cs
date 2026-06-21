@@ -49,7 +49,7 @@ public static class Extensions
                     string to = $"b_{block.NextBlock.StartOffset:X6}";
                     if (hasTwo)
                     {
-                        sb.AppendLine($"    {from} -> {to} [color=red, label=\"fallthrough\"];");
+                        sb.AppendLine($"    {from} -> {to} [color=red];");
                     }
                     else
                     {
@@ -60,14 +60,7 @@ public static class Extensions
                 if (block.ConditionalBlock != null)
                 {
                     string to = $"b_{block.ConditionalBlock.StartOffset:X6}";
-                    if (hasTwo)
-                    {
-                        sb.AppendLine($"    {from} -> {to} [color=green, label=\"taken\"];");
-                    }
-                    else
-                    {
-                        sb.AppendLine($"    {from} -> {to} [color=green];");
-                    }
+                    sb.AppendLine($"    {from} -> {to} [color=green];");
                 }
             }
 
