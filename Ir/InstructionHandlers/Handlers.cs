@@ -61,6 +61,11 @@ public static class Handlers
         [Mnemonic.SAL] = new ShiftHandler(Math2Operation.Shl),
         [Mnemonic.SHR] = new ShiftHandler(Math2Operation.Shr),
         [Mnemonic.SAR] = new ShiftHandler(Math2Operation.Shr, isArithmeticRight: true),
+
+        [Mnemonic.MUL] = new MulDivHandler(Mnemonic.MUL),
+        [Mnemonic.IMUL] = new MulDivHandler(Mnemonic.IMUL),
+        [Mnemonic.DIV] = new MulDivHandler(Mnemonic.DIV),
+        [Mnemonic.IDIV] = new MulDivHandler(Mnemonic.IDIV),
     };
 
     public static IInstructionHandler Get(Mnemonic mnemonic) => _dictionary.GetValueOrDefault(mnemonic) ?? throw new NotImplementedException($"Instruction {mnemonic} is not yet supported");
