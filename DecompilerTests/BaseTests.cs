@@ -52,27 +52,37 @@ public abstract class BaseTests
     protected static ExpressionBuilder BuildExpressions(string hex, bool isCom)
     {
         var graph = GetGraph(hex);
-        var decompiler = new ExpressionBuilder();
-        decompiler.Build(graph, isCom);
-        return decompiler;
+        var builder = new ExpressionBuilder();
+        builder.VarUsageOptimization = false;
+        builder.Build(graph, isCom);
+        return builder;
+    }
+
+    /// <summary>Строит IR с включённым <see cref="ExpressionBuilder.RemoveUnusedSets"/>.</summary>
+    protected static ExpressionBuilder BuildExpressionsOptimized(string hex, bool isCom = false)
+    {
+        var graph = GetGraph(hex);
+        var builder = new ExpressionBuilder { VarUsageOptimization = true };
+        builder.Build(graph, isCom);
+        return builder;
     }
 
     /// <summary>Строит IR процедуры с <see cref="ExpressionBuilder.BuildProc"/> и IR-construction pass-ами профиля.</summary>
     protected static ExpressionBuilder BuildProcExpressions(string hex)
     {
         var graph = GetGraph(hex);
-        var decompiler = ExpressionBuilder.Create(OptimizationLevel.Disabled);
-        decompiler.BuildProc(graph);
-        return decompiler;
+        var builder = ExpressionBuilder.Create(OptimizationLevel.Disabled);
+        builder.BuildProc(graph);
+        return builder;
     }
 
     /// <summary>Строит IR процедуры с <see cref="ExpressionBuilderQuickCOpt"/> (/Ox).</summary>
     protected static ExpressionBuilder BuildProcExpressionsOpt(string hex)
     {
         var graph = GetGraph(hex);
-        var decompiler = ExpressionBuilder.Create(OptimizationLevel.EnabledFull);
-        decompiler.BuildProc(graph);
-        return decompiler;
+        var builder = ExpressionBuilder.Create(OptimizationLevel.EnabledFull);
+        builder.BuildProc(graph);
+        return builder;
     }
     protected static ExpressionBuilder BuildExpressions(
         string hex,
@@ -80,8 +90,8 @@ public abstract class BaseTests
         bool isCom = false)
     {
         var graph = GetGraph(hex);
-        var decompiler = new ExpressionBuilder();
-        decompiler.Build(graph, isCom);
+        var builder = new ExpressionBuilder();
+        builder.Build(graph, isCom);
 
         ProcedureStorage procedures = new();
         foreach (var kv in knownProcedures)
@@ -94,8 +104,8 @@ public abstract class BaseTests
             });
         }
 
-        CallSiteResolver.ResolveBlocks(decompiler.Blocks, procedures);
-        return decompiler;
+        CallSiteResolver.ResolveBlocks(builder.Blocks, procedures);
+        return builder;
     }
 
     /// <summary>
@@ -104,9 +114,9 @@ public abstract class BaseTests
     protected static ExpressionBuilder BuildExpressions(string hex, Stack<Expr> initialStack)
     {
         var graph = GetGraph(hex);
-        var decompiler = new ExpressionBuilder();
-        decompiler.Build(graph, initialStack);
-        return decompiler;
+        var builder = new ExpressionBuilder();
+        builder.Build(graph, initialStack);
+        return builder;
     }
 
     /// <summary>
@@ -115,10 +125,10 @@ public abstract class BaseTests
     protected static ExpressionBuilder BuildExpressions(string hex, Func<VariableStorage, Stack<Expr>> configure)
     {
         var graph = GetGraph(hex);
-        var decompiler = new ExpressionBuilder();
-        var stack = configure(decompiler.Variables);
-        decompiler.Build(graph, stack);
-        return decompiler;
+        var builder = new ExpressionBuilder();
+        var stack = configure(builder.Variables);
+        builder.Build(graph, stack);
+        return builder;
     }
 
     /// <summary>

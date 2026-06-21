@@ -18,19 +18,13 @@ public sealed record Variable(
     bool IsGlobal = false,
     bool IsRegister = false)
 {
-    public bool HasGet { get; set; }
-
-    public bool HasSet { get; set; }
-
     public VariableExpr ToGet()
     {
-        HasGet = true;
         return new VariableExpr() { Var = this };
     }
 
     public VariableExpr ToSet()
     {
-        HasSet = true;
         return new VariableExpr() { Var = this };
     }
 

@@ -31,6 +31,11 @@ public partial class ExpressionBuilder
 
     public VariableStorage Variables { get; } = new();
 
+    /// <summary>
+    /// Оптимизация
+    /// </summary>
+    public bool VarUsageOptimization { get; set; } = true;
+
     public static ExpressionBuilder Create(OptimizationLevel optimization)
     {
         return optimization switch
@@ -150,6 +155,11 @@ public partial class ExpressionBuilder
 
         InsertTailReturnsBeforeEpilogue(graph);
         RemoveSharedEpilogueBlocks();
+
+        if (VarUsageOptimization)
+        {
+            RemoveUnusedSets();
+        }
     }
 
     private void CreateExprBlock(BasicBlock block, IEnumerable<Expr> stack)
