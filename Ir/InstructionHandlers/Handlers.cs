@@ -57,6 +57,10 @@ public static class Handlers
 
         [Mnemonic.ROL] = new RotateHandler(isLeft: true),
         [Mnemonic.ROR] = new RotateHandler(isLeft: false),
+
+        [Mnemonic.SAL] = new ShiftHandler(Math2Operation.Shl),
+        [Mnemonic.SHR] = new ShiftHandler(Math2Operation.Shr),
+        [Mnemonic.SAR] = new ShiftHandler(Math2Operation.Shr, isArithmeticRight: true),
     };
 
     public static IInstructionHandler Get(Mnemonic mnemonic) => _dictionary.GetValueOrDefault(mnemonic) ?? throw new NotImplementedException($"Instruction {mnemonic} is not yet supported");
