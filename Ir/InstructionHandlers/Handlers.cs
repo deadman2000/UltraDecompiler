@@ -25,6 +25,10 @@ public static class Handlers
         [Mnemonic.CMP] = new CmpHandler(),
         [Mnemonic.TEST] = new TestHandler(),
 
+        [Mnemonic.AND] = new LogicalHandler(Math2Operation.And),
+        [Mnemonic.OR] = new LogicalHandler(Math2Operation.Or),
+        [Mnemonic.XOR] = new LogicalHandler(Math2Operation.Xor),
+
         [Mnemonic.CALL] = new CallHandler(),
         [Mnemonic.CALL_FAR] = new CallHandler(),
 
