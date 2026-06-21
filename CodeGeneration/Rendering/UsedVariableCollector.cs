@@ -22,8 +22,8 @@ public static class UsedVariableCollector
     /// <summary>
     /// Возвращает локальные переменные процедуры для объявления в C.
     /// Параметры функции (<paramref name="parameterVariables"/>) исключаются.
-    /// Стековые локали включаются только если они упомянуты в IR или требуют объявления
-    /// (far-указатель с инициализатором, массив на стеке).
+    /// Все активированные стековые локали включаются, даже без обращений в IR
+    /// (неиспользуемые <c>int</c> из пролога <c>sub sp, N</c>).
     /// </summary>
     public static IReadOnlyList<Variable> Collect(
         IEnumerable<Operation> operations,
@@ -47,12 +47,7 @@ public static class UsedVariableCollector
                     continue;
                 }
 
-                if (stackVar.FarPointerInitializer is not null
-                    || stackVar.ArraySize is not null
-                    || result.ContainsKey(stackVar))
-                {
-                    AddVariable(stackVar, result);
-                }
+                AddVariable(stackVar, result);
             }
         }
 

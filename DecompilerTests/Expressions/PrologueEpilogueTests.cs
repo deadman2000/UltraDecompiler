@@ -134,6 +134,22 @@ public class PrologueEpilogueTests : BaseTests
         Assert.True(srcVar.IsStack);
     }
 
+    [Fact]
+    public void StackLocal_UnusedFromSubSp_CreatesLocalForCodegen()
+    {
+        // sub sp, 2 без обращений к [BP-2] — неиспользуемый int a; (func.c / foo)
+        var expr = BuildProcExpressions("""
+            55        ; PUSH BP
+            8B EC     ; MOV BP, SP
+            83 EC 02  ; SUB SP, 2
+            C9        ; LEAVE
+            C3        ; RET
+            """);
+
+        Assert.Single(expr.Variables.StackLocals);
+        Assert.Equal(-2, expr.Variables.StackLocals[0].Offset);
+    }
+
     #endregion
 
     #region Параметры функции
