@@ -1,3 +1,5 @@
+using TestSupport;
+
 namespace DecompilerTests.Expressions;
 
 /// <summary>Тесты оптимизации цепочек присваиваний через регистры.</summary>
@@ -382,6 +384,84 @@ public sealed class RegisterChainOptimizationTests : BaseTests
         Assert.Empty(sets);
         Assert.Single(returns);
         Assert.Equal(42, ((ConstExpr)returns[0].Value!).Value);
+    }
+
+    #endregion
+
+    #region Тесты на основе incdec.c
+
+    /// <summary>
+    /// Интеграционный тест: декомпиляция incdec.c должна содержать правильные инкременты/декременты.
+    /// Проверяет порядок и типы операций в соответствии с исходным кодом:
+    ///   int a = 10;
+    ///   a = a + 1;      // явное сложение
+    ///   a++;            // пост-инкремент
+    ///   a += 1;         // сложение с присваиванием
+    ///   b = ++a;        // пре-инкремент с присваиванием
+    ///   b = a++;        // пост-инкремент с присваиванием
+    ///   a = a - 1;      // явное вычитание
+    ///   a--;            // пост-декремент
+    ///   a -= 1;         // вычитание с присваиванием
+    ///   return b;
+    /// </summary>
+    [Fact]
+    public void IncDec_IncdecC_IntegrationTest()
+    {
+        var procedures = DecompileTestHelper.GetExampleIR("incdec.c");
+        var proc = Assert.Single(procedures);
+        Assert.NotNull(proc.Expressions);
+        var block = Assert.Single(proc.Expressions.Blocks);
+        
+        var ops = block.Operations.ToList();
+        
+        // 0: a = 10 (инициализация)
+        var op0 = Assert.IsType<SetOperation>(ops[0]);
+        Assert.True(AssignmentTarget.TryGetVariable(op0.Dst, out var v0) && v0.Name == "var1");
+        Assert.IsType<ConstExpr>(op0.Src);
+
+        // 1: a = a + 1 (явное сложение)
+        var op1 = Assert.IsType<SetOperation>(ops[1]);
+        Assert.True(AssignmentTarget.TryGetVariable(op1.Dst, out var v1) && v1.Name == "var1");
+        var add1 = Assert.IsType<Math2Expr>(op1.Src);
+        Assert.Equal(Math2Operation.Add, add1.Operation);
+
+        // 2: a++ (пост-инкремент как отдельная операция)
+        var op2 = Assert.IsType<IncOperation>(ops[2]);
+        Assert.True(AssignmentTarget.TryGetVariable(op2.Target, out var v2) && v2.Name == "var1");
+
+        // 3: a += 1 (сложение с присваиванием → IncOperation)
+        var op3 = Assert.IsType<IncOperation>(ops[3]);
+        Assert.True(AssignmentTarget.TryGetVariable(op3.Target, out var v3) && v3.Name == "var1");
+
+        // 4: b = ++a (пре-инкремент в присваивании)
+        var op4 = Assert.IsType<SetOperation>(ops[4]);
+        Assert.True(AssignmentTarget.TryGetVariable(op4.Dst, out var v4) && v4.Name == "var2");
+        var preInc = Assert.IsType<Math1Expr>(op4.Src);
+        Assert.Equal(Math1Operation.PreIncrement, preInc.Operation);
+
+        // 5: b = a++ (пост-инкремент в присваивании)
+        var op5 = Assert.IsType<SetOperation>(ops[5]);
+        Assert.True(AssignmentTarget.TryGetVariable(op5.Dst, out var v5) && v5.Name == "var2");
+        var postInc = Assert.IsType<Math1Expr>(op5.Src);
+        Assert.Equal(Math1Operation.PostIncrement, postInc.Operation);
+
+        // 6: a = a - 1 (явное вычитание)
+        var op6 = Assert.IsType<SetOperation>(ops[6]);
+        Assert.True(AssignmentTarget.TryGetVariable(op6.Dst, out var v6) && v6.Name == "var1");
+        var sub1 = Assert.IsType<Math2Expr>(op6.Src);
+        Assert.Equal(Math2Operation.Sub, sub1.Operation);
+
+        // 7: a-- (пост-декремент как отдельная операция)
+        var op7 = Assert.IsType<DecOperation>(ops[7]);
+        Assert.True(AssignmentTarget.TryGetVariable(op7.Target, out var v7) && v7.Name == "var1");
+
+        // 8: a -= 1 (вычитание с присваиванием → DecOperation)
+        var op8 = Assert.IsType<DecOperation>(ops[8]);
+        Assert.True(AssignmentTarget.TryGetVariable(op8.Target, out var v8) && v8.Name == "var1");
+
+        // 9: return b
+        var op9 = Assert.IsType<ReturnOperation>(ops[9]);
+        Assert.IsType<VariableExpr>(op9.Value);
     }
 
     #endregion

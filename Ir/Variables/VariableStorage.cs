@@ -117,7 +117,7 @@ public class VariableStorage
     /// </summary>
     public Variable CreateStackVariable()
     {
-        var v = new Variable(Number: ++_stackNumber, IsStack: true);
+        var v = new Variable(Number: ++_stackNumber, Name: $"var{_stackNumber}", IsStack: true);
         _variables.Add(v);
         return v;
     }
@@ -127,7 +127,7 @@ public class VariableStorage
     /// </summary>
     public Variable CreateTempVariable()
     {
-        var v = new Variable(Number: ++_tempNumber, IsTemp: true);
+        var v = new Variable(Number: ++_tempNumber, Name: $"temp{_tempNumber}", IsTemp: true);
         _variables.Add(v);
         return v;
     }

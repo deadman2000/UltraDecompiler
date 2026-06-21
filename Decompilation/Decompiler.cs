@@ -69,6 +69,24 @@ public class Decompiler
         _libraryFileNames = libraryFileNames;
     }
 
+    public IReadOnlyCollection<DisassembledProcedure> BuildIR()
+    {
+        // Загрузка образа и поиск точки входа
+        if (!LoadImageAndResolveMain())
+            return [];
+
+        // Детекция модели памяти
+        DetectMemoryModel();
+
+        // Детекция уровня оптимизации
+        DetectOptimizaionLevel();
+
+        // Построение IR для всех процедур
+        BuildIrForAllProcedures();
+
+        return _storage.All.Where(p => !p.IsLibrary).ToArray();
+    }
+
     /// <summary>
     /// Декомпилирует EXE/COM: находит <c>_main</c>, рекурсивно собирает функции,
     /// сопоставляет runtime с .LIB и сохраняет пользовательский код в <paramref name="outputDirectory"/>.

@@ -13,7 +13,7 @@ public sealed class CopyDecompileTests
     [Fact(Skip = "NotImplemented")]
     public void Decompile_Copy_EmitsCharArrayLocal()
     {
-        var result = DecompileTestHelper.DecompileExample(sourceFileName: "copy.c", libraryFileNames: ["SLIBCE.LIB"]);
+        var result = DecompileTestHelper.DecompileExample(sourceFileName: "copy.c");
 
         Assert.True(result.Success);
 

@@ -1,4 +1,6 @@
-﻿namespace UltraDecompiler.Ir.Builder;
+﻿using UltraDecompiler.Common;
+
+namespace UltraDecompiler.Ir.Builder;
 
 /// <summary>
 /// Выполняет построение IR для программы, скомпилированной в QuickC с включенной оптимизацией (/Ot, /Ox).
@@ -11,4 +13,11 @@ public partial class ExpressionBuilderQuickCOpt(ControlFlowGraph graph) : Expres
 {
     // Базовая реализация ApplyBlockPatterns и AnalyzeSwitchPatterns — пустая,
     // так как оптимизированный код не следует стандартным паттернам QuickC /Od
+
+    /// <inheritdoc />
+    protected override void OptimizeIncDecPatterns()
+    {
+        // Не применяется для /Ox: QuickC оптимизирует a = a + 1 в INC,
+        // и мы должны сохранить исходную семантику выражения
+    }
 }

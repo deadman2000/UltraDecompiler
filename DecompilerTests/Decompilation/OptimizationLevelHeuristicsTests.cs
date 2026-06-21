@@ -89,7 +89,7 @@ public sealed class OptimizationLevelHeuristicsTests
             libraries: ["SLIBCE.LIB"],
             optimization: buildOptimization);
 
-        var result = DecompileTestHelper.DecompileExample(exePath, libraryFileNames: ["SLIBCE.LIB"]);
+        var result = DecompileTestHelper.DecompileExample(exePath);
 
         Assert.True(
             result.Success,

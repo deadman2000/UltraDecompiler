@@ -115,13 +115,21 @@ public static class CExprRenderer
         {
             Math1Operation.Neg => "-",
             Math1Operation.Not => m1.Op is CmpExpr ? "!" : "~",
+            Math1Operation.PreIncrement => "++",
+            Math1Operation.PreDecrement => "--",
+            Math1Operation.PostIncrement => "++",
+            Math1Operation.PostDecrement => "--",
             _ => throw new NotImplementedException(),
         };
 
-        string operandStr = Render(m1.Op, m1.GetPrecedence());
-        string result = $"{opSym}{operandStr}";
+        string operandStr = Render(m1.Op, GetMath1Precedence(m1));
+        string result = m1.Operation switch
+        {
+            Math1Operation.PostIncrement or Math1Operation.PostDecrement => $"{operandStr}{opSym}",
+            _ => $"{opSym}{operandStr}",
+        };
 
-        int myPrec = m1.GetPrecedence();
+        int myPrec = GetMath1Precedence(m1);
         if (parentPrec > 0 && (myPrec < parentPrec || (myPrec > parentPrec && myPrec < Prec.Atom)))
             result = $"({result})";
 
@@ -212,4 +220,10 @@ public static class CExprRenderer
         public const int BitXor = 8;
         public const int BitOr = 7;
     }
+
+    private static int GetMath1Precedence(Math1Expr m1) => m1.Operation switch
+    {
+        Math1Operation.PostIncrement or Math1Operation.PostDecrement => Prec.Postfix,
+        _ => Prec.Unary,
+    };
 }

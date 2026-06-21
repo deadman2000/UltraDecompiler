@@ -210,6 +210,26 @@ public enum Math1Operation
     /// Отрицание
     /// </summary>
     Not,
+
+    /// <summary>
+    /// Пре-инкремент (++x)
+    /// </summary>
+    PreIncrement,
+
+    /// <summary>
+    /// Пре-декремент (--x)
+    /// </summary>
+    PreDecrement,
+
+    /// <summary>
+    /// Пост-инкремент (x++)
+    /// </summary>
+    PostIncrement,
+
+    /// <summary>
+    /// Пост-декремент (x--)
+    /// </summary>
+    PostDecrement,
 }
 
 /// <summary>
@@ -219,7 +239,11 @@ public enum Math1Operation
 /// <param name="Op">Операнд</param>
 public record Math1Expr(Math1Operation Operation, Expr Op) : Expr
 {
-    public override int GetPrecedence() => Prec.Unary;
+    public override int GetPrecedence() => Operation switch
+    {
+        Math1Operation.PostIncrement or Math1Operation.PostDecrement => Prec.Postfix,
+        _ => Prec.Unary,
+    };
 
     public override string ToString() => ToString(0);
 
@@ -230,13 +254,21 @@ public record Math1Expr(Math1Operation Operation, Expr Op) : Expr
         {
             Math1Operation.Neg => "-",
             Math1Operation.Not => Op is CmpExpr ? "!" : "~",
+            Math1Operation.PreIncrement => "++",
+            Math1Operation.PreDecrement => "--",
+            Math1Operation.PostIncrement => "++",
+            Math1Operation.PostDecrement => "--",
             _ => throw new NotImplementedException(),
         };
 
         // Унарные операторы — правоассоциативны. Для одинакового приоритета скобки не нужны (цепочки !!x, --x).
         string operandStr = Op.ToString(GetPrecedence());
 
-        string result = $"{opSym}{operandStr}";
+        string result = Operation switch
+        {
+            Math1Operation.PostIncrement or Math1Operation.PostDecrement => $"{operandStr}{opSym}",
+            _ => $"{opSym}{operandStr}",
+        };
 
         int myPrec = GetPrecedence();
         if (parentPrec > 0 && (myPrec < parentPrec || (myPrec > parentPrec && myPrec < Prec.Atom)))

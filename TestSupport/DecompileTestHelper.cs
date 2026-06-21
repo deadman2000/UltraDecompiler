@@ -1,5 +1,6 @@
 using UltraDecompiler.Common;
 using UltraDecompiler.Decompilation;
+using UltraDecompiler.Ir.Procedures;
 
 namespace TestSupport;
 
@@ -23,7 +24,6 @@ public static class DecompileTestHelper
     /// <param name="optimization">Уровень оптимизации (по умолчанию Disabled).</param>
     /// <param name="libraries">Список библиотек для линковки.</param>
     /// <param name="libraryFileNames">Конкретные .LIB для сопоставления (опционально).</param>
-    /// <param name="exportGraph">Экспортировать графы CFG в DOT/SVG (по умолчанию false).</param>
     /// <returns>Результат декомпиляции с временным каталогом вывода.</returns>
     public static DecompileResult DecompileExample(
         string sourceFileName,
@@ -31,14 +31,12 @@ public static class DecompileTestHelper
         bool stackCheck = false,
         OptimizationLevel optimization = OptimizationLevel.Disabled,
         string[]? libraries = null,
-        string[]? libraryFileNames = null,
-        bool exportGraph = false)
+        string[]? libraryFileNames = null)
     {
         var exePath = ExeProvider.Get(sourceFileName, memoryModel, stackCheck, optimization, libraries);
         return DecompileExample(
             exePath,
-            libraryFileNames,
-            exportGraph);
+            libraryFileNames);
     }
 
     /// <summary>
@@ -46,12 +44,10 @@ public static class DecompileTestHelper
     /// </summary>
     /// <param name="exePath">Путь к EXE-файлу.</param>
     /// <param name="libraryFileNames">Конкретные .LIB для сопоставления (опционально).</param>
-    /// <param name="exportGraph">Экспортировать графы CFG в DOT/SVG (по умолчанию false).</param>
     /// <returns>Результат декомпиляции с временным каталогу вывода.</returns>
     private static DecompileResult DecompileExample(
         string exePath,
-        string[]? libraryFileNames = null,
-        bool exportGraph = false)
+        string[]? libraryFileNames = null)
     {
         var outputDirectory = Path.Combine(
             Path.GetTempPath(),
@@ -69,7 +65,7 @@ public static class DecompileTestHelper
                 outputDirectory,
                 libraryFileNames: libraryFileNames);
 
-            return decompiler.Decompile(exportGraph);
+            return decompiler.Decompile();
         }
         catch
         {
@@ -81,44 +77,26 @@ public static class DecompileTestHelper
         }
     }
 
-    /// <summary>
-    /// Выполняет декомпиляцию и возвращает путь к временному каталогу вывода для последующей очистки.
-    /// </summary>
-    /// <param name="sourceFileName">Имя исходника (например <c>hello.c</c>).</param>
-    /// <param name="outputDirectory">Созданный каталог вывода (out-параметр).</param>
-    /// <param name="memoryModel">Модель памяти (по умолчанию Small).</param>
-    /// <param name="stackCheck">Включить проверку стека (по умолчанию false).</param>
-    /// <param name="optimization">Уровень оптимизации (по умолчанию Disabled).</param>
-    /// <param name="libraries">Список библиотек для линковки.</param>
-    /// <param name="libraryFileNames">Конкретные .LIB для сопоставления (опционально).</param>
-    /// <param name="exportGraph">Экспортировать графы CFG в DOT/SVG (по умолчанию false).</param>
-    /// <returns>Результат декомпиляции.</returns>
-    public static DecompileResult DecompileExampleWithCleanup(
+    public static IReadOnlyCollection<DisassembledProcedure> GetExampleIR(
         string sourceFileName,
-        out string outputDirectory,
         MemoryModel memoryModel = MemoryModel.Small,
         bool stackCheck = false,
         OptimizationLevel optimization = OptimizationLevel.Disabled,
-        string[]? libraries = null,
-        string[]? libraryFileNames = null,
-        bool exportGraph = false)
+        string[]? libraries = null)
     {
-        outputDirectory = Path.Combine(
-            Path.GetTempPath(),
-            "UltraDecompilerTests",
-            Guid.NewGuid().ToString("N"));
-
-        Directory.CreateDirectory(outputDirectory);
-
         var exePath = ExeProvider.Get(sourceFileName, memoryModel, stackCheck, optimization, libraries);
+        return GetExampleIRExe(exePath);
+    }
 
+
+    private static IReadOnlyCollection<DisassembledProcedure> GetExampleIRExe(string exePath)
+    {
         var decompiler = new Decompiler(
             exePath,
             QuickCTestAssets.LibDirectory,
             QuickCTestAssets.IncludeDirectory,
-            outputDirectory,
-            libraryFileNames: libraryFileNames);
+            null);
 
-        return decompiler.Decompile(exportGraph);
+        return decompiler.BuildIR();
     }
 }

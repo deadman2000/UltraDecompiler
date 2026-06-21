@@ -133,6 +133,19 @@ public partial class ExpressionBuilder
         {
             RemoveUnusedSets();
             OptimizeRegisterChains();
+            OptimizeIncDecPatterns();
+        }
+    }
+
+    /// <summary>
+    /// Оптимизация пре- и пост-инкрементов/декрементов.
+    /// Переопределяется в подклассах для разных уровней оптимизации.
+    /// </summary>
+    protected virtual void OptimizeIncDecPatterns()
+    {
+        foreach (var block in Blocks)
+        {
+            OptimizeIncDecPatternsInBlock(block);
         }
     }
 

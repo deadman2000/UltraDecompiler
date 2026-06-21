@@ -1,3 +1,4 @@
+using UltraDecompiler.Ir.Expressions;
 using UltraDecompiler.Ir.Variables;
 
 namespace UltraDecompiler.Ir.Builder;
@@ -20,6 +21,12 @@ public partial class ExpressionBuilder
     ///   return regAX
     /// Стало:
     ///   return var1
+    /// 
+    /// Поддерживаемые преобразования:
+    ///   regAX = var2; var1 += regAX → var1 += var2
+    ///   regAX = var1; regAX = regAX + 1; var1 = regAX → var1 = var1 + 1
+    ///   var1 += 1; var2 = var1 → var2 = ++var1
+    ///   regAX = var1; var1 += 1; var2 = regAX → var2 = var1++
     /// </summary>
     public void OptimizeRegisterChains()
     {
@@ -106,6 +113,14 @@ public partial class ExpressionBuilder
                         case DecOperation dec:
                             block.Operations[usage] = dec with { Target = setOp.Src };
                             break;
+
+                        case AddAssignOperation addAssign:
+                            block.Operations[usage] = addAssign with { Target = setOp.Src };
+                            break;
+
+                        case SubAssignOperation subAssign:
+                            block.Operations[usage] = subAssign with { Target = setOp.Src };
+                            break;
                     }
                 }
 
@@ -115,6 +130,101 @@ public partial class ExpressionBuilder
                 break; // Начинаем заново после изменения
             }
         }
+
+        // Вторая фаза: оптимизация арифметических цепочек
+        // reg = var; reg = reg + const; dst = reg → dst = var + const
+        OptimizeArithmeticRegisterChains(block);
+    }
+
+    /// <summary>
+    /// Оптимизация арифметических цепочек через регистры.
+    /// Обрабатывает паттерны вида:
+    ///   reg = var; reg = reg + const; dst = reg → dst = var + const
+    ///   reg = var; reg = reg + 1; var = reg → var = var + 1
+    /// </summary>
+    private static void OptimizeArithmeticRegisterChains(ExprBlock block)
+    {
+        var changed = true;
+        while (changed)
+        {
+            changed = false;
+
+            for (int i = 0; i < block.Operations.Count - 2; i++)
+            {
+                // Паттерн: reg = src; reg = reg + const; dst = reg
+                if (block.Operations[i] is not SetOperation loadOp ||
+                    !AssignmentTarget.TryGetVariable(loadOp.Dst, out var regVar) ||
+                    !regVar.IsRegister ||
+                    loadOp.Src is not (VariableExpr or ConstExpr))
+                {
+                    continue;
+                }
+
+                if (block.Operations[i + 1] is not SetOperation arithOp ||
+                    !AssignmentTarget.ReferencesVariable(arithOp.Dst, regVar) ||
+                    arithOp.Src is not Math2Expr mathExpr ||
+                    !ExprReferencesVariable(mathExpr.First, regVar))
+                {
+                    continue;
+                }
+
+                // Проверяем, что вторая операция - это арифметика с константой
+                if (mathExpr.Second is not ConstExpr constExpr)
+                {
+                    continue;
+                }
+
+                // Ищем использование регистра в третьей операции
+                for (int j = i + 2; j < block.Operations.Count; j++)
+                {
+                    if (block.Operations[j] is SetOperation useOp &&
+                        useOp.Src is VariableExpr useVarExpr &&
+                        ReferenceEquals(useVarExpr.Var, regVar) &&
+                        AssignmentTarget.TryGetVariable(useOp.Dst, out _))
+                    {
+                        // Проверяем, что регистр не переопределяется между i+1 и j
+                        bool regRedefined = false;
+                        for (int k = i + 2; k < j; k++)
+                        {
+                            if (block.Operations[k] is SetOperation checkSet &&
+                                AssignmentTarget.ReferencesVariable(checkSet.Dst, regVar))
+                            {
+                                regRedefined = true;
+                                break;
+                            }
+                        }
+
+                        if (regRedefined)
+                            continue;
+
+                        // Создаём новое выражение: src + const
+                        var newSrc = new Math2Expr(mathExpr.Operation, loadOp.Src, constExpr);
+                        block.Operations[j] = useOp with { Src = newSrc };
+
+                        // Удаляем присваивания регистру
+                        block.Operations.RemoveAt(i + 1);
+                        block.Operations.RemoveAt(i);
+                        changed = true;
+                        break;
+                    }
+                }
+
+                if (changed)
+                    break;
+            }
+        }
+    }
+
+    private static bool ExprReferencesVariable(Expr expr, Variable variable)
+    {
+        return expr switch
+        {
+            VariableExpr varExpr => ReferenceEquals(varExpr.Var, variable),
+            Math2Expr math2 => ExprReferencesVariable(math2.First, variable) ||
+                               ExprReferencesVariable(math2.Second, variable),
+            Math1Expr math1 => ExprReferencesVariable(math1.Op, variable),
+            _ => false
+        };
     }
 
     /// <summary>
@@ -225,5 +335,166 @@ public partial class ExpressionBuilder
                                       ReferenceEquals(addrVar, storeSrcVarExpr.Var) => true,
             _ => false
         };
+    }
+
+    /// <summary>
+    /// Оптимизация паттернов инкремента/декремента в одном блоке.
+    /// </summary>
+    protected static void OptimizeIncDecPatternsInBlock(ExprBlock block)
+    {
+        // Фаза 1: NormalizeAddSubOne - преобразование += 1/-= 1 в IncOperation/DecOperation
+        for (var i = 0; i < block.Operations.Count; i++)
+        {
+            switch (block.Operations[i])
+            {
+                case AddAssignOperation { Value: ConstExpr { Value: 1 }, Target: var target }:
+                    if (AssignmentTarget.TryGetVariable(target, out var targetVar))
+                    {
+                        block.Operations[i] = new IncOperation(targetVar.ToSet());
+                    }
+                    break;
+                case SubAssignOperation { Value: ConstExpr { Value: 1 }, Target: var target2 }:
+                    if (AssignmentTarget.TryGetVariable(target2, out var targetVar2))
+                    {
+                        block.Operations[i] = new DecOperation(targetVar2.ToSet());
+                    }
+                    break;
+            }
+        }
+
+        // Фаза 2: Преобразование var + 65535 в var - 1 (16-битное дополнение до 2)
+        for (var i = 0; i < block.Operations.Count; i++)
+        {
+            if (block.Operations[i] is SetOperation setOp &&
+                setOp.Src is Math2Expr { Operation: Math2Operation.Add, First: var first, Second: ConstExpr { Value: 65535 } })
+            {
+                block.Operations[i] = setOp with { Src = new Math2Expr(Math2Operation.Sub, first, ConstExpr.One) };
+            }
+        }
+
+        // Фаза 3: Распознавание пре-/пост-инкрементов
+        var changed = true;
+        while (changed)
+        {
+            changed = false;
+
+            for (int i = 0; i < block.Operations.Count - 1; i++)
+            {
+                // Паттерн 1: IncOperation(var1); var2 = var1 → var2 = ++var1
+                if (block.Operations[i] is IncOperation incOp &&
+                    AssignmentTarget.TryGetVariable(incOp.Target, out var incTargetVar) &&
+                    block.Operations[i + 1] is SetOperation nextSet &&
+                    nextSet.Src is VariableExpr nextVarExpr &&
+                    ReferenceEquals(nextVarExpr.Var, incTargetVar) &&
+                    AssignmentTarget.TryGetVariable(nextSet.Dst, out var dstVar) &&
+                    !ReferenceEquals(dstVar, incTargetVar))
+                {
+                    // Заменяем на var2 = ++var1, удаляем IncOperation
+                    block.Operations[i] = new SetOperation(nextSet.Dst, new Math1Expr(Math1Operation.PreIncrement, new VariableExpr { Var = incTargetVar }));
+                    block.Operations.RemoveAt(i + 1);
+                    changed = true;
+                    break;
+                }
+
+                // Паттерн 1b: DecOperation(var1); var2 = var1 → var2 = --var1
+                if (block.Operations[i] is DecOperation decOp &&
+                    AssignmentTarget.TryGetVariable(decOp.Target, out var decTargetVar) &&
+                    block.Operations[i + 1] is SetOperation nextSet2 &&
+                    nextSet2.Src is VariableExpr nextVarExpr2 &&
+                    ReferenceEquals(nextVarExpr2.Var, decTargetVar) &&
+                    AssignmentTarget.TryGetVariable(nextSet2.Dst, out var dstVar2) &&
+                    !ReferenceEquals(dstVar2, decTargetVar))
+                {
+                    // Заменяем на var2 = --var1, удаляем DecOperation
+                    block.Operations[i] = new SetOperation(nextSet2.Dst, new Math1Expr(Math1Operation.PreDecrement, new VariableExpr { Var = decTargetVar }));
+                    block.Operations.RemoveAt(i + 1);
+                    changed = true;
+                    break;
+                }
+
+                // Паттерн 2: regAX = var1; IncOperation(var1); var2 = regAX → var2 = var1++
+                // Ищем: Set(reg, var); Inc/Dec(var); Set(dst, reg)
+                if (block.Operations[i] is SetOperation setRegOp &&
+                    AssignmentTarget.TryGetVariable(setRegOp.Dst, out var regVar) &&
+                    regVar.IsRegister &&
+                    setRegOp.Src is VariableExpr srcVarExpr &&
+                    i + 2 < block.Operations.Count)
+                {
+                    // Проверяем следующую операцию - инкремент/декремент переменной
+                    var sourceVar = srcVarExpr.Var;
+                    bool foundIncDec = false;
+                    bool isIncrement = true;
+
+                    // Проверяем AddAssignOperation или IncOperation
+                    if (block.Operations[i + 1] is AddAssignOperation addIncOp2 &&
+                        addIncOp2.Value is ConstExpr { Value: 1 } &&
+                        AssignmentTarget.ReferencesVariable(addIncOp2.Target, sourceVar))
+                    {
+                        foundIncDec = true;
+                    }
+                    else if (block.Operations[i + 1] is IncOperation incOp2 &&
+                             AssignmentTarget.ReferencesVariable(incOp2.Target, sourceVar))
+                    {
+                        foundIncDec = true;
+                    }
+                    else if (block.Operations[i + 1] is SubAssignOperation subDecOp2 &&
+                             subDecOp2.Value is ConstExpr { Value: 1 } &&
+                             AssignmentTarget.ReferencesVariable(subDecOp2.Target, sourceVar))
+                    {
+                        foundIncDec = true;
+                        isIncrement = false;
+                    }
+                    else if (block.Operations[i + 1] is DecOperation decOp2 &&
+                             AssignmentTarget.ReferencesVariable(decOp2.Target, sourceVar))
+                    {
+                        foundIncDec = true;
+                        isIncrement = false;
+                    }
+
+                    if (foundIncDec)
+                    {
+                        // Ищем использование регистра
+                        for (int j = i + 2; j < block.Operations.Count; j++)
+                        {
+                            if (block.Operations[j] is SetOperation useRegOp &&
+                                useRegOp.Src is VariableExpr useRegVarExpr &&
+                                ReferenceEquals(useRegVarExpr.Var, regVar) &&
+                                AssignmentTarget.TryGetVariable(useRegOp.Dst, out var useDstVar) &&
+                                !ReferenceEquals(useDstVar, regVar))
+                            {
+                                // Проверяем, что регистр не переопределяется между i и j
+                                bool regRedefined = false;
+                                for (int k = i + 1; k < j; k++)
+                                {
+                                    if (block.Operations[k] is SetOperation checkSet &&
+                                        AssignmentTarget.TryGetVariable(checkSet.Dst, out var checkVar) &&
+                                        ReferenceEquals(checkVar, regVar))
+                                    {
+                                        regRedefined = true;
+                                        break;
+                                    }
+                                }
+
+                                if (!regRedefined)
+                                {
+                                    // Заменяем на var2 = var1++ или var2 = var1--
+                                    var postOp = isIncrement ? Math1Operation.PostIncrement : Math1Operation.PostDecrement;
+                                    block.Operations[j] = new SetOperation(useRegOp.Dst, new Math1Expr(postOp, new VariableExpr { Var = sourceVar }));
+                                    // Удаляем IncOperation/DecOperation (теперь на позиции i после удаления setRegOp)
+                                    block.Operations.RemoveAt(i + 1);
+                                    // Удаляем присваивание регистру
+                                    block.Operations.RemoveAt(i);
+                                    changed = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (changed)
+                        break;
+                }
+            }
+        }
     }
 }
