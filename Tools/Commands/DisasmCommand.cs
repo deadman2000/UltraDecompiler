@@ -23,7 +23,7 @@ internal static class DisasmCommand
 
             var mainOpt = cmd.Option(
                 "--main",
-                "Дизассемблировать с _main (сопоставление crt0/.LIB, как в decompile-main)",
+                "Дизассемблировать с _main",
                 CommandOptionType.NoValue);
 
             var libDirOpt = cmd.Option(

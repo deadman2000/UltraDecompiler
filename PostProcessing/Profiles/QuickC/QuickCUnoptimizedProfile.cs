@@ -20,23 +20,6 @@ public sealed class QuickCUnoptimizedProfile : IDecompilationProfile
 
     public IReadOnlyList<IPostProcessPass> GetProcedurePasses() => ProcedurePasses;
 
-    public IReadOnlyList<IPostProcessPass> GetGlobalPasses() => [];
-
-    public IReadOnlyList<IPostProcessPass> GetDiagnosticPasses() => DiagnosticPasses;
-
-    private static readonly IReadOnlyList<IPostProcessPass> DiagnosticPasses =
-    [
-        new DelegatePostProcessPass(
-            "StackCheckDetector.RemoveChkstkCalls",
-            static (_, ops) => StackCheckDetector.RemoveChkstkCalls(ops)),
-        new DelegatePostProcessPass(
-            nameof(OperationOptimizer),
-            static (_, ops) => OperationOptimizer.Optimize(ops)),
-        new DelegatePostProcessPass(
-            nameof(TempVariableEliminator),
-            static (_, ops) => TempVariableEliminator.Eliminate(ops)),
-    ];
-
     private static readonly IReadOnlyList<IPostProcessPass> ProcedurePasses =
     [
         new DelegatePostProcessPass(

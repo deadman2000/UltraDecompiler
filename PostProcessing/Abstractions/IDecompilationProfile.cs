@@ -10,8 +10,4 @@ public interface IDecompilationProfile
     OptimizationLevel OptimizationLevel { get; }
 
     IReadOnlyList<IPostProcessPass> GetProcedurePasses();
-
-    IReadOnlyList<IPostProcessPass> GetGlobalPasses();
-
-    IReadOnlyList<IPostProcessPass> GetDiagnosticPasses();
 }

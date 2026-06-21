@@ -16,8 +16,6 @@ public static class Program
 
         app.HelpOption(inherited: true);
 
-        DecompileCommand.Configure(app);
-        DecompileMainCommand.Configure(app);
         DecompileCCommand.Configure(app);
         LibCommand.Configure(app);
         DisasmCommand.Configure(app);
