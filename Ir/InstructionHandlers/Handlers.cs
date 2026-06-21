@@ -19,6 +19,9 @@ public static class Handlers
         [Mnemonic.ADC] = new ArithmeticHandler(Math2Operation.Add, useCarryFlag: true),
         [Mnemonic.SBB] = new ArithmeticHandler(Math2Operation.Sub, useCarryFlag: true),
 
+        [Mnemonic.INC] = new IncDecHandler(isInc: true),
+        [Mnemonic.DEC] = new IncDecHandler(isInc: false),
+
         [Mnemonic.CMP] = new CmpHandler(),
         [Mnemonic.TEST] = new TestHandler(),
 

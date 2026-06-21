@@ -11,7 +11,7 @@ public sealed class IncDecDecompileTests
     //   var1 = var1 + 1; var1++; var1++;
     //   var2 = ++var1; var2 = var1++;
     //   var1 = var1 - 1; var1--; var1--;
-    [Theory(Skip = "NotImplemented")]
+    [Theory]
     [InlineData(OptimizationLevel.Disabled)]
     [InlineData(OptimizationLevel.EnabledFull)]
     public void Decompile_IncDec_EmitsIncDec(OptimizationLevel optimization)

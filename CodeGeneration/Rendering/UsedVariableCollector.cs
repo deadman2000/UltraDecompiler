@@ -186,6 +186,13 @@ public static class UsedVariableCollector
         }
     }
 
-    private static void AddVariable(Variable variable, Dictionary<Variable, Variable> result) =>
+    private static void AddVariable(Variable variable, Dictionary<Variable, Variable> result)
+    {
+        if (variable.IsRegister)
+        {
+            throw new InvalidOperationException("Регистровые переменные должны исчезнуть с оптимизацией");
+        }
+
         result.TryAdd(variable, variable);
+    }
 }

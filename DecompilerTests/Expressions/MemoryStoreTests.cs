@@ -15,13 +15,13 @@ public class MemoryStoreTests : BaseTests
         Assert.Equal(5, ((ConstExpr)addAssign.Value).Value);
     }
 
-    [Fact(Skip = "NotImplemented")]
+    [Fact]
     public void Inc_Memory_Destination_ProducesIncOperation()
     {
         // INC word [SI]
         var expr = BuildExpressions("FF 04");
 
-        var inc = Assert.IsType<IncOperation>(Assert.Single(expr.Blocks[0].Operations));
+        var inc = Assert.IsType<IncOperation>(Assert.Single(expr.Blocks[0].Operations, op => op is IncOperation));
         Assert.NotNull(inc.Segment);
     }
 
