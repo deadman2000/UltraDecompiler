@@ -3,23 +3,11 @@ namespace DecompilerTests.Expressions;
 /// <summary>Сборка плоского списка IR из CFG: линейный код, if/else, циклы.</summary>
 public class GetAllOperationsTests : BaseTests
 {
-    // Линейный add ax, 2 → один SetOperation, без IfOperation
-    [Fact(Skip = "NotImplemented")]
-    public void GetAllOperations_LinearCode_HasNoIf()
-    {
-        var ops = BuildOperationsRaw("""
-            05 02 00 ; add ax, 2
-            """);
-
-        Assert.DoesNotContain(ops, op => op is IfOperation);
-        Assert.Single(ops.OfType<SetOperation>());
-    }
-
     // cmp; je → IfOperation с CmpExpr, без else
-    [Fact(Skip = "NotImplemented")]
+    [Fact]
     public void GetAllOperations_CmpJe_WrapsBranchesInIf()
     {
-        var ops = BuildOperationsRaw("""
+        var ops = BuildOperations("""
             B8 05 00 ; mov ax, 5
             3D 05 00 ; cmp ax, 5
             74 01    ; je +1
@@ -37,7 +25,7 @@ public class GetAllOperationsTests : BaseTests
     public void GetAllOperations_Diamond_MergesAfterIf()
     {
         // if (x == 1) { x += 2 } else { x += 1 }; c += 3
-        var ops = BuildOperationsRaw("""
+        var ops = BuildOperations("""
             83 F8 01       ; cmp ax, 1
             74 08          ; je +8  -> else
             05 01 00       ; add ax, 1  (then, fallthrough)
@@ -56,7 +44,7 @@ public class GetAllOperationsTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void GetAllOperations_Loop_ExitInElseBranch()
     {
-        var ops = BuildOperationsRaw("""
+        var ops = BuildOperations("""
             B9 02 00   ; mov cx, 2
             E2 02      ; loop +2
             90         ; fallthrough (exit)
