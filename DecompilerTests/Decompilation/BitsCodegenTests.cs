@@ -69,8 +69,8 @@ public class BitsCodegenTests : BaseTests
     private static ExpressionBuilder BuildExpressionsWithProc(string hex, ProcedureStorage storage)
     {
         var graph = GetGraph(hex);
-        var decompiler = new ExpressionBuilder();
-        decompiler.BuildProc(graph);
+        var decompiler = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
+        decompiler.Build();
         CallSiteResolver.ResolveBlocks(decompiler.Blocks, storage);
         return decompiler;
     }

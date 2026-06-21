@@ -7,7 +7,7 @@
 /// - Использование регистров вместо стека для аргументов
 /// - Более сложные паттерны циклов
 /// </summary>
-public partial class ExpressionBuilderQuickCOpt : ExpressionBuilder
+public partial class ExpressionBuilderQuickCOpt(ControlFlowGraph graph) : ExpressionBuilder(graph)
 {
     // Базовая реализация ApplyBlockPatterns и AnalyzeSwitchPatterns — пустая,
     // так как оптимизированный код не следует стандартным паттернам QuickC /Od

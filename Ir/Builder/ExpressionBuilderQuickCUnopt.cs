@@ -9,7 +9,7 @@ namespace UltraDecompiler.Ir.Builder;
 /// - Паттерны push-аргументов через локальные переменные
 /// - Специфичные эвристики для циклов
 /// </summary>
-public class ExpressionBuilderQuickCUnopt : ExpressionBuilder
+public class ExpressionBuilderQuickCUnopt(ControlFlowGraph graph) : ExpressionBuilder(graph)
 {
     /// <summary>
     /// Применяет паттерны QuickC /Od к блоку:

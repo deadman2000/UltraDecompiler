@@ -1,7 +1,6 @@
 using UltraDecompiler.Compilation;
-using UltraDecompiler.PostProcessing.Epilogue;
 
-namespace UltraDecompiler.Decompilation;
+namespace UltraDecompiler.Decompilation.Heuristics;
 
 /// <summary>
 /// Эвристики определения уровня оптимизации QuickC по телам user-процедур.

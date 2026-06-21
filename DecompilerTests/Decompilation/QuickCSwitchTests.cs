@@ -14,7 +14,7 @@ public sealed class QuickCSwitchTests : BaseTests
     public void GetAllOperations_SwitchExe_RecognizesOnlyQuickCSwitchPattern()
     {
         var builtExePath = ExeProvider.Get("switch.c", libraries: ["SLIBCE.LIB"]);
-        var parser = new UltraDecompiler.Disassembly.Parser.DosExeParser(builtExePath);
+        var parser = new DosExeParser(builtExePath);
         var provider = new UltraDecompiler.LibMatching.LibraryProvider(
             QuickCTestAssets.LibDirectory,
             ["SLIBCE.LIB"]);
@@ -39,8 +39,8 @@ public sealed class QuickCSwitchTests : BaseTests
         Assert.Equal(0x6A, patterns[0].EntryOffset);
         Assert.Equal(0xC2, patterns[0].MergeOffset);
 
-        var expressions = new ExpressionBuilder();
-        expressions.Build(cfg, parser.IsCom);
+        var expressions = ExpressionBuilder.Create(cfg, OptimizationLevel.Disabled);
+        expressions.Build();
 
         var flattener = new OperationFlattener(expressions, cfg.Blocks, LoopAnalyzerFactory.Create(OptimizationLevel.Disabled));
         var operations = flattener.GetAllOperations();

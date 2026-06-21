@@ -139,8 +139,8 @@ internal static class IrGraphCommand
         var cfg = new ControlFlowGraph();
         cfg.Build(disassembler, offset, parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe);
 
-        var builder = ExpressionBuilder.Create(opt);
-        builder.Build(cfg, []);
+        var builder = ExpressionBuilder.Create(cfg, opt);
+        builder.Build();
 
         string dotPath = outputPath ?? "ir_graph.dot";
 

@@ -1,4 +1,4 @@
-namespace UltraDecompiler.PostProcessing.Epilogue;
+namespace UltraDecompiler.Decompilation.Heuristics;
 
 /// <summary>Распознавание стандартного эпилога функции QuickC.</summary>
 public static class EpilogueAnalyzer

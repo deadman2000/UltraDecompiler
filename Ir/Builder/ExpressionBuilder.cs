@@ -16,11 +16,18 @@ namespace UltraDecompiler.Ir.Builder;
 /// </summary>
 public partial class ExpressionBuilder
 {
+    private readonly ControlFlowGraph _graph;
+
     private readonly Dictionary<BasicBlock, ExprBlock> _blocksMap = [];
     private readonly Queue<ExprBlock> _queue = new();
     private ExprBlock? _entryBlock;
     private IReadOnlyDictionary<BasicBlock, List<BasicBlock>> _predecessors =
         new Dictionary<BasicBlock, List<BasicBlock>>();
+
+    internal ExpressionBuilder(ControlFlowGraph graph)
+    {
+        _graph = graph;
+    }
 
     /// <summary>
     /// Точка входа IR-дерева (первый построенный ExprBlock).
@@ -31,17 +38,19 @@ public partial class ExpressionBuilder
 
     public VariableStorage Variables { get; } = new();
 
+    public Stack<Expr> InitialStack { get; } = new();
+
     /// <summary>
     /// Оптимизация
     /// </summary>
     public bool VarUsageOptimization { get; set; } = true;
 
-    public static ExpressionBuilder Create(OptimizationLevel optimization)
+    public static ExpressionBuilder Create(ControlFlowGraph cfg, OptimizationLevel optimization)
     {
         return optimization switch
         {
-            OptimizationLevel.Disabled => new ExpressionBuilderQuickCUnopt(),
-            OptimizationLevel.Enabled or OptimizationLevel.EnableLoop or OptimizationLevel.EnabledFull => new ExpressionBuilderQuickCOpt(),
+            OptimizationLevel.Disabled => new ExpressionBuilderQuickCUnopt(cfg),
+            OptimizationLevel.Enabled or OptimizationLevel.EnableLoop or OptimizationLevel.EnabledFull => new ExpressionBuilderQuickCOpt(cfg),
             _ => throw new NotImplementedException(),
         };
     }
@@ -61,57 +70,18 @@ public partial class ExpressionBuilder
     /// выполняется CallSiteResolver для подстановки имён (в т.ч. библиотечных) и аргументов в CallExpr.
     /// </summary>
     /// <param name="graph">Построенный граф потока управления</param>
-    /// <param name="isCom">true для .COM файлов (другая инициализация регистров)</param>
-    public void Build(ControlFlowGraph graph, bool isCom = false)
-    {
-        Variables.Clear();
-
-        RunBuild(graph, []);
-    }
-
-    /// <summary>
-    /// Выполняет декомпиляцию процедуры (с начальным retAddr на стеке).
-    /// </summary>
-    public void BuildProc(ControlFlowGraph graph)
-    {
-        Variables.Clear();
-        List<Expr> stack = [];
-        stack.Add(Variables.CreateInternalVariable("retAddr").ToGet());
-        RunBuild(graph, stack);
-    }
-
-    /// <summary>
-    /// Выполняет декомпиляцию с явно заданным начальным состоянием регистров.
-    /// 
-    /// Полезно в тестах для проверки работы с символическими переменными
-    /// (когда регистры уже содержат Variable или сложные выражения).
-    /// 
-    /// В отличие от версии с isCom, эта перегрузка НЕ очищает <see cref="Variables"/>
-    /// (чтобы созданные пользователем переменные в initialRegisters остались валидными).
-    /// </summary>
-    public void Build(ControlFlowGraph graph, Stack<Expr> initialStack)
-    {
-        // Важно: Variables НЕ очищаем — пользователь мог создать в них переменные для initialRegisters.
-        RunBuild(graph, initialStack);
-    }
-
-    /// <summary>
-    /// Общая логика построения (BFS + linking).
-    /// </summary>
-    private void RunBuild(
-        ControlFlowGraph graph,
-        IEnumerable<Expr> initialStack)
+    public void Build()
     {
         Blocks.Clear();
         _blocksMap.Clear();
         _queue.Clear();
         _entryBlock = null;
 
-        AnalyzeFunctionParameters(graph);
-        _predecessors = BuildPredecessors(graph.Blocks);
+        AnalyzeFunctionParameters(_graph);
+        _predecessors = BuildPredecessors(_graph.Blocks);
 
         // Формируем первый блок и добавляем его в очередь на обработку
-        CreateExprBlock(graph.EntryBlock, initialStack);
+        CreateExprBlock(_graph.EntryBlock, InitialStack);
 
         var visited = new HashSet<BasicBlock>();
 
@@ -153,7 +123,7 @@ public partial class ExpressionBuilder
             }
         }
 
-        InsertTailReturnsBeforeEpilogue(graph);
+        InsertTailReturnsBeforeEpilogue();
         RemoveSharedEpilogueBlocks();
 
         if (VarUsageOptimization)

@@ -1,4 +1,6 @@
 
+using UltraDecompiler.Decompilation.Heuristics;
+
 namespace UltraDecompiler.Decompilation;
 
 /// <summary>Назначает сигнатуры всем процедурам в хранилище (заголовки или анализ тела).</summary>

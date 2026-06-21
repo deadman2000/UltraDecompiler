@@ -301,14 +301,14 @@ public partial class ExpressionBuilder
     /// <summary>
     /// Для /Od: заменяет tail jmp в общий эпилог явным <see cref="ReturnOperation"/> с текущим AX.
     /// </summary>
-    private void InsertTailReturnsBeforeEpilogue(ControlFlowGraph graph)
+    private void InsertTailReturnsBeforeEpilogue()
     {
         if (!ShouldInsertTailReturnsBeforeEpilogue())
         {
             return;
         }
 
-        var blockByOffset = graph.Blocks.ToDictionary(static b => b.StartOffset);
+        var blockByOffset = _graph.Blocks.ToDictionary(static b => b.StartOffset);
 
         foreach (var block in Blocks)
         {

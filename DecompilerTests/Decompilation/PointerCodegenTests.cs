@@ -102,7 +102,7 @@ public class PointerCodegenTests
         {
             Offset = 0x10,
             Instructions = [],
-            Expressions = new ExpressionBuilder(),
+            Expressions = null!,
             Name = "main",
             IsLibrary = false,
             Signature = new ProcedureSignature(CType.Int, []),

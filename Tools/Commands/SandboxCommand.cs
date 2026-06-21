@@ -1,4 +1,5 @@
 ﻿using McMaster.Extensions.CommandLineUtils;
+using UltraDecompiler.Compilation;
 
 namespace Tools.Commands;
 
@@ -24,8 +25,8 @@ internal static class SandboxCommand
         var cfg = new ControlFlowGraph();
         cfg.Build(disassembler, 0, RegisterState.Unknown);
 
-        var expressions = new ExpressionBuilder();
-        expressions.Build(cfg, []);
+        var expressions = ExpressionBuilder.Create(cfg, OptimizationLevel.Disabled);
+        expressions.Build();
 
         Console.WriteLine();
 

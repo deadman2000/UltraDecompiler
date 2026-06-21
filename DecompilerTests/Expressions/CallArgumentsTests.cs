@@ -135,12 +135,12 @@ public class CallArgumentsTests : BaseTests
         Assert.Single(callExpr.Args);
     }
 
-    protected static ExpressionBuilder BuildExpressions(string hex, ProcedureStorage procedures, bool isCom = false)
+    protected static ExpressionBuilder BuildExpressions(string hex, ProcedureStorage storage)
     {
         var graph = GetGraph(hex);
-        var decompiler = new ExpressionBuilder();
-        decompiler.Build(graph, isCom);
-        CallSiteResolver.ResolveBlocks(decompiler.Blocks, procedures);
+        var decompiler = ExpressionBuilder.Create(graph, UltraDecompiler.Compilation.OptimizationLevel.Disabled);
+        decompiler.Build();
+        CallSiteResolver.ResolveBlocks(decompiler.Blocks, storage);
         return decompiler;
     }
 }

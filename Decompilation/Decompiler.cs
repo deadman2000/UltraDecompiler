@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using UltraDecompiler.CodeGeneration;
 using UltraDecompiler.Compilation;
+using UltraDecompiler.Decompilation.Heuristics;
 using UltraDecompiler.Disassembly.Parser;
 using UltraDecompiler.Ir.Builder.Loops;
 using UltraDecompiler.Ir.Helpers;
@@ -261,8 +262,8 @@ public class Decompiler
             var cfg = new ControlFlowGraph();
             cfg.BuildFromInstructions(instructions, offset, _initRegisters);
 
-            var expressions = ExpressionBuilder.Create(_optimizationLevel);
-            expressions.BuildProc(cfg);
+            var expressions = ExpressionBuilder.Create(cfg, _optimizationLevel);
+            expressions.Build();
 
             var userProc = new DisassembledProcedure
             {

@@ -1,7 +1,6 @@
-using UltraDecompiler.PostProcessing.Epilogue;
 using UltraDecompiler.PostProcessing.Helpers;
 
-namespace UltraDecompiler.Decompilation;
+namespace UltraDecompiler.Decompilation.Heuristics;
 
 /// <summary>
 /// Восстанавливает сигнатуру пользовательской процедуры по ассемблерному телу (пролог, [BP+n], RET).

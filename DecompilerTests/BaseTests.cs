@@ -1,7 +1,5 @@
 ﻿using UltraDecompiler.Compilation;
 using UltraDecompiler.Ir.Builder.Loops;
-using UltraDecompiler.PostProcessing.Abstractions;
-using UltraDecompiler.PostProcessing.Profiles;
 
 namespace DecompilerTests;
 
@@ -46,24 +44,10 @@ public abstract class BaseTests
 
     protected static ExpressionBuilder BuildExpressions(string hex)
     {
-        return BuildExpressions(hex, isCom: false);
-    }
-
-    protected static ExpressionBuilder BuildExpressions(string hex, bool isCom)
-    {
         var graph = GetGraph(hex);
-        var builder = new ExpressionBuilder();
+        var builder = ExpressionBuilder.Create(graph, OptimizationLevel.Disabled);
         builder.VarUsageOptimization = false;
-        builder.Build(graph, isCom);
-        return builder;
-    }
-
-    /// <summary>Строит IR с включённым <see cref="ExpressionBuilder.RemoveUnusedSets"/>.</summary>
-    protected static ExpressionBuilder BuildExpressionsOptimized(string hex, bool isCom = false)
-    {
-        var graph = GetGraph(hex);
-        var builder = new ExpressionBuilder { VarUsageOptimization = true };
-        builder.Build(graph, isCom);
+        builder.Build();
         return builder;
     }
 
@@ -71,8 +55,8 @@ public abstract class BaseTests
     protected static ExpressionBuilder BuildProcExpressions(string hex)
     {
         var graph = GetGraph(hex);
-        var builder = ExpressionBuilder.Create(OptimizationLevel.Disabled);
-        builder.BuildProc(graph);
+        var builder = ExpressionBuilder.Create(graph, OptimizationLevel.Disabled);
+        builder.Build();
         return builder;
     }
 
@@ -80,54 +64,8 @@ public abstract class BaseTests
     protected static ExpressionBuilder BuildProcExpressionsOpt(string hex)
     {
         var graph = GetGraph(hex);
-        var builder = ExpressionBuilder.Create(OptimizationLevel.EnabledFull);
-        builder.BuildProc(graph);
-        return builder;
-    }
-    protected static ExpressionBuilder BuildExpressions(
-        string hex,
-        IReadOnlyDictionary<int, string> knownProcedures,
-        bool isCom = false)
-    {
-        var graph = GetGraph(hex);
-        var builder = new ExpressionBuilder();
-        builder.Build(graph, isCom);
-
-        ProcedureStorage procedures = new();
-        foreach (var kv in knownProcedures)
-        {
-            procedures.Add(new DisassembledProcedure()
-            {
-                Instructions = [],
-                Name = kv.Value,
-                Offset = kv.Key
-            });
-        }
-
-        CallSiteResolver.ResolveBlocks(builder.Blocks, procedures);
-        return builder;
-    }
-
-    /// <summary>
-    /// Вариант для тестов со стеком: позволяет задать и регистры, и начальное содержимое символического стека.
-    /// </summary>
-    protected static ExpressionBuilder BuildExpressions(string hex, Stack<Expr> initialStack)
-    {
-        var graph = GetGraph(hex);
-        var builder = new ExpressionBuilder();
-        builder.Build(graph, initialStack);
-        return builder;
-    }
-
-    /// <summary>
-    /// Самый удобный вариант для тестов со стеком + переменными.
-    /// </summary>
-    protected static ExpressionBuilder BuildExpressions(string hex, Func<VariableStorage, Stack<Expr>> configure)
-    {
-        var graph = GetGraph(hex);
-        var builder = new ExpressionBuilder();
-        var stack = configure(builder.Variables);
-        builder.Build(graph, stack);
+        var builder = ExpressionBuilder.Create(graph, OptimizationLevel.EnabledFull);
+        builder.Build();
         return builder;
     }
 
@@ -156,8 +94,10 @@ public abstract class BaseTests
     /// </summary>
     protected static IReadOnlyList<Operation> BuildProcOperationsOpt(string hex)
     {
-        var cfg = GetGraph(hex);
-        var builder = BuildProcExpressionsOpt(hex);
-        return CreateFlattener(builder, cfg, OptimizationLevel.EnabledFull).GetAllOperations();
+        var graph = GetGraph(hex);
+        var builder = ExpressionBuilder.Create(graph, OptimizationLevel.EnabledFull);
+        builder.Build();
+
+        return CreateFlattener(builder, graph, OptimizationLevel.EnabledFull).GetAllOperations();
     }
 }
