@@ -285,6 +285,9 @@ public class Decompiler
     /// </summary>
     private void ExportControlFlowGraphs()
     {
+        if (_outputDirectory == null)
+            return;
+
         foreach (var proc in _storage.All)
         {
             if (proc.IsLibrary || proc.Expressions == null)
