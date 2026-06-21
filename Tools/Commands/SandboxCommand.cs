@@ -1,5 +1,5 @@
 ﻿using McMaster.Extensions.CommandLineUtils;
-using UltraDecompiler.Compilation;
+using UltraDecompiler.Common;
 
 namespace Tools.Commands;
 

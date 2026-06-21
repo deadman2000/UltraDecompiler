@@ -1,8 +1,7 @@
 using System.Collections.Concurrent;
-using Common;
 using LibParser.Models;
 using LibParser.Omf;
-using UltraDecompiler.Compilation;
+using UltraDecompiler.Common;
 
 namespace UltraDecompiler.LibMatching;
 

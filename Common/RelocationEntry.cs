@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace Common;
+namespace UltraDecompiler.Common;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct RelocationEntry

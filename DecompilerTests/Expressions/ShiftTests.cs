@@ -1,5 +1,3 @@
-using TestSupport;
-
 namespace DecompilerTests.Expressions;
 
 /// <summary>

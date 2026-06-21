@@ -1,6 +1,6 @@
 using McMaster.Extensions.CommandLineUtils;
 using TestSupport;
-using UltraDecompiler.Compilation;
+using UltraDecompiler.Common;
 
 namespace Tools.Commands;
 

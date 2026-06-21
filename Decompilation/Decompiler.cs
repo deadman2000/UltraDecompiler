@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using UltraDecompiler.CodeGeneration;
-using UltraDecompiler.Compilation;
+using UltraDecompiler.Common;
 using UltraDecompiler.Decompilation.Heuristics;
 using UltraDecompiler.Disassembly.Parser;
 using UltraDecompiler.Ir.Builder.Loops;

@@ -1,6 +1,6 @@
 using TestSupport;
 using UltraDecompiler.CodeGeneration;
-using UltraDecompiler.Compilation;
+using UltraDecompiler.Common;
 
 namespace DecompilerTests.Decompilation;
 

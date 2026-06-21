@@ -1,4 +1,4 @@
-using UltraDecompiler.Compilation;
+using UltraDecompiler.Common;
 
 namespace UltraDecompiler.Decompilation.Heuristics;
 

@@ -8,7 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Compilation\UltraDecompiler.Compilation.csproj" />
     <ProjectReference Include="..\Ir\UltraDecompiler.Ir.csproj" />
   </ItemGroup>
 

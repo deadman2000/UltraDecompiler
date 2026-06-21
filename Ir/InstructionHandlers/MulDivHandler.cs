@@ -1,7 +1,4 @@
-using UltraDecompiler.Disassembly.Disassembler;
-using UltraDecompiler.Ir.Expressions;
 using UltraDecompiler.Ir.Helpers;
-using UltraDecompiler.Ir.Variables;
 
 namespace UltraDecompiler.Ir.InstructionHandlers;
 

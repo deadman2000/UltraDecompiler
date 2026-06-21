@@ -1,4 +1,4 @@
-namespace UltraDecompiler.Compilation;
+namespace UltraDecompiler.Common;
 
 /// <summary>
 /// Модель памяти MS-DOS, использованная при сборке программы QuickC.

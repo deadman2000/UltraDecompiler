@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using UltraDecompiler.Compilation;
+using UltraDecompiler.Common;
 
 namespace TestSupport;
 

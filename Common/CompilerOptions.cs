@@ -1,4 +1,4 @@
-namespace UltraDecompiler.Compilation;
+namespace UltraDecompiler.Common;
 
 /// <summary>
 /// Восстановленные параметры компиляции для декомпилируемой программы.

@@ -1,5 +1,5 @@
 using TestSupport;
-using UltraDecompiler.Compilation;
+using UltraDecompiler.Common;
 
 namespace LibMatchingTests;
 

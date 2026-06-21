@@ -15,15 +15,14 @@
     <Project Path="LibParserTests/LibParserTests.csproj" Id="3801ede4-44db-4ae1-a2eb-cc1219f2891f" />
     <Project Path="TestSupport/TestSupport.csproj" />
   </Folder>
-  <Project Path="Common/Common.csproj" Id="2701420b-db37-4c1e-8f99-558f9a4a6e83" />
   <Project Path="LibParser/LibParser.csproj" Id="1ada3799-6cfa-4b93-aa72-1f2f479a47cf" />
   <Project Path="Disassembly/UltraDecompiler.Disassembly.csproj" />
   <Project Path="Ir/UltraDecompiler.Ir.csproj" />
   <Project Path="Headers/UltraDecompiler.Headers.csproj" />
-  <Project Path="Compilation/UltraDecompiler.Compilation.csproj" />
   <Project Path="LibMatching/UltraDecompiler.LibMatching.csproj" />
   <Project Path="PostProcessing/UltraDecompiler.PostProcessing.csproj" />
   <Project Path="CodeGeneration/UltraDecompiler.CodeGeneration.csproj" />
+  <Project Path="Common/UltraDecompiler.Common.csproj" Id="2701420b-db37-4c1e-8f99-558f9a4a6e83" />
   <Project Path="Decompilation/UltraDecompiler.Decompilation.csproj" />
   <Project Path="Tools/Tools.csproj" />
 </Solution>

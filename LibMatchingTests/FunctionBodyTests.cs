@@ -1,4 +1,4 @@
-using Common;
+using UltraDecompiler.Common;
 using UltraDecompiler.LibMatching;
 
 namespace LibMatchingTests;

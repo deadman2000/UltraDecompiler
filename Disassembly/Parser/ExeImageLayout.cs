@@ -1,4 +1,4 @@
-using Common;
+using UltraDecompiler.Common;
 
 namespace UltraDecompiler.Disassembly.Parser;
 

@@ -1,7 +1,4 @@
 ﻿using UltraDecompiler.CodeGeneration;
-using UltraDecompiler.Ir.Expressions;
-using UltraDecompiler.Ir.Helpers;
-using UltraDecompiler.Ir.Variables;
 
 namespace UltraDecompiler.PostProcessing.Normalization;
 

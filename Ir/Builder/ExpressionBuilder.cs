@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using UltraDecompiler.Compilation;
+using UltraDecompiler.Common;
 using UltraDecompiler.Ir.InstructionHandlers;
 using UltraDecompiler.Ir.Variables;
 

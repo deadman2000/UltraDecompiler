@@ -1,7 +1,7 @@
 using DecompilerTests.Decompilation;
 using TestSupport;
 using UltraDecompiler.CodeGeneration;
-using UltraDecompiler.Compilation;
+using UltraDecompiler.Common;
 
 namespace DecompilerTests.RoundTrip;
 

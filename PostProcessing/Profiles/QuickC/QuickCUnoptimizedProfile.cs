@@ -1,4 +1,4 @@
-using UltraDecompiler.Compilation;
+using UltraDecompiler.Common;
 using UltraDecompiler.PostProcessing.Abstractions;
 using UltraDecompiler.PostProcessing.Epilogue;
 using UltraDecompiler.PostProcessing.Literals;

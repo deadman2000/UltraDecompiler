@@ -1,4 +1,5 @@
 using TestSupport;
+using UltraDecompiler.Common;
 
 namespace DecompilerTests.Expressions;
 
@@ -306,7 +307,7 @@ public class PrologueEpilogueTests : BaseTests
     public void FuncC_RoundTrip_PrologueEpilogueHandledCorrectly()
     {
         // Собираем func.c в EXE через DOSBox + QuickC /Od
-        var exePath = ExeProvider.Get("func.c", stackCheck: false, optimization: UltraDecompiler.Compilation.OptimizationLevel.Disabled);
+        var exePath = ExeProvider.Get("func.c", stackCheck: false, optimization: OptimizationLevel.Disabled);
 
         var decompiler = new Decompiler(exePath,
             QuickCTestAssets.LibDirectory,

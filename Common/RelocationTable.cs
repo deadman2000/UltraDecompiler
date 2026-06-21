@@ -1,4 +1,4 @@
-namespace Common;
+namespace UltraDecompiler.Common;
 
 /// <summary>
 /// Таблица релокаций MZ EXE: помечает слова образа как смещения относительно именованных баз.
