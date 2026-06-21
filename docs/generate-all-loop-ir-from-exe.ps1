@@ -55,7 +55,7 @@ $loopCases = @(
             @{ Name = "do_while"; Offset = "0x179"; Opt = "Od" },
             @{ Name = "while_break"; Offset = "0x1AB"; Opt = "Od" },
             @{ Name = "for_empty"; Offset = "0x1DB"; Opt = "Od" },
-            @{ Name = "nested_outer"; Offset = "0x205"; Opt = "Od" },
+            @{ Name = "nested_for"; Offset = "0x205"; Opt = "Od" },
             @{ Name = "for_step3"; Offset = "0x10"; Opt = "Ox" },
             @{ Name = "for_mul"; Offset = "0x42"; Opt = "Ox" },
             @{ Name = "for_no_update"; Offset = "0x7A"; Opt = "Ox" },
