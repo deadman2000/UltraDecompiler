@@ -128,6 +128,7 @@ public partial class ExpressionBuilder
 
         if (VarUsageOptimization)
         {
+            OptimizeRegisterChains();
             RemoveUnusedSets();
         }
     }

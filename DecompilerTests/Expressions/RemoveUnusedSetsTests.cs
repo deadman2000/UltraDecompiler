@@ -53,7 +53,8 @@ public class RemoveUnusedSetsTests : BaseTests
             set => set.Src is CallExpr);
     }
 
-    // MOV AX, 1; MOV CX, AX; RET — AX читается ниже по блоку
+    // MOV AX, 1; MOV CX, AX; RET — цепочка оптимизируется, CX = 1 удаляется как мёртвый
+    // После оптимизации: return 1 (все присваивания удалены)
     [Fact]
     public void Optimized_KeepsRegisterAssignment_WhenReadInSameBlock()
     {
@@ -63,12 +64,12 @@ public class RemoveUnusedSetsTests : BaseTests
             C3          ; RET
             """);
 
-        var axSets = expr.Blocks[0].Operations.OfType<SetOperation>()
-            .Where(set => AssignmentTarget.ReferencesVariable(set.Dst, expr.Variables.AX))
-            .ToList();
+        // После оптимизации все присваивания удалены, остался только return 1
+        var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
+        Assert.Empty(sets);
 
-        Assert.Single(axSets);
-        Assert.Equal(1, ((ConstExpr)axSets[0].Src).Value);
+        var ret = Assert.Single(expr.Blocks[0].Operations.OfType<ReturnOperation>());
+        Assert.Equal(1, ((ConstExpr)ret.Value!).Value);
     }
 
     // MOV AX, 1; JMP next; …; RET — AX живёт в successor через ReturnOperation
@@ -134,7 +135,8 @@ public class RemoveUnusedSetsTests : BaseTests
         Assert.DoesNotContain(sets, set => AssignmentTarget.ReferencesVariable(set.Dst, expr.Variables.CF));
     }
 
-    // MOV AX, 1; MOV BX, AX; MOV AX, 2; RET — копия BX мёртва, AX=1 тоже
+    // MOV AX, 1; MOV BX, AX; MOV AX, 2; RET — копия BX мёртва, AX=1 тоже, AX=2 оптимизируется в return
+    // После оптимизации: return 2 (все присваивания удалены)
     [Fact]
     public void Optimized_RemovesDeadCopyChain_InFixpointLoop()
     {
@@ -145,14 +147,11 @@ public class RemoveUnusedSetsTests : BaseTests
             C3          ; RET
             """);
 
-        Assert.DoesNotContain(
-            expr.Blocks[0].Operations.OfType<SetOperation>(),
-            set => AssignmentTarget.ReferencesVariable(set.Dst, expr.Variables.BX));
+        // Все присваивания удалены
+        var sets = expr.Blocks[0].Operations.OfType<SetOperation>().ToList();
+        Assert.Empty(sets);
 
-        var axSet = Assert.Single(
-            expr.Blocks[0].Operations.OfType<SetOperation>(),
-            set => AssignmentTarget.ReferencesVariable(set.Dst, expr.Variables.AX));
-
-        Assert.Equal(2, ((ConstExpr)axSet.Src).Value);
+        var ret = Assert.Single(expr.Blocks[0].Operations.OfType<ReturnOperation>());
+        Assert.Equal(2, ((ConstExpr)ret.Value!).Value);
     }
 }
