@@ -13,11 +13,10 @@ public sealed class QuickCSwitchTests : BaseTests
     [Fact(Skip = "NotImplemented")]
     public void GetAllOperations_SwitchExe_RecognizesOnlyQuickCSwitchPattern()
     {
-        var builtExePath = ExeProvider.Get("switch.c", libraries: ["SLIBCE.LIB"]);
+        var builtExePath = ExeProvider.Get("switch.c");
         var parser = new DosExeParser(builtExePath);
         var provider = new UltraDecompiler.LibMatching.LibraryProvider(
-            QuickCTestAssets.LibDirectory,
-            ["SLIBCE.LIB"]);
+            QuickCTestAssets.LibDirectory);
         var initRegisters = parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe;
 
         Assert.True(

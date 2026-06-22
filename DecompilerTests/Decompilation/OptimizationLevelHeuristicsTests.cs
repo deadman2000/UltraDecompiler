@@ -86,7 +86,6 @@ public sealed class OptimizationLevelHeuristicsTests
     {
         var exePath = ExeProvider.Get(
             sourceFileName,
-            libraries: ["SLIBCE.LIB"],
             optimization: buildOptimization);
 
         var result = DecompileTestHelper.DecompileExample(exePath);

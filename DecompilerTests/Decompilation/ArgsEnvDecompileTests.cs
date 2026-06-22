@@ -9,7 +9,7 @@ public sealed class ArgsEnvDecompileTests
     [Fact(Skip = "NotImplemented")]
     public void Decompile_Args_MainUsesArgcArgv()
     {
-        var exePath = ExeProvider.Get("args.c", libraries: ["SLIBCE.LIB"]);
+        var exePath = ExeProvider.Get("args.c");
         var result = DecompileTestHelper.DecompileExample(exePath);
 
         Assert.True(result.Success);
@@ -26,7 +26,7 @@ public sealed class ArgsEnvDecompileTests
     [Fact(Skip = "NotImplemented")]
     public void Decompile_Env_MainUsesEnvp()
     {
-        var exePath = ExeProvider.Get("env.c", libraries: ["SLIBCE.LIB"]);
+        var exePath = ExeProvider.Get("env.c");
         var result = DecompileTestHelper.DecompileExample(exePath);
 
         Assert.True(result.Success);

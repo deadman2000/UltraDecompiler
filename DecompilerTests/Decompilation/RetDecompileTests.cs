@@ -11,10 +11,10 @@ public sealed class RetDecompileTests
     // Ожидаемый фрагмент RET.c:
     //   void sub_0010(int arg0) { if (arg0) { } }          — без return
     //   void sub_0028(int arg0) { if (arg0) return; return; }
-    [Fact(Skip = "NotImplemented")]
+    [Fact]
     public void Decompile_Ret_EmitsReturn()
     {
-        var result = DecompileTestHelper.DecompileExample("ret.c", libraries: ["SLIBCE.LIB"]);
+        var result = DecompileTestHelper.DecompileExample("ret.c");
 
         Assert.True(result.Success);
         var source = DecompileTestHelper.ReadPrimarySource(result);

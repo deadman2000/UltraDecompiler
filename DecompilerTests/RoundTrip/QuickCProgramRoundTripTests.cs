@@ -11,7 +11,6 @@ namespace DecompilerTests.RoundTrip;
 [Trait("Tool", "DosBox")]
 public sealed class QuickCProgramRoundTripTests
 {
-    private const string CrtLibrary = "SLIBCE.LIB";
     private const string DecompiledSubdirectory = "OUT";
 
     // Для каждого PROGRAMS/*.c: ExeProvider → Decompiler → MAKE → побайтовое сравнение с эталоном.
@@ -42,7 +41,7 @@ public sealed class QuickCProgramRoundTripTests
             throw new InvalidOperationException();
         }
 
-        var builtExePath = ExeProvider.Get(sourceFileName, libraries: [CrtLibrary], optimization: optimizationLevel);
+        var builtExePath = ExeProvider.Get(sourceFileName, optimization: optimizationLevel);
         var targetExeFileName = FormatTargetExeFileName(Path.GetFileNameWithoutExtension(sourceFileName));
         var workspaceId = CreateWorkspaceId();
         var workspaceDirectory = Path.Combine(QuickCTestAssets.RoundTripWorkRoot, workspaceId);
@@ -62,8 +61,7 @@ public sealed class QuickCProgramRoundTripTests
                 referenceExePath,
                 QuickCTestAssets.LibDirectory,
                 QuickCTestAssets.IncludeDirectory,
-                decompiledDirectory,
-                libraryFileNames: [CrtLibrary]);
+                decompiledDirectory);
             var decompileResult = decompiler.Decompile();
 
             Assert.True(decompileResult.Success, "Декомпиляция завершилась неуспешно.");
