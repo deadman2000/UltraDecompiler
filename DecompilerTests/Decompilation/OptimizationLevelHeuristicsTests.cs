@@ -11,7 +11,28 @@ public sealed class OptimizationLevelHeuristicsTests
     [Fact]
     public void DetectFromUserProcedures_GlobOd_ReturnsDisabled()
     {
-        var parser = new DosExeParser(ExeProvider.Get("glob.c"));
+        const string globSource = """
+            #include <stdio.h>
+
+            int counter = 0;
+
+            void bump(void)
+            {
+                counter++;
+            }
+
+            int main(void)
+            {
+                bump();
+                bump();
+                printf("%d\n", counter);
+
+                return 0;
+            }
+            """;
+
+        var exePath = ExeProvider.CompileFromSource(globSource);
+        var parser = new DosExeParser(exePath);
         var bump = X86Disassembler.Disassemble(parser.Image, parser.RelocationTable, 0x10, RegisterState.InitExe);
         var main = X86Disassembler.Disassemble(parser.Image, parser.RelocationTable, 0x25, RegisterState.InitExe);
 

@@ -1,18 +1,65 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
+using System.Text;
 using UltraDecompiler.Common;
 
 namespace TestSupport;
 
 /// <summary>
 /// Предоставляет пути к EXE-примерам QuickC: возвращает кэшированный файл из <c>QuickC/BUILT</c>
-/// или собирает его через DOSBox-X и QCL. Кэш инвалидируется при изменении исходника (SHA-256).
+/// или собирает его через DOSBox-X и QCL. Файловые примеры кэшируются с инвалидацией по SHA-256
+/// исходника; inline-исходники — по SHA-256 строки и параметрам сборки.
 /// </summary>
 public static class ExeProvider
 {
     private static readonly ConcurrentDictionary<string, Lock> CacheLocks = new(StringComparer.OrdinalIgnoreCase);
 
     private const string TempExeFileName = "OUT.EXE";
+
+    /// <summary>
+    /// Собирает EXE из исходного кода в строке; кэш — по SHA-256 текста и параметрам QCL.
+    /// </summary>
+    /// <param name="source">Исходный код C для компиляции.</param>
+    /// <param name="memoryModel">Модель памяти.</param>
+    /// <param name="stackCheck">Включить проверку стека (<c>/Gs</c> при <see langword="false"/>).</param>
+    /// <param name="optimization">Уровень оптимизации.</param>
+    /// <param name="libraries">OMF-библиотеки для линковки.</param>
+    public static string CompileFromSource(
+        string source,
+        MemoryModel memoryModel = MemoryModel.Small,
+        bool stackCheck = false,
+        OptimizationLevel optimization = OptimizationLevel.Disabled,
+        params string[]? libraries)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(source);
+
+        var normalizedLibraries = NormalizeLibraries(libraries) ?? [];
+        var sourceHash = ComputeStringChecksum(source);
+        var cachePath = GetInlineCachePath(sourceHash, memoryModel, stackCheck, optimization, normalizedLibraries);
+
+        if (File.Exists(cachePath))
+        {
+            return cachePath;
+        }
+
+        var cacheLock = GetCacheLock(cachePath);
+        lock (cacheLock)
+        {
+            if (File.Exists(cachePath))
+            {
+                return cachePath;
+            }
+
+            EnsureCompiledFromContent(
+                source,
+                cachePath,
+                memoryModel,
+                stackCheck,
+                optimization,
+                normalizedLibraries);
+            return cachePath;
+        }
+    }
 
     /// <summary>
     /// Возвращает путь к exe-файлу примера, собранного с заданными параметрами.
@@ -89,9 +136,11 @@ public static class ExeProvider
     private static string ComputeSourceChecksum(string sourcePath)
     {
         using var stream = File.OpenRead(sourcePath);
-        var hash = SHA256.HashData(stream);
-        return Convert.ToHexString(hash);
+        return Convert.ToHexString(SHA256.HashData(stream));
     }
+
+    private static string ComputeStringChecksum(string source) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source)));
 
     /// <summary>
     /// Строит относительный путь кэша: <c>hello/s_gs_o.exe</c>, <c>long/s_gs_o_slibce_libh.exe</c>.
@@ -106,6 +155,16 @@ public static class ExeProvider
         var sourceFileName = NormalizeSourceFileName(fileName);
 
         var baseName = Path.GetFileNameWithoutExtension(sourceFileName).ToLowerInvariant();
+        var exeName = FormatBuildArtifactFileName(memoryModel, stackCheck, optimization, libraries);
+        return Path.Combine(baseName, exeName);
+    }
+
+    private static string FormatBuildArtifactFileName(
+        MemoryModel memoryModel,
+        bool stackCheck,
+        OptimizationLevel optimization,
+        string[] libraries)
+    {
         var memoryTag = GetMemoryModelTag(memoryModel);
         var stackTag = stackCheck ? "chk" : "gs";
         var optTag = optimization switch
@@ -118,7 +177,7 @@ public static class ExeProvider
         };
         var librariesTag = FormatLibrariesTag(libraries);
 
-        return Path.Combine(baseName, $"{memoryTag}_{stackTag}_{optTag}{librariesTag}.exe");
+        return $"{memoryTag}_{stackTag}_{optTag}{librariesTag}.exe";
     }
 
     private static string GetCachePath(
@@ -132,6 +191,18 @@ public static class ExeProvider
         return Path.Combine(QuickCTestAssets.BuiltExesDirectory, relativePath);
     }
 
+    /// <summary>Кэш inline-исходников: <c>SRC/&lt;sha256&gt;/s_gs_od.exe</c>.</summary>
+    private static string GetInlineCachePath(
+        string sourceHash,
+        MemoryModel memoryModel,
+        bool stackCheck,
+        OptimizationLevel optimization,
+        string[] libraries)
+    {
+        var exeName = FormatBuildArtifactFileName(memoryModel, stackCheck, optimization, libraries);
+        return Path.Combine(QuickCTestAssets.BuiltExesDirectory, "SRC", sourceHash, exeName);
+    }
+
     private static void EnsureCompiled(
         string sourceFileName,
         string cachePath,
@@ -140,16 +211,35 @@ public static class ExeProvider
         OptimizationLevel optimization,
         string[] libraries)
     {
-        if (!DosBoxQuickCAssets.IsDosBoxAvailable)
-        {
-            throw new InvalidOperationException(
-                "DOSBox-X недоступен — невозможно собрать EXE-пример.");
-        }
-
         var sourcePath = QuickCTestAssets.ProgramsPathOf(sourceFileName);
         if (!File.Exists(sourcePath))
         {
             throw new FileNotFoundException($"Исходник примера не найден: {sourcePath}", sourcePath);
+        }
+
+        EnsureCompiledFromContent(
+            File.ReadAllText(sourcePath),
+            cachePath,
+            memoryModel,
+            stackCheck,
+            optimization,
+            libraries,
+            checksumSourcePath: sourcePath);
+    }
+
+    private static void EnsureCompiledFromContent(
+        string sourceContent,
+        string cachePath,
+        MemoryModel memoryModel,
+        bool stackCheck,
+        OptimizationLevel optimization,
+        string[] libraries,
+        string? checksumSourcePath = null)
+    {
+        if (!DosBoxQuickCAssets.IsDosBoxAvailable)
+        {
+            throw new InvalidOperationException(
+                "DOSBox-X недоступен — невозможно собрать EXE-пример.");
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
@@ -160,7 +250,7 @@ public static class ExeProvider
 
         var isolatedSourceFileName = $"{workspaceId}.C";
         var isolatedSourcePath = Path.Combine(workspaceDirectory, isolatedSourceFileName);
-        File.Copy(sourcePath, isolatedSourcePath, overwrite: true);
+        File.WriteAllText(isolatedSourcePath, sourceContent);
 
         var tempHostPath = Path.Combine(workspaceDirectory, TempExeFileName);
         var dosWorkspacePath = $@"C:\QuickC\BUILT\TMP\{workspaceId}";
@@ -176,11 +266,15 @@ public static class ExeProvider
             if (!File.Exists(tempHostPath))
             {
                 throw new InvalidOperationException(
-                    $"QCL не создал {TempExeFileName} для {sourceFileName}.{Environment.NewLine}{compileResult.Output}");
+                    $"QCL не создал {TempExeFileName}.{Environment.NewLine}{compileResult.Output}");
             }
 
             File.Move(tempHostPath, cachePath, overwrite: true);
-            WriteSourceChecksum(cachePath, sourcePath);
+
+            if (checksumSourcePath is not null)
+            {
+                WriteSourceChecksum(cachePath, checksumSourcePath);
+            }
         }
         finally
         {
