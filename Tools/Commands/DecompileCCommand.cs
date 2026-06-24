@@ -16,7 +16,12 @@ internal static class DecompileCCommand
             cmd.Description =
                 "Сопоставление с OMF .LIB, рекурсивный сбор функций и сохранение C-кода в каталог";
 
-            var exePathArg = cmd.Argument("exePath", "Путь к .EXE или .COM").IsRequired();
+            var inputArg = cmd.Argument(
+                "input",
+                "Путь к .EXE/.COM или имя примера из QuickC/PROGRAMS (*.c)")
+                .IsRequired();
+
+            var buildOptions = ExampleBuildCliOptions.AddTo(cmd);
 
             var libDirOpt = cmd.Option(
                 "-l|--lib-dir <DIR>",
@@ -35,8 +40,11 @@ internal static class DecompileCCommand
 
             cmd.OnExecute(() =>
             {
-                var exePath = exePathArg.Value
-                    ?? throw new InvalidOperationException("Не указан путь к файлу.");
+                var input = inputArg.Value
+                    ?? throw new InvalidOperationException("Не указан входной файл или пример.");
+
+                var build = buildOptions.Parse();
+                var exePath = ExampleInputResolver.Resolve(input, build, buildOptions.HasAnyValue);
 
                 return Execute(exePath, libDirOpt.Value(), incDirOpt.Value(), outputDirOpt.Value());
             });

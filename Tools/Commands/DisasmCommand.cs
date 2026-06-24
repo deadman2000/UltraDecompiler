@@ -14,7 +14,12 @@ internal static class DisasmCommand
         {
             cmd.Description = "Дизассемблирование .EXE/.COM (простой вывод инструкций)";
 
-            var exePathArg = cmd.Argument("exePath", "Путь к .EXE или .COM").IsRequired();
+            var inputArg = cmd.Argument(
+                "input",
+                "Путь к .EXE/.COM или имя примера из QuickC/PROGRAMS (*.c)")
+                .IsRequired();
+
+            var buildOptions = ExampleBuildCliOptions.AddTo(cmd);
 
             var offsetOpt = cmd.Option(
                 "-o|--offset <OFFSET>",
@@ -48,8 +53,11 @@ internal static class DisasmCommand
 
             cmd.OnExecute(() =>
             {
-                var exePath = exePathArg.Value
-                    ?? throw new InvalidOperationException("Не указан путь к файлу.");
+                var input = inputArg.Value
+                    ?? throw new InvalidOperationException("Не указан входной файл или пример.");
+
+                var build = buildOptions.Parse();
+                var exePath = ExampleInputResolver.Resolve(input, build, buildOptions.HasAnyValue);
 
                 return Execute(
                     exePath,

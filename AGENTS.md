@@ -75,6 +75,23 @@ DosExeParser → TryResolveMain → CollectInstructions → OptimizationLevelHeu
 | `disasm` | линейный дизассемблер |
 | `lib` | разбор OMF `.LIB` |
 
+**Примеры QuickC** (`QuickC/PROGRAMS/*.c`): вместо пути к EXE можно передать имя исходника (`hello`, `hello.c`, `switch.c`). EXE собирается через `ExeProvider` (DOSBox-X + QCL, кэш в `QuickC/BUILT/`). Параметры сборки:
+
+| Опция | Значение |
+|-------|----------|
+| `--model s\|c\|m\|l` | модель памяти (`/AS`…`/AL`; по умолчанию small) |
+| `--gs` / `--chkstk` | без проверки стека (`/Gs`, по умолчанию) или с ней |
+| `--od` / `--ox` / `--ot` / `--ol` или `--opt od` | уровень оптимизации |
+| `--lib SLIBCE.LIB` | OMF-библиотека при линковке (повторяемая) |
+
+```powershell
+# дизассемблирование _main в /Ox-примере
+dotnet run --project Tools -- disasm switch.c --main --ox
+
+# декомпиляция hello с large-моделью
+dotnet run --project Tools -- decompile-c hello --model l --lib LLIBCE.LIB -o out
+```
+
 Точки входа: `Decompilation/Decompiler.cs`, `Ir/Builder/ExpressionBuilder.cs`, `DecompilerTests/BaseTests.cs` (`Disassemble`, `GetGraph`, `BuildExpressions`).
 
 ---
