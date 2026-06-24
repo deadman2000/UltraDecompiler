@@ -67,6 +67,9 @@ public static class Handlers
         [Mnemonic.IMUL] = new MulDivHandler(Mnemonic.IMUL),
         [Mnemonic.DIV] = new MulDivHandler(Mnemonic.DIV),
         [Mnemonic.IDIV] = new MulDivHandler(Mnemonic.IDIV),
+
+        [Mnemonic.CBW] = new CbwHandler(),
+        [Mnemonic.CWD] = new CwdHandler(),
     };
 
     public static IInstructionHandler Get(Mnemonic mnemonic) => _dictionary.GetValueOrDefault(mnemonic) ?? throw new NotImplementedException($"Instruction {mnemonic} is not yet supported");
