@@ -18,8 +18,8 @@ function Gen-IR-FromSource {
     Write-Host "  $Name /$Opt ($Offset)..."
 
     & dotnet run --project Tools -- ir-graph `
-        --source $Source `
-        --offset $Offset `
+        $Source `
+        -o $Offset `
         --opt $Opt `
         --out $dotFile `
         --png 2>&1 | Out-Null

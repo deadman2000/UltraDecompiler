@@ -1,5 +1,4 @@
 using McMaster.Extensions.CommandLineUtils;
-using TestSupport;
 using UltraDecompiler.Common;
 
 namespace Tools.Commands;
@@ -13,19 +12,19 @@ internal static class IrGraphCommand
     {
         root.Command("ir-graph", cmd =>
         {
-            var fileOption = cmd.Option(
-                "-f|--file <PATH>",
-                "Путь к EXE-файлу",
-                CommandOptionType.SingleValue);
+            cmd.Description =
+                "DOT-граф IR одной функции по смещению в .EXE/.COM или примере QuickC";
+
+            var inputArg = cmd.Argument(
+                "input",
+                "Путь к .EXE/.COM или имя примера из QuickC/PROGRAMS (*.c)")
+                .IsRequired();
+
+            var buildOptions = ExampleBuildCliOptions.AddTo(cmd);
 
             var offsetOption = cmd.Option(
                 "-o|--offset <OFFSET>",
-                "Смещение начала функции в EXE (hex: 0x10)",
-                CommandOptionType.SingleValue);
-
-            var sourceOption = cmd.Option(
-                "-s|--source <NAME>",
-                "Имя .c файла из QuickC/PROGRAMS (EXE будет собран автоматически)",
+                "Смещение начала функции (hex: 0x10 / 10h или decimal)",
                 CommandOptionType.SingleValue);
 
             var outputOption = cmd.Option(
@@ -38,129 +37,98 @@ internal static class IrGraphCommand
                 "Автоматически сгенерировать PNG через Graphviz (требуется dot в PATH)",
                 CommandOptionType.NoValue);
 
-            var optLevelOption = cmd.Option(
-                "--opt <LEVEL>",
-                "Уровень оптимизации: Od (по умолчанию) или Ox",
-                CommandOptionType.SingleValue);
+            cmd.OnExecute(() =>
+            {
+                var input = inputArg.Value
+                    ?? throw new InvalidOperationException("Не указан входной файл или пример.");
 
-            cmd.OnExecute(() => Execute(
-                fileOption.Value(),
-                offsetOption.Value(),
-                sourceOption.Value(),
-                outputOption.Value(),
-                pngOption.HasValue(),
-                optLevelOption.Value()));
+                var build = buildOptions.Parse();
+                var exePath = ExampleInputResolver.Resolve(input, build, buildOptions.HasAnyValue);
+
+                return Execute(
+                    exePath,
+                    offsetOption.Value(),
+                    build.Optimization,
+                    outputOption.Value(),
+                    pngOption.HasValue());
+            });
         });
     }
 
     private static int Execute(
-        string? exePath,
+        string exePath,
         string? offsetStr,
-        string? sourceName,
+        OptimizationLevel optimization,
         string? outputPath,
-        bool generatePng,
-        string? optLevel)
+        bool generatePng)
     {
-        if (string.IsNullOrEmpty(exePath) && string.IsNullOrEmpty(sourceName))
-        {
-            Console.Error.WriteLine("Ошибка: укажите -f|--file или -s|--source");
-            return 1;
-        }
-
-        if (!string.IsNullOrEmpty(exePath) && !string.IsNullOrEmpty(sourceName))
-        {
-            Console.Error.WriteLine("Ошибка: укажите только один из параметров: -f|--file или -s|--source");
-            return 1;
-        }
-
-        if (string.IsNullOrEmpty(offsetStr))
+        if (string.IsNullOrWhiteSpace(offsetStr))
         {
             Console.Error.WriteLine("Ошибка: укажите -o|--offset");
             return 1;
         }
 
-        var opt = ParseOptimizationLevel(optLevel);
-        DosExeParser parser;
-
-        if (!string.IsNullOrEmpty(sourceName))
+        try
         {
-            var memoryModel = MemoryModel.Small;
-            var stackCheck = false;
-            var libraries = new[] { "SLIBCE.LIB" };
+            var parser = new DosExeParser(exePath);
 
+            int offset;
             try
             {
-                exePath = ExeProvider.Get(
-                    sourceName,
-                    memoryModel,
-                    stackCheck,
-                    opt,
-                    libraries);
-
-                parser = new DosExeParser(exePath);
+                offset = ParseOffset(offsetStr);
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"Ошибка при получении EXE через ExeProvider: {ex.Message}");
+                Console.Error.WriteLine($"Ошибка: неверное смещение '{offsetStr}': {ex.Message}");
                 return 1;
             }
-        }
-        else
-        {
-            parser = new DosExeParser(exePath!);
-        }
 
-        int offset;
-        try
-        {
-            offset = ParseOffset(offsetStr);
+            if (offset < 0 || offset >= parser.Image.Length)
+            {
+                Console.Error.WriteLine(
+                    $"Ошибка: смещение 0x{offset:X} вне образа (0..0x{parser.Image.Length - 1:X})");
+                return 1;
+            }
+
+            if (!FunctionStartValidator.IsFunctionStart(parser, offset))
+            {
+                Console.Error.WriteLine(
+                    $"Ошибка: смещение 0x{offset:X} не указывает на начало функции (нет пролога push bp; mov bp, sp / enter)");
+                return 1;
+            }
+
+            var disassembler = new X86Disassembler(parser.Image, parser.RelocationTable);
+            var cfg = new ControlFlowGraph();
+            cfg.Build(disassembler, offset, parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe);
+
+            var builder = ExpressionBuilder.Create(cfg, optimization);
+            builder.Build();
+            builder.Optimize();
+
+            string dotPath = outputPath ?? "ir_graph.dot";
+
+            var dir = Path.GetDirectoryName(dotPath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            builder.SaveDot(dotPath, false);
+
+            Console.WriteLine($"IR-граф сохранён: {Path.GetFullPath(dotPath)}");
+
+            if (generatePng)
+            {
+                GeneratePng(dotPath);
+            }
+
+            return 0;
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Ошибка: неверное смещение '{offsetStr}': {ex.Message}");
+            Console.Error.WriteLine($"Ошибка: {ex.Message}");
             return 1;
         }
-
-        if (offset < 0 || offset >= parser.Image.Length)
-        {
-            Console.Error.WriteLine(
-                $"Ошибка: смещение 0x{offset:X} вне образа (0..0x{parser.Image.Length - 1:X})");
-            return 1;
-        }
-
-        if (!FunctionStartValidator.IsFunctionStart(parser, offset))
-        {
-            Console.Error.WriteLine(
-                $"Ошибка: смещение 0x{offset:X} не указывает на начало функции (нет пролога push bp; mov bp, sp / enter)");
-            return 1;
-        }
-
-        var disassembler = new X86Disassembler(parser.Image, parser.RelocationTable);
-        var cfg = new ControlFlowGraph();
-        cfg.Build(disassembler, offset, parser.IsCom ? RegisterState.InitCom : RegisterState.InitExe);
-
-        var builder = ExpressionBuilder.Create(cfg, opt);
-        builder.Build();
-        builder.Optimize();
-
-        string dotPath = outputPath ?? "ir_graph.dot";
-
-        var dir = Path.GetDirectoryName(dotPath);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
-
-        builder.SaveDot(dotPath, false);
-
-        Console.WriteLine($"IR-граф сохранён: {Path.GetFullPath(dotPath)}");
-
-        if (generatePng)
-        {
-            GeneratePng(dotPath);
-        }
-
-        return 0;
     }
 
     private static int ParseOffset(string offsetStr)
@@ -183,16 +151,6 @@ internal static class IrGraphCommand
         }
 
         return Convert.ToInt32(text, 16);
-    }
-
-    private static OptimizationLevel ParseOptimizationLevel(string? optLevel)
-    {
-        return optLevel?.ToLowerInvariant() switch
-        {
-            "ox" => OptimizationLevel.EnabledFull,
-            "od" => OptimizationLevel.Disabled,
-            _ => OptimizationLevel.Disabled,
-        };
     }
 
     private static void GeneratePng(string dotPath)

@@ -115,7 +115,7 @@ dotnet run --project Tools -- ir-tree hello --proc main
 Типичный workflow при отладке structurer/flatten:
 
 1. `ir-tree program.c -o program.ir.txt` — снимок IR всех пользовательских функций.
-2. `ir-graph -s program.c -o 0xNNN --out proc.dot --png` — DOT одной функции по смещению (узлы = базовые блоки CFG).
+2. `ir-graph program.c -o 0xNNN --out proc.dot --png` — DOT одной функции по смещению (узлы = базовые блоки CFG).
 3. Сравнить с `disasm program.c --main` и с эталонным `.c` в `QuickC/PROGRAMS/`.
 
 Рендерер: `Ir/Rendering/IrTreeTextRenderer.cs`. Для unit-тестов IR без полного Decompiler — `BaseTests.BuildExpressions` + `ExpressionBuilder.Blocks`.
