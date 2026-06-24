@@ -21,6 +21,7 @@ public static class Program
         DisasmCommand.Configure(app);
         SandboxCommand.Configure(app);
         IrGraphCommand.Configure(app);
+        IrTreeCommand.Configure(app);
 
         app.OnExecute(() =>
         {

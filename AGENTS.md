@@ -74,6 +74,8 @@ DosExeParser → TryResolveMain → CollectInstructions → OptimizationLevelHeu
 | `decompile-c` | полный вывод `*.c` + Makefile |
 | `disasm` | линейный дизассемблер |
 | `lib` | разбор OMF `.LIB` |
+| `ir-graph` | DOT-граф IR одной функции по смещению |
+| `ir-tree` | текстовые IR-деревья всех пользовательских процедур |
 
 **Примеры QuickC** (`QuickC/PROGRAMS/*.c`): вместо пути к EXE можно передать имя исходника (`hello`, `hello.c`, `switch.c`). EXE собирается через `ExeProvider` (DOSBox-X + QCL, кэш в `QuickC/BUILT/`). Параметры сборки:
 
@@ -90,7 +92,33 @@ dotnet run --project Tools -- disasm switch.c --main --ox
 
 # декомпиляция hello с large-моделью
 dotnet run --project Tools -- decompile-c hello --model l --lib LLIBCE.LIB -o out
+
+# IR-деревья всех пользовательских процедур (метки label_XXXX, goto)
+dotnet run --project Tools -- ir-tree switch.c --ox -o switch.ir.txt
+
+# только main
+dotnet run --project Tools -- ir-tree hello --proc main
 ```
+
+### Анализ IR (`ir-tree`)
+
+Команда `ir-tree` проходит тот же этап, что и `decompile-c` до post-processing: `Decompiler.BuildIR()` — сопоставление с `.LIB`, рекурсивный сбор процедур, `ExpressionBuilder`. Вывод — по базовым блокам IR (`ExprBlock`): разделитель `──────── 0xSTART..0xEND ────────`, метка `label_XXXX:`, операции блока, переходы `goto label_XXXX`.
+
+| Опция | Назначение |
+|-------|------------|
+| `input` | EXE/COM или имя примера QuickC (`hello`, `switch.c`) |
+| `--proc <NAME>` | одна процедура (`main`, `sub_0123`) |
+| `-o\|--output <PATH>` | файл вместо stdout |
+| `-l\|--lib-dir` | каталог `.LIB` |
+| `--model`, `--od`/`--ox`, `--lib` | параметры сборки примера (как у `decompile-c`) |
+
+Типичный workflow при отладке structurer/flatten:
+
+1. `ir-tree program.c -o program.ir.txt` — снимок IR всех пользовательских функций.
+2. `ir-graph -s program.c -o 0xNNN --out proc.dot --png` — DOT одной функции по смещению (узлы = базовые блоки CFG).
+3. Сравнить с `disasm program.c --main` и с эталонным `.c` в `QuickC/PROGRAMS/`.
+
+Рендерер: `Ir/Rendering/IrTreeTextRenderer.cs`. Для unit-тестов IR без полного Decompiler — `BaseTests.BuildExpressions` + `ExpressionBuilder.Blocks`.
 
 Точки входа: `Decompilation/Decompiler.cs`, `Ir/Builder/ExpressionBuilder.cs`, `DecompilerTests/BaseTests.cs` (`Disassemble`, `GetGraph`, `BuildExpressions`).
 
