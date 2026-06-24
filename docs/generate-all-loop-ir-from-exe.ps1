@@ -82,13 +82,13 @@ $loopCases = @(
         @{ Name = "while_continue"; Offset = "0x2BA" }
     )},
 
-    # --- strcp.c /Od ---
-    @{ Source = "strcp.c"; Opt = "Od"; Functions = @(
+    # --- copy.c /Od ---
+    @{ Source = "copy.c"; Opt = "Od"; Functions = @(
         @{ Name = "ptr_loop"; Offset = "0x10" }
     )},
 
-    # --- strcp.c /Ox ---
-    @{ Source = "strcp.c"; Opt = "Ox"; Functions = @(
+    # --- copy.c /Ox ---
+    @{ Source = "copy.c"; Opt = "Ox"; Functions = @(
         @{ Name = "ptr_loop"; Offset = "0x10" }
     )}
 )

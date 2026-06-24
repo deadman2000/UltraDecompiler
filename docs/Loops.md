@@ -1127,12 +1127,12 @@ exit_loop:
 
 **Наблюдения:** Continue в `while` переходит сразу на проверку условия (нет отдельной метки обновления). В /Ox счётчик в `SI`, `inc` вместо `add`.
 
-### 2.15 Циклы по указателям / строкам (whcpy.c)
+### 2.15 Циклы по указателям / строкам (copy.c)
 
-**Источник: whcpy.c (copy_str)**
+**Источник: copy.c (copy)**
 
 ```c
-void copy_str(char *dst, const char *src)
+void copy(char *dst, const char *src)
 {
     while (*src != '\0')
     {
@@ -1142,7 +1142,7 @@ void copy_str(char *dst, const char *src)
 }
 ```
 
-**Unopt copy_str:**
+**Unopt:**
 ```asm
 ; Инициализация указателей
 mov     BX, [BP+6]          ; BX = src

@@ -5,7 +5,7 @@ namespace DecompilerTests.Expressions;
 /// <summary>
 /// Распознавание циклов QuickC /Od в OperationFlattener:
 /// for по счётчику, while по указателю, вложенные for.
-/// Эталон — паттерны из QuickC/PROGRAMS/forlp.c, whcpy.c, fornt.c, forp2.c, forbk.c, whbrk.c, forcnt.c, whcnt.c.
+/// Эталон — паттерны из QuickC/PROGRAMS/forlp.c, fornt.c, forp2.c, forbk.c, whbrk.c, forcnt.c, whcnt.c.
 /// </summary>
 public class LoopRecognitionTests : BaseTests
 {

@@ -45,216 +45,278 @@ public partial class ExpressionBuilder
         {
             changed = false;
 
-            for (int i = 0; i < block.Operations.Count; i++)
+            if (TryFoldRegisterSelfUpdate(block))
             {
-                if (block.Operations[i] is not SetOperation setOp)
-                    continue;
-
-                if (!AssignmentTarget.TryGetVariable(setOp.Dst, out var dstVar))
-                    continue;
-
-                // Оптимизируем только регистры
-                if (!dstVar.IsRegister)
-                    continue;
-
-                // Проверяем, что это простое присваивание (переменная или константа)
-                if (setOp.Src is not (VariableExpr or ConstExpr))
-                    continue;
-
-                // Ищем все простые использования этого регистра в этом же блоке
-                var usages = FindAllSimpleUsages(block, i + 1, dstVar, setOp.Src);
-
-                if (usages.Count == 0)
-                    continue;
-
-                // Проверяем, что нет интерференции между присваиванием и использованиями
-                bool hasInterference = false;
-                foreach (var usage in usages)
-                {
-                    if (HasInterferenceBetween(block, i + 1, usage, dstVar, setOp.Src))
-                    {
-                        hasInterference = true;
-                        break;
-                    }
-
-                    // Проверяем, что замена не создаст тавтологию (var = var)
-                    if (CreatesTautology(block.Operations[usage], setOp.Src))
-                    {
-                        hasInterference = true;
-                        break;
-                    }
-                }
-
-                if (hasInterference)
-                    continue;
-
-                // Заменяем все использования регистра на исходное выражение
-                foreach (var usage in usages)
-                {
-                    switch (block.Operations[usage])
-                    {
-                        case SetOperation nextSet:
-                            block.Operations[usage] = nextSet with { Src = setOp.Src };
-                            break;
-
-                        case StoreOperation store:
-                            block.Operations[usage] = store with { Value = setOp.Src };
-                            break;
-
-                        case ReturnOperation ret:
-                            block.Operations[usage] = ret with { Value = setOp.Src };
-                            break;
-
-                        case IncOperation inc:
-                            block.Operations[usage] = inc with { Target = setOp.Src };
-                            break;
-
-                        case DecOperation dec:
-                            block.Operations[usage] = dec with { Target = setOp.Src };
-                            break;
-
-                        case AddAssignOperation addAssign:
-                            block.Operations[usage] = addAssign with { Target = setOp.Src };
-                            break;
-
-                        case SubAssignOperation subAssign:
-                            block.Operations[usage] = subAssign with { Target = setOp.Src };
-                            break;
-                    }
-                }
-
-                // Удаляем присваивание регистру
-                block.Operations.RemoveAt(i);
                 changed = true;
-                break; // Начинаем заново после изменения
+                continue;
+            }
+
+            for (var i = 0; i < block.Operations.Count; i++)
+            {
+                if (!TryPropagateRegisterCopy(block, i))
+                {
+                    continue;
+                }
+
+                changed = true;
+                break;
             }
         }
-
-        // Вторая фаза: оптимизация арифметических цепочек
-        // reg = var; reg = reg + const; dst = reg → dst = var + const
-        OptimizeArithmeticRegisterChains(block);
     }
 
     /// <summary>
-    /// Оптимизация арифметических цепочек через регистры.
-    /// Обрабатывает паттерны вида:
-    ///   reg = var; reg = reg + const; dst = reg → dst = var + const
-    ///   reg = var; reg = reg + 1; var = reg → var = var + 1
+    /// <c>reg = src; reg = f(reg, …)</c> → <c>reg = f(src, …)</c>.
     /// </summary>
-    private static void OptimizeArithmeticRegisterChains(ExprBlock block)
+    private static bool TryFoldRegisterSelfUpdate(ExprBlock block)
     {
-        var changed = true;
-        while (changed)
+        for (var i = 0; i < block.Operations.Count - 1; i++)
         {
-            changed = false;
-
-            for (int i = 0; i < block.Operations.Count - 2; i++)
+            if (block.Operations[i] is not SetOperation loadOp ||
+                !AssignmentTarget.TryGetVariable(loadOp.Dst, out var regVar) ||
+                !regVar.IsRegister ||
+                !IsPropagatableRegisterSource(loadOp.Src, regVar))
             {
-                // Паттерн: reg = src; reg = reg + const; dst = reg
-                if (block.Operations[i] is not SetOperation loadOp ||
-                    !AssignmentTarget.TryGetVariable(loadOp.Dst, out var regVar) ||
-                    !regVar.IsRegister ||
-                    loadOp.Src is not (VariableExpr or ConstExpr))
-                {
-                    continue;
-                }
-
-                if (block.Operations[i + 1] is not SetOperation arithOp ||
-                    !AssignmentTarget.ReferencesVariable(arithOp.Dst, regVar) ||
-                    arithOp.Src is not Math2Expr mathExpr ||
-                    !ExprReferencesVariable(mathExpr.First, regVar))
-                {
-                    continue;
-                }
-
-                // Проверяем, что вторая операция - это арифметика с константой
-                if (mathExpr.Second is not ConstExpr constExpr)
-                {
-                    continue;
-                }
-
-                // Ищем использование регистра в третьей операции
-                for (int j = i + 2; j < block.Operations.Count; j++)
-                {
-                    if (block.Operations[j] is SetOperation useOp &&
-                        useOp.Src is VariableExpr useVarExpr &&
-                        ReferenceEquals(useVarExpr.Var, regVar) &&
-                        AssignmentTarget.TryGetVariable(useOp.Dst, out _))
-                    {
-                        // Проверяем, что регистр не переопределяется между i+1 и j
-                        bool regRedefined = false;
-                        for (int k = i + 2; k < j; k++)
-                        {
-                            if (block.Operations[k] is SetOperation checkSet &&
-                                AssignmentTarget.ReferencesVariable(checkSet.Dst, regVar))
-                            {
-                                regRedefined = true;
-                                break;
-                            }
-                        }
-
-                        if (regRedefined)
-                            continue;
-
-                        // Создаём новое выражение: src + const
-                        var newSrc = new Math2Expr(mathExpr.Operation, loadOp.Src, constExpr);
-                        block.Operations[j] = useOp with { Src = newSrc };
-
-                        // Удаляем присваивания регистру
-                        block.Operations.RemoveAt(i + 1);
-                        block.Operations.RemoveAt(i);
-                        changed = true;
-                        break;
-                    }
-                }
-
-                if (changed)
-                    break;
+                continue;
             }
+
+            if (block.Operations[i + 1] is not SetOperation updateOp ||
+                !AssignmentTarget.ReferencesVariable(updateOp.Dst, regVar) ||
+                !ExprReferencesVariable(updateOp.Src, regVar))
+            {
+                continue;
+            }
+
+            block.Operations[i + 1] = updateOp with
+            {
+                Src = SubstituteRegisterInExpr(updateOp.Src, regVar, loadOp.Src),
+            };
+            block.Operations.RemoveAt(i);
+            return true;
         }
+
+        return false;
     }
 
-    private static bool ExprReferencesVariable(Expr expr, Variable variable)
+    /// <summary>
+    /// Подставляет <paramref name="source"/> вместо <paramref name="register"/> во всех
+    /// использованиях до переопределения регистра (включая <see cref="ExprBlock.Condition"/>).
+    /// </summary>
+    private static bool TryPropagateRegisterCopy(ExprBlock block, int loadIndex)
     {
+        if (block.Operations[loadIndex] is not SetOperation loadOp ||
+            !AssignmentTarget.TryGetVariable(loadOp.Dst, out var regVar) ||
+            !regVar.IsRegister ||
+            !IsPropagatableRegisterSource(loadOp.Src, regVar))
+        {
+            return false;
+        }
+
+        var killIndex = FindRegisterKillIndex(block, loadIndex + 1, regVar);
+        var hasConditionUse = killIndex == block.Operations.Count &&
+                              block.Condition is not null &&
+                              ExprReferencesVariable(block.Condition, regVar);
+
+        var hasUses = hasConditionUse;
+        for (var usage = loadIndex + 1; !hasUses && usage < killIndex; usage++)
+        {
+            if (ExprReferencesVariable(block.Operations[usage], regVar))
+            {
+                hasUses = true;
+            }
+        }
+
+        if (!hasUses)
+        {
+            return false;
+        }
+
+        for (var usage = loadIndex + 1; usage < killIndex; usage++)
+        {
+            if (!ExprReferencesVariable(block.Operations[usage], regVar))
+            {
+                continue;
+            }
+
+            if (HasInterferenceBetween(block, loadIndex + 1, usage, regVar, loadOp.Src))
+            {
+                return false;
+            }
+
+            var substituted = SubstituteRegisterInOperation(block.Operations[usage], regVar, loadOp.Src);
+            if (CreatesTautology(substituted, loadOp.Src))
+            {
+                return false;
+            }
+        }
+
+        if (hasConditionUse &&
+            HasInterferenceBetween(block, loadIndex + 1, block.Operations.Count, regVar, loadOp.Src))
+        {
+            return false;
+        }
+
+        for (var usage = loadIndex + 1; usage < killIndex; usage++)
+        {
+            if (!ExprReferencesVariable(block.Operations[usage], regVar))
+            {
+                continue;
+            }
+
+            block.Operations[usage] = SubstituteRegisterInOperation(
+                block.Operations[usage],
+                regVar,
+                loadOp.Src);
+        }
+
+        if (hasConditionUse)
+        {
+            block.Condition = SubstituteRegisterInExpr(block.Condition!, regVar, loadOp.Src);
+        }
+
+        block.Operations.RemoveAt(loadIndex);
+        return true;
+    }
+
+    private static int FindRegisterKillIndex(ExprBlock block, int startIndex, Variable register)
+    {
+        for (var i = startIndex; i < block.Operations.Count; i++)
+        {
+            if (block.Operations[i] is SetOperation setOp &&
+                AssignmentTarget.TryGetVariable(setOp.Dst, out var dstVar) &&
+                ReferenceEquals(dstVar, register))
+            {
+                return i;
+            }
+        }
+
+        return block.Operations.Count;
+    }
+
+    private static bool IsPropagatableRegisterSource(Expr src, Variable register) =>
+        !ExprReferencesVariable(src, register) &&
+        src is VariableExpr or ConstExpr or CallExpr or Math1Expr or Math2Expr;
+
+    private static Operation SubstituteRegisterInOperation(Operation operation, Variable register, Expr replacement) =>
+        operation switch
+        {
+            SetOperation set => set with
+            {
+                Dst = SubstituteRegisterInExpr(set.Dst, register, replacement),
+                Src = SubstituteRegisterInExpr(set.Src, register, replacement),
+            },
+            StoreOperation store => new StoreOperation(
+                SubstituteRegisterInExpr(store.Address, register, replacement),
+                store.Segment is null ? null : SubstituteRegisterInExpr(store.Segment, register, replacement),
+                SubstituteRegisterInExpr(store.Value, register, replacement)),
+            ReturnOperation ret => ret with
+            {
+                Value = ret.Value is null ? null : SubstituteRegisterInExpr(ret.Value, register, replacement),
+            },
+            IncOperation inc => new IncOperation(
+                SubstituteRegisterInExpr(inc.Target, register, replacement),
+                inc.Segment is null ? null : SubstituteRegisterInExpr(inc.Segment, register, replacement)),
+            DecOperation dec => new DecOperation(
+                SubstituteRegisterInExpr(dec.Target, register, replacement),
+                dec.Segment is null ? null : SubstituteRegisterInExpr(dec.Segment, register, replacement)),
+            AddAssignOperation add => new AddAssignOperation(
+                SubstituteRegisterInExpr(add.Target, register, replacement),
+                SubstituteRegisterInExpr(add.Value, register, replacement),
+                add.Segment is null ? null : SubstituteRegisterInExpr(add.Segment, register, replacement)),
+            SubAssignOperation sub => new SubAssignOperation(
+                SubstituteRegisterInExpr(sub.Target, register, replacement),
+                SubstituteRegisterInExpr(sub.Value, register, replacement),
+                sub.Segment is null ? null : SubstituteRegisterInExpr(sub.Segment, register, replacement)),
+            CallOperation call => new CallOperation(
+                call.Name,
+                call.Args.Select(arg => SubstituteRegisterInExpr(arg, register, replacement)).ToList()),
+            _ => operation,
+        };
+
+    private static bool ExprReferencesVariable(Operation operation, Variable variable) =>
+        operation switch
+        {
+            SetOperation set => ExprReferencesVariable(set.Dst, variable) ||
+                                ExprReferencesVariable(set.Src, variable),
+            StoreOperation store => ExprReferencesVariable(store.Address, variable) ||
+                                    ExprReferencesVariable(store.Value, variable) ||
+                                    (store.Segment is not null && ExprReferencesVariable(store.Segment, variable)),
+            ReturnOperation { Value: { } value } => ExprReferencesVariable(value, variable),
+            IncOperation inc => ExprReferencesVariable(inc.Target, variable) ||
+                                (inc.Segment is not null && ExprReferencesVariable(inc.Segment, variable)),
+            DecOperation dec => ExprReferencesVariable(dec.Target, variable) ||
+                                (dec.Segment is not null && ExprReferencesVariable(dec.Segment, variable)),
+            AddAssignOperation add => ExprReferencesVariable(add.Target, variable) ||
+                                      ExprReferencesVariable(add.Value, variable) ||
+                                      (add.Segment is not null && ExprReferencesVariable(add.Segment, variable)),
+            SubAssignOperation sub => ExprReferencesVariable(sub.Target, variable) ||
+                                      ExprReferencesVariable(sub.Value, variable) ||
+                                      (sub.Segment is not null && ExprReferencesVariable(sub.Segment, variable)),
+            CallOperation call => call.Args.Any(arg => ExprReferencesVariable(arg, variable)),
+            _ => false,
+        };
+
+    private static Expr SubstituteRegisterInExpr(Expr expr, Variable register, Expr replacement)
+    {
+        if (expr is VariableExpr { Var: var variable } && ReferenceEquals(variable, register))
+        {
+            return replacement;
+        }
+
         return expr switch
+        {
+            ConstExpr or CharConstExpr or StringExpr or ImageOffsetExpr => expr,
+            VariableExpr => expr,
+            MemberExpr member => member with { Base = SubstituteRegisterInExpr(member.Base, register, replacement) },
+            IncDecExpr inc => inc with { Operand = SubstituteRegisterInExpr(inc.Operand, register, replacement) },
+            AddressOfExpr addr => addr with { Operand = SubstituteRegisterInExpr(addr.Operand, register, replacement) },
+            Math1Expr math1 => math1 with { Op = SubstituteRegisterInExpr(math1.Op, register, replacement) },
+            Math2Expr math2 => math2 with
+            {
+                First = SubstituteRegisterInExpr(math2.First, register, replacement),
+                Second = SubstituteRegisterInExpr(math2.Second, register, replacement),
+            },
+            MemExpr mem => mem with
+            {
+                Address = SubstituteRegisterInExpr(mem.Address, register, replacement),
+                Segment = mem.Segment is null ? null : SubstituteRegisterInExpr(mem.Segment, register, replacement),
+            },
+            CmpExpr cmp => cmp with
+            {
+                Left = SubstituteRegisterInExpr(cmp.Left, register, replacement),
+                Right = SubstituteRegisterInExpr(cmp.Right, register, replacement),
+            },
+            CallExpr call => call with
+            {
+                Args = call.Args.Select(arg => SubstituteRegisterInExpr(arg, register, replacement)).ToList(),
+            },
+            LongExpr longExpr => longExpr with
+            {
+                Low = SubstituteRegisterInExpr(longExpr.Low, register, replacement),
+                High = SubstituteRegisterInExpr(longExpr.High, register, replacement),
+            },
+            _ => expr,
+        };
+    }
+
+    private static bool ExprReferencesVariable(Expr expr, Variable variable) =>
+        expr switch
         {
             VariableExpr varExpr => ReferenceEquals(varExpr.Var, variable),
             Math2Expr math2 => ExprReferencesVariable(math2.First, variable) ||
                                ExprReferencesVariable(math2.Second, variable),
             Math1Expr math1 => ExprReferencesVariable(math1.Op, variable),
-            _ => false
+            CmpExpr cmp => ExprReferencesVariable(cmp.Left, variable) ||
+                           ExprReferencesVariable(cmp.Right, variable),
+            CallExpr call => call.Args.Any(arg => ExprReferencesVariable(arg, variable)),
+            MemExpr mem => ExprReferencesVariable(mem.Address, variable) ||
+                           (mem.Segment is not null && ExprReferencesVariable(mem.Segment, variable)),
+            MemberExpr member => ExprReferencesVariable(member.Base, variable),
+            IncDecExpr inc => ExprReferencesVariable(inc.Operand, variable),
+            AddressOfExpr addr => ExprReferencesVariable(addr.Operand, variable),
+            LongExpr longExpr => ExprReferencesVariable(longExpr.Low, variable) ||
+                                 ExprReferencesVariable(longExpr.High, variable),
+            _ => false,
         };
-    }
-
-    /// <summary>
-    /// Находит все простые использования регистра в блоке.
-    /// Останавливается при переопределении регистра.
-    /// </summary>
-    private static List<int> FindAllSimpleUsages(ExprBlock block, int startIndex, Variable register, Expr source)
-    {
-        var usages = new List<int>();
-
-        for (int i = startIndex; i < block.Operations.Count; i++)
-        {
-            var op = block.Operations[i];
-
-            // Если регистр переопределяется — остановить поиск
-            if (op is SetOperation setOp &&
-                AssignmentTarget.TryGetVariable(setOp.Dst, out var setDstVar) &&
-                setDstVar.Name == register.Name)
-            {
-                break;
-            }
-
-            // Проверяем простое использование
-            if (IsSimpleRegisterUsage(op, register))
-            {
-                usages.Add(i);
-            }
-        }
-
-        return usages;
-    }
 
     /// <summary>
     /// Проверяет, есть ли интерференция (переопределение регистра или модификация источника) 
@@ -299,22 +361,6 @@ public partial class ExpressionBuilder
             DecOperation dec => AssignmentTarget.ReferencesVariable(dec.Target, variable),
             AddAssignOperation addAssign => AssignmentTarget.ReferencesVariable(addAssign.Target, variable),
             SubAssignOperation subAssign => AssignmentTarget.ReferencesVariable(subAssign.Target, variable),
-            _ => false
-        };
-    }
-
-    /// <summary>
-    /// Проверяет, является ли операция простым использованием регистра (Set, Store, Return, Inc, Dec с reg).
-    /// </summary>
-    private static bool IsSimpleRegisterUsage(Operation op, Variable register)
-    {
-        return op switch
-        {
-            SetOperation setOp => setOp.Src is VariableExpr varExpr && varExpr.Var.Name == register.Name,
-            StoreOperation store => store.Value is VariableExpr storeVarExpr && storeVarExpr.Var.Name == register.Name,
-            ReturnOperation ret => ret.Value is VariableExpr retVarExpr && retVarExpr.Var.Name == register.Name,
-            IncOperation inc => inc.Target is VariableExpr incVarExpr && incVarExpr.Var.Name == register.Name,
-            DecOperation dec => dec.Target is VariableExpr decVarExpr && decVarExpr.Var.Name == register.Name,
             _ => false
         };
     }
