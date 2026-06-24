@@ -139,9 +139,17 @@ public partial class ExpressionBuilder
         if (varUsage)
         {
             RemoveUnusedSets();
+            OptimizeOxPatterns();
             OptimizeRegisterChains();
             OptimizeIncDecPatterns();
         }
+    }
+
+    /// <summary>
+    /// Дополнительные оптимизации IR для /Ox (переопределяется в <see cref="ExpressionBuilderQuickCOpt"/>).
+    /// </summary>
+    protected virtual void OptimizeOxPatterns()
+    {
     }
 
     /// <summary>

@@ -11,6 +11,12 @@ public partial class ExpressionBuilderQuickCOpt(ControlFlowGraph graph, Func<int
     : ExpressionBuilder(graph, calleeNameResolver)
 {
     /// <inheritdoc />
+    protected override void OptimizeOxPatterns()
+    {
+        OptimizeSiDiStackAliases();
+    }
+
+    /// <inheritdoc />
     protected override void OptimizeIncDecPatterns()
     {
         foreach (var block in Blocks)
