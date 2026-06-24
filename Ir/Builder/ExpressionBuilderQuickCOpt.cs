@@ -7,7 +7,8 @@
 /// - Использование регистров вместо стека для аргументов
 /// - Более сложные паттерны циклов
 /// </summary>
-public partial class ExpressionBuilderQuickCOpt(ControlFlowGraph graph) : ExpressionBuilder(graph)
+public partial class ExpressionBuilderQuickCOpt(ControlFlowGraph graph, Func<int, string>? calleeNameResolver = null)
+    : ExpressionBuilder(graph, calleeNameResolver)
 {
     /// <inheritdoc />
     protected override void OptimizeIncDecPatterns()

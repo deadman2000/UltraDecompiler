@@ -17,6 +17,7 @@ namespace UltraDecompiler.Ir.Builder;
 public partial class ExpressionBuilder
 {
     private readonly ControlFlowGraph _graph;
+    private readonly Func<int, string>? _calleeNameResolver;
 
     private readonly Dictionary<BasicBlock, ExprBlock> _blocksMap = [];
     private readonly Queue<ExprBlock> _queue = new();
@@ -24,9 +25,10 @@ public partial class ExpressionBuilder
     private IReadOnlyDictionary<BasicBlock, List<BasicBlock>> _predecessors =
         new Dictionary<BasicBlock, List<BasicBlock>>();
 
-    internal ExpressionBuilder(ControlFlowGraph graph)
+    internal ExpressionBuilder(ControlFlowGraph graph, Func<int, string>? calleeNameResolver = null)
     {
         _graph = graph;
+        _calleeNameResolver = calleeNameResolver;
     }
 
     /// <summary>
@@ -40,12 +42,17 @@ public partial class ExpressionBuilder
 
     public Stack<Expr> InitialStack { get; } = new();
 
-    public static ExpressionBuilder Create(ControlFlowGraph cfg, OptimizationLevel optimization)
+    public static ExpressionBuilder Create(
+        ControlFlowGraph cfg,
+        OptimizationLevel optimization,
+        ProcedureStorage? procedures = null)
     {
+        Func<int, string>? resolver = procedures is null ? null : procedures.GetName;
         return optimization switch
         {
-            OptimizationLevel.Disabled => new ExpressionBuilderQuickCUnopt(cfg),
-            OptimizationLevel.Enabled or OptimizationLevel.EnableLoop or OptimizationLevel.EnabledFull => new ExpressionBuilderQuickCOpt(cfg),
+            OptimizationLevel.Disabled => new ExpressionBuilderQuickCUnopt(cfg, resolver),
+            OptimizationLevel.Enabled or OptimizationLevel.EnableLoop or OptimizationLevel.EnabledFull
+                => new ExpressionBuilderQuickCOpt(cfg, resolver),
             _ => throw new NotImplementedException(),
         };
     }
@@ -159,6 +166,7 @@ public partial class ExpressionBuilder
         {
             Variables = Variables,
             InitStack = stack.ToArray(),
+            CalleeNameResolver = _calleeNameResolver,
         };
         Blocks.Add(exprBlock);
         _blocksMap[block] = exprBlock;

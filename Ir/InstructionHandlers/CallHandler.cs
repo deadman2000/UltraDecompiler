@@ -18,7 +18,7 @@ public class CallHandler : IInstructionHandler
         if (op.Type == OperandType.Relative16)
         {
             var target = op.Value;
-            name = $"sub_{target:X4}";
+            name = block.CalleeNameResolver?.Invoke(target) ?? $"sub_{target:X4}";
 
             // Запоминаем адрес перехода + полное состояние на момент вызова в отдельном CallState.
             // Аргументы НЕ вычисляем здесь. Их определим после того,

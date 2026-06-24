@@ -205,6 +205,7 @@ public class Decompiler
         var instructionsMap = new Dictionary<int, (IReadOnlyList<Instruction>, bool, string?)>();
         var pending = new Queue<int>();
         pending.Enqueue(_mainOffset);
+        var nullSubCounter = 0;
 
         while (pending.Count > 0)
         {
@@ -221,6 +222,17 @@ public class Decompiler
 
             if (instructions.Count == 0)
                 continue;
+
+            if (offset != _mainOffset && EmptyProcedureDetector.IsEmptyBody(instructions))
+            {
+                nullSubCounter++;
+                instructionsMap[offset] = (
+                    instructions,
+                    false,
+                    $"nullsub_{nullSubCounter}");
+                EnqueueExternalTargets(instructions, pending);
+                continue;
+            }
 
             // Проверяем library match
             var libraryMatch = _provider.TryMatchProcedure(
@@ -267,37 +279,39 @@ public class Decompiler
 
                 if (libraryMatch is not null)
                 {
-                    var libraryProc = new DisassembledProcedure
+                    _storage.Add(new DisassembledProcedure
                     {
                         Offset = offset,
                         Instructions = instructions,
                         Name = name!,
                         IsLibrary = true,
                         LibraryMatch = libraryMatch,
-                    };
-                    _storage.Add(libraryProc);
+                    });
                 }
+
                 continue;
             }
 
-            var cfg = new ControlFlowGraph();
-            cfg.BuildFromInstructions(instructions, offset, _initRegisters);
-
-            var expressions = ExpressionBuilder.Create(cfg, _optimizationLevel);
-            expressions.Build();
-            expressions.Optimize();
-
-            var userProc = new DisassembledProcedure
+            _storage.Add(new DisassembledProcedure
             {
                 Offset = offset,
                 Instructions = instructions,
-                Expressions = expressions,
                 Name = name!,
                 IsLibrary = false,
-                Graph = cfg,
-            };
+            });
+        }
 
-            _storage.Add(userProc);
+        foreach (var procedure in _storage.All.Where(static p => !p.IsLibrary).ToList())
+        {
+            var cfg = new ControlFlowGraph();
+            cfg.BuildFromInstructions(procedure.Instructions, procedure.Offset, _initRegisters);
+
+            var expressions = ExpressionBuilder.Create(cfg, _optimizationLevel, _storage);
+            expressions.Build();
+            expressions.Optimize();
+
+            procedure.Expressions = expressions;
+            procedure.Graph = cfg;
         }
     }
 

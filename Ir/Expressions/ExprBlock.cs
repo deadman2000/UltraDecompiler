@@ -14,6 +14,12 @@ public class ExprBlock(BasicBlock basicBlock)
     public required VariableStorage Variables { get; init; }
 
     /// <summary>
+    /// Разрешает имя callee по смещению в образе (например <c>nullsub_N</c>, <c>printf</c>).
+    /// Если не задано — CallHandler использует синтетическое <c>sub_XXXX</c>.
+    /// </summary>
+    public Func<int, string>? CalleeNameResolver { get; init; }
+
+    /// <summary>
     /// Связанный ассемблерный блок
     /// </summary>
     public BasicBlock BasicBlock { get; } = basicBlock;

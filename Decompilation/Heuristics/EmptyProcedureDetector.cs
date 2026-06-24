@@ -1,0 +1,2 @@
+namespace UltraDecompiler.Decompilation.Heuristics;
+/// <summary>/// Распознаёт процедуры с телом из одной инструкции возврата./// QuickC /Ox сводит пустую <c>foo()</c> к одной <c>ret</c> (см. <c>func.c</c>)./// </summary>public static class EmptyProcedureDetector{    /// <summary>Тело процедуры — ровно одна инструкция <c>ret</c> (или <c>retf</c>).</summary>    public static bool IsEmptyBody(IReadOnlyList<Instruction> instructions) =>        instructions.Count == 1 && instructions[0].IsReturn;}
