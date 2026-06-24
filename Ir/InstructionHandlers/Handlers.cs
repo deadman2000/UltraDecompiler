@@ -13,6 +13,7 @@ public static class Handlers
         [Mnemonic.POP] = new PopHandler(),
 
         [Mnemonic.MOV] = new MovHandler(),
+        [Mnemonic.LEA] = new LeaHandler(),
 
         [Mnemonic.ADD] = new ArithmeticHandler(Math2Operation.Add, useCarryFlag: false),
         [Mnemonic.SUB] = new ArithmeticHandler(Math2Operation.Sub, useCarryFlag: false),

@@ -54,10 +54,12 @@ public partial class Instruction
             Mnemonic.ROL => ModifyRegistersRotate(state),
             Mnemonic.ROR => ModifyRegistersRotate(state),
 
+            Mnemonic.LEA => ModifyRegistersLea(state),
+
             Mnemonic.FWAIT => state,
             Mnemonic.FPU => state,
 
-            // TODO: RCL/RCR, DAA, DAS, AAA, AAS, AAM, AAD, LEA, PUSHF/POPF и др. (MUL/IMUL/DIV/IDIV — см. ModifyRegistersMulDiv)
+            // TODO: RCL/RCR, DAA, DAS, AAA, AAS, AAM, AAD, PUSHF/POPF и др. (MUL/IMUL/DIV/IDIV — см. ModifyRegistersMulDiv)
             _ => state,
         };
 
@@ -459,6 +461,49 @@ public partial class Instruction
         }
         // Для памяти — ничего не делаем с регистрами
         return state;
+    }
+
+    private RegisterState ModifyRegistersLea(RegisterState state)
+    {
+        if (Operand1.Type != OperandType.Register16)
+            return state;
+
+        if (Operand2.Type == OperandType.Register16)
+        {
+            ushort? srcVal = GetReg16(state, Operand2.Value);
+            return SetReg16(state, Operand1.Value, srcVal);
+        }
+
+        if (Operand2.Type == OperandType.Memory)
+        {
+            ushort? addr = TryComputeEffectiveAddress(state, Operand2);
+            return SetReg16(state, Operand1.Value, addr);
+        }
+
+        return state;
+    }
+
+    private static ushort? TryComputeEffectiveAddress(RegisterState state, Operand mem)
+    {
+        int addr = mem.Value;
+
+        if (mem.BaseReg != AddressRegister.None)
+        {
+            var baseVal = GetReg16(state, (int)mem.BaseReg);
+            if (!baseVal.HasValue)
+                return null;
+            addr += baseVal.Value;
+        }
+
+        if (mem.IndexReg != AddressRegister.None)
+        {
+            var indexVal = GetReg16(state, (int)mem.IndexReg);
+            if (!indexVal.HasValue)
+                return null;
+            addr += indexVal.Value;
+        }
+
+        return (ushort)addr;
     }
 
     /// <summary>
