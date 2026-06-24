@@ -88,9 +88,6 @@ public sealed class QuickCOptimizedFullProfile : IDecompilationProfile
             nameof(FarPointerLocalInferrer),
             static (ctx, ops) => FarPointerLocalInferrer.Infer(ctx.Procedure, ops)),
         new DelegatePostProcessPass(
-            nameof(VoidCallNormalizer),
-            static (ctx, ops) => VoidCallNormalizer.Normalize(ops, ctx.Storage, ctx.HeaderCatalog)),
-        new DelegatePostProcessPass(
             nameof(StructFieldRewriter),
             static (ctx, ops) => StructFieldRewriter.Rewrite(ctx.Procedure, ops, ctx.Storage, ctx.HeaderCatalog)),
         new DelegatePostProcessPass(
@@ -102,9 +99,6 @@ public sealed class QuickCOptimizedFullProfile : IDecompilationProfile
         new DelegatePostProcessPass(
             nameof(TempVariableEliminator),
             static (_, ops) => TempVariableEliminator.Eliminate(ops)),
-        new DelegatePostProcessPass(
-            nameof(ShiftCountSimplifier),
-            static (_, ops) => ShiftCountSimplifier.Simplify(ops)),
         new DelegatePostProcessPass(
             nameof(VoidReturnNormalizer),
             static (ctx, ops) => VoidReturnNormalizer.Normalize(ctx.Procedure, ops)),

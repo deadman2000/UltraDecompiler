@@ -17,8 +17,6 @@ public static class OperationOptimizer
 
     private static List<Operation> OptimizeList(List<Operation> operations)
     {
-        operations = IncDecExpressionRecognizer.Recognize(operations).ToList();
-
         for (var i = 0; i < operations.Count; i++)
         {
             operations[i] = OptimizeNested(operations[i]);
