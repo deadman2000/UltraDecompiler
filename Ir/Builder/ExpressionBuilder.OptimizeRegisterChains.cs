@@ -581,18 +581,21 @@ public partial class ExpressionBuilder
         };
     }
 
-    /// <summary><c>Inc/Dec(var); dst = var</c> → <c>dst = ++/--var</c>.</summary>
+    /// <summary>
+    /// <c>Inc/Dec(var); dst = var</c> → <c>dst = ++/--var</c>;
+    /// <c>Inc/Dec(var); reg = var; dst = reg</c> → <c>dst = ++/--var</c> (/Ox).
+    /// </summary>
     private static bool TryRecognizePrefixIncDec(ExprBlock block, int index)
     {
-        if (index + 1 >= block.Operations.Count)
-        {
-            return false;
-        }
-
         if (block.Operations[index] is IncOperation incOp &&
             AssignmentTarget.TryGetVariable(incOp.Target, out var sourceVar) &&
             !sourceVar.IsRegister)
         {
+            if (TryRecognizePrefixIncDecViaRegister(block, index, sourceVar, Math1Operation.PreIncrement))
+            {
+                return true;
+            }
+
             return TryReplacePrefixIncDec(block, index, sourceVar, Math1Operation.PreIncrement);
         }
 
@@ -600,12 +603,52 @@ public partial class ExpressionBuilder
             AssignmentTarget.TryGetVariable(decOp.Target, out sourceVar) &&
             !sourceVar.IsRegister)
         {
+            if (TryRecognizePrefixIncDecViaRegister(block, index, sourceVar, Math1Operation.PreDecrement))
+            {
+                return true;
+            }
+
             return TryReplacePrefixIncDec(block, index, sourceVar, Math1Operation.PreDecrement);
         }
 
         return false;
     }
 
+    /// <summary>
+    /// /Ox: <c>Inc/Dec(var); reg = var; dst = reg</c> → <c>dst = ++/--var</c>
+    /// (например <c>b = ++a</c> после <c>inc [BP-x]</c> и загрузки в AX).
+    /// </summary>
+    private static bool TryRecognizePrefixIncDecViaRegister(
+        ExprBlock block,
+        int index,
+        Variable sourceVar,
+        Math1Operation prefixOp)
+    {
+        if (index + 2 >= block.Operations.Count ||
+            block.Operations[index + 1] is not SetOperation loadRegOp ||
+            !AssignmentTarget.TryGetVariable(loadRegOp.Dst, out var regVar) ||
+            !regVar.IsRegister ||
+            loadRegOp.Src is not VariableExpr loadVarExpr ||
+            !ReferenceEquals(loadVarExpr.Var, sourceVar) ||
+            block.Operations[index + 2] is not SetOperation storeOp ||
+            storeOp.Src is not VariableExpr storeRegExpr ||
+            !ReferenceEquals(storeRegExpr.Var, regVar) ||
+            !AssignmentTarget.TryGetVariable(storeOp.Dst, out var dstVar) ||
+            dstVar.IsRegister ||
+            ReferenceEquals(dstVar, sourceVar))
+        {
+            return false;
+        }
+
+        block.Operations[index] = new SetOperation(
+            storeOp.Dst,
+            new Math1Expr(prefixOp, new VariableExpr { Var = sourceVar }));
+        block.Operations.RemoveAt(index + 2);
+        block.Operations.RemoveAt(index + 1);
+        return true;
+    }
+
+    /// <summary><c>Inc/Dec(var); dst = var</c> → <c>dst = ++/--var</c> (только для стековых <paramref name="sourceVar"/>).</summary>
     private static bool TryReplacePrefixIncDec(
         ExprBlock block,
         int index,
@@ -616,6 +659,7 @@ public partial class ExpressionBuilder
             nextSet.Src is not VariableExpr nextVarExpr ||
             !ReferenceEquals(nextVarExpr.Var, sourceVar) ||
             !AssignmentTarget.TryGetVariable(nextSet.Dst, out var dstVar) ||
+            dstVar.IsRegister ||
             ReferenceEquals(dstVar, sourceVar))
         {
             return false;

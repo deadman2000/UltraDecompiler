@@ -21,7 +21,6 @@ forp2.c
 fptr.c
 glob.c
 hello.c
-incvar.c
 int86.c
 jmp.c
 land.c

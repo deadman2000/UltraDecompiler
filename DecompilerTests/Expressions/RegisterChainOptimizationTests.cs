@@ -557,6 +557,62 @@ public sealed class RegisterChainOptimizationTests : BaseTests
         Assert.IsType<VariableExpr>(op9.Value);
     }
 
+    /// <summary>
+    /// Интеграционный тест incvar.c (/Ox): одна локальная переменная, без регистров в IR;
+    /// <c>a = a ± 1</c> остаётся явным сложением/вычитанием, <c>a ±= 1</c> сводится к <c>a++/a--</c>.
+    /// </summary>
+    [Fact]
+    public void IncVar_IncvarC_Ox_IntegrationTest()
+    {
+        var procedures = DecompileTestHelper.GetExampleIR(
+            "incvar.c",
+            optimization: OptimizationLevel.EnabledFull);
+        var proc = Assert.Single(procedures);
+        Assert.NotNull(proc.Expressions);
+        var block = Assert.Single(proc.Expressions.Blocks);
+
+        var ops = block.Operations.ToList();
+        AssertNoRegisterOperations(ops);
+        Assert.Equal(8, ops.Count);
+
+        // 0: a = 10
+        var op0 = Assert.IsType<SetOperation>(ops[0]);
+        Assert.True(AssignmentTarget.TryGetVariable(op0.Dst, out var v0) && v0.Name == "var1");
+        Assert.IsType<ConstExpr>(op0.Src);
+
+        // 1: a = a + 1
+        var op1 = Assert.IsType<SetOperation>(ops[1]);
+        Assert.True(AssignmentTarget.TryGetVariable(op1.Dst, out var v1) && v1.Name == "var1");
+        var add1 = Assert.IsType<Math2Expr>(op1.Src);
+        Assert.Equal(Math2Operation.Add, add1.Operation);
+
+        // 2: a++
+        var op2 = Assert.IsType<IncOperation>(ops[2]);
+        Assert.True(AssignmentTarget.TryGetVariable(op2.Target, out var v2) && v2.Name == "var1");
+
+        // 3: a += 1 → a++
+        var op3 = Assert.IsType<IncOperation>(ops[3]);
+        Assert.True(AssignmentTarget.TryGetVariable(op3.Target, out var v3) && v3.Name == "var1");
+
+        // 4: a = a - 1
+        var op4 = Assert.IsType<SetOperation>(ops[4]);
+        Assert.True(AssignmentTarget.TryGetVariable(op4.Dst, out var v4) && v4.Name == "var1");
+        var sub1 = Assert.IsType<Math2Expr>(op4.Src);
+        Assert.Equal(Math2Operation.Sub, sub1.Operation);
+
+        // 5: a--
+        var op5 = Assert.IsType<DecOperation>(ops[5]);
+        Assert.True(AssignmentTarget.TryGetVariable(op5.Target, out var v5) && v5.Name == "var1");
+
+        // 6: a -= 1 → a--
+        var op6 = Assert.IsType<DecOperation>(ops[6]);
+        Assert.True(AssignmentTarget.TryGetVariable(op6.Target, out var v6) && v6.Name == "var1");
+
+        // 7: return a
+        var op7 = Assert.IsType<ReturnOperation>(ops[7]);
+        Assert.IsType<VariableExpr>(op7.Value);
+    }
+
     private static void AssertNoRegisterOperations(IReadOnlyList<Operation> operations)
     {
         foreach (var operation in operations)
