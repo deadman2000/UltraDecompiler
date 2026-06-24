@@ -7,6 +7,8 @@ public sealed record LibraryMatchInfo
 {
     public required string SymbolName { get; init; }
 
+    public required string HeaderName { get; init; }
+
     public required ushort ModulePage { get; init; }
 
     public required string ModuleName { get; init; }

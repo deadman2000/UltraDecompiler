@@ -14,11 +14,12 @@ public sealed class EnabDecompileTests
     [Fact(Skip = "NotImplemented")]
     public void Decompile_Enab_EmitsEnableDisable()
     {
-        var result = DecompileTestHelper.DecompileExample(sourceFileName: "enab.c");
+        var result = DecompileTestHelper.DecompileExample("enab.c");
 
         Assert.True(result.Success);
-        var mainSource = File.ReadAllText(
-            result.OutputFiles.First(path => path.EndsWith("main.c", StringComparison.Ordinal)));
+        var mainSource = DecompileTestHelper.ReadGeneratedFile(
+            result,
+            static fileName => fileName.EndsWith("main.c", StringComparison.Ordinal));
 
         Assert.Contains("#include <DOS.H>", mainSource);
         Assert.Contains("_disable();", mainSource);

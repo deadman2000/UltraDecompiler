@@ -14,7 +14,7 @@ public sealed class RotDecompileTests
     [Fact(Skip = "NotImplemented")]
     public void Decompile_Rot_EmitsRotate()
     {
-        var result = DecompileTestHelper.DecompileExample("rot.c");
+        var result = DecompileTestHelper.DecompileExample(sourceFileName: "rot.c");
 
         Assert.True(result.Success);
 

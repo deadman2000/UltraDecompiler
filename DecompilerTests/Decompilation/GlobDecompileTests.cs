@@ -15,7 +15,7 @@ public sealed class GlobDecompileTests
     [Fact(Skip = "NotImplemented")]
     public void Decompile_Glob_EmitsGlobalVariableAccess()
     {
-        var result = DecompileTestHelper.DecompileExample(sourceFileName: "glob.c");
+        var result = DecompileTestHelper.DecompileExample("glob.c");
 
         Assert.True(result.Success);
 

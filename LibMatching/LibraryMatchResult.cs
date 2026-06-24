@@ -10,6 +10,8 @@ public sealed record LibraryMatchResult
     /// <summary>Имя символа из словаря библиотеки (например <c>_printf</c>).</summary>
     public required string SymbolName { get; init; }
 
+    public required string HeaderName { get; init; }
+
     /// <summary>Страница модуля в .LIB (как в словаре).</summary>
     public required ushort ModulePage { get; init; }
 

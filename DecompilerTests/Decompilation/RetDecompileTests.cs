@@ -14,7 +14,7 @@ public sealed class RetDecompileTests
     [Fact]
     public void Decompile_Ret_EmitsReturn()
     {
-        var result = DecompileTestHelper.DecompileExample("ret.c");
+        var result = DecompileTestHelper.DecompileExample(sourceFileName: "ret.c");
 
         Assert.True(result.Success);
         var source = DecompileTestHelper.ReadPrimarySource(result);

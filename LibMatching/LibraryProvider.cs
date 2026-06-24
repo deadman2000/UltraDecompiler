@@ -546,6 +546,7 @@ public sealed class LibraryProvider
         new()
         {
             SymbolName = match.SymbolName,
+            HeaderName = match.HeaderName,
             ModulePage = match.ModulePage,
             ModuleName = match.ModuleName,
             ModuleCodeOffset = match.ModuleCodeOffset,

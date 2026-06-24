@@ -37,8 +37,12 @@ public class DecompilerIntegrationTests
         Assert.Equal("printf", printfProcedure.Name);
         Assert.Equal("printf", printfProcedure.LibraryMatch?.ModuleName);
 
-        Assert.Contains(result.OutputFiles, path => path.EndsWith("main.c", StringComparison.Ordinal));
-        var mainSource = File.ReadAllText(result.OutputFiles.First(path => path.EndsWith("main.c", StringComparison.Ordinal)));
+        Assert.Contains(
+            result.GeneratedFiles,
+            file => file.FileName.EndsWith("main.c", StringComparison.Ordinal));
+        var mainSource = DecompileTestHelper.ReadGeneratedFile(
+            result,
+            static fileName => fileName.EndsWith("main.c", StringComparison.Ordinal));
         Assert.Contains("printf(", mainSource);
         Assert.Contains("int main(void)", mainSource);
         Assert.True(printfProcedure.Signature.Parameters.Count >= 1);
@@ -164,8 +168,9 @@ public class DecompilerIntegrationTests
         Assert.Contains(mainProc.Callees, static c => c.StartsWith("sub_", StringComparison.Ordinal));
         Assert.Contains(mainProc.Callees, static c => c.Contains("printf", StringComparison.OrdinalIgnoreCase));
 
-        Assert.Contains(result.OutputFiles, path =>
-            path.EndsWith(
+        Assert.Contains(
+            result.GeneratedFiles,
+            file => file.FileName.EndsWith(
                 CCodeGenerator.FormatCombinedSourceFileName(Path.GetFileName(ExeProvider.Get("add.c"))),
                 StringComparison.OrdinalIgnoreCase));
         Assert.Contains("#include <STDIO.H>", mainSourceForAdd, StringComparison.OrdinalIgnoreCase);

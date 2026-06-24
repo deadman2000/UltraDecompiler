@@ -15,8 +15,9 @@ public sealed class CompoundDecompileTests
         var result = DecompileTestHelper.DecompileExample("compound.c", optimization: optimization);
 
         Assert.True(result.Success);
-        var mainSource = File.ReadAllText(
-            result.OutputFiles.First(p => p.EndsWith("main.c", StringComparison.Ordinal)));
+        var mainSource = DecompileTestHelper.ReadGeneratedFile(
+            result,
+            static fileName => fileName.EndsWith("main.c", StringComparison.Ordinal));
 
         Assert.Contains("var1 = var1 + 5", mainSource);
         Assert.Contains("var1 += 5", mainSource);

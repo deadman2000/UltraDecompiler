@@ -80,18 +80,21 @@ public class MakefileGeneratorTests
         var exePath = ExeProvider.Get("add.c");
         var expectedSource = CCodeGenerator.FormatCombinedSourceFileName(Path.GetFileName(exePath));
 
-        var result = DecompileTestHelper.DecompileExample(exePath);
+        var result = DecompileTestHelper.DecompileExe(exePath);
 
         Assert.True(result.Success);
 
-        var makefilePath = result.OutputFiles.First(f => f.EndsWith(MakefileGenerator.FileName, StringComparison.OrdinalIgnoreCase));
-        Assert.True(File.Exists(makefilePath));
-
-        var makefile = File.ReadAllText(makefilePath);
+        var makefile = DecompileTestHelper.ReadGeneratedFile(
+            result,
+            static fileName => fileName.EndsWith(MakefileGenerator.FileName, StringComparison.OrdinalIgnoreCase));
         Assert.Contains($"SRCS   := {expectedSource}", makefile);
         Assert.Contains("SLIBCE.LIB", makefile);
 
-        Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(makefilePath)!, expectedSource)));
-        Assert.DoesNotContain(result.OutputFiles, path => path.EndsWith("main.c", StringComparison.Ordinal));
+        Assert.Contains(
+            result.GeneratedFiles,
+            file => string.Equals(file.FileName, expectedSource, StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            result.GeneratedFiles,
+            file => file.FileName.EndsWith("main.c", StringComparison.Ordinal));
     }
 }

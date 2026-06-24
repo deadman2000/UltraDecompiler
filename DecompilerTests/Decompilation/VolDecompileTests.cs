@@ -12,7 +12,7 @@ public sealed class VolDecompileTests
     [Fact(Skip = "NotImplemented")]
     public void Decompile_Vol_EmitsFarPointerLiteral()
     {
-        var result = DecompileTestHelper.DecompileExample("vol.c");
+        var result = DecompileTestHelper.DecompileExample(sourceFileName: "vol.c");
 
         Assert.True(result.Success);
 

@@ -48,11 +48,12 @@ public class DosStructDecompileTests
 
     private static string DecompileMainSource(string exePath)
     {
-        var result = DecompileTestHelper.DecompileExample(exePath);
+        var result = DecompileTestHelper.DecompileExe(exePath);
 
         Assert.True(result.Success);
 
-        var mainPath = result.OutputFiles.First(path => path.EndsWith("main.c", StringComparison.Ordinal));
-        return File.ReadAllText(mainPath);
+        return DecompileTestHelper.ReadGeneratedFile(
+            result,
+            static fileName => fileName.EndsWith("main.c", StringComparison.Ordinal));
     }
 }

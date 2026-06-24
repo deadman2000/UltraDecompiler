@@ -313,7 +313,7 @@ public class PrologueEpilogueTests : BaseTests
             QuickCTestAssets.LibDirectory,
             QuickCTestAssets.IncludeDirectory,
             null);
-        decompiler.Decompile();
+        decompiler.Decompile(outputMode: DecompileOutputMode.InMemory);
 
         foreach (var proc in decompiler.Procedures.All)
         {

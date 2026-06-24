@@ -10,11 +10,10 @@ public sealed class ArgsEnvDecompileTests
     public void Decompile_Args_MainUsesArgcArgv()
     {
         var exePath = ExeProvider.Get("args.c");
-        var result = DecompileTestHelper.DecompileExample(exePath);
+        var result = DecompileTestHelper.DecompileExe(exePath);
 
         Assert.True(result.Success);
-        var mainSource = File.ReadAllText(
-            result.OutputFiles.First(static path => path.EndsWith(".c", StringComparison.OrdinalIgnoreCase)));
+        var mainSource = DecompileTestHelper.ReadPrimarySource(result);
 
         Assert.Contains("int main(int argc, char *argv[])", mainSource);
         Assert.Contains("argv[", mainSource);
@@ -27,11 +26,10 @@ public sealed class ArgsEnvDecompileTests
     public void Decompile_Env_MainUsesEnvp()
     {
         var exePath = ExeProvider.Get("env.c");
-        var result = DecompileTestHelper.DecompileExample(exePath);
+        var result = DecompileTestHelper.DecompileExe(exePath);
 
         Assert.True(result.Success);
-        var mainSource = File.ReadAllText(
-            result.OutputFiles.First(static path => path.EndsWith(".c", StringComparison.OrdinalIgnoreCase)));
+        var mainSource = DecompileTestHelper.ReadPrimarySource(result);
 
         Assert.Contains("int main(int argc, char *argv[], char *envp[])", mainSource);
         Assert.Contains("envp[", mainSource);

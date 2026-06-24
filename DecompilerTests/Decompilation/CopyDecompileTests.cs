@@ -13,7 +13,7 @@ public sealed class CopyDecompileTests
     [Fact(Skip = "NotImplemented")]
     public void Decompile_Copy_EmitsCharArrayLocal()
     {
-        var result = DecompileTestHelper.DecompileExample(sourceFileName: "copy.c");
+        var result = DecompileTestHelper.DecompileExample("copy.c");
 
         Assert.True(result.Success);
 

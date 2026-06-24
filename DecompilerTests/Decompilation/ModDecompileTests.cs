@@ -17,8 +17,9 @@ public sealed class ModDecompileTests
         var result = DecompileTestHelper.DecompileExample("mod.c");
 
         Assert.True(result.Success);
-        var mainSource = File.ReadAllText(
-            result.OutputFiles.First(p => p.EndsWith("main.c", StringComparison.Ordinal)));
+        var mainSource = DecompileTestHelper.ReadGeneratedFile(
+            result,
+            static fileName => fileName.EndsWith("main.c", StringComparison.Ordinal));
 
         Assert.Contains("var1 = 17", mainSource);
         Assert.Contains("var2 = 5", mainSource);

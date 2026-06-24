@@ -23,6 +23,9 @@ public sealed class DecompileResult
 
     public required IReadOnlyList<string> OutputFiles { get; init; }
 
+    /// <summary>Сгенерированные файлы при <see cref="DecompileOutputMode.InMemory"/>.</summary>
+    public IReadOnlyList<GeneratedOutputFile> GeneratedFiles { get; init; } = [];
+
     /// <summary>Восстановленные параметры компиляции.</summary>
     public CompilerOptions CompilerOptions { get; init; } = new();
 
@@ -31,5 +34,6 @@ public sealed class DecompileResult
         Success = false,
         Procedures = new ProcedureStorage(),
         OutputFiles = [],
+        GeneratedFiles = [],
     };
 }

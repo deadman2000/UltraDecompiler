@@ -118,6 +118,7 @@ public static class LibraryFunctionMatcher
                 results.Add(new LibraryMatchResult
                 {
                     SymbolName = currentSymbolName,
+                    HeaderName = module.HeaderName,
                     ModulePage = symbol.ModulePage,
                     ModuleName = module.DisplayName,
                     ModuleCodeOffset = moduleCodeOffset,

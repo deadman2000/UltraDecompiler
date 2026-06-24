@@ -31,11 +31,12 @@ public class StringLiteralSubstitutionTests
 
     private static string DecompileMainSource(string exePath)
     {
-        var result = DecompileTestHelper.DecompileExample(exePath);
+        var result = DecompileTestHelper.DecompileExe(exePath);
 
         Assert.True(result.Success);
 
-        var mainPath = DecompileTestHelper.GetPrimarySourcePath(result);
-        return File.ReadAllText(mainPath);
+        return DecompileTestHelper.ReadGeneratedFile(
+            result,
+            static fileName => fileName.EndsWith("main.c", StringComparison.Ordinal));
     }
 }

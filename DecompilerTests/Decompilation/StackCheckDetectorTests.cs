@@ -15,8 +15,9 @@ public class StackCheckDetectorTests
         Assert.True(result.Success);
         Assert.True(result.CompilerOptions.StackCheckingEnabled);
 
-        var mainSource = File.ReadAllText(
-            result.OutputFiles.First(path => path.EndsWith("main.c", StringComparison.Ordinal)));
+        var mainSource = DecompileTestHelper.ReadGeneratedFile(
+            result,
+            static fileName => fileName.EndsWith("main.c", StringComparison.Ordinal));
         Assert.DoesNotContain("_chkstk(", mainSource, StringComparison.Ordinal);
     }
 
@@ -29,9 +30,8 @@ public class StackCheckDetectorTests
         Assert.True(result.Success);
         Assert.True(result.CompilerOptions.StackCheckingEnabled);
 
-        foreach (var filePath in result.OutputFiles)
+        foreach (var source in DecompileTestHelper.ReadAllSourceContents(result))
         {
-            var source = File.ReadAllText(filePath);
             Assert.DoesNotContain("_chkstk(", source, StringComparison.Ordinal);
         }
     }

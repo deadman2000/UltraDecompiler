@@ -43,7 +43,7 @@ public sealed class OptimizationLevelHeuristicsTests
     [Fact(Skip = "NotImplemented")]
     public void Decompile_GlobOd_PreservesDisabledOptimizationLevel()
     {
-        var result = DecompileTestHelper.DecompileExample("glob.c");
+        var result = DecompileTestHelper.DecompileExample(sourceFileName: "glob.c");
 
         Assert.True(result.Success);
         Assert.Equal(OptimizationLevel.Disabled, result.CompilerOptions.OptimizationLevel);
@@ -88,7 +88,7 @@ public sealed class OptimizationLevelHeuristicsTests
             sourceFileName,
             optimization: buildOptimization);
 
-        var result = DecompileTestHelper.DecompileExample(exePath);
+        var result = DecompileTestHelper.DecompileExe(exePath);
 
         Assert.True(
             result.Success,

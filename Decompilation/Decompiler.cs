@@ -89,11 +89,15 @@ public class Decompiler
 
     /// <summary>
     /// Декомпилирует EXE/COM: находит <c>_main</c>, рекурсивно собирает функции,
-    /// сопоставляет runtime с .LIB и сохраняет пользовательский код в <paramref name="outputDirectory"/>.
+    /// сопоставляет runtime с .LIB и сохраняет пользовательский код в <paramref name="outputDirectory"/>
+    /// или возвращает его в памяти.
     /// </summary>
-    /// <param name="exportGraph">Экспортировать CFG в .dot/.svg файлы.</param>
+    /// <param name="exportGraph">Экспортировать CFG в .dot/.svg файлы (только <see cref="DecompileOutputMode.FileSystem"/>).</param>
+    /// <param name="outputMode">Способ выдачи сгенерированных .c/.h/Makefile.</param>
     /// <returns>Результат декомпиляции.</returns>
-    public DecompileResult Decompile(bool exportGraph = false)
+    public DecompileResult Decompile(
+        bool exportGraph = false,
+        DecompileOutputMode outputMode = DecompileOutputMode.FileSystem)
     {
         // Загрузка образа и поиск точки входа
         if (!LoadImageAndResolveMain())
@@ -127,20 +131,18 @@ public class Decompiler
         MaterializeGlobalVariables();
 
         var chosenConfig = SelectLibraryConfiguration();
-        var outputFiles = new List<string>();
-        if (!string.IsNullOrEmpty(_outputDirectory))
+        var generatedFiles = GenerateOutputFiles(chosenConfig);
+
+        IReadOnlyList<string> outputFiles = [];
+        if (outputMode == DecompileOutputMode.FileSystem)
         {
-            // Генерация заголовочных файлов
-            Directory.CreateDirectory(_outputDirectory);
+            if (string.IsNullOrEmpty(_outputDirectory))
+            {
+                throw new InvalidOperationException(
+                    "Для DecompileOutputMode.FileSystem требуется непустой outputDirectory.");
+            }
 
-            GenerateHeaderFiles(ref outputFiles);
-
-            // Генерация C-исходников
-            var makefileSourceFileNames = GenerateCSourceFiles(ref outputFiles);
-
-            // Генерация Makefile
-            var makefilePath = GenerateMakefile(chosenConfig, makefileSourceFileNames, _compilerOptions);
-            outputFiles.Add(makefilePath);
+            outputFiles = WriteGeneratedFiles(_outputDirectory, generatedFiles);
         }
 
         return new DecompileResult
@@ -151,6 +153,7 @@ public class Decompiler
             PossibleLibraryConfigurations = _resolution.PossibleLibraryConfigurations,
             Procedures = _storage,
             OutputFiles = outputFiles,
+            GeneratedFiles = outputMode == DecompileOutputMode.InMemory ? generatedFiles : [],
             CompilerOptions = _compilerOptions,
         };
     }
@@ -413,12 +416,52 @@ public class Decompiler
     }
 
     /// <summary>
+    /// Генерирует заголовочные .h, C-исходники и Makefile.
+    /// </summary>
+    private List<GeneratedOutputFile> GenerateOutputFiles(LibraryConfiguration chosenConfig)
+    {
+        var generatedFiles = new List<GeneratedOutputFile>();
+        generatedFiles.AddRange(GenerateHeaderFiles());
+        var makefileSourceFileNames = GenerateCSourceFiles(generatedFiles);
+        generatedFiles.Add(GenerateMakefileFile(chosenConfig, makefileSourceFileNames, _compilerOptions));
+        return generatedFiles;
+    }
+
+    private static IReadOnlyList<string> WriteGeneratedFiles(
+        string outputDirectory,
+        IReadOnlyList<GeneratedOutputFile> generatedFiles)
+    {
+        Directory.CreateDirectory(outputDirectory);
+
+        var outputFiles = new List<string>(generatedFiles.Count);
+        foreach (var file in generatedFiles)
+        {
+            var path = Path.Combine(outputDirectory, file.FileName);
+            File.WriteAllText(path, file.Content, Encoding.ASCII);
+            outputFiles.Add(path);
+        }
+
+        return outputFiles;
+    }
+
+    /// <summary>
+    /// Выбирает конфигурацию библиотек, соответствующую primary (или первую доступную).
+    /// </summary>
+    private LibraryConfiguration SelectLibraryConfiguration()
+    {
+        return _resolution.PossibleLibraryConfigurations.FirstOrDefault(
+            c => string.Equals(c.PrimaryCrtLibrary, _resolution.PrimaryLibrary.FileName, StringComparison.OrdinalIgnoreCase))
+            ?? _resolution.PossibleLibraryConfigurations[0];
+    }
+
+    /// <summary>
     /// Генерирует заголовочные .h файлы для пользовательских процедур (если процедура одна).
     /// </summary>
-    private void GenerateHeaderFiles(ref List<string> outputFiles)
+    private List<GeneratedOutputFile> GenerateHeaderFiles()
     {
+        var generatedFiles = new List<GeneratedOutputFile>();
         if (_preparedProcedures.Count != 1)
-            return;
+            return generatedFiles;
 
         var userProcedures = _storage.All.Where(static p => !p.IsLibrary).ToList();
         var referencedUserProcedures = ProcedureDependencyCollector.CollectReferencedUserProcedureNames(userProcedures, _storage);
@@ -427,17 +470,21 @@ public class Decompiler
         {
             var headerSource = CCodeGenerator.FormatHeaderFile(procedure.ToCodegenModel());
             var headerFileName = CCodeGenerator.FormatHeaderFileName(procedure.Name, procedure.Offset);
-            var headerPath = Path.Combine(_outputDirectory, headerFileName);
-            File.WriteAllText(headerPath, headerSource, Encoding.ASCII);
-            outputFiles.Add(headerPath);
+            generatedFiles.Add(new GeneratedOutputFile
+            {
+                FileName = headerFileName,
+                Content = headerSource,
+            });
         }
+
+        return generatedFiles;
     }
 
     /// <summary>
     /// Генерирует C-исходники (combined или раздельные .c файлы).
     /// </summary>
     /// <returns>Список имён сгенерированных файлов для Makefile.</returns>
-    private List<string> GenerateCSourceFiles(ref List<string> outputFiles)
+    private List<string> GenerateCSourceFiles(List<GeneratedOutputFile> generatedFiles)
     {
         var combinedUnits = new List<(ProcedureCodegenModel Procedure, IReadOnlyList<Operation> Operations, IReadOnlyList<string> Includes)>();
 
@@ -457,9 +504,11 @@ public class Decompiler
             // Множество процедур — объединяем в один .c файл
             var combinedFileName = CCodeGenerator.FormatCombinedSourceFileName(Path.GetFileName(_exePath));
             var combinedSource = CCodeGenerator.FormatCombinedCSource(combinedUnits, _globalRegistry.All);
-            var combinedPath = Path.Combine(_outputDirectory, combinedFileName);
-            File.WriteAllText(combinedPath, combinedSource, Encoding.ASCII);
-            outputFiles.Add(combinedPath);
+            generatedFiles.Add(new GeneratedOutputFile
+            {
+                FileName = combinedFileName,
+                Content = combinedSource,
+            });
             return [combinedFileName];
         }
         else
@@ -473,41 +522,39 @@ public class Decompiler
                 includes,
                 _globalRegistry.All);
             var fileName = CCodeGenerator.FormatOutputFileName(procedure.Name, procedure.Offset);
-            var filePath = Path.Combine(_outputDirectory, fileName);
-            File.WriteAllText(filePath, source, Encoding.ASCII);
-            outputFiles.Add(filePath);
+            generatedFiles.Add(new GeneratedOutputFile
+            {
+                FileName = fileName,
+                Content = source,
+            });
             return [fileName];
         }
     }
 
     /// <summary>
-    /// Выбирает конфигурацию библиотек, соответствующую primary (или первую доступную).
-    /// </summary>
-    private LibraryConfiguration SelectLibraryConfiguration()
-    {
-        return _resolution.PossibleLibraryConfigurations.FirstOrDefault(
-            c => string.Equals(c.PrimaryCrtLibrary, _resolution.PrimaryLibrary.FileName, StringComparison.OrdinalIgnoreCase))
-            ?? _resolution.PossibleLibraryConfigurations[0];
-    }
-
-    /// <summary>
     /// Генерирует Makefile для сборки скомпилированного кода.
     /// </summary>
-    private string GenerateMakefile(
+    private GeneratedOutputFile GenerateMakefileFile(
         LibraryConfiguration config,
         List<string> sourceFileNames,
         CompilerOptions compilerOptions)
     {
-        return MakefileGenerator.WriteMakefile(
+        var outputDirectory = string.IsNullOrEmpty(_outputDirectory) ? "." : Path.GetFullPath(_outputDirectory);
+        var content = MakefileGenerator.FormatMakefile(
             new MakefileOptions
             {
                 TargetExeFileName = Path.GetFileName(_exePath),
                 SourceFileNames = sourceFileNames,
                 CompilerOptions = compilerOptions,
                 LibraryFileNames = config.LibraryFileNames,
-                OutputDirectory = Path.GetFullPath(_outputDirectory),
-            },
-            _outputDirectory);
+                OutputDirectory = outputDirectory,
+            });
+
+        return new GeneratedOutputFile
+        {
+            FileName = MakefileGenerator.FileName,
+            Content = content,
+        };
     }
 
     /// <summary>
