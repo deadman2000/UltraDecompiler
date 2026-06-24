@@ -337,12 +337,42 @@ public partial class ExpressionBuilder
         };
     }
 
+    /// <summary>Параметры оптимизации inc/dec в IR.</summary>
+    protected readonly struct IncDecPatternOptions
+    {
+        public static IncDecPatternOptions Default { get; } = new();
+
+        /// <summary>/Ox: <c>a = a ± 1</c> эквивалентно <c>a++/a--</c>.</summary>
+        public static IncDecPatternOptions Optimized { get; } = new() { NormalizeSelfAddSubOne = true };
+
+        public bool NormalizeSelfAddSubOne { get; init; }
+    }
+
+    /// <summary>
+    /// Оптимизация паттернов инкремента/декремента в одном блоке (/Od).
+    /// </summary>
+    protected static void OptimizeIncDecPatternsInBlock(ExprBlock block) =>
+        OptimizeIncDecPatternsInBlock(block, IncDecPatternOptions.Default);
+
     /// <summary>
     /// Оптимизация паттернов инкремента/декремента в одном блоке.
     /// </summary>
-    protected static void OptimizeIncDecPatternsInBlock(ExprBlock block)
+    protected static void OptimizeIncDecPatternsInBlock(ExprBlock block, IncDecPatternOptions options)
     {
-        // Фаза 1: NormalizeAddSubOne - преобразование += 1/-= 1 в IncOperation/DecOperation
+        NormalizeAddSubOneInBlock(block);
+
+        if (options.NormalizeSelfAddSubOne)
+        {
+            NormalizeSelfAddSubOneInBlock(block);
+        }
+
+        NormalizeAdd65535InBlock(block);
+        RecognizePrePostIncDecInBlock(block, options);
+    }
+
+    /// <summary>Преобразование <c>+= 1</c>/<c>-= 1</c> в <c>IncOperation</c>/<c>DecOperation</c>.</summary>
+    private static void NormalizeAddSubOneInBlock(ExprBlock block)
+    {
         for (var i = 0; i < block.Operations.Count; i++)
         {
             switch (block.Operations[i])
@@ -361,8 +391,46 @@ public partial class ExpressionBuilder
                     break;
             }
         }
+    }
 
-        // Фаза 2: Преобразование var + 65535 в var - 1 (16-битное дополнение до 2)
+    /// <summary>
+    /// /Ox: <c>var = var ± 1</c> → <c>var++/var--</c> (в оптимизированном коде QuickC эквивалентно).
+    /// </summary>
+    private static void NormalizeSelfAddSubOneInBlock(ExprBlock block)
+    {
+        for (var i = 0; i < block.Operations.Count; i++)
+        {
+            if (block.Operations[i] is not SetOperation setOp ||
+                !AssignmentTarget.TryGetVariable(setOp.Dst, out var dstVar))
+            {
+                continue;
+            }
+
+            switch (setOp.Src)
+            {
+                case Math2Expr
+                {
+                    Operation: Math2Operation.Add,
+                    First: VariableExpr { Var: var srcVar },
+                    Second: ConstExpr { Value: 1 },
+                } when ReferenceEquals(dstVar, srcVar):
+                    block.Operations[i] = new IncOperation(dstVar.ToSet());
+                    break;
+                case Math2Expr
+                {
+                    Operation: Math2Operation.Sub,
+                    First: VariableExpr { Var: var srcVar2 },
+                    Second: ConstExpr { Value: 1 },
+                } when ReferenceEquals(dstVar, srcVar2):
+                    block.Operations[i] = new DecOperation(dstVar.ToSet());
+                    break;
+            }
+        }
+    }
+
+    /// <summary>Преобразование <c>var + 65535</c> в <c>var - 1</c> (16-битное дополнение до 2).</summary>
+    private static void NormalizeAdd65535InBlock(ExprBlock block)
+    {
         for (var i = 0; i < block.Operations.Count; i++)
         {
             if (block.Operations[i] is SetOperation setOp &&
@@ -371,8 +439,11 @@ public partial class ExpressionBuilder
                 block.Operations[i] = setOp with { Src = new Math2Expr(Math2Operation.Sub, first, ConstExpr.One) };
             }
         }
+    }
 
-        // Фаза 3: Распознавание пре-/пост-инкрементов
+    /// <summary>Распознавание пре-/пост-инкрементов и самообновления через регистр.</summary>
+    private static void RecognizePrePostIncDecInBlock(ExprBlock block, IncDecPatternOptions options)
+    {
         var changed = true;
         while (changed)
         {
@@ -380,121 +451,212 @@ public partial class ExpressionBuilder
 
             for (int i = 0; i < block.Operations.Count - 1; i++)
             {
-                // Паттерн 1: IncOperation(var1); var2 = var1 → var2 = ++var1
-                if (block.Operations[i] is IncOperation incOp &&
-                    AssignmentTarget.TryGetVariable(incOp.Target, out var incTargetVar) &&
-                    block.Operations[i + 1] is SetOperation nextSet &&
-                    nextSet.Src is VariableExpr nextVarExpr &&
-                    ReferenceEquals(nextVarExpr.Var, incTargetVar) &&
-                    AssignmentTarget.TryGetVariable(nextSet.Dst, out var dstVar) &&
-                    !ReferenceEquals(dstVar, incTargetVar))
+                if (options.NormalizeSelfAddSubOne && TryRecognizeRegisterSelfIncDec(block, i))
                 {
-                    // Заменяем на var2 = ++var1, удаляем IncOperation
-                    block.Operations[i] = new SetOperation(nextSet.Dst, new Math1Expr(Math1Operation.PreIncrement, new VariableExpr { Var = incTargetVar }));
-                    block.Operations.RemoveAt(i + 1);
                     changed = true;
                     break;
                 }
 
-                // Паттерн 1b: DecOperation(var1); var2 = var1 → var2 = --var1
-                if (block.Operations[i] is DecOperation decOp &&
-                    AssignmentTarget.TryGetVariable(decOp.Target, out var decTargetVar) &&
-                    block.Operations[i + 1] is SetOperation nextSet2 &&
-                    nextSet2.Src is VariableExpr nextVarExpr2 &&
-                    ReferenceEquals(nextVarExpr2.Var, decTargetVar) &&
-                    AssignmentTarget.TryGetVariable(nextSet2.Dst, out var dstVar2) &&
-                    !ReferenceEquals(dstVar2, decTargetVar))
+                if (TryRecognizePrefixIncDec(block, i))
                 {
-                    // Заменяем на var2 = --var1, удаляем DecOperation
-                    block.Operations[i] = new SetOperation(nextSet2.Dst, new Math1Expr(Math1Operation.PreDecrement, new VariableExpr { Var = decTargetVar }));
-                    block.Operations.RemoveAt(i + 1);
                     changed = true;
                     break;
                 }
 
-                // Паттерн 2: regAX = var1; IncOperation(var1); var2 = regAX → var2 = var1++
-                // Ищем: Set(reg, var); Inc/Dec(var); Set(dst, reg)
-                if (block.Operations[i] is SetOperation setRegOp &&
-                    AssignmentTarget.TryGetVariable(setRegOp.Dst, out var regVar) &&
-                    regVar.IsRegister &&
-                    setRegOp.Src is VariableExpr srcVarExpr &&
-                    i + 2 < block.Operations.Count)
+                if (TryRecognizePostfixIncDec(block, i))
                 {
-                    // Проверяем следующую операцию - инкремент/декремент переменной
-                    var sourceVar = srcVarExpr.Var;
-                    bool foundIncDec = false;
-                    bool isIncrement = true;
-
-                    // Проверяем AddAssignOperation или IncOperation
-                    if (block.Operations[i + 1] is AddAssignOperation addIncOp2 &&
-                        addIncOp2.Value is ConstExpr { Value: 1 } &&
-                        AssignmentTarget.ReferencesVariable(addIncOp2.Target, sourceVar))
-                    {
-                        foundIncDec = true;
-                    }
-                    else if (block.Operations[i + 1] is IncOperation incOp2 &&
-                             AssignmentTarget.ReferencesVariable(incOp2.Target, sourceVar))
-                    {
-                        foundIncDec = true;
-                    }
-                    else if (block.Operations[i + 1] is SubAssignOperation subDecOp2 &&
-                             subDecOp2.Value is ConstExpr { Value: 1 } &&
-                             AssignmentTarget.ReferencesVariable(subDecOp2.Target, sourceVar))
-                    {
-                        foundIncDec = true;
-                        isIncrement = false;
-                    }
-                    else if (block.Operations[i + 1] is DecOperation decOp2 &&
-                             AssignmentTarget.ReferencesVariable(decOp2.Target, sourceVar))
-                    {
-                        foundIncDec = true;
-                        isIncrement = false;
-                    }
-
-                    if (foundIncDec)
-                    {
-                        // Ищем использование регистра
-                        for (int j = i + 2; j < block.Operations.Count; j++)
-                        {
-                            if (block.Operations[j] is SetOperation useRegOp &&
-                                useRegOp.Src is VariableExpr useRegVarExpr &&
-                                ReferenceEquals(useRegVarExpr.Var, regVar) &&
-                                AssignmentTarget.TryGetVariable(useRegOp.Dst, out var useDstVar) &&
-                                !ReferenceEquals(useDstVar, regVar))
-                            {
-                                // Проверяем, что регистр не переопределяется между i и j
-                                bool regRedefined = false;
-                                for (int k = i + 1; k < j; k++)
-                                {
-                                    if (block.Operations[k] is SetOperation checkSet &&
-                                        AssignmentTarget.TryGetVariable(checkSet.Dst, out var checkVar) &&
-                                        ReferenceEquals(checkVar, regVar))
-                                    {
-                                        regRedefined = true;
-                                        break;
-                                    }
-                                }
-
-                                if (!regRedefined)
-                                {
-                                    // Заменяем на var2 = var1++ или var2 = var1--
-                                    var postOp = isIncrement ? Math1Operation.PostIncrement : Math1Operation.PostDecrement;
-                                    block.Operations[j] = new SetOperation(useRegOp.Dst, new Math1Expr(postOp, new VariableExpr { Var = sourceVar }));
-                                    // Удаляем IncOperation/DecOperation (теперь на позиции i после удаления setRegOp)
-                                    block.Operations.RemoveAt(i + 1);
-                                    // Удаляем присваивание регистру
-                                    block.Operations.RemoveAt(i);
-                                    changed = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    if (changed)
-                        break;
+                    changed = true;
+                    break;
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// /Ox: <c>reg = var; inc/dec reg; var = reg</c> → <c>var++/var--</c>
+    /// (QuickC инкрементирует регистр, а не память).
+    /// </summary>
+    private static bool TryRecognizeRegisterSelfIncDec(ExprBlock block, int index)
+    {
+        if (index + 2 >= block.Operations.Count ||
+            block.Operations[index] is not SetOperation loadOp ||
+            !AssignmentTarget.TryGetVariable(loadOp.Dst, out var regVar) ||
+            !regVar.IsRegister ||
+            loadOp.Src is not VariableExpr { Var: var sourceVar } ||
+            !TryGetIncDecOnRegister(block.Operations[index + 1], regVar, out var isIncrement) ||
+            block.Operations[index + 2] is not SetOperation storeOp ||
+            !AssignmentTarget.TryGetVariable(storeOp.Dst, out var destVar) ||
+            !ReferenceEquals(destVar, sourceVar) ||
+            storeOp.Src is not VariableExpr { Var: var storedReg } ||
+            !ReferenceEquals(storedReg, regVar))
+        {
+            return false;
+        }
+
+        block.Operations[index] = isIncrement
+            ? new IncOperation(sourceVar.ToSet())
+            : new DecOperation(sourceVar.ToSet());
+        block.Operations.RemoveAt(index + 2);
+        block.Operations.RemoveAt(index + 1);
+        return true;
+    }
+
+    /// <summary>Проверяет inc/dec (или <c>reg = reg ± 1</c>) на регистре.</summary>
+    private static bool TryGetIncDecOnRegister(Operation operation, Variable reg, out bool isIncrement)
+    {
+        isIncrement = true;
+        return operation switch
+        {
+            IncOperation { Target: var target } when AssignmentTarget.ReferencesVariable(target, reg) => true,
+            DecOperation { Target: var target } when AssignmentTarget.ReferencesVariable(target, reg) =>
+                SetIncDecDirection(isIncrement: false, out isIncrement),
+            SetOperation
+            {
+                Dst: var dst,
+                Src: Math2Expr
+                {
+                    Operation: Math2Operation.Add,
+                    First: VariableExpr { Var: var src },
+                    Second: ConstExpr { Value: 1 },
+                },
+            } when ReferenceEquals(dst, reg) && ReferenceEquals(src, reg) => true,
+            SetOperation
+            {
+                Dst: var dst,
+                Src: Math2Expr
+                {
+                    Operation: Math2Operation.Sub,
+                    First: VariableExpr { Var: var src },
+                    Second: ConstExpr { Value: 1 },
+                },
+            } when ReferenceEquals(dst, reg) && ReferenceEquals(src, reg) =>
+                SetIncDecDirection(isIncrement: false, out isIncrement),
+            _ => false,
+        };
+    }
+
+    /// <summary><c>Inc/Dec(var); dst = var</c> → <c>dst = ++/--var</c>.</summary>
+    private static bool TryRecognizePrefixIncDec(ExprBlock block, int index)
+    {
+        if (index + 1 >= block.Operations.Count)
+        {
+            return false;
+        }
+
+        if (block.Operations[index] is IncOperation incOp &&
+            AssignmentTarget.TryGetVariable(incOp.Target, out var sourceVar) &&
+            !sourceVar.IsRegister)
+        {
+            return TryReplacePrefixIncDec(block, index, sourceVar, Math1Operation.PreIncrement);
+        }
+
+        if (block.Operations[index] is DecOperation decOp &&
+            AssignmentTarget.TryGetVariable(decOp.Target, out sourceVar) &&
+            !sourceVar.IsRegister)
+        {
+            return TryReplacePrefixIncDec(block, index, sourceVar, Math1Operation.PreDecrement);
+        }
+
+        return false;
+    }
+
+    private static bool TryReplacePrefixIncDec(
+        ExprBlock block,
+        int index,
+        Variable sourceVar,
+        Math1Operation prefixOp)
+    {
+        if (block.Operations[index + 1] is not SetOperation nextSet ||
+            nextSet.Src is not VariableExpr nextVarExpr ||
+            !ReferenceEquals(nextVarExpr.Var, sourceVar) ||
+            !AssignmentTarget.TryGetVariable(nextSet.Dst, out var dstVar) ||
+            ReferenceEquals(dstVar, sourceVar))
+        {
+            return false;
+        }
+
+        block.Operations[index] = new SetOperation(
+            nextSet.Dst,
+            new Math1Expr(prefixOp, new VariableExpr { Var = sourceVar }));
+        block.Operations.RemoveAt(index + 1);
+        return true;
+    }
+
+    /// <summary><c>reg = var; Inc/Dec(var); dst = reg</c> → <c>dst = var++/var--</c>.</summary>
+    private static bool TryRecognizePostfixIncDec(ExprBlock block, int index)
+    {
+        if (block.Operations[index] is not SetOperation setRegOp ||
+            !AssignmentTarget.TryGetVariable(setRegOp.Dst, out var regVar) ||
+            !regVar.IsRegister ||
+            setRegOp.Src is not VariableExpr srcVarExpr ||
+            index + 2 >= block.Operations.Count)
+        {
+            return false;
+        }
+
+        var sourceVar = srcVarExpr.Var;
+        if (!TryGetIncDecOnVariable(block.Operations[index + 1], sourceVar, out var isIncrement))
+        {
+            return false;
+        }
+
+        for (int j = index + 2; j < block.Operations.Count; j++)
+        {
+            if (block.Operations[j] is not SetOperation useRegOp ||
+                useRegOp.Src is not VariableExpr useRegVarExpr ||
+                !ReferenceEquals(useRegVarExpr.Var, regVar) ||
+                !AssignmentTarget.TryGetVariable(useRegOp.Dst, out var useDstVar) ||
+                ReferenceEquals(useDstVar, regVar))
+            {
+                continue;
+            }
+
+            for (int k = index + 1; k < j; k++)
+            {
+                if (block.Operations[k] is SetOperation checkSet &&
+                    AssignmentTarget.TryGetVariable(checkSet.Dst, out var checkVar) &&
+                    ReferenceEquals(checkVar, regVar))
+                {
+                    return false;
+                }
+            }
+
+            var postOp = isIncrement ? Math1Operation.PostIncrement : Math1Operation.PostDecrement;
+            block.Operations[j] = new SetOperation(
+                useRegOp.Dst,
+                new Math1Expr(postOp, new VariableExpr { Var = sourceVar }));
+            block.Operations.RemoveAt(index + 1);
+            block.Operations.RemoveAt(index);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Проверяет, инкрементирует/декрементирует ли операция переменную на 1
+    /// (<c>Inc/Dec</c> или <c>+= 1/-= 1</c>).
+    /// </summary>
+    private static bool TryGetIncDecOnVariable(Operation operation, Variable variable, out bool isIncrement)
+    {
+        isIncrement = true;
+        return operation switch
+        {
+            AddAssignOperation { Value: ConstExpr { Value: 1 }, Target: var target }
+                when AssignmentTarget.ReferencesVariable(target, variable) => true,
+            IncOperation { Target: var target } when AssignmentTarget.ReferencesVariable(target, variable) => true,
+            SubAssignOperation { Value: ConstExpr { Value: 1 }, Target: var target }
+                when AssignmentTarget.ReferencesVariable(target, variable) =>
+                SetIncDecDirection(isIncrement: false, out isIncrement),
+            DecOperation { Target: var target } when AssignmentTarget.ReferencesVariable(target, variable) =>
+                SetIncDecDirection(isIncrement: false, out isIncrement),
+            _ => false,
+        };
+    }
+
+    private static bool SetIncDecDirection(bool isIncrement, out bool result)
+    {
+        result = isIncrement;
+        return true;
     }
 }

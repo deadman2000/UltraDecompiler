@@ -1,4 +1,5 @@
 using TestSupport;
+using UltraDecompiler.Common;
 
 namespace DecompilerTests.Expressions;
 
@@ -411,9 +412,9 @@ public sealed class RegisterChainOptimizationTests : BaseTests
         var proc = Assert.Single(procedures);
         Assert.NotNull(proc.Expressions);
         var block = Assert.Single(proc.Expressions.Blocks);
-        
+
         var ops = block.Operations.ToList();
-        
+
         // 0: a = 10 (инициализация)
         var op0 = Assert.IsType<SetOperation>(ops[0]);
         Assert.True(AssignmentTarget.TryGetVariable(op0.Dst, out var v0) && v0.Name == "var1");
@@ -463,6 +464,95 @@ public sealed class RegisterChainOptimizationTests : BaseTests
         var op9 = Assert.IsType<ReturnOperation>(ops[9]);
         Assert.IsType<VariableExpr>(op9.Value);
     }
+
+    /// <summary>
+    /// Интеграционный тест incdec.c (/Ox): после оптимизаций нет регистров в IR;
+    /// <c>a = a ± 1</c> и <c>a ±= 1</c> сводятся к <c>a++/a--</c>.
+    /// </summary>
+    [Fact]
+    public void IncDec_IncdecC_Ox_IntegrationTest()
+    {
+        var procedures = DecompileTestHelper.GetExampleIR(
+            "incdec.c",
+            optimization: OptimizationLevel.EnabledFull);
+        var proc = Assert.Single(procedures);
+        Assert.NotNull(proc.Expressions);
+        var block = Assert.Single(proc.Expressions.Blocks);
+
+        var ops = block.Operations.ToList();
+        AssertNoRegisterOperations(ops);
+        Assert.Equal(10, ops.Count);
+
+        // 0: a = 10
+        var op0 = Assert.IsType<SetOperation>(ops[0]);
+        Assert.True(AssignmentTarget.TryGetVariable(op0.Dst, out var v0) && v0.Name == "var1");
+        Assert.IsType<ConstExpr>(op0.Src);
+
+        // 1: a = a + 1 → a++ (/Ox)
+        var op1 = Assert.IsType<IncOperation>(ops[1]);
+        Assert.True(AssignmentTarget.TryGetVariable(op1.Target, out var v1) && v1.Name == "var1");
+
+        // 2: a++
+        var op2 = Assert.IsType<IncOperation>(ops[2]);
+        Assert.True(AssignmentTarget.TryGetVariable(op2.Target, out var v2) && v2.Name == "var1");
+
+        // 3: a += 1 → a++
+        var op3 = Assert.IsType<IncOperation>(ops[3]);
+        Assert.True(AssignmentTarget.TryGetVariable(op3.Target, out var v3) && v3.Name == "var1");
+
+        // 4: b = ++a
+        var op4 = Assert.IsType<SetOperation>(ops[4]);
+        Assert.True(AssignmentTarget.TryGetVariable(op4.Dst, out var v4) && v4.Name == "var2");
+        var preInc = Assert.IsType<Math1Expr>(op4.Src);
+        Assert.Equal(Math1Operation.PreIncrement, preInc.Operation);
+
+        // 5: b = a++
+        var op5 = Assert.IsType<SetOperation>(ops[5]);
+        Assert.True(AssignmentTarget.TryGetVariable(op5.Dst, out var v5) && v5.Name == "var2");
+        var postInc = Assert.IsType<Math1Expr>(op5.Src);
+        Assert.Equal(Math1Operation.PostIncrement, postInc.Operation);
+
+        // 6: a = a - 1 → a-- (/Ox)
+        var op6 = Assert.IsType<DecOperation>(ops[6]);
+        Assert.True(AssignmentTarget.TryGetVariable(op6.Target, out var v6) && v6.Name == "var1");
+
+        // 7: a--
+        var op7 = Assert.IsType<DecOperation>(ops[7]);
+        Assert.True(AssignmentTarget.TryGetVariable(op7.Target, out var v7) && v7.Name == "var1");
+
+        // 8: a -= 1 → a--
+        var op8 = Assert.IsType<DecOperation>(ops[8]);
+        Assert.True(AssignmentTarget.TryGetVariable(op8.Target, out var v8) && v8.Name == "var1");
+
+        // 9: return b
+        var op9 = Assert.IsType<ReturnOperation>(ops[9]);
+        Assert.IsType<VariableExpr>(op9.Value);
+    }
+
+    private static void AssertNoRegisterOperations(IReadOnlyList<Operation> operations)
+    {
+        foreach (var operation in operations)
+        {
+            Assert.False(ReferencesRegister(operation), $"Регистр в операции: {operation}");
+        }
+    }
+
+    private static bool ReferencesRegister(Operation operation) => operation switch
+    {
+        SetOperation set => ExprReferencesRegister(set.Dst) || ExprReferencesRegister(set.Src),
+        IncOperation inc => ExprReferencesRegister(inc.Target),
+        DecOperation dec => ExprReferencesRegister(dec.Target),
+        ReturnOperation { Value: { } value } => ExprReferencesRegister(value),
+        _ => false,
+    };
+
+    private static bool ExprReferencesRegister(Expr expr) => expr switch
+    {
+        VariableExpr { Var.IsRegister: true } => true,
+        Math1Expr math1 => ExprReferencesRegister(math1.Op),
+        Math2Expr math2 => ExprReferencesRegister(math2.First) || ExprReferencesRegister(math2.Second),
+        _ => false,
+    };
 
     #endregion
 
