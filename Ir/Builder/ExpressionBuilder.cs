@@ -135,6 +135,7 @@ public partial class ExpressionBuilder
     public void Optimize(bool varUsage = true)
     {
         OptimizeEpilogue();
+        RemoveEmptyBlocks();
 
         if (varUsage)
         {
