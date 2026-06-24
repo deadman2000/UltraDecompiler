@@ -389,6 +389,30 @@ public sealed class RegisterChainOptimizationTests : BaseTests
 
     #endregion
 
+    /// <summary>
+    /// /Ox: <c>reg = var; inc reg; var = reg</c> → <c>var = var + 1</c> (не <c>var++</c>).
+    /// </summary>
+    [Fact]
+    public void IncDec_RegisterSelfUpdate_Ox_ProducesExplicitAdd()
+    {
+        var builder = BuildExpressionsOpt("""
+            55           ; push bp
+            8B EC        ; mov bp, sp
+            83 EC 02     ; sub sp, 2
+            8B 46 FE     ; mov ax, [bp-2]
+            40           ; inc ax
+            89 46 FE     ; mov [bp-2], ax
+            """);
+
+        var ops = builder.Blocks[0].Operations.ToList();
+        var set = Assert.IsType<SetOperation>(Assert.Single(ops, op => op is SetOperation setOp
+            && AssignmentTarget.TryGetVariable(setOp.Dst, out var v)
+            && v!.IsStack));
+        var add = Assert.IsType<Math2Expr>(set.Src);
+        Assert.Equal(Math2Operation.Add, add.Operation);
+        Assert.Empty(ops.OfType<IncOperation>());
+    }
+
     #region Тесты на основе incdec.c
 
     /// <summary>
@@ -467,7 +491,7 @@ public sealed class RegisterChainOptimizationTests : BaseTests
 
     /// <summary>
     /// Интеграционный тест incdec.c (/Ox): после оптимизаций нет регистров в IR;
-    /// <c>a = a ± 1</c> и <c>a ±= 1</c> сводятся к <c>a++/a--</c>.
+    /// <c>a = a ± 1</c> остаётся явным сложением, <c>a ±= 1</c> сводится к <c>a++/a--</c>.
     /// </summary>
     [Fact]
     public void IncDec_IncdecC_Ox_IntegrationTest()
@@ -488,9 +512,11 @@ public sealed class RegisterChainOptimizationTests : BaseTests
         Assert.True(AssignmentTarget.TryGetVariable(op0.Dst, out var v0) && v0.Name == "var1");
         Assert.IsType<ConstExpr>(op0.Src);
 
-        // 1: a = a + 1 → a++ (/Ox)
-        var op1 = Assert.IsType<IncOperation>(ops[1]);
-        Assert.True(AssignmentTarget.TryGetVariable(op1.Target, out var v1) && v1.Name == "var1");
+        // 1: a = a + 1 (через inc reg; для round-trip — явное сложение)
+        var op1 = Assert.IsType<SetOperation>(ops[1]);
+        Assert.True(AssignmentTarget.TryGetVariable(op1.Dst, out var v1) && v1.Name == "var1");
+        var add1 = Assert.IsType<Math2Expr>(op1.Src);
+        Assert.Equal(Math2Operation.Add, add1.Operation);
 
         // 2: a++
         var op2 = Assert.IsType<IncOperation>(ops[2]);
@@ -512,9 +538,11 @@ public sealed class RegisterChainOptimizationTests : BaseTests
         var postInc = Assert.IsType<Math1Expr>(op5.Src);
         Assert.Equal(Math1Operation.PostIncrement, postInc.Operation);
 
-        // 6: a = a - 1 → a-- (/Ox)
-        var op6 = Assert.IsType<DecOperation>(ops[6]);
-        Assert.True(AssignmentTarget.TryGetVariable(op6.Target, out var v6) && v6.Name == "var1");
+        // 6: a = a - 1 (через dec reg; для round-trip — явное вычитание)
+        var op6 = Assert.IsType<SetOperation>(ops[6]);
+        Assert.True(AssignmentTarget.TryGetVariable(op6.Dst, out var v6) && v6.Name == "var1");
+        var sub1 = Assert.IsType<Math2Expr>(op6.Src);
+        Assert.Equal(Math2Operation.Sub, sub1.Operation);
 
         // 7: a--
         var op7 = Assert.IsType<DecOperation>(ops[7]);

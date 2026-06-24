@@ -473,8 +473,8 @@ public partial class ExpressionBuilder
     }
 
     /// <summary>
-    /// /Ox: <c>reg = var; inc/dec reg; var = reg</c> → <c>var++/var--</c>
-    /// (QuickC инкрементирует регистр, а не память).
+    /// /Ox: <c>reg = var; inc/dec reg; var = reg</c> → <c>var = var ± 1</c>
+    /// (QuickC инкрементирует регистр, а не память; для round-trip нужен явный <c>a = a ± 1</c>).
     /// </summary>
     private static bool TryRecognizeRegisterSelfIncDec(ExprBlock block, int index)
     {
@@ -493,9 +493,10 @@ public partial class ExpressionBuilder
             return false;
         }
 
-        block.Operations[index] = isIncrement
-            ? new IncOperation(sourceVar.ToSet())
-            : new DecOperation(sourceVar.ToSet());
+        var mathOp = isIncrement ? Math2Operation.Add : Math2Operation.Sub;
+        block.Operations[index] = new SetOperation(
+            sourceVar.ToSet(),
+            new Math2Expr(mathOp, sourceVar.ToGet(), ConstExpr.One));
         block.Operations.RemoveAt(index + 2);
         block.Operations.RemoveAt(index + 1);
         return true;
