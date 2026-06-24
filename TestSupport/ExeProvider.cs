@@ -1,11 +1,12 @@
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
 using UltraDecompiler.Common;
 
 namespace TestSupport;
 
 /// <summary>
 /// Предоставляет пути к EXE-примерам QuickC: возвращает кэшированный файл из <c>QuickC/BUILT</c>
-/// или собирает его через DOSBox-X и QCL.
+/// или собирает его через DOSBox-X и QCL. Кэш инвалидируется при изменении исходника (SHA-256).
 /// </summary>
 public static class ExeProvider
 {
@@ -32,9 +33,10 @@ public static class ExeProvider
 
         var sourceFileName = NormalizeSourceFileName(fileName);
         var normalizedLibraries = NormalizeLibraries(libraries) ?? [];
+        var sourcePath = QuickCTestAssets.ProgramsPathOf(sourceFileName);
         var cachePath = GetCachePath(sourceFileName, memoryModel, stackCheck, optimization, normalizedLibraries);
 
-        if (File.Exists(cachePath))
+        if (IsCacheValid(cachePath, sourcePath))
         {
             return cachePath;
         }
@@ -42,7 +44,7 @@ public static class ExeProvider
         var cacheLock = GetCacheLock(cachePath);
         lock (cacheLock)
         {
-            if (File.Exists(cachePath))
+            if (IsCacheValid(cachePath, sourcePath))
             {
                 return cachePath;
             }
@@ -60,6 +62,36 @@ public static class ExeProvider
 
     private static Lock GetCacheLock(string cachePath) =>
         CacheLocks.GetOrAdd(cachePath, static _ => new Lock());
+
+    private static string GetChecksumPath(string cachePath) => cachePath + ".srcsha";
+
+    private static bool IsCacheValid(string cachePath, string sourcePath)
+    {
+        if (!File.Exists(cachePath) || !File.Exists(sourcePath))
+        {
+            return false;
+        }
+
+        var checksumPath = GetChecksumPath(cachePath);
+        if (!File.Exists(checksumPath))
+        {
+            return false;
+        }
+
+        var cachedChecksum = File.ReadAllText(checksumPath).Trim();
+        var currentChecksum = ComputeSourceChecksum(sourcePath);
+        return string.Equals(cachedChecksum, currentChecksum, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void WriteSourceChecksum(string cachePath, string sourcePath) =>
+        File.WriteAllText(GetChecksumPath(cachePath), ComputeSourceChecksum(sourcePath));
+
+    private static string ComputeSourceChecksum(string sourcePath)
+    {
+        using var stream = File.OpenRead(sourcePath);
+        var hash = SHA256.HashData(stream);
+        return Convert.ToHexString(hash);
+    }
 
     /// <summary>
     /// Строит относительный путь кэша: <c>hello/s_gs_o.exe</c>, <c>long/s_gs_o_slibce_libh.exe</c>.
@@ -148,6 +180,7 @@ public static class ExeProvider
             }
 
             File.Move(tempHostPath, cachePath, overwrite: true);
+            WriteSourceChecksum(cachePath, sourcePath);
         }
         finally
         {
